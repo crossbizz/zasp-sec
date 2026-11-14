@@ -89,14 +89,14 @@ describe("OPA SDK proof repository contract", () => {
 
   it("completes only M0-17 and advances R-10 with reviewed evidence", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     assertM017Complete(tracker, readme, riskRegister);
   });
 
   it("exposes exact hermetic, direct, and immutable-license commands", async () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## OPA SDK proof[\s\S]*?## Promptfoo red-team proof/)?.[0] ?? "";
     const normalizedSection = section.replace(/\s+/g, " ");
 
@@ -116,7 +116,7 @@ describe("OPA SDK proof repository contract", () => {
 
   it("rejects duplicate, concurrent, premature-risk, external-service, and aggregate drift", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     const row = taskRows(tracker, "Complete").find(([task]) => task === "M0-17")?.join(" | ");
 

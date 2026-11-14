@@ -44,7 +44,7 @@ describe("OpenRouter privacy proof repository contract", () => {
   it("retains M0-21 while combined M0-21a evidence advances R-14", async () => {
     const [tracker, readme, risk] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8"),
     ]);
     const active = section(tracker, "In progress");
@@ -67,7 +67,7 @@ describe("OpenRouter privacy proof repository contract", () => {
   it("exposes exact hermetic and local commands with fixed output", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const manifest = JSON.parse(packageText) as { scripts?: Record<string, string> };
     const proofSection = readme.match(/## OpenRouter privacy proof[\s\S]*?## EKS Fargate egress proof/)?.[0] ?? "";

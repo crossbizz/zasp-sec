@@ -45,7 +45,7 @@ describe("M1-40 S3 Organization artifact prefix contract", () => {
   it("completes only M1-40 with exact arithmetic", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -74,7 +74,7 @@ describe("M1-40 S3 Organization artifact prefix contract", () => {
   });
 
   it("documents the inherited provider authority and product-only scope guard", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## S3 Organization artifact prefix[\s\S]*?## Development/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

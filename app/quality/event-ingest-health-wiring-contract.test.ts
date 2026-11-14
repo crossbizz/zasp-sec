@@ -50,7 +50,7 @@ describe("M1-28c event-ingest health wiring", () => {
   it("completes only M1-28c after M1-28b and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");

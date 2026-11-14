@@ -33,7 +33,7 @@ describe("M1-45 Neon tenant isolation gate", () => {
   });
 
   it("documents the exact isolation, cleanup, and provider boundary", async () => {
-    const readme = await readFile(resolve(root, "README.md"), "utf8");
+    const readme = await readFile(resolve(root, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Neon tenant isolation gate[\s\S]*?## Development/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
     for (const value of [

@@ -33,7 +33,7 @@ describe("M5 gate and M6 policy-foundation completion batch", () => {
   it("records exactly 25 reviewed tasks as Complete", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(root, "README.md"), "utf8"),
+      readFile(resolve(root, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
     for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "| Blocked | 61 |", "`0/0/667/61`", "| M5 | 42 | 0 | 0 | 42 | 0 |", "| M6 | 36 | 0 | 0 | 36 | 0 |"]) expect(tracker).toContain(value);

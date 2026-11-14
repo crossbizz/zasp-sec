@@ -34,7 +34,7 @@ describe("Nango OAuth proof contract", () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
       scripts?: Record<string, string>;
     };
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Nango OAuth proof[\s\S]*?## Nango free boot proof/)?.[0];
 
     expect(packageJson.scripts?.["proof:nango:oauth:test"]).toBe("node --test proofs/nango-oauth/*.test.mjs");

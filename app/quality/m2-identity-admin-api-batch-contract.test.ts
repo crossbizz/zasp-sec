@@ -48,7 +48,7 @@ describe("M2 identity and administration API batch", () => {
   });
 
   it("preserves this batch inside the current M2 completion boundary", () => {
-    const readme = read("README.md");
+    const readme = read("docs/internal/README-status-archive.md");
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
   });

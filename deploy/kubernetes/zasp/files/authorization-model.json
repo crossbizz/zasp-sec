@@ -1,0 +1,1292 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "user"
+    },
+    {
+      "type": "agent"
+    },
+    {
+      "type": "service"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "manage_identity": {},
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "agent"
+              },
+              {
+                "type": "service"
+              }
+            ]
+          },
+          "organization_admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "security_admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "manage_identity": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "member": {
+          "this": {}
+        },
+        "organization_admin": {
+          "this": {}
+        },
+        "security_admin": {
+          "this": {}
+        }
+      },
+      "type": "organization"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "member": {},
+          "organization": {
+            "directly_related_user_types": [
+              {
+                "type": "organization"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "member": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "member"
+            },
+            "tupleset": {
+              "relation": "organization"
+            }
+          }
+        },
+        "organization": {
+          "this": {}
+        }
+      },
+      "type": "workspace"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "compliance_viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "developer_owner": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "investigate_sessions": {},
+          "manage_api_tokens": {},
+          "manage_data_controls": {},
+          "manage_findings": {},
+          "manage_identity": {},
+          "manage_workflows": {},
+          "member": {},
+          "organization_admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "read_only_viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "revoke_sessions": {},
+          "run_tests": {},
+          "security_admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "security_engineer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "view": {},
+          "view_audit": {},
+          "view_compliance": {},
+          "workspace": {
+            "directly_related_user_types": [
+              {
+                "type": "workspace"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "compliance_viewer": {
+          "this": {}
+        },
+        "developer_owner": {
+          "this": {}
+        },
+        "investigate_sessions": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_engineer"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "developer_owner"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_api_tokens": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_data_controls": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_findings": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_engineer"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_identity": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_workflows": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_engineer"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "member": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "member"
+            },
+            "tupleset": {
+              "relation": "workspace"
+            }
+          }
+        },
+        "organization_admin": {
+          "this": {}
+        },
+        "read_only_viewer": {
+          "this": {}
+        },
+        "revoke_sessions": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "run_tests": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_engineer"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "developer_owner"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "security_admin": {
+          "this": {}
+        },
+        "security_engineer": {
+          "this": {}
+        },
+        "view": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_engineer"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "developer_owner"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "compliance_viewer"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "read_only_viewer"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "view_audit": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "compliance_viewer"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "view_compliance": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "computedUserset": {
+                        "relation": "organization_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "security_admin"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "compliance_viewer"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "workspace": {
+          "this": {}
+        }
+      },
+      "type": "environment"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "delegated_investigate_sessions": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_manage_api_tokens": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_manage_data_controls": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_manage_findings": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_manage_identity": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_manage_workflows": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_revoke_sessions": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_run_tests": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_view": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_view_audit": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "delegated_view_compliance": {
+            "directly_related_user_types": [
+              {
+                "relation": "assignee",
+                "type": "delegation"
+              }
+            ]
+          },
+          "direct_investigate_sessions": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_manage_api_tokens": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_manage_data_controls": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_manage_findings": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_manage_identity": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_manage_workflows": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_revoke_sessions": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_run_tests": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_view": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_view_audit": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "direct_view_compliance": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "environment": {
+            "directly_related_user_types": [
+              {
+                "type": "environment"
+              }
+            ]
+          },
+          "investigate_sessions": {},
+          "manage_api_tokens": {},
+          "manage_data_controls": {},
+          "manage_findings": {},
+          "manage_identity": {},
+          "manage_workflows": {},
+          "member": {},
+          "revoke_sessions": {},
+          "run_tests": {},
+          "view": {},
+          "view_audit": {},
+          "view_compliance": {}
+        }
+      },
+      "relations": {
+        "delegated_investigate_sessions": {
+          "this": {}
+        },
+        "delegated_manage_api_tokens": {
+          "this": {}
+        },
+        "delegated_manage_data_controls": {
+          "this": {}
+        },
+        "delegated_manage_findings": {
+          "this": {}
+        },
+        "delegated_manage_identity": {
+          "this": {}
+        },
+        "delegated_manage_workflows": {
+          "this": {}
+        },
+        "delegated_revoke_sessions": {
+          "this": {}
+        },
+        "delegated_run_tests": {
+          "this": {}
+        },
+        "delegated_view": {
+          "this": {}
+        },
+        "delegated_view_audit": {
+          "this": {}
+        },
+        "delegated_view_compliance": {
+          "this": {}
+        },
+        "direct_investigate_sessions": {
+          "this": {}
+        },
+        "direct_manage_api_tokens": {
+          "this": {}
+        },
+        "direct_manage_data_controls": {
+          "this": {}
+        },
+        "direct_manage_findings": {
+          "this": {}
+        },
+        "direct_manage_identity": {
+          "this": {}
+        },
+        "direct_manage_workflows": {
+          "this": {}
+        },
+        "direct_revoke_sessions": {
+          "this": {}
+        },
+        "direct_run_tests": {
+          "this": {}
+        },
+        "direct_view": {
+          "this": {}
+        },
+        "direct_view_audit": {
+          "this": {}
+        },
+        "direct_view_compliance": {
+          "this": {}
+        },
+        "environment": {
+          "this": {}
+        },
+        "investigate_sessions": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "investigate_sessions"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_investigate_sessions"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_investigate_sessions"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_api_tokens": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "manage_api_tokens"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_manage_api_tokens"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_manage_api_tokens"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_data_controls": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "manage_data_controls"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_manage_data_controls"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_manage_data_controls"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_findings": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "manage_findings"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_manage_findings"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_manage_findings"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_identity": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "manage_identity"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_manage_identity"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_manage_identity"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "manage_workflows": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "manage_workflows"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_manage_workflows"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_manage_workflows"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "member": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "member"
+            },
+            "tupleset": {
+              "relation": "environment"
+            }
+          }
+        },
+        "revoke_sessions": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "revoke_sessions"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_revoke_sessions"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_revoke_sessions"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "run_tests": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "run_tests"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_run_tests"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_run_tests"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "view": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "view"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_view"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_view"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "view_audit": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "view_audit"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_view_audit"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_view_audit"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        },
+        "view_compliance": {
+          "intersection": {
+            "child": [
+              {
+                "union": {
+                  "child": [
+                    {
+                      "tupleToUserset": {
+                        "computedUserset": {
+                          "relation": "view_compliance"
+                        },
+                        "tupleset": {
+                          "relation": "environment"
+                        }
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "direct_view_compliance"
+                      }
+                    },
+                    {
+                      "computedUserset": {
+                        "relation": "delegated_view_compliance"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "type": "resource"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "assignee": {
+            "directly_related_user_types": [
+              {
+                "condition": "task_bound",
+                "type": "agent"
+              },
+              {
+                "condition": "task_bound",
+                "type": "service"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "assignee": {
+          "this": {}
+        }
+      },
+      "type": "delegation"
+    }
+  ],
+  "conditions": {
+    "task_bound": {
+      "expression": "bound_task == task",
+      "name": "task_bound",
+      "parameters": {
+        "bound_task": {
+          "type_name": "TYPE_NAME_STRING"
+        },
+        "task": {
+          "type_name": "TYPE_NAME_STRING"
+        }
+      }
+    }
+  }
+}

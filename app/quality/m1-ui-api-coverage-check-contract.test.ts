@@ -74,7 +74,7 @@ describe("M1-36d UI/API traceability validation", () => {
   });
 
   it("documents only the UI/API coverage gate and honest current result", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## M1 UI API coverage check[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

@@ -56,7 +56,7 @@ describe("M1-30a local product manifests", () => {
   it("completes only M1-30a after review and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -86,7 +86,7 @@ describe("M1-30a local product manifests", () => {
 
   it("preserves the exact hermetic and disposable live commands after later profiles complete", async () => {
     const [readme, packageText, runner, manifest] = await Promise.all([
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
       readFile(resolve(repositoryRoot, "deploy/local/run.mjs"), "utf8"),
       readFile(resolve(repositoryRoot, "deploy/local/product-stubs.yaml"), "utf8"),

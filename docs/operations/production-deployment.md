@@ -22,6 +22,8 @@ docker build --pull -f deploy/production/web.Dockerfile -t "$WEB_IMAGE" .
 npm run production:release:gate
 ```
 
+The hosted chart needs a ninth product image that this list omits: `attack-lab-runner`, built from `deploy/production/attack-lab-runner.Dockerfile` with the same `VERSION` argument (`global.productImages.attackLabRunner`). `./zasp --profile aws install images` builds and pushes all nine and writes their digest references in the chart's shape; see [the administrator guide](../getting-started/administrator.md#install-on-aws-production).
+
 The required CI gate scans all tracked Git history with the pinned Gitleaks version, produces and license-checks npm and shipped Go-package SPDX inventories, and checks every Docker `FROM` by exact manifest digest. Offline dependency counters are not advisory clearance: publication currently fails closed until an approved source supplies fresh exact-lock audit evidence. The release system must also create an SPDX SBOM for each built image, scan the built image digests, reject critical/high findings without an approved exception, sign the digests, and retain provenance. The repository gate does not claim that an unbuilt image was scanned.
 
 ## Configure

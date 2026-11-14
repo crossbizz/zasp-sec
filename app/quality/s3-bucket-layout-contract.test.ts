@@ -57,7 +57,7 @@ describe("M1-34 S3 bucket layout", () => {
   it("preserves completed M1-34 while M1-35 completes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -85,7 +85,7 @@ describe("M1-34 S3 bucket layout", () => {
   it("exposes one hermetic package command and the bounded layout contract", async () => {
     const [packageSource, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageManifest = JSON.parse(packageSource) as { scripts?: Record<string, string> };
     const scripts = packageManifest.scripts ?? {};

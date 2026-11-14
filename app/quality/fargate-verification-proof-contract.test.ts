@@ -89,7 +89,7 @@ describe("EKS Fargate verification proof repository contract", () => {
 
   it("blocks M0-18 without advancing R-11", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     assertM018Blocked(tracker, readme, riskRegister);
   });
@@ -112,7 +112,7 @@ describe("EKS Fargate verification proof repository contract", () => {
   it("exposes the hermetic test live runner and immutable license audit", async () => {
 	const packageSource = await readFile(resolve(repositoryRoot, "package.json"), "utf8");
 	const packageJson = JSON.parse(packageSource) as { scripts?: Record<string, string> };
-	const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+	const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
 	const section = readme.match(/## EKS Fargate verification proof[\s\S]*?## OPA SDK proof/)?.[0];
 
 	expect(packageJson.scripts?.["proof:fargate:test"]).toBe(
@@ -129,7 +129,7 @@ describe("EKS Fargate verification proof repository contract", () => {
 
   it("rejects duplicate, concurrent, premature-risk, local-authority, and aggregate drift", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     const blockedRow = taskRows(tracker, "Blocked").find(([task]) => task === "M0-18")?.join(" | ");
 

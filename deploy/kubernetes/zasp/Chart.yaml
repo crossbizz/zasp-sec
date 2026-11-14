@@ -1,0 +1,8 @@
+apiVersion: v2
+name: zasp
+description: Zasp on any Kubernetes cluster, in one pod, for evaluation. AWS is emulated; production on AWS uses deploy/staging/product.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+# Restartable init containers (native sidecars) order the pod's dependencies.
+kubeVersion: ">=1.29.0-0"

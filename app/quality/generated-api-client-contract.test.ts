@@ -52,7 +52,7 @@ describe("M1-24 generated TypeScript client", () => {
   it("completes only M1-24 and preserves its prerequisite, successor, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -76,7 +76,7 @@ describe("M1-24 generated TypeScript client", () => {
 
   it("documents the exact generated-client and zero-operation boundary", async () => {
     const [readme, clientSource] = await Promise.all([
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "apps/web/api/client.ts"), "utf8"),
     ]);
     const section = readme.match(/## OpenAPI root[\s\S]*?## Neon pooled proof/)?.[0] ?? "";

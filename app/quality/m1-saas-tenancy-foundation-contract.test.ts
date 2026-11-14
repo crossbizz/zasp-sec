@@ -29,7 +29,7 @@ describe("M1-44 SaaS tenancy foundation check", () => {
   });
 
   it("documents the shared SaaS and single-tenant scope boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## SaaS tenancy foundation check[\s\S]*?## Development/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

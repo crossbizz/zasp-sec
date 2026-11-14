@@ -26,7 +26,7 @@ describe("real AWS cross-account IAM proof repository contract", () => {
   });
 
   it("documents every explicit live prerequisite and the incomplete real-AWS gate", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Real AWS cross-account IAM proof[\s\S]*?```bash\n([\s\S]*?)\n```/);
     expect(section?.[1]?.split("\n")).toEqual([
       "npm run proof:aws:iam:test",

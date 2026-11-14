@@ -37,7 +37,7 @@ describe("Nango free boot proof contract", () => {
   it("exposes exact hermetic and live root commands with the documented fixed boundary", async () => {
     const [manifestSource, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const manifest = JSON.parse(manifestSource) as { scripts?: Record<string, string> };
     const section = readme.match(/## Nango free boot proof[\s\S]*?## Tetragon signal proof/)?.[0];

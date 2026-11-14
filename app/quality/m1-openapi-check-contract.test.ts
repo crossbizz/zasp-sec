@@ -73,7 +73,7 @@ describe("M1-36c OpenAPI generation and client drift check", () => {
   });
 
   it("documents only the OpenAPI generation and no-drift boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## M1 OpenAPI check[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

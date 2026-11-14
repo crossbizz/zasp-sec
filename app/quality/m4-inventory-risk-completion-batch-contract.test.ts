@@ -21,7 +21,7 @@ describe("M4 inventory and risk completion batch", () => {
   it("records exactly M4-11 through M4-35 as complete", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(root, "README.md"), "utf8"),
+      readFile(resolve(root, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     expect(completedTasks).toHaveLength(25);
     expect(tracker).toContain("| Pending | 0 |");

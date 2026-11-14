@@ -112,7 +112,7 @@ describe("Prowler evidence proof contract", () => {
 
   it("binds repository documentation to the executable runtime boundary", async () => {
     const runtime = await import("../../proofs/prowler-evidence/run.mjs");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(
       /## Prowler evidence proof[\s\S]*?## Real AWS cross-account IAM proof/,
     )?.[0];
@@ -225,7 +225,7 @@ describe("Prowler evidence proof contract", () => {
 
   it("documents the exact completion boundary without weakening blocked provider work", async () => {
     const [readme, tracker, design] = await Promise.all([
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(
         resolve(repositoryRoot, "docs/internal/2026-08-14-m0-11-prowler-proof-design.md"),

@@ -47,7 +47,7 @@ describe("Security Agent planner boundary repository contract", () => {
   it("retains M0-21a completion and the combined R-14 evidence", async () => {
     const [tracker, readme, risk] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8"),
     ]);
     const active = section(tracker, "In progress");
@@ -71,7 +71,7 @@ describe("Security Agent planner boundary repository contract", () => {
   it("exposes hermetic root test and run commands only after the proof exists", async () => {
     const [packageJson, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const scripts = JSON.parse(packageJson).scripts;
     expect(scripts["proof:planner:test"]).toBe("node --test proofs/security-agent-planner/*.test.mjs");

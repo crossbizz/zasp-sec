@@ -59,7 +59,7 @@ describe("M1 tenancy and M2 identity foundation batch", () => {
   });
 
   it("documents the batch boundary without advancing the next task", async () => {
-    const readme = await readFile(resolve(root, "README.md"), "utf8");
+    const readme = await readFile(resolve(root, "docs/internal/README-status-archive.md"), "utf8");
     expect(readme).toContain("M1-36 is PASS");
     expect(readme).toContain("M1-45a through M1-45d and the M1-45 gate are Complete");
     expect(readme).toContain("M2-01 through M2-07d are Complete");

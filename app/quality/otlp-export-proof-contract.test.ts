@@ -46,7 +46,7 @@ describe("OTLP export proof repository contract", () => {
   it("completes only M0-22 and advances R-12 from combined exact evidence", async () => {
     const [tracker, readme, risk, packageSource] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
     ]);

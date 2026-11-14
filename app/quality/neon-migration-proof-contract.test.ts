@@ -31,7 +31,7 @@ describe("Neon direct migration proof repository contract", () => {
   });
 
   it("documents one root sequence and the three environment inputs", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const migrationSection = readme.match(
       /## Neon migration proof[\s\S]*?```bash\n([\s\S]*?)\n```/,
     );

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs the product API against real dependencies on one machine: PostgreSQL 18,
 # the pinned Temporal and OpenFGA servers, and a real Stytch project.
+# The repository's entry point, ./zasp (profile 'local'), drives this script.
 # See README.md in this directory for what this does and does not establish.
 # Written for bash 3.2 (the macOS system bash) as well as current bash.
 set -euo pipefail
@@ -75,6 +76,68 @@ PG_DATABASE="zasp"
 
 fail() { echo "real-stack: $*" >&2; exit 1; }
 
+# Where the dependencies run. 'docker' (the default) runs them as containers.
+# 'native' is for a machine without Docker: PostgreSQL, OpenFGA, the Temporal
+# development server and an AWS emulator (moto) run as local processes, from
+# programs that are already installed. It is a reduced stack. OpenSearch and
+# Neo4j have no native mode, so the search and graph projection workers are
+# not started and the API's /readyz stays 503 (check 'policy-history'). The
+# outbox, discovery and Security Agent planning workers are not started
+# either: they verify details of SQS, S3 and KMS that moto answers
+# differently from AWS and LocalStack (the outbox worker, for one, requires
+# the queue's redrive count as a string and moto returns a number). Nothing
+# can be synced in native mode.
+DEPENDENCIES="${ZASP_REAL_STACK_DEPENDENCIES:-docker}"
+case "$DEPENDENCIES" in
+  docker|native) ;;
+  *) fail "ZASP_REAL_STACK_DEPENDENCIES must be 'docker' or 'native'" ;;
+esac
+native() { [ "$DEPENDENCIES" = native ]; }
+# The PostgreSQL programs (initdb, pg_ctl, psql), the data directory and, when
+# this script runs as root, the system user the server runs as: PostgreSQL
+# refuses to run as root.
+NATIVE_PG_BIN="${ZASP_REAL_STACK_PG_BIN:-}"
+NATIVE_PG_DATA="${ZASP_REAL_STACK_PG_DATA:-$STATE-postgres}"
+NATIVE_PG_OS_USER="${ZASP_REAL_STACK_PG_OS_USER:-postgres}"
+NATIVE_OPENFGA="${ZASP_REAL_STACK_OPENFGA_BIN:-openfga}"
+NATIVE_TEMPORAL="${ZASP_REAL_STACK_TEMPORAL_BIN:-temporal}"
+NATIVE_MOTO="${ZASP_REAL_STACK_MOTO_BIN:-moto_server}"
+NATIVE_AWS="${ZASP_REAL_STACK_AWS_BIN:-aws}"
+
+# Finds the directory holding initdb and pg_ctl.
+resolve_pg_bin() {
+  local candidate
+  if [ -z "$NATIVE_PG_BIN" ]; then
+    if command -v pg_ctl >/dev/null 2>&1; then
+      NATIVE_PG_BIN="$(dirname "$(command -v pg_ctl)")"
+    else
+      for candidate in /usr/lib/postgresql/18/bin /opt/homebrew/opt/postgresql@18/bin /usr/local/opt/postgresql@18/bin /usr/pgsql-18/bin; do
+        if [ -x "$candidate/pg_ctl" ]; then NATIVE_PG_BIN="$candidate"; break; fi
+      done
+    fi
+  fi
+  [ -n "$NATIVE_PG_BIN" ] && [ -x "$NATIVE_PG_BIN/pg_ctl" ] && [ -x "$NATIVE_PG_BIN/initdb" ] ||
+    fail "PostgreSQL 18 programs (initdb, pg_ctl) were not found; set ZASP_REAL_STACK_PG_BIN to their directory"
+}
+# Runs a PostgreSQL server program, as the system user when this is root.
+pg_run() {
+  if [ "$(id -u)" = "0" ]; then
+    runuser -u "$NATIVE_PG_OS_USER" -- env PATH="$NATIVE_PG_BIN:$PATH" "$@"
+  else
+    PATH="$NATIVE_PG_BIN:$PATH" "$@"
+  fi
+}
+# The AWS command line against the emulator: awslocal inside the LocalStack
+# container, or the installed AWS CLI pointed at the native emulator. The
+# access key is a placeholder; the emulator accepts any.
+aws_command() {
+  if native; then
+    echo "env AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local AWS_EC2_METADATA_DISABLED=true AWS_PAGER= $NATIVE_AWS --endpoint-url $LOCAL_CLOUD --region us-east-1"
+  else
+    echo "docker exec zasp-real-stack-localstack awslocal --region us-east-1"
+  fi
+}
+
 # One machine runs one stack. The containers (PostgreSQL, Neo4j, LocalStack,
 # OpenSearch, Temporal, OpenFGA), their ports and the fixed secret paths under
 # /var/run are shared by every state directory, while the secrets a stack puts
@@ -122,6 +185,10 @@ b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '=\n'; }
 # psql from this machine when it is installed, otherwise the one inside the
 # product database container.
 run_psql() {
+  if native && [ -n "$NATIVE_PG_BIN" ] && [ -x "$NATIVE_PG_BIN/psql" ]; then
+    "$NATIVE_PG_BIN/psql" "$@"
+    return
+  fi
   if command -v psql >/dev/null 2>&1; then
     psql "$@"
     return
@@ -217,9 +284,30 @@ build_binaries() {
   go build -C "$ROOT/services/platform" -o "$BIN/" ./agentsec-api ./agentsec-worker ./agentsec-migrate ./cmd/zasp-bootstrap ./cmd/zasp-authorization-reconcile
 }
 
+# Starts PostgreSQL from the installed programs, with the same settings the
+# container gets: no locale (the baseline requires C collation), loopback
+# only, trust authentication. A disposable development database.
+start_native_database() {
+  resolve_pg_bin
+  if [ ! -f "$NATIVE_PG_DATA/PG_VERSION" ]; then
+    mkdir -p "$NATIVE_PG_DATA" && chmod 700 "$NATIVE_PG_DATA" || fail "could not create $NATIVE_PG_DATA"
+    [ "$(id -u)" != "0" ] || chown "$NATIVE_PG_OS_USER" "$NATIVE_PG_DATA" || fail "could not give $NATIVE_PG_DATA to $NATIVE_PG_OS_USER"
+    pg_run test -w "$NATIVE_PG_DATA" ||
+      fail "the system user '$NATIVE_PG_OS_USER' cannot reach $NATIVE_PG_DATA; set ZASP_REAL_STACK_PG_DATA to a directory it can (for example /var/lib/zasp-real-stack/postgres)"
+    pg_run initdb -D "$NATIVE_PG_DATA" -U "$PG_SUPERUSER" --no-locale --encoding=UTF8 --auth=trust >/dev/null || fail "the product database was not initialized"
+  fi
+  if ! pg_run pg_ctl -D "$NATIVE_PG_DATA" status >/dev/null 2>&1; then
+    pg_run pg_ctl -D "$NATIVE_PG_DATA" -l "$NATIVE_PG_DATA/server.log" -w -t 60 \
+      -o "-p $PG_PORT -c listen_addresses=127.0.0.1 -c max_connections=300 -c unix_socket_directories=$NATIVE_PG_DATA" start >/dev/null ||
+      fail "the product database did not start; see $NATIVE_PG_DATA/server.log"
+  fi
+}
+
 start_database() {
   [ -z "$EXTERNAL_HOST" ] || return 0
-  if docker inspect "$PG_CONTAINER" >/dev/null 2>&1; then
+  if native; then
+    start_native_database
+  elif docker inspect "$PG_CONTAINER" >/dev/null 2>&1; then
     docker start "$PG_CONTAINER" >/dev/null
   else
     # The baseline requires C (or C.UTF-8) collation.
@@ -268,6 +356,70 @@ generate_keys() {
   if [ ! -f "$SECRETS/approval-delivery.key" ]; then
     (umask 077; openssl rand 32 > "$SECRETS/approval-delivery.key.partial" && chmod 0400 "$SECRETS/approval-delivery.key.partial" && mv "$SECRETS/approval-delivery.key.partial" "$SECRETS/approval-delivery.key") || fail "key generation failed"
   fi
+}
+
+# True when the dependency process recorded under this name still runs.
+dependency_alive() {
+  local pid
+  pid="$(cat "$RUN/dependency-$1.pid" 2>/dev/null || true)"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+# Starts one native dependency in the background unless it already runs.
+# Arguments: the name, then the command.
+launch_dependency() {
+  local name="$1"
+  shift
+  dependency_alive "$name" && return 0
+  mkdir -p "$RUN" "$LOGS"
+  nohup "$@" >> "$LOGS/dependency-$name.log" 2>&1 < /dev/null &
+  echo "$!" > "$RUN/dependency-$name.pid"
+}
+stop_dependency() {
+  local pid waited=0
+  pid="$(cat "$RUN/dependency-$1.pid" 2>/dev/null || true)"
+  if dependency_alive "$1"; then
+    kill "$pid" 2>/dev/null || true
+    while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt 10 ]; do
+      sleep 1
+      waited=$((waited + 1))
+    done
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  fi
+  rm -f "$RUN/dependency-$1.pid"
+}
+
+# Native mode: OpenFGA with its own database in the product PostgreSQL, the
+# Temporal development server (SQLite, one process) and moto as the AWS
+# emulator. They listen on the ports the containers publish, on loopback.
+start_native_services() {
+  local name super="postgres://$PG_SUPERUSER@127.0.0.1:$PG_PORT/postgres?sslmode=disable"
+  [ -z "$EXTERNAL_HOST" ] || fail "native dependencies need the local product database; unset ZASP_REAL_STACK_DATABASE_HOST"
+  for name in "$NATIVE_OPENFGA" "$NATIVE_TEMPORAL" "$NATIVE_MOTO" "$NATIVE_AWS"; do
+    command -v "$name" >/dev/null 2>&1 || fail "'$name' was not found (native mode needs openfga, temporal, moto_server and aws; see docs/getting-started/administrator.md)"
+  done
+  mkdir -p "$RUN" "$LOGS"
+  if [ "$(run_psql -X -Atc "select count(*) from pg_database where datname='openfga'" "$super")" != "1" ]; then
+    run_psql -X -q -v ON_ERROR_STOP=1 "$super" -c "CREATE DATABASE openfga" || fail "the OpenFGA database was not created"
+  fi
+  local uri="postgres://$PG_SUPERUSER@127.0.0.1:$PG_PORT/openfga?sslmode=disable"
+  if ! dependency_alive openfga; then
+    OPENFGA_DATASTORE_ENGINE=postgres OPENFGA_DATASTORE_URI="$uri" "$NATIVE_OPENFGA" migrate >> "$LOGS/dependency-openfga.log" 2>&1 || fail "the OpenFGA schema was not installed; see $LOGS/dependency-openfga.log"
+  fi
+  # The gRPC listener is moved off 8081, which the scheduler worker's health
+  # listener uses.
+  OPENFGA_DATASTORE_ENGINE=postgres OPENFGA_DATASTORE_URI="$uri" OPENFGA_AUTHN_METHOD=preshared OPENFGA_AUTHN_PRESHARED_KEYS="$FGA_TOKEN" \
+    OPENFGA_HTTP_ADDR=127.0.0.1:8088 OPENFGA_GRPC_ADDR=127.0.0.1:8089 OPENFGA_PLAYGROUND_ENABLED=false OPENFGA_METRICS_ENABLED=false \
+    OPENFGA_LOG_FORMAT=json OPENFGA_LOG_LEVEL=warn launch_dependency openfga "$NATIVE_OPENFGA" run
+  launch_dependency temporal "$NATIVE_TEMPORAL" server start-dev --ip 127.0.0.1 --port 7233 --namespace zasp-dev \
+    --db-filename "$STATE/temporal.db" --headless --log-level warn
+  # The emulated account is the one the script's role names use.
+  # The posture fixture attaches the AWS-managed AdministratorAccess policy.
+  MOTO_ACCOUNT_ID=000000000000 MOTO_IAM_LOAD_MANAGED_POLICIES=true launch_dependency aws-emulator "$NATIVE_MOTO" -H 127.0.0.1 -p 4566
+  for _ in $(seq 1 60); do
+    if dependency_running openfga && dependency_running temporal && dependency_running aws-emulator; then return 0; fi
+    sleep 1
+  done
+  fail "OpenFGA, Temporal or the AWS emulator did not start; see $LOGS/dependency-*.log"
 }
 
 publish_model() {
@@ -420,17 +572,22 @@ migrate() { ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" "$1" 
 
 cmd_up() {
   claim_machine
-  docker compose -f "$COMPOSE" up -d
-  start_local_cloud
+  if native; then
+    start_database
+    start_native_services
+  else
+    docker compose -f "$COMPOSE" up -d
+    start_local_cloud
+  fi
   write_identity_token
   start_database
   generate_keys
-  start_graph_database
+  native || start_graph_database
   build_binaries
   publish_model
-  init_search
+  native || init_search
   provision_local_cloud
-  init_graph
+  native || init_graph
   STYTCH_PROJECT_ID="${STYTCH_PROJECT_ID:-project-unset}" STYTCH_SECRET="${STYTCH_SECRET:-secret-unset}" STYTCH_PUBLIC_TOKEN="${STYTCH_PUBLIC_TOKEN:-public-token-unset}" load_environment
   # verify-baseline succeeds only on an installed, intact baseline.
   if ! ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline >/dev/null 2>&1; then
@@ -482,7 +639,7 @@ cmd_api() {
   [ -s "$TOKEN_FILE" ] || fail "run '$0 up' first"
   # Reference authorization reads the customer role and its external ID. They
   # are gone after a LocalStack restart; one lookup decides whether to recreate.
-  docker exec zasp-real-stack-localstack awslocal --region us-east-1 iam get-role --role-name "$CUSTOMER_ROLE_NAME" >/dev/null 2>&1 || provision_local_cloud
+  $(aws_command) iam get-role --role-name "$CUSTOMER_ROLE_NAME" >/dev/null 2>&1 || provision_local_cloud
   export HOSTNAME=agentsec-api-real-stack
   export ZASP_PRODUCT_LISTEN_ADDRESS=127.0.0.1:4000 ZASP_INTERNAL_LISTEN_ADDRESS=127.0.0.1:4081
   export ZASP_TRUSTED_PROXY_CIDRS=127.0.0.0/8 ZASP_REQUEST_RATE_PER_SECOND=1000 ZASP_REQUEST_BURST=2000 ZASP_COOKIE_SECURE=true
@@ -513,7 +670,8 @@ cmd_api() {
 # Idempotent, and repeated in full after a LocalStack restart (LocalStack keeps
 # no state). The account is LocalStack's fixed 000000000000.
 provision_local_cloud() {
-  local aws="docker exec zasp-real-stack-localstack awslocal --region us-east-1"
+  local aws
+  aws="$(aws_command)"
   # The discovery queue must redrive to its dead-letter queue after five receives.
   $aws sqs create-queue --queue-name agentsec-discovery-jobs-dlq >/dev/null || fail "discovery dead-letter queue was not created"
   $aws sqs create-queue --queue-name agentsec-discovery-jobs >/dev/null || fail "discovery queue was not created"
@@ -544,9 +702,12 @@ provision_local_cloud() {
   done
   # The two graph database credentials, in the form the workers read: the
   # administrator for the one-shot schema job, the worker user for the worker.
-  ensure_graph_passwords
-  ensure_graph_secret graph-schema neo4j neo4j-admin
-  ensure_graph_secret graph-worker "$NEO4J_WORKER_USER" neo4j-worker
+  # Native mode has no graph database.
+  if ! native; then
+    ensure_graph_passwords
+    ensure_graph_secret graph-schema neo4j neo4j-admin
+    ensure_graph_secret graph-worker "$NEO4J_WORKER_USER" neo4j-worker
+  fi
   provision_customer_account
 }
 
@@ -583,7 +744,8 @@ ensure_attached_policy() {
 # small fixture for a discovery run to find. LocalStack does not enforce IAM,
 # so the trust and permission policies document intent; they are not tested.
 provision_customer_account() {
-  local aws="docker exec zasp-real-stack-localstack awslocal --region us-east-1"
+  local aws
+  aws="$(aws_command)"
   if [ ! -f "$SECRETS/aws-external-id" ]; then
     (umask 077; openssl rand -hex 24 > "$SECRETS/aws-external-id.partial" && mv "$SECRETS/aws-external-id.partial" "$SECRETS/aws-external-id") || fail "external ID was not generated"
   fi
@@ -632,7 +794,18 @@ provision_customer_account() {
   # serves Lambda but neither Bedrock Agents nor AgentCore. The value is a
   # placeholder; the collector reads variable names only. The function is never
   # invoked (LocalStack reports it as Failed without a container runtime).
-  if ! $aws lambda get-function --function-name support-copilot-handler >/dev/null 2>&1; then
+  if native; then
+    if ! $aws lambda get-function --function-name support-copilot-handler >/dev/null 2>&1; then
+      local staged
+      staged="$(mktemp -d)" || fail "fixture function was not staged"
+      printf 'def handler(event, context):\n    return {}\n' > "$staged/index.py"
+      (cd "$staged" && python3 -c 'import zipfile; zipfile.ZipFile("function.zip", "w").write("index.py")') &&
+        $aws lambda create-function --function-name support-copilot-handler --runtime python3.12 --handler index.handler \
+          --role arn:aws:iam::000000000000:role/agents/support-copilot-runtime --zip-file "fileb://$staged/function.zip" \
+          --environment "Variables={OPENAI_API_KEY=placeholder-not-a-credential}" >/dev/null || { rm -rf "$staged"; fail "fixture function was not created"; }
+      rm -rf "$staged"
+    fi
+  elif ! $aws lambda get-function --function-name support-copilot-handler >/dev/null 2>&1; then
     docker exec zasp-real-stack-localstack sh -c 'set -e; d="$(mktemp -d)"; cd "$d"; printf "def handler(event, context):\n    return {}\n" > index.py
       python3 -c "import zipfile; zipfile.ZipFile(\"function.zip\", \"w\").write(\"index.py\")"
       awslocal --region us-east-1 lambda create-function --function-name support-copilot-handler --runtime python3.12 --handler index.handler \
@@ -941,8 +1114,14 @@ cmd_project() {
   done
 }
 
-# The background processes of 'start', in start order.
-PROCESSES="api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk worker-security-agent-action projector ui"
+# The background processes of 'start', in start order. Native mode runs the
+# reduced set described at the top of this file. The Security Agent planning
+# worker is started only when OPENROUTER_API_KEY is set.
+if native; then
+  PROCESSES="api worker-scheduler worker-projection-risk worker-security-agent-action projector ui"
+else
+  PROCESSES="api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk worker-security-agent worker-security-agent-action projector ui"
+fi
 
 # The HTTP status of a local address, or 000 when nothing answers. A proxy
 # configured for outbound traffic must not be asked for a loopback address.
@@ -956,13 +1135,16 @@ http_status() {
 # answers. The projector has no listener; it is ready while it runs.
 process_status() {
   case "$1" in
-    api) http_status http://127.0.0.1:4081/readyz ;;
+    # Native mode has no search node, so /readyz stays 503 there; the health
+    # endpoint says the process serves.
+    api) if native; then http_status http://127.0.0.1:4081/healthz; else http_status http://127.0.0.1:4081/readyz; fi ;;
     worker-scheduler) http_status http://127.0.0.1:8081/readyz ;;
     worker-discovery) http_status http://127.0.0.1:8082/readyz ;;
     worker-outbox) http_status http://127.0.0.1:8083/readyz ;;
     worker-projection-graph) http_status http://127.0.0.1:8091/readyz ;;
     worker-projection-search) http_status http://127.0.0.1:8092/readyz ;;
     worker-projection-risk) http_status http://127.0.0.1:8093/readyz ;;
+    worker-security-agent) http_status http://127.0.0.1:8084/readyz ;;
     worker-security-agent-action) http_status http://127.0.0.1:8085/readyz ;;
     ui) http_status --cacert "$TLS/ca.crt" --resolve "$ORIGIN_HOST:$ORIGIN_PORT:127.0.0.1" "$PUBLIC_ORIGIN/sign-in" ;;
     projector) if process_alive projector; then echo 200; else echo 000; fi ;;
@@ -1029,12 +1211,23 @@ needs_up() {
 
 dependency_names() {
   [ -n "$EXTERNAL_HOST" ] || echo postgres
-  echo localstack opensearch neo4j temporal openfga
+  if native; then
+    echo aws-emulator temporal openfga
+  else
+    echo localstack opensearch neo4j temporal openfga
+  fi
 }
 
 dependency_running() {
   case "$1" in
-    postgres) [ "$(docker inspect --format '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null)" = "true" ] ;;
+    postgres)
+      if native; then
+        (exec 3<>"/dev/tcp/127.0.0.1/$PG_PORT") 2>/dev/null
+      else
+        [ "$(docker inspect --format '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null)" = "true" ]
+      fi
+      ;;
+    aws-emulator) [ "$(http_status "$LOCAL_CLOUD/moto-api/")" = "200" ] ;;
     localstack) curl -fsS -m 3 "$LOCAL_CLOUD/_localstack/health" 2>/dev/null | grep -q '"sts"' ;;
     opensearch) [ "$(http_status "$SEARCH_URL/_cluster/health")" = "200" ] ;;
     neo4j) [ "$(docker inspect --format '{{.State.Running}}' "$NEO4J_CONTAINER" 2>/dev/null)" = "true" ] && (exec 3<>/dev/tcp/127.0.0.1/7687) 2>/dev/null ;;
@@ -1060,40 +1253,50 @@ cmd_start() {
     return 0
   fi
   # Created here once so the API and the workers do not create it concurrently.
-  docker exec zasp-real-stack-localstack awslocal --region us-east-1 iam get-role --role-name "$CUSTOMER_ROLE_NAME" >/dev/null 2>&1 || provision_local_cloud
+  $(aws_command) iam get-role --role-name "$CUSTOMER_ROLE_NAME" >/dev/null 2>&1 || provision_local_cloud
   ensure_certificate
   WEB_REBUILT=0
   build_web
   # A running web application still serves the build it started with.
   [ "$WEB_REBUILT" -eq 0 ] || stop_process ui
-  [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ] ||
+  native || { [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; } ||
     echo "real-stack: the security analyzers are not installed; an AWS sync will fail until '$0 security-workers' has run" >&2
   launch api api
   launch worker-scheduler worker scheduler
-  launch worker-discovery worker discovery
-  launch worker-outbox worker outbox
-  launch worker-projection-graph worker projection-graph
-  launch worker-projection-search worker projection-search
+  native || launch worker-discovery worker discovery
+  native || launch worker-outbox worker outbox
+  native || launch worker-projection-graph worker projection-graph
+  native || launch worker-projection-search worker projection-search
   launch worker-projection-risk worker projection-risk
-  # The planning worker ('$0 worker security-agent') needs OPENROUTER_API_KEY
-  # and is started by hand; the action worker needs nothing but the database.
+  # The planning worker needs OPENROUTER_API_KEY (in the environment or in
+  # provider.env); without it a Security Agent run stays queued. The action
+  # worker needs nothing but the database.
+  if native; then
+    :
+  elif [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    launch worker-security-agent worker security-agent
+  else
+    echo "real-stack: OPENROUTER_API_KEY is not set; the Security Agent planning worker is not started (runs stay queued)"
+  fi
   launch worker-security-agent-action worker security-agent-action
   launch projector project
   launch ui ui
   local failed=0
   wait_ready api 120 || failed=1
   wait_ready worker-scheduler 120 || failed=1
-  wait_ready worker-discovery 180 || failed=1
-  wait_ready worker-outbox 180 || failed=1
-  wait_ready worker-projection-graph 120 || failed=1
-  wait_ready worker-projection-search 120 || failed=1
+  native || wait_ready worker-discovery 180 || failed=1
+  native || wait_ready worker-outbox 180 || failed=1
+  native || wait_ready worker-projection-graph 120 || failed=1
+  native || wait_ready worker-projection-search 120 || failed=1
   wait_ready worker-projection-risk 120 || failed=1
+  native || [ -z "${OPENROUTER_API_KEY:-}" ] || wait_ready worker-security-agent 180 || failed=1
   wait_ready worker-security-agent-action 120 || failed=1
   wait_ready projector 4 || failed=1
   wait_ready ui 90 || failed=1
   cmd_status
   hosts_mapped || hosts_hint
   if [ "$failed" -eq 0 ]; then
+    ! native || echo "real-stack: native mode is a reduced stack: no sync, search or graph, and the API's /readyz answers 503 (see README.md)"
     echo "real-stack: open $PUBLIC_ORIGIN/"
   else
     echo "real-stack: not everything is ready; see the logs in $LOGS" >&2
@@ -1129,7 +1332,7 @@ cmd_status() {
   if hosts_mapped; then state="present"; else state="missing"; fi
   printf '%-26s %s\n' "hosts entry" "$state"
   if [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; then state="installed"; else state="not installed"; fi
-  printf '%-26s %s\n' "security analyzers" "$state"
+  native || printf '%-26s %s\n' "security analyzers" "$state"
 }
 
 # Stops one process 'start' started, if it runs, and forgets its pid.
@@ -1156,8 +1359,24 @@ cmd_stop() {
   for name in $reversed; do stop_process "$name"; done
 }
 
+# Stops the native dependency processes; the database last.
+stop_native_services() {
+  stop_dependency aws-emulator
+  stop_dependency temporal
+  stop_dependency openfga
+  if [ -f "$NATIVE_PG_DATA/PG_VERSION" ]; then
+    resolve_pg_bin
+    pg_run pg_ctl -D "$NATIVE_PG_DATA" -m fast -w stop >/dev/null 2>&1 || true
+  fi
+}
+
 cmd_down() {
   cmd_stop
+  if native; then
+    stop_native_services
+    echo "real-stack: stopped; data is kept. To start over with an empty stack: $0 reset --yes"
+    return 0
+  fi
   docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch "$NEO4J_CONTAINER" >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
   echo "real-stack: stopped; data is kept. To start over with an empty stack: $0 reset --yes"
@@ -1180,15 +1399,21 @@ cmd_reset() {
   if [ -n "$owner" ] && [ "$owner" != "$mine" ] && [ -d "$owner/secrets" ]; then
     fail "this machine's stack belongs to the state directory '$owner'; run reset with ZASP_REAL_STACK_STATE='$owner'"
   fi
-  # The planning worker is started by hand, so 'stop' does not know it.
-  [ "$(http_status http://127.0.0.1:8084/readyz)" = "000" ] ||
-    fail "the Security Agent planning worker is still running; stop it (Ctrl-C in its terminal), then run reset again"
   cmd_stop
-  for name in api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk worker-security-agent-action ui; do
+  for name in $PROCESSES; do
+    [ "$name" = projector ] && continue
     [ "$(process_status "$name")" = "000" ] || fail "$name still answers but was not started by 'start'; stop it in its terminal, then run reset again"
   done
-  docker rm -f -v "$PG_CONTAINER" "$NEO4J_CONTAINER" zasp-real-stack-opensearch zasp-real-stack-localstack >/dev/null 2>&1 || true
-  docker compose -f "$COMPOSE" down --volumes --remove-orphans
+  if native; then
+    stop_native_services
+    case "$NATIVE_PG_DATA" in
+      ""|/) fail "refusing to delete the database directory '$NATIVE_PG_DATA'" ;;
+    esac
+    [ ! -f "$NATIVE_PG_DATA/PG_VERSION" ] || rm -rf "$NATIVE_PG_DATA" || fail "could not delete $NATIVE_PG_DATA"
+  else
+    docker rm -f -v "$PG_CONTAINER" "$NEO4J_CONTAINER" zasp-real-stack-opensearch zasp-real-stack-localstack >/dev/null 2>&1 || true
+    docker compose -f "$COMPOSE" down --volumes --remove-orphans
+  fi
   if [ -f "$STATE/provider.env" ]; then
     cp -p "$STATE/provider.env" "$STATE.provider.env.keep" || fail "could not set provider.env aside"
   fi
@@ -1200,8 +1425,69 @@ cmd_reset() {
   echo "real-stack: reset; nothing is left but the images${EXTERNAL_HOST:+ and the external database, which was not touched}. Next: $0 start"
 }
 
+# Generates the keys 'up' would generate, without starting anything.
+cmd_keys() {
+  claim_machine
+  generate_keys
+  native || ensure_graph_passwords
+}
+
+# Prints the state of the installed schema: sealed, intact, and whether it
+# came from this checkout's baseline artifact ("current").
+cmd_verify() {
+  [ -x "$BIN/agentsec-migrate" ] || fail "run '$0 up' first"
+  ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline
+}
+
+# Writes a logical dump of the product database cluster (every database and
+# role) into a directory, and of the OpenFGA database where it is a separate
+# server. The dumps hold no service password: the local logins have none.
+cmd_dump() {
+  [ "$#" -eq 1 ] && [ -d "$1" ] || fail "usage: $0 dump <directory>"
+  [ -z "$EXTERNAL_HOST" ] || fail "an external database is backed up with its provider's snapshots, not by this script"
+  dependency_running postgres || fail "the product database is not running; run '$0 up' first"
+  if native; then
+    resolve_pg_bin
+    pg_run pg_dumpall -h 127.0.0.1 -p "$PG_PORT" -U "$PG_SUPERUSER" --clean --if-exists > "$1/postgres.sql" || fail "the product database was not dumped"
+  else
+    docker exec "$PG_CONTAINER" pg_dumpall -U "$PG_SUPERUSER" --clean --if-exists > "$1/postgres.sql" || fail "the product database was not dumped"
+    docker compose -f "$COMPOSE" exec -T openfga-db pg_dump -U openfga --clean --if-exists openfga > "$1/openfga.sql" || fail "the OpenFGA database was not dumped"
+  fi
+}
+
+# Replaces the product database cluster with a dump written by 'dump'. The
+# product processes are stopped first; 'start' brings them back.
+cmd_load() {
+  [ "$#" -eq 1 ] && [ -f "$1/postgres.sql" ] || fail "usage: $0 load <directory holding postgres.sql>"
+  [ -z "$EXTERNAL_HOST" ] || fail "an external database is restored with its provider's snapshots, not by this script"
+  claim_machine
+  cmd_stop
+  local super="postgres://$PG_SUPERUSER@127.0.0.1:$PG_PORT/postgres?sslmode=disable"
+  if native; then
+    # OpenFGA holds connections to its database in the same cluster.
+    stop_dependency openfga
+  fi
+  start_database
+  # The dump drops and recreates every database and role. Dropping the
+  # superuser it is loaded as fails and is expected, so errors do not stop
+  # the load; the schema is verified afterwards instead.
+  run_psql -X -q "$super" < "$1/postgres.sql" >/dev/null 2>"$STATE/restore.log" || true
+  if ! native && [ -f "$1/openfga.sql" ]; then
+    docker compose -f "$COMPOSE" up -d openfga-db >/dev/null
+    docker compose -f "$COMPOSE" stop openfga >/dev/null 2>&1 || true
+    docker compose -f "$COMPOSE" exec -T openfga-db psql -X -q -U openfga -d openfga < "$1/openfga.sql" >/dev/null 2>>"$STATE/restore.log" || fail "the OpenFGA database was not restored; see $STATE/restore.log"
+  fi
+  [ -x "$BIN/agentsec-migrate" ] || build_binaries
+  ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline || fail "the restored schema did not verify; see $STATE/restore.log"
+}
+
 case "${1:-}" in
   up) shift; cmd_up "$@" ;;
+  keys) shift; cmd_keys "$@" ;;
+  build) shift; build_binaries ;;
+  verify) shift; cmd_verify "$@" ;;
+  dump) shift; cmd_dump "$@" ;;
+  load) shift; cmd_load "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
   api) shift; cmd_api "$@" ;;
   worker) shift; cmd_worker "$@" ;;

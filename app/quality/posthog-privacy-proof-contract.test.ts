@@ -43,7 +43,7 @@ describe("PostHog privacy proof repository contract", () => {
   it("completes only M0-20 and advances only R-13", async () => {
     const [tracker, readme, risk] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8"),
     ]);
     const active = section(tracker, "In progress");
@@ -68,7 +68,7 @@ describe("PostHog privacy proof repository contract", () => {
   it("exposes exact hermetic and local proof commands with fixed output", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const manifest = JSON.parse(packageText) as { scripts?: Record<string, string> };
     const proofSection = readme.match(/## PostHog privacy proof[\s\S]*?## EKS Fargate egress proof/)?.[0] ?? "";

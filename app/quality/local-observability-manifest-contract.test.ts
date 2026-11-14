@@ -56,7 +56,7 @@ describe("M1-30c local observability manifest", () => {
   it("preserves M1-30c completion while M1-30d completes", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -87,7 +87,7 @@ describe("M1-30c local observability manifest", () => {
   it("exposes exact hermetic, live, and license commands with the local-only observability boundary", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts?: Record<string, unknown> };
     const section = (readme.match(/## Local observability Kubernetes manifest proof[\s\S]*?(?=\n## |$)/)?.[0] ?? "").replace(/\s+/g, " ");

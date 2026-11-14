@@ -26,7 +26,7 @@ describe("LocalStack SQS proof repository contract", () => {
   });
 
   it("documents the runnable root sequence and supported proof boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## LocalStack SQS proof[\s\S]*?```bash\n([\s\S]*?)\n```/);
     expect(section?.[1]?.split("\n")).toEqual([
       "npm run proof:localstack:sqs:test",

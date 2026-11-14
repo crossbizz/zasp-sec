@@ -2,14 +2,18 @@
 // The local stack's TLS front. It terminates HTTPS on the public origin,
 // serves the built web application, and forwards /api to the product API with
 // exactly the headers the production ingress sends. It has no dependencies
-// beyond Node. It is for one developer machine: it listens on loopback only.
+// beyond Node. On a developer machine it listens on loopback only. The
+// evaluation Helm chart (deploy/kubernetes/zasp) runs the same file in a pod,
+// where it must accept connections from the pod network.
 //
-// Settings (all set by stack.sh):
+// Settings (set by stack.sh, or by the chart's entrypoint):
 //   ZASP_FRONT_ORIGIN    public origin, for example https://zasp.local-stack.test:8443
 //   ZASP_FRONT_API       product API listener, for example http://127.0.0.1:4000
 //   ZASP_FRONT_WEB_DIR   the built standalone web application (dist/standalone)
 //   ZASP_FRONT_WEB_PORT  loopback port the web application is started on
 //   ZASP_FRONT_CERT, ZASP_FRONT_KEY  the server certificate chain and its key
+//   ZASP_FRONT_LISTEN       optional address to listen on; default 127.0.0.1
+//   ZASP_FRONT_LISTEN_PORT  optional port to listen on; default the origin's port
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import http from "node:http";
@@ -34,6 +38,14 @@ if (origin.protocol !== "https:" || api.protocol !== "http:" || !(webPort > 0 &&
   process.exit(2);
 }
 const publicPort = origin.port || "443";
+// The port this process binds may differ from the origin's: behind a port
+// forward or a load balancer the origin is on 443 and the pod on 8443.
+const listenAddress = process.env.ZASP_FRONT_LISTEN || "127.0.0.1";
+const listenPort = Number.parseInt(process.env.ZASP_FRONT_LISTEN_PORT || publicPort, 10);
+if (!(listenPort > 0 && listenPort < 65536)) {
+  console.error("front: ZASP_FRONT_LISTEN_PORT must be a port number");
+  process.exit(2);
+}
 
 // Headers that describe one connection and are never forwarded.
 const hopByHop = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "proxy-connection", "te", "trailer", "transfer-encoding", "upgrade"]);
@@ -122,12 +134,12 @@ const server = https.createServer({
   else forward(request, response, new URL(`http://127.0.0.1:${webPort}`), false);
 });
 server.on("error", (error) => {
-  console.error(`front: cannot listen on 127.0.0.1:${publicPort}: ${error.message}`);
+  console.error(`front: cannot listen on ${listenAddress}:${listenPort}: ${error.message}`);
   stopping = true;
   web.kill("SIGTERM");
   process.exit(1);
 });
-server.listen(Number.parseInt(publicPort, 10), "127.0.0.1", () => {
+server.listen(listenPort, listenAddress, () => {
   console.log(`front: ${origin.origin}/ -> web application on 127.0.0.1:${webPort}, /api -> ${api.origin}`);
 });
 

@@ -59,3 +59,8 @@ services/sensor-agent/sensor-agent
 /fern/.preview/
 /fern/.guest-session
 /sdks/typescript/package-lock.json
+# Private configuration, generated values and backups of the ./zasp entry point.
+/zasp.env
+/zasp-values.yaml
+/zasp-values.ca.crt
+/zasp-backup-*.tar.gz

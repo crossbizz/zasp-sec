@@ -43,7 +43,9 @@ Nothing is skipped: role assumption with the external ID, the caller identity ch
 
 ## Requirements
 
-Docker, Go (the toolchain in `services/platform/go.mod`), `curl` and `openssl`. The web application needs Node.js (the version in `package.json`) and `npm ci`. `psql` is used when installed; otherwise the script runs the one inside the database container. The script is written for bash 3.2, the macOS system bash, as well as current bash; it has not been run on macOS. Stytch credentials in the environment:
+`./zasp doctor` in the repository root checks everything in this section and prints the command that fixes each missing item.
+
+Docker (or the programs under [Native dependencies](#native-dependencies-no-docker)), Go (the toolchain in `services/platform/go.mod`), `curl` and `openssl`. The web application needs Node.js (the version in `package.json`) and `npm ci`. `psql` is used when installed; otherwise the script runs the one inside the database container. The script is written for bash 3.2, the macOS system bash, as well as current bash; it has not been run on macOS. Stytch credentials in the environment:
 
 ```bash
 export STYTCH_PROJECT_ID=... STYTCH_SECRET=... STYTCH_PUBLIC_TOKEN=...
@@ -75,7 +77,7 @@ deploy/local/real-stack/stack.sh stop     # stops the processes 'start' started
 deploy/local/real-stack/stack.sh reset --yes   # deletes the containers, their data and the state directory
 ```
 
-`start` runs `up` when it has not completed or a dependency is not running, then starts the API, seven workers (scheduler, discovery, outbox, the three projection workers and the Security Agent action worker), the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does). After a restart of the machine `start` is all that is needed: on 2026-11-14, with Docker started again and the containers stopped, it brought the stack back with its data in 5 minutes, most of it the Go build without a cache.
+`start` runs `up` when it has not completed or a dependency is not running, then starts the API, seven workers (scheduler, discovery, outbox, the three projection workers and the Security Agent action worker), the Security Agent planning worker when `OPENROUTER_API_KEY` is set, the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does). After a restart of the machine `start` is all that is needed: on 2026-11-14, with Docker started again and the containers stopped, it brought the stack back with its data in 5 minutes, most of it the Go build without a cache.
 
 What runs when everything is up:
 
@@ -89,11 +91,50 @@ What runs when everything is up:
 | `worker-projection-search` | `stack.sh worker projection-search` | 8092 | yes |
 | `worker-projection-risk` | `stack.sh worker projection-risk` | 8093 | yes |
 | `worker-security-agent-action` | `stack.sh worker security-agent-action` | 8085 | yes |
-| (not listed) | `OPENROUTER_API_KEY=... stack.sh worker security-agent` | 8084 | no: by hand, it needs the OpenRouter token |
+| `worker-security-agent` | `OPENROUTER_API_KEY=... stack.sh worker security-agent` | 8084 | only when `OPENROUTER_API_KEY` is set, in the environment or in `provider.env` |
 | `projector` | `stack.sh project` | none | yes |
 | `ui` | `stack.sh ui` | serves 8443 | yes |
 
-The Security Agent planning worker is the eighth worker. Without it a Security Agent run stays `queued`. Without the permission projector nothing new can be read.
+The Security Agent planning worker is the eighth worker. Without it a Security Agent run stays `queued`, and `status` lists it as `stopped`. Until 2026-11-14 it was always started by hand; `start` starting it has not been run with Docker. Without the permission projector nothing new can be read.
+
+## The `./zasp` entry point
+
+`./zasp` in the repository root (profile `local`) drives this script from one configuration file: `./zasp doctor` checks the requirements below and prints what is missing, `./zasp up` runs `up`, `bootstrap` and `start` in one command, and `./zasp backup`, `restore`, `upgrade` and `uninstall` use the commands under [Other commands](#other-commands). See [the administrator guide](../../../docs/getting-started/administrator.md).
+
+## Other commands
+
+| Command | What it does |
+| --- | --- |
+| `stack.sh keys` | Generates the keys `up` would generate, and starts nothing. |
+| `stack.sh build` | Rebuilds the Go programs from this checkout. |
+| `stack.sh verify` | Runs `agentsec-migrate verify-baseline`: prints whether the installed schema is sealed, intact, and from this checkout's artifact (`"current":true`). |
+| `stack.sh dump <directory>` | Writes `postgres.sql`, a `pg_dumpall` of the product database server, and `openfga.sql`, a dump of the OpenFGA database, into the directory. Not for an external database. |
+| `stack.sh load <directory>` | Stops the processes, loads `postgres.sql` (and `openfga.sql`), and verifies the schema. The load drops and recreates every database and role; its errors are in `$ZASP_REAL_STACK_STATE/restore.log`. |
+
+`dump` and `load` were run on 2026-11-14 with native dependencies only: a stack was dumped, reset, installed again and loaded, after which `verify` printed `"sealed":true,"intact":true,"current":true` and the Organization had its original identifier. With Docker they have not been run; in particular, that `pg_dump` inside the `openfga-db` container needs no password is an assumption.
+
+## Native dependencies (no Docker)
+
+```bash
+export ZASP_REAL_STACK_DEPENDENCIES=native
+```
+
+With this setting no container is started. `up` runs, as local processes with their pid in `run/dependency-*.pid` and their output in `logs/dependency-*.log`:
+
+| Dependency | Program | Setting to name another program |
+| --- | --- | --- |
+| PostgreSQL 18 | `initdb` and `pg_ctl`, data in `$ZASP_REAL_STACK_PG_DATA` (default `$ZASP_REAL_STACK_STATE-postgres`). Loopback only, trust authentication, as in the container. As root the server runs as the system user `postgres` (`ZASP_REAL_STACK_PG_OS_USER`), which must be able to reach the data directory. | `ZASP_REAL_STACK_PG_BIN` |
+| OpenFGA 1.21.0 | `openfga`, with a database named `openfga` in that PostgreSQL. HTTP on `127.0.0.1:8088`; gRPC is moved to 8089, off the scheduler worker's health port. | `ZASP_REAL_STACK_OPENFGA_BIN` |
+| Temporal | `temporal server start-dev`, the Temporal command line's development server, with a SQLite file in the state directory | `ZASP_REAL_STACK_TEMPORAL_BIN` |
+| AWS | `moto_server` on `127.0.0.1:4566`, and the `aws` command line to create the resources | `ZASP_REAL_STACK_MOTO_BIN`, `ZASP_REAL_STACK_AWS_BIN` |
+
+It is a reduced stack:
+
+- OpenSearch and Neo4j have no native mode. The search and graph schema jobs and the `projection-search` and `projection-graph` workers are not run, and the API's `/readyz` answers `503` with the check `policy-history`. `status` reports the API as ready when `/healthz` answers.
+- The `outbox`, `discovery` and `security-agent` workers are not started. Started by hand against moto on 2026-11-14 they refused: `outbox` with `stage=dependencies:compose:outbox` (it requires the queue's redrive count as a string; moto returns a number), `discovery` with `stage=dependencies:discovery-readiness-cloud`, and `security-agent` with `stage=dependencies:security-agent-temporal-worker`, whose cause was not investigated. So nothing can be synced.
+- An external database (`ZASP_REAL_STACK_DATABASE_HOST`) is refused in this mode.
+
+Run on 2026-11-14 on Linux as root, with PostgreSQL 18.3, OpenFGA 1.21.0 and the Temporal command line 1.10.1 (server 1.32.2) built from source, moto 5.1.0, and a loopback stand-in for Stytch (`deploy/zasp/testing/fake-identity-provider.mjs`, accepted because the stack runs with `ZASP_ENVIRONMENT=test`): `up`, `bootstrap` and `start` completed; the API answered `/healthz` with `200` and `/api/v1/session/bootstrap` through the front with `401 authentication_required`; `/sign-in` answered `200`; sign-in start answered `302` to the identity provider; the scheduler, risk projection and Security Agent action workers reported ready. No sign-in was completed.
 
 ## The web application and its TLS front
 
@@ -265,7 +306,7 @@ Stops the processes `start` started, then the containers, and keeps their data. 
 deploy/local/real-stack/stack.sh reset --yes
 ```
 
-Starts over. It stops the processes, removes the product database, Neo4j, OpenSearch and LocalStack containers with their data, removes the Temporal and OpenFGA services with their volumes (`docker compose down --volumes`), deletes the state directory except `provider.env`, and forgets that this state directory holds the machine. The next `start` is a first start. It refuses while the Security Agent planning worker (port 8084) or a process that `start` did not start still answers, and for a state directory that does not hold the machine. An external database is not touched.
+Starts over. It stops the processes, removes the product database, Neo4j, OpenSearch and LocalStack containers with their data, removes the Temporal and OpenFGA services with their volumes (`docker compose down --volumes`), deletes the state directory except `provider.env`, and forgets that this state directory holds the machine. The next `start` is a first start. It refuses while a process that `start` did not start still answers on one of the stack's ports (for example a planning worker started by hand on port 8084), and for a state directory that does not hold the machine. With native dependencies it stops the dependency processes and deletes the PostgreSQL data directory instead of containers. An external database is not touched.
 
 Removing only the product database and the state directory is not a reset. Temporal then still holds the schedules and workflows of the old database and runs them against the new one (on 2026-11-14 the database log showed `automatic catch-up definition scope denied` every 30 seconds after such a reset), the search index keeps the old documents (46 where a fresh stack has 19) and OpenFGA keeps the old store.
 

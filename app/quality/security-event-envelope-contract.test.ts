@@ -88,7 +88,7 @@ describe("M1-22 SecurityEvent envelope", () => {
   it("completes only M1-22 and preserves its prerequisite, successor, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     verifyM122CompleteStatus(tracker, readme);
   });
@@ -103,14 +103,14 @@ describe("M1-22 SecurityEvent envelope", () => {
   });
 
   it("documents the exact public envelope boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     verifyReadmeBoundary(readme);
   });
 
   it("rejects duplicate M1-22 Complete rows", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const forged = tracker.replace(
       "| M1-21 |",
@@ -121,7 +121,7 @@ describe("M1-22 SecurityEvent envelope", () => {
   });
 
   it("rejects README command drift", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const drifted = readme.replace("npm run securityevent:test", "npm run securityevent:test-wrong");
 
     expect(() => verifyReadmeBoundary(drifted)).toThrow();

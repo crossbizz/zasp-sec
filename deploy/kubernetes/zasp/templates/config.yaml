@@ -1,0 +1,40 @@
+{{- $bootstrap := .Values.bootstrap -}}
+{{- $given := compact (list $bootstrap.organizationName $bootstrap.organizationDomain $bootstrap.adminEmail) -}}
+{{- if and (gt (len $given) 0) (lt (len $given) 3) -}}
+{{- fail "bootstrap.organizationName, bootstrap.organizationDomain and bootstrap.adminEmail must be set together" -}}
+{{- end -}}
+{{- if and .Values.database.external.enabled (not .Values.database.external.host) -}}
+{{- fail "database.external.host is required when database.external.enabled is true" -}}
+{{- end -}}
+{{- if not (has .Values.identity.oauthProvider (list "google" "microsoft" "github" "slack" "hubspot")) -}}
+{{- fail "identity.oauthProvider must be google, microsoft, github, slack or hubspot" -}}
+{{- end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zasp.name" . }}-settings
+  labels: {{- include "zasp.labels" . | nindent 4 }}
+data:
+  ZASP_PUBLIC_ORIGIN: {{ include "zasp.origin" . | quote }}
+  ZASP_STYTCH_BASE_URL: {{ required "identity.stytchBaseUrl is required" .Values.identity.stytchBaseUrl | quote }}
+  ZASP_OAUTH_PROVIDER: {{ .Values.identity.oauthProvider | quote }}
+  ZASP_DATABASE_MODE: {{ ternary "external" "pod" .Values.database.external.enabled | quote }}
+  ZASP_DATABASE_HOST: {{ .Values.database.external.host | quote }}
+  ZASP_BOOTSTRAP_ORGANIZATION_NAME: {{ $bootstrap.organizationName | quote }}
+  ZASP_BOOTSTRAP_ORGANIZATION_DOMAIN: {{ $bootstrap.organizationDomain | quote }}
+  ZASP_BOOTSTRAP_ADMIN_EMAIL: {{ $bootstrap.adminEmail | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zasp.name" . }}-files
+  labels: {{- include "zasp.labels" . | nindent 4 }}
+data:
+  entrypoint.sh: |
+{{ .Files.Get "files/entrypoint.sh" | indent 4 }}
+  provision-cloud.sh: |
+{{ .Files.Get "files/provision-cloud.sh" | indent 4 }}
+  front.mjs: |
+{{ .Files.Get "files/front.mjs" | indent 4 }}
+  authorization-model.json: |
+{{ .Files.Get "files/authorization-model.json" | indent 4 }}

@@ -120,7 +120,7 @@ describe("Nango Proxy proof delivery contract", () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
       scripts?: Record<string, string>;
     };
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Nango proxy proof[\s\S]*?## Nango free Auth boundary/)?.[0];
 
     expect(packageJson.scripts?.["proof:nango:proxy:test"]).toBe("node --test proofs/nango-proxy/*.test.mjs");
@@ -170,14 +170,14 @@ describe("Nango Proxy proof delivery contract", () => {
   });
 
   it("completes only M0-15 and advances only the full R-08 gate", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     assertM015Complete(tracker, readme, riskRegister);
   });
 
   it("rejects duplicate, concurrent, early-risk, exclusion, and aggregate drift", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     const active = activeFixture(tracker, readme);
