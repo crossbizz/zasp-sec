@@ -1,0 +1,383 @@
+{{- $root := . -}}
+{{- $name := include "zasp.name" . -}}
+{{- $secret := include "zasp.secretName" . -}}
+{{- $images := .Values.images -}}
+{{- $api := required "images.api is required: the product API image (deploy/production/api.Dockerfile)" $images.api -}}
+{{- $worker := required "images.worker is required: the product worker image (deploy/production/worker.Dockerfile)" $images.worker -}}
+{{- $web := required "images.web is required: the product web image (deploy/production/web.Dockerfile)" $images.web -}}
+{{- $product := .Values.product.enabled -}}
+{{- $external := .Values.database.external.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels: {{- include "zasp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ $name }}
+  selector:
+    matchLabels: {{- include "zasp.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "zasp.labels" . | nindent 8 }}
+      annotations:
+        # A changed setting, script or secret restarts the pod.
+        zasp.io/config-checksum: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        {{- if not .Values.secrets.existingSecret }}
+        zasp.io/secret-checksum: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+    spec:
+      # The product never calls the Kubernetes API. The only token mounted is
+      # the workload identity token the AWS clients present to the emulator.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      {{- with $images.pullSecrets }}
+      imagePullSecrets: {{ toJson . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toJson . }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toJson . }}
+      {{- end }}
+      initContainers:
+        # 1. Directories on the data volume, owned by the users that write them.
+        - name: volume-permissions
+          image: {{ $images.postgres | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /data/postgres /data/temporal /data/state
+              chown 1000:1000 /data/temporal
+              chown 65532:65532 /data/state
+          securityContext: { runAsUser: 0 }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+        # 2. PostgreSQL, on loopback only. A restartable init container: it
+        # keeps running while the following steps and the product use it.
+        - name: postgres
+          image: {{ $images.postgres | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          args: ["-c", "listen_addresses=127.0.0.1", "-c", "max_connections=300"]
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+            - { name: POSTGRES_DB, value: postgres }
+            # Loopback inside the pod is the only way in.
+            - { name: POSTGRES_HOST_AUTH_METHOD, value: trust }
+            # The product schema requires C collation.
+            - { name: POSTGRES_INITDB_ARGS, value: "--no-locale --encoding=UTF8" }
+            - { name: PGDATA, value: /data/pg/pgdata }
+          startupProbe:
+            exec: { command: ["pg_isready", "-h", "127.0.0.1", "-U", "postgres"] }
+            periodSeconds: 2
+            failureThreshold: 90
+          {{- with (index .Values.resources "postgres") }}
+          resources: {{ toJson . }}
+          {{- end }}
+          volumeMounts:
+            - { name: data, mountPath: /data/pg, subPath: postgres }
+        # 3. The databases and, for the in-pod product database, the operator
+        # role that installs the schema.
+        - name: database-init
+          image: {{ $images.postgres | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              run="psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d postgres"
+              one() { [ "$($run -Atc "$1")" = "1" ]; }
+              one "select count(*) from pg_database where datname='openfga'" || $run -c "CREATE DATABASE openfga"
+              {{- if not $external }}
+              one "select count(*) from pg_roles where rolname='zasp_operator'" || $run -c "CREATE ROLE zasp_operator LOGIN CREATEROLE BYPASSRLS"
+              one "select count(*) from pg_database where datname='zasp'" || $run -c "CREATE DATABASE zasp OWNER zasp_operator TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'"
+              {{- end }}
+        {{- if $product }}
+        # 4. Secrets and fixed paths, laid out for the product user.
+        - name: prepare
+          image: {{ $api | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "/zasp/config/entrypoint.sh"]
+          args: ["prepare"]
+          envFrom:
+            - configMapRef: { name: {{ $name }}-settings }
+          volumeMounts:
+            - { name: config, mountPath: /zasp/config, readOnly: true }
+            - { name: secret, mountPath: /zasp/secret, readOnly: true }
+            - { name: run, mountPath: /run/zasp }
+            - { name: identity-token, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+            - { name: security-agent, mountPath: /var/run/secrets/zasp-security-agent }
+            - { name: security-agent-action, mountPath: /var/run/secrets/zasp-security-agent-action }
+            - { name: policy-verifier, mountPath: /var/run/zasp-policy-verifier }
+        # 5. OpenFGA: schema, then the server.
+        - name: openfga-migrate
+          image: {{ $images.openfga | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          args: ["migrate"]
+          env:
+            - { name: OPENFGA_DATASTORE_ENGINE, value: postgres }
+            - { name: OPENFGA_DATASTORE_URI, value: "postgres://postgres@127.0.0.1:5432/openfga?sslmode=disable" }
+        - name: openfga
+          image: {{ $images.openfga | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          args: ["run"]
+          env:
+            - { name: OPENFGA_DATASTORE_ENGINE, value: postgres }
+            - { name: OPENFGA_DATASTORE_URI, value: "postgres://postgres@127.0.0.1:5432/openfga?sslmode=disable" }
+            - { name: OPENFGA_DATASTORE_MAX_OPEN_CONNS, value: "10" }
+            - { name: OPENFGA_AUTHN_METHOD, value: preshared }
+            - name: OPENFGA_AUTHN_PRESHARED_KEYS
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: openfga-token } }
+            # The HTTP listener is reachable from the pod network so that the
+            # kubelet can probe it; the NetworkPolicy keeps other pods out,
+            # and every request needs the preshared token. gRPC stays on
+            # loopback, off the scheduler worker's health port.
+            - { name: OPENFGA_HTTP_ADDR, value: "0.0.0.0:8088" }
+            - { name: OPENFGA_GRPC_ADDR, value: "127.0.0.1:8089" }
+            - { name: OPENFGA_PLAYGROUND_ENABLED, value: "false" }
+            - { name: OPENFGA_METRICS_ENABLED, value: "false" }
+            - { name: OPENFGA_LOG_FORMAT, value: json }
+            - { name: OPENFGA_LOG_LEVEL, value: warn }
+          startupProbe:
+            tcpSocket: { port: 8088 }
+            periodSeconds: 2
+            failureThreshold: 60
+          {{- with (index .Values.resources "openfga") }}
+          resources: {{ toJson . }}
+          {{- end }}
+        # 6. Temporal: the development server, one process with a SQLite file.
+        - name: temporal
+          image: {{ $images.temporal | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          command: ["temporal", "server", "start-dev", "--ip", "127.0.0.1", "--port", "7233", "--namespace", "zasp-dev",
+                    "--db-filename", "/data/temporal/temporal.db", "--headless", "--log-level", "warn"]
+          env:
+            - { name: HOME, value: /tmp }
+          securityContext: { runAsUser: 1000, runAsGroup: 1000 }
+          startupProbe:
+            exec: { command: ["temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"] }
+            periodSeconds: 3
+            failureThreshold: 60
+          {{- with (index .Values.resources "temporal") }}
+          resources: {{ toJson . }}
+          {{- end }}
+          volumeMounts:
+            - { name: data, mountPath: /data/temporal, subPath: temporal }
+        # 7. LocalStack stands in for AWS. It provisions itself each time it
+        # becomes ready (files/provision-cloud.sh) and is "started" once that
+        # has completed.
+        - name: localstack
+          image: {{ $images.localstack | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          env:
+            - { name: SERVICES, value: "sts,iam,secretsmanager,kms,s3,sqs,ec2" }
+            # The collector's posture step only accepts access keys shaped like AWS ones.
+            - { name: PARITY_AWS_ACCESS_KEY_ID, value: "1" }
+            - name: NEO4J_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: neo4j-admin-password } }
+            - name: NEO4J_WORKER_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: neo4j-worker-password } }
+            - name: AWS_EXTERNAL_ID
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: aws-external-id } }
+          startupProbe:
+            exec: { command: ["test", "-f", "/run/zasp/cloud.env"] }
+            periodSeconds: 5
+            failureThreshold: 72
+          {{- with (index .Values.resources "localstack") }}
+          resources: {{ toJson . }}
+          {{- end }}
+          volumeMounts:
+            - { name: run, mountPath: /run/zasp }
+            - { name: config, mountPath: /etc/localstack/init/ready.d/provision-cloud.sh, subPath: provision-cloud.sh, readOnly: true }
+        # 8. OpenSearch, a single node without its security plugin: only the
+        # pod's own processes can reach it once the NetworkPolicy applies.
+        - name: opensearch
+          image: {{ $images.opensearch | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          env:
+            - { name: discovery.type, value: single-node }
+            - { name: DISABLE_SECURITY_PLUGIN, value: "true" }
+            - { name: DISABLE_INSTALL_DEMO_CONFIG, value: "true" }
+            - { name: cluster.routing.allocation.disk.threshold_enabled, value: "false" }
+            - { name: OPENSEARCH_JAVA_OPTS, value: "-Xms512m -Xmx512m" }
+          startupProbe:
+            exec: { command: ["curl", "-fsS", "-m", "3", "http://127.0.0.1:9200/_cluster/health"] }
+            periodSeconds: 5
+            failureThreshold: 60
+          {{- with (index .Values.resources "opensearch") }}
+          resources: {{ toJson . }}
+          {{- end }}
+        # 9. Neo4j Community, Bolt over TLS only.
+        - name: neo4j
+          image: {{ $images.neo4j | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          env:
+            - name: NEO4J_AUTH
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: neo4j-auth } }
+            - { name: NEO4J_server_http_enabled, value: "false" }
+            - { name: NEO4J_dbms_usage__report_enabled, value: "false" }
+            - { name: NEO4J_server_bolt_tls__level, value: REQUIRED }
+            - { name: NEO4J_dbms_ssl_policy_bolt_enabled, value: "true" }
+            - { name: NEO4J_dbms_ssl_policy_bolt_base__directory, value: /ssl/bolt }
+            - { name: NEO4J_dbms_ssl_policy_bolt_private__key, value: private.key }
+            - { name: NEO4J_dbms_ssl_policy_bolt_public__certificate, value: public.crt }
+            - { name: NEO4J_dbms_ssl_policy_bolt_client__auth, value: NONE }
+            - { name: NEO4J_server_memory_heap_initial__size, value: 256m }
+            - { name: NEO4J_server_memory_heap_max__size, value: 512m }
+            - { name: NEO4J_server_memory_pagecache_size, value: 128m }
+          startupProbe:
+            tcpSocket: { port: 7687 }
+            periodSeconds: 5
+            failureThreshold: 60
+          {{- with (index .Values.resources "neo4j") }}
+          resources: {{ toJson . }}
+          {{- end }}
+          volumeMounts:
+            - { name: neo4j-tls, mountPath: /ssl/bolt, readOnly: true }
+        # 10. The authorization store and model, once.
+        - name: fga-model
+          image: {{ $images.localstack | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "/zasp/config/entrypoint.sh"]
+          args: ["fga-model"]
+          volumeMounts:
+            - { name: config, mountPath: /zasp/config, readOnly: true }
+            - { name: secret, mountPath: /zasp/secret, readOnly: true }
+            - { name: data, mountPath: /var/lib/zasp, subPath: state }
+        # 11. The graph worker's database user.
+        - name: graph-user
+          image: {{ $images.neo4j | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              attempt=0
+              until /bin/sh /zasp/config/entrypoint.sh graph-user; do
+                attempt=$((attempt + 1))
+                [ "$attempt" -lt 60 ] || exit 1
+                sleep 3
+              done
+          env:
+            - name: NEO4J_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: neo4j-admin-password } }
+            - name: NEO4J_WORKER_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: neo4j-worker-password } }
+          volumeMounts:
+            - { name: config, mountPath: /zasp/config, readOnly: true }
+        # 12. The product schema, the verification keys and, when configured,
+        # the first organization.
+        {{- include "zasp.process" (dict "root" $root "name" "schema" "image" $api "args" (list "schema")) | nindent 8 }}
+        {{- if .Values.securityAgent.planner }}
+        # 13. The Security Agent planning worker's first test-selector revision.
+        - name: selector-count
+          image: {{ $images.postgres | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "/zasp/config/entrypoint.sh"]
+          args: ["selector-count"]
+          envFrom:
+            - configMapRef: { name: {{ $name }}-settings }
+          securityContext: { runAsUser: 65532, runAsGroup: 65532 }
+          volumeMounts:
+            - { name: config, mountPath: /zasp/config, readOnly: true }
+            - { name: run, mountPath: /run/zasp }
+        {{- include "zasp.process" (dict "root" $root "name" "selector-configure" "image" $api "args" (list "selector-configure")) | nindent 8 }}
+        {{- end }}
+        # 14. The search index and the graph constraints.
+        {{- include "zasp.process" (dict "root" $root "name" "search-init" "image" $worker "args" (list "search-init")) | nindent 8 }}
+        {{- include "zasp.process" (dict "root" $root "name" "graph-init" "image" $worker "args" (list "graph-init")) | nindent 8 }}
+        {{- end }}
+      containers:
+        {{- if $product }}
+        {{- include "zasp.process" (dict "root" $root "name" "api" "image" $api "args" (list "api")) | nindent 8 }}
+          readinessProbe:
+            exec: { command: ["wget", "-q", "-T", "3", "-O", "/dev/null", "http://127.0.0.1:4081/readyz"] }
+            periodSeconds: 10
+            timeoutSeconds: 5
+        {{- range $mode := list "scheduler" "discovery" "outbox" "projection-graph" "projection-search" "projection-risk" "security-agent-action" }}
+        {{- include "zasp.process" (dict "root" $root "name" (printf "worker-%s" $mode) "image" $worker "args" (list "worker" $mode)) | nindent 8 }}
+        {{- end }}
+        {{- if .Values.securityAgent.planner }}
+        {{- include "zasp.process" (dict "root" $root "name" "worker-security-agent" "image" $worker "args" (list "worker" "security-agent")) | nindent 8 }}
+        {{- end }}
+        {{- include "zasp.process" (dict "root" $root "name" "projector" "image" $worker "args" (list "projector")) | nindent 8 }}
+        # The TLS front and the web application.
+        - name: front
+          image: {{ $web | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["/bin/sh", "/zasp/config/entrypoint.sh"]
+          args: ["front"]
+          envFrom:
+            - configMapRef: { name: {{ $name }}-settings }
+          ports:
+            - { name: https, containerPort: 8443 }
+          readinessProbe:
+            tcpSocket: { port: https }
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          {{- with (index .Values.resources "front") }}
+          resources: {{ toJson . }}
+          {{- end }}
+          volumeMounts:
+            - { name: config, mountPath: /zasp/config, readOnly: true }
+            - { name: front-tls, mountPath: /zasp/front-tls, readOnly: true }
+        {{- end }}
+        # An idle container of the API image for the administrator:
+        # ./zasp bootstrap-admin, status and backup run here.
+        {{- include "zasp.process" (dict "root" $root "name" "toolbox" "image" $api "args" (list "toolbox")) | nindent 8 }}
+      volumes:
+        - name: config
+          configMap: { name: {{ $name }}-files, defaultMode: 0555 }
+        - name: secret
+          secret: { secretName: {{ $secret }}, defaultMode: 0444 }
+        - name: run
+          emptyDir: { medium: Memory }
+        - name: security-agent
+          emptyDir: { medium: Memory }
+        - name: security-agent-action
+          emptyDir: { medium: Memory }
+        - name: policy-verifier
+          emptyDir: { medium: Memory }
+        - name: identity-token
+          projected:
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 86400, path: token }
+        - name: front-tls
+          secret:
+            secretName: {{ $secret }}
+            defaultMode: 0444
+            items:
+              - { key: front-tls.crt, path: tls.crt }
+              - { key: front-tls.key, path: tls.key }
+        - name: neo4j-tls
+          secret:
+            secretName: {{ $secret }}
+            defaultMode: 0444
+            items:
+              - { key: neo4j-tls.crt, path: public.crt }
+              - { key: neo4j-tls.key, path: private.key }
+              - { key: neo4j-tls-ca.crt, path: ca.crt }
+        {{- if not .Values.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels: {{- include "zasp.selector" . | nindent 10 }}
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.persistence.storageClassName }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests: { storage: {{ .Values.persistence.size | quote }} }
+  {{- end }}

@@ -1,0 +1,29 @@
+Zasp is starting in namespace {{ .Release.Namespace }}. The first start pulls six
+dependency images and installs the database schema; allow several minutes.
+
+  kubectl -n {{ .Release.Namespace }} get pod {{ include "zasp.name" . }}-0 --watch
+{{ if .Values.product.enabled }}
+Open it at {{ include "zasp.origin" . }}/
+{{- if not .Values.ingress.enabled }}
+The service is not exposed outside the cluster. To reach it from this machine:
+
+  kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "zasp.name" . }} {{ regexFind "[0-9]+$" (include "zasp.origin" .) | default "8443" }}:{{ .Values.service.port }}
+
+and map the host name to this machine in /etc/hosts:
+
+  127.0.0.1 {{ include "zasp.host" . }}
+{{- end }}
+{{ if .Values.bootstrap.organizationName }}
+First sign-in: {{ .Values.bootstrap.adminEmail }} receives an invitation from the
+identity provider (Stytch). Open it and accept it on the page it leads to.
+{{- else }}
+No first organization is configured, and the API waits for one. Create it:
+
+  ./zasp --profile kubernetes bootstrap-admin '<organization name>' <email domain> <administrator email>
+{{- end }}
+{{- else }}
+Maintenance mode: only PostgreSQL and the toolbox container run.
+{{- end }}
+
+This chart is for evaluation. AWS is emulated by LocalStack inside the pod.
+Guide: docs/getting-started/administrator.md

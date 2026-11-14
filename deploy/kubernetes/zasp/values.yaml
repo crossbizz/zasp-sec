@@ -1,0 +1,168 @@
+# Zasp evaluation chart: the whole product in one pod, on any cluster.
+#
+#   ./zasp --profile kubernetes secrets init     # writes a private values file with generated keys
+#   helm upgrade --install zasp deploy/kubernetes/zasp --namespace zasp --create-namespace -f zasp-values.yaml
+#
+# What it is. One StatefulSet with one pod. The pod runs the product (API,
+# workers, permission projector, web application behind a TLS front) and every
+# dependency: PostgreSQL, Temporal (development server), OpenFGA, OpenSearch,
+# Neo4j and LocalStack. It is the cluster form of the local stack
+# (deploy/local/real-stack): same programs, same settings.
+#
+# What it is not. The product reaches its dependencies in development mode
+# (ZASP_ENVIRONMENT=test), which exists so that AWS can be emulated. In that
+# mode the product accepts plaintext dependencies only on the loopback
+# interface, which is why everything shares one pod and nothing scales out.
+# AWS itself (STS, IAM, Secrets Manager, KMS, S3, SQS) is LocalStack: the
+# product has no other object store or queue driver. Do not keep production
+# data here. Production on AWS is deploy/staging/product (EKS, Terraform);
+# see docs/getting-started/administrator.md.
+#
+# Not installed on a cluster by its authors: it was rendered with Helm and
+# checked as text only.
+
+# REQUIRED. The address users open, for example https://zasp.example.test:8443.
+# HTTPS, a host name (not localhost, *.local or an IP address), no path.
+publicOrigin: ""
+
+images:
+  # REQUIRED. The three product images, built from deploy/production/*.Dockerfile
+  # (api.Dockerfile, worker.Dockerfile, web.Dockerfile) and pushed to a registry
+  # the cluster can pull from. `./zasp --profile kubernetes install --build-images`
+  # builds and pushes them.
+  api: ""
+  worker: ""
+  web: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  # Dependencies, at the versions the local stack pins.
+  postgres: public.ecr.aws/docker/library/postgres:18.3@sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db
+  # The Temporal command line, used for its development server
+  # (`temporal server start-dev`). UNVERIFIED: that this image's command line
+  # includes the development server was not checked.
+  temporal: temporalio/admin-tools:1.32.0@sha256:a9f84fb9a374b2374fe2e67c8efc0468ff3f1c66c8a0b14597ec86e349e62bca
+  openfga: openfga/openfga:v1.21.0@sha256:2113c664a486b5da8d7a2cdab479e0d4e30639c80fd2c000540f645c1dbc1e55
+  localstack: public.ecr.aws/localstack/localstack:4.7.0
+  opensearch: public.ecr.aws/opensearchproject/opensearch:3.8.0
+  neo4j: public.ecr.aws/docker/library/neo4j:5.26-community
+
+# The identity provider. Stytch B2B is the only one the product supports and
+# it is a hosted service: it cannot run in the cluster.
+identity:
+  # https://test.stytch.com for a test project, https://api.stytch.com for a live one.
+  stytchBaseUrl: https://test.stytch.com
+  # The OAuth provider returning members sign in with. It must be enabled in
+  # the Stytch project: google, microsoft, github, slack or hubspot.
+  oauthProvider: google
+
+# The first organization and its first administrator. When all three are set
+# the pod creates them on its first start and the identity provider emails the
+# administrator an invitation. Left empty, run `./zasp bootstrap-admin` later;
+# the API waits until an organization exists.
+bootstrap:
+  organizationName: ""
+  organizationDomain: ""
+  adminEmail: ""
+
+# The product database. By default PostgreSQL runs in the pod, on loopback,
+# with a persistent volume.
+database:
+  external:
+    # true uses a PostgreSQL you manage (16 or later, 18 is the reference).
+    # Prepare it as docs/operations/baseline-schema-install.md describes: the
+    # role zasp_operator and an empty database named zasp with C collation.
+    # After the first start set one password on every zasp_svc_* login and put
+    # it in secrets.servicePassword.
+    enabled: false
+    # host or host:port of the server, for example db.example.internal:5432.
+    host: ""
+
+persistence:
+  # false keeps everything in the pod's ephemeral storage: a restart is a
+  # fresh installation.
+  enabled: true
+  size: 20Gi
+  storageClassName: ""
+
+# false stops the product and every dependency except PostgreSQL, and leaves
+# an idle toolbox container. `./zasp restore` uses it.
+product:
+  enabled: true
+
+securityAgent:
+  # true starts the Security Agent planning worker. It needs
+  # secrets.plannerApiKey and egress to openrouter.ai. Without it a Security
+  # Agent run stays queued.
+  planner: false
+
+service:
+  type: ClusterIP
+  port: 8443
+  annotations: {}
+
+# Optional. The pod terminates TLS itself, so an ingress must pass HTTPS
+# through to the service or re-encrypt to it. The host is taken from
+# publicOrigin.
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+  # A kubernetes.io/tls Secret the ingress controller serves.
+  tlsSecretName: ""
+
+networkPolicy:
+  # Admits ingress to the pod on the front's port only. Egress is not
+  # restricted: the product calls the identity provider, the model provider
+  # and whatever providers you connect.
+  enabled: true
+
+# Per-container resources, keyed by container name, for example
+#   resources: { api: { requests: { memory: 512Mi } } }
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+
+# Secrets. `./zasp --profile kubernetes secrets init` writes all of these
+# into a private values file; the commands in the comments produce them by
+# hand. They must stay the same across upgrades: the database records which
+# keys it trusts.
+secrets:
+  # Name of a Secret you created yourself with the keys listed in
+  # templates/secret.yaml. Empty renders the Secret from the values below.
+  existingSecret: ""
+  # --- supplied by you ---
+  stytchProjectId: ""        # REQUIRED. Stytch dashboard, API keys.
+  stytchSecret: ""           # REQUIRED. Stytch dashboard, API keys.
+  stytchPublicToken: ""      # REQUIRED. Stytch dashboard, API keys.
+  plannerApiKey: ""          # Optional. OpenRouter API key, with securityAgent.planner.
+  operatorDsn: ""            # database.external only: postgres://zasp_operator:...@host/zasp?sslmode=require
+  servicePassword: ""        # database.external only: the password of every zasp_svc_* login (URL-safe characters).
+  # --- generated ---
+  workflowSigningKey: ""           # openssl rand -hex 32
+  tokenRevealKey: ""               # openssl rand 32 | openssl base64 -A | tr '+/' '-_' | tr -d '='
+  stytchWebhookSecret: ""          # whsec_ followed by: openssl rand -base64 32
+  forwardSeedBase64: ""            # openssl rand 64 | openssl base64 -A
+  compensationSeedBase64: ""       # openssl rand 64 | openssl base64 -A
+  approvalDeliveryKeyBase64: ""    # openssl rand 32 | openssl base64 -A
+  openfgaToken: ""                 # openssl rand -hex 32
+  neo4jAdminPassword: ""           # openssl rand -hex 24
+  neo4jWorkerPassword: ""          # openssl rand -hex 24
+  awsExternalId: ""                # openssl rand -hex 24 (exactly 48 characters)
+  redTeamAdapterToken: ""          # openssl rand -hex 32
+  redTeamAdapterCaPem: ""          # any self-signed certificate, PEM
+  # The gateway policy signing key: a 64-byte Ed25519 key (seed, then public
+  # key) in unpadded base64url, and the matching verifier document
+  # {"keys":[{"key_id":"zasp-gateway","public_key":"<base64url public key>"}]}.
+  gatewaySigningKey: ""
+  gatewayPolicyKeysJson: ""
+  # TLS for the front, PEM: a certificate chain for publicOrigin's host and
+  # its key. Self-signed is fine for evaluation; users then trust its CA.
+  frontTlsCertificate: ""
+  frontTlsKey: ""
+  # TLS for the in-pod Neo4j, PEM: a certificate for the name localhost, its
+  # key, and the certificate authority that issued it.
+  neo4jTlsCertificate: ""
+  neo4jTlsKey: ""
+  neo4jTlsCa: ""

@@ -48,3 +48,8 @@ yarn-error.log*
 services/runtime-gateway/runtime-gateway
 # Local Go build output for the sensor agent command.
 services/sensor-agent/sensor-agent
+# Private configuration, generated values and backups of the ./zasp entry point.
+/zasp.env
+/zasp-values.yaml
+/zasp-values.ca.crt
+/zasp-backup-*.tar.gz
