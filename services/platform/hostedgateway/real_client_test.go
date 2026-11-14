@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -56,7 +57,7 @@ func TestRealMCPClientAndServerThroughTheGateway(t *testing.T) {
 				arguments = append(arguments, "json")
 			}
 			upstream := exec.CommandContext(ctx, python, arguments...)
-			upstream.Dir = t.TempDir()
+			upstream.Dir, upstream.Env = t.TempDir(), localProcessEnvironment()
 			var upstreamLog strings.Builder
 			upstream.Stdout, upstream.Stderr = &upstreamLog, &upstreamLog
 			if err := upstream.Start(); err != nil {
@@ -106,7 +107,7 @@ func TestRealMCPClientAndServerThroughTheGateway(t *testing.T) {
 			defer front.Close()
 
 			client := exec.CommandContext(ctx, python, "-I", clientScript, front.URL+"/mcp/server-1", platformToken, upstreamCredentialValue, test.mode)
-			client.Dir = t.TempDir()
+			client.Dir, client.Env = t.TempDir(), localProcessEnvironment()
 			var clientErrors strings.Builder
 			client.Stderr = &clientErrors
 			out, err := client.Output()
@@ -166,4 +167,19 @@ func TestRealMCPClientAndServerThroughTheGateway(t *testing.T) {
 			store.mu.Unlock()
 		})
 	}
+}
+
+// localProcessEnvironment is the environment of a helper process that talks
+// only to this machine: the caller's, without proxy settings and without a
+// certificate bundle the process may not be able to read.
+func localProcessEnvironment() []string {
+	var environment []string
+	for _, entry := range os.Environ() {
+		name := strings.ToUpper(strings.SplitN(entry, "=", 2)[0])
+		if strings.HasSuffix(name, "_PROXY") || name == "SSL_CERT_FILE" || name == "SSL_CERT_DIR" || name == "REQUESTS_CA_BUNDLE" || name == "CURL_CA_BUNDLE" {
+			continue
+		}
+		environment = append(environment, entry)
+	}
+	return append(environment, "NO_PROXY=127.0.0.1,localhost")
 }

@@ -157,7 +157,7 @@ func TestRealModelSDKsThroughTheProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	client := exec.CommandContext(ctx, python, "-I", script, front.URL, platformToken, providerKey)
-	client.Dir = t.TempDir()
+	client.Dir, client.Env = t.TempDir(), localProcessEnvironment()
 	var clientErrors strings.Builder
 	client.Stderr = &clientErrors
 	out, err := client.Output()

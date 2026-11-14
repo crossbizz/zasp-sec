@@ -13,6 +13,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,6 +74,7 @@ func TestHostedGatewayOnInstalledBaselinePostgres(t *testing.T) {
 			}
 		}
 	}
+	rawTokens := map[string]string{}
 	token := func(name string, permissions string) installedPrincipal {
 		t.Helper()
 		raw := "zasp_pat_" + strings.ReplaceAll(baseline.id()[4:], "-", "") + strings.Repeat("A", 11)
@@ -91,6 +95,7 @@ func TestHostedGatewayOnInstalledBaselinePostgres(t *testing.T) {
 		if err != nil || identity.CredentialKind != CredentialBearerToken || identity.PrincipalID != administrator.identity.PrincipalID || identity.Scope != baseline.scope {
 			t.Fatalf("authenticate token %s: %+v %v", name, identity, err)
 		}
+		rawTokens[name] = raw
 		return installedPrincipal{identity: identity, binding: identity.credentialBinding}
 	}
 	agentToken := token("Support agent gateway", `["use_gateway"]`)
@@ -395,6 +400,13 @@ FROM zasp_gateway_decisions WHERE(organization_id,workspace_id,environment_id,se
 		t.Fatalf("late records=%s", written)
 	}
 
+	// A real MCP client through the whole path: the client of the official
+	// MCP Python SDK presents the token over HTTP; the token is authenticated
+	// against PostgreSQL, the request authorized and each statement fenced,
+	// and the gateway forwards to the SDK's own server. Skipped where
+	// python3 with the mcp package, or the scripts, are not at hand.
+	realMCPClientThroughTheInstalledGateway(t, baseline, repository, surface, gateway, administrator, rawTokens["Support agent gateway"])
+
 	// The administrator removes the server; its records stay.
 	removed := baseline.serve(surface, administrator, "deleteMCPGatewayServer", http.MethodDelete, serverPath, map[string]string{"id": serverID}, "", mutation(1, "gateway-server-remove"))
 	if removed.Code != http.StatusNoContent {
@@ -406,4 +418,177 @@ FROM zasp_gateway_decisions WHERE(organization_id,workspace_id,environment_id,se
 	if kept := baseline.text(`SELECT (count(*)>=6)::text FROM zasp_gateway_decisions WHERE server_id=$1`, serverID); kept != "true" {
 		t.Fatal("the records of a removed server were removed")
 	}
+}
+
+// realMCPClientThroughTheInstalledGateway registers a second gateway server
+// whose upstream is the MCP Python SDK's server in a process of its own, and
+// runs the SDK's client against the gateway with the raw API token.
+func realMCPClientThroughTheInstalledGateway(t *testing.T, baseline *installedBaseline, repository *PostgresRepository, surface http.Handler, gateway *hostedgateway.Gateway, administrator installedPrincipal, rawToken string) {
+	t.Helper()
+	python, err := exec.LookPath("python3")
+	upstreamScript, _ := filepath.Abs(filepath.Join("..", "hostedgateway", "testdata", "mcp_upstream.py"))
+	clientScript, _ := filepath.Abs(filepath.Join("..", "hostedgateway", "testdata", "mcp_client.py"))
+	if err != nil {
+		t.Log("real MCP client: skipped, python3 is not installed")
+		return
+	}
+	if _, statErr := os.Stat(clientScript); statErr != nil {
+		t.Logf("real MCP client: skipped, %s is not at hand", clientScript)
+		return
+	}
+	if out, importErr := exec.Command(python, "-I", "-c", "import mcp, uvicorn, starlette").CombinedOutput(); importErr != nil {
+		t.Logf("real MCP client: skipped, the MCP Python SDK is not installed: %s", strings.TrimSpace(string(out)))
+		return
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+	ctx, cancel := context.WithTimeout(baseline.ctx, 90*time.Second)
+	defer cancel()
+	const upstreamCredential = "Bearer upstream-credential-of-the-real-client"
+	upstream := exec.CommandContext(ctx, python, "-I", upstreamScript, strconv.Itoa(port), upstreamCredential)
+	upstream.Dir, upstream.Env = t.TempDir(), gatewayLocalProcessEnvironment()
+	var upstreamLog strings.Builder
+	upstream.Stdout, upstream.Stderr = &upstreamLog, &upstreamLog
+	if err := upstream.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = upstream.Process.Kill(); _ = upstream.Wait() }()
+	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(100 * time.Millisecond) {
+		if connection, dialErr := net.DialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(port), time.Second); dialErr == nil {
+			connection.Close()
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the upstream MCP server did not start: %s", upstreamLog.String())
+		}
+	}
+	// The server is registered by its public https address, as a customer
+	// would; the test's transport takes requests for that host to the local
+	// process instead.
+	previous := gateway.Client
+	defer func() { gateway.Client = previous }()
+	gateway.Client = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Host != "mcp.real-client.example.org" {
+			return previous.Transport.RoundTrip(request)
+		}
+		local := request.Clone(request.Context())
+		local.URL.Scheme, local.URL.Host, local.Host = "http", "127.0.0.1:"+strconv.Itoa(port), "127.0.0.1:"+strconv.Itoa(port)
+		return http.DefaultTransport.RoundTrip(local)
+	}), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	serverID := baseline.id()
+	registered := baseline.serve(surface, administrator, "putMCPGatewayServer", http.MethodPut, "/api/v1/gateway/mcp-servers/"+serverID, map[string]string{"id": serverID},
+		`{"name":"Real MCP server","upstream_url":"https://mcp.real-client.example.org/mcp","enabled":true,"allowed_tools":[],"denied_tools":[]}`, map[string]string{"If-Match": installedVersion(0), "Idempotency-Key": "gateway-real-server-" + baseline.e[4:12]})
+	if registered.Code != http.StatusCreated {
+		t.Fatalf("register the real server: %d %s", registered.Code, registered.Body.String())
+	}
+	// The policy of the test refuses unapproved servers and denies tools
+	// that run commands; the server is approved in the registry.
+	baseline.exec(`INSERT INTO zasp_mcp_registry(organization_id,workspace_id,environment_id,identity,status,updated_by) VALUES($1,$2,$3,'host:mcp.real-client.example.org','approved',$4)`, baseline.o, baseline.w, baseline.e, administrator.identity.PrincipalID.String())
+
+	// The front does what the API's middleware and router do: authenticate
+	// the bearer token, authorize the operation, hand over a checked
+	// request. The test's database logins are single connections, so
+	// requests are served one at a time.
+	var serial sync.Mutex
+	front := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		authorization := request.Header.Get("Authorization")
+		if !strings.HasPrefix(authorization, "Bearer ") {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		operation := map[string]string{http.MethodPost: "callMCPGateway", http.MethodDelete: "closeMCPGatewaySession"}[request.Method]
+		if operation == "" || request.URL.Path != "/api/v1/gateway/mcp/"+serverID {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		serial.Lock()
+		defer serial.Unlock()
+		identity, err := repository.Authenticate(baseline.ctx, Credential{Kind: CredentialBearerToken, Value: strings.TrimPrefix(authorization, "Bearer ")})
+		if err != nil {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		identity.CredentialKind = CredentialBearerToken
+		checked, err := baseline.checked(installedPrincipal{identity: identity, binding: identity.credentialBinding}, RoutedOperation{OperationID: operation, PathParameters: map[string]string{"id": serverID}})
+		if err != nil {
+			writer.WriteHeader(http.StatusForbidden)
+			return
+		}
+		body, _ := io.ReadAll(request.Body)
+		forwarded := httptest.NewRequest(request.Method, request.URL.Path, bytes.NewReader(body)).WithContext(checked)
+		forwarded.Header = request.Header.Clone()
+		surface.ServeHTTP(writer, forwarded)
+	}))
+	defer front.Close()
+
+	for _, mode := range []string{"legacy", "auto"} {
+		client := exec.CommandContext(ctx, python, "-I", clientScript, front.URL+"/api/v1/gateway/mcp/"+serverID, rawToken, upstreamCredential, mode)
+		client.Dir, client.Env = t.TempDir(), gatewayLocalProcessEnvironment()
+		var clientErrors strings.Builder
+		client.Stderr = &clientErrors
+		out, err := client.Output()
+		if err != nil {
+			t.Fatalf("the MCP client (%s) failed: %v\nclient: %s\nupstream: %s", mode, err, clientErrors.String(), upstreamLog.String())
+		}
+		var seen struct {
+			Tools []string `json:"tools"`
+			Calls map[string]struct {
+				IsError bool   `json:"is_error"`
+				Raised  string `json:"raised"`
+				Text    string `json:"text"`
+			} `json:"calls"`
+		}
+		if err := json.Unmarshal(out, &seen); err != nil {
+			t.Fatalf("client output %q: %v", out, err)
+		}
+		if strings.Join(seen.Tools, ",") != "lookup_customer,read_page" {
+			t.Fatalf("%s: tools the client saw: %v", mode, seen.Tools)
+		}
+		if call := seen.Calls["lookup_customer"]; call.IsError || call.Raised != "" || call.Text != "Customer Jane, [REDACTED:pii.email], asked about: the account of [REDACTED:pii.email]" {
+			t.Fatalf("%s: lookup_customer: %+v", mode, call)
+		}
+		for _, name := range []string{"read_page", "run_shell"} {
+			if call := seen.Calls[name]; !(call.IsError || call.Raised != "") || !strings.Contains(call.Text, "Blocked by the gateway") {
+				t.Fatalf("%s: %s: %+v", mode, name, call)
+			}
+		}
+	}
+	// A wrong token gets nothing.
+	refused := exec.CommandContext(ctx, python, "-I", clientScript, front.URL+"/api/v1/gateway/mcp/"+serverID, "zasp_pat_"+strings.Repeat("0", 43), upstreamCredential, "legacy")
+	refused.Dir, refused.Env = t.TempDir(), gatewayLocalProcessEnvironment()
+	if out, err := refused.Output(); err == nil {
+		t.Fatalf("a client with a wrong token was served: %s", out)
+	}
+	// Both runs are in the database: six decisions each, for this agent, and
+	// the three tools the server listed.
+	if rows := baseline.text(`SELECT count(*)::text||' '||count(*) FILTER(WHERE decision='block')::text||' '||count(DISTINCT agent_id)::text||' '||min(agent_id) FROM zasp_gateway_decisions WHERE(organization_id,workspace_id,environment_id,server_id)=($1,$2,$3,$4)`, baseline.o, baseline.w, baseline.e, serverID); rows != "12 4 1 real-mcp-client" {
+		t.Fatalf("decisions of the real client=%q", rows)
+	}
+	if tools := baseline.text(`SELECT string_agg(name||':'||risk,',' ORDER BY name) FROM zasp_mcp_gateway_tools WHERE(organization_id,workspace_id,environment_id,server_id)=($1,$2,$3,$4)`, baseline.o, baseline.w, baseline.e, serverID); tools != "lookup_customer:read,read_page:read,run_shell:execute" {
+		t.Fatalf("tools of the real server=%s", tools)
+	}
+	t.Log("real MCP client: the MCP Python SDK's client and server ran through the installed gateway in both modes")
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
+// gatewayLocalProcessEnvironment is the environment of a helper process that talks
+// only to this machine: the caller's, without proxy settings and without a
+// certificate bundle the process may not be able to read.
+func gatewayLocalProcessEnvironment() []string {
+	var environment []string
+	for _, entry := range os.Environ() {
+		name := strings.ToUpper(strings.SplitN(entry, "=", 2)[0])
+		if strings.HasSuffix(name, "_PROXY") || name == "SSL_CERT_FILE" || name == "SSL_CERT_DIR" || name == "REQUESTS_CA_BUNDLE" || name == "CURL_CA_BUNDLE" {
+			continue
+		}
+		environment = append(environment, entry)
+	}
+	return append(environment, "NO_PROXY=127.0.0.1,localhost")
 }
