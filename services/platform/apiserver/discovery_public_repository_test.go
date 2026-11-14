@@ -250,3 +250,55 @@ func TestDiscoveryPublicRepositoryAcceptsReceiptFreePATMutation(t *testing.T) {
 		t.Fatalf("PAT result=%#v err=%v", result, err)
 	}
 }
+
+func TestDiscoveryPublicRepositoryReadsCoverageGapsStrictly(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_30000001-0000-4000-8000-000000000001"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryPublicRepository(t, database)
+	payload := func(member string) json.RawMessage {
+		return json.RawMessage(`{"integration_id":"` + integrationID + `","version":4,"last_good":null,"latest_sync":null,"projections":{"risk":{"state":"unavailable","snapshot_id":null,"completed_at":null,"last_error_code":null},"graph":{"state":"unavailable","snapshot_id":null,"completed_at":null,"last_error_code":null},"search":{"state":"unavailable","snapshot_id":null,"completed_at":null,"last_error_code":null}},"updated_at":"2026-08-19T00:00:03Z"` + member + `}`)
+	}
+	read := func(member string) (IntegrationFreshness, error) {
+		database.responses[postgresExecutionPublicFreshnessSQL] = payload(member)
+		return repository.GetIntegrationFreshness(context.Background(), identity.Scope, integrationID)
+	}
+	denied := `{"service":"bedrock-agent","name":"Amazon Bedrock Agents","status":"access_denied"}`
+	unavailable := `{"service":"lambda","name":"AWS Lambda","status":"unavailable"}`
+	freshness, err := read(`,"coverage_gaps":[` + denied + `,` + unavailable + `]`)
+	if err != nil || len(freshness.CoverageGaps) != 2 || freshness.CoverageGaps[0] != (IntegrationCoverageGap{Service: "bedrock-agent", Name: "Amazon Bedrock Agents", Status: "access_denied"}) || freshness.CoverageGaps[1] != (IntegrationCoverageGap{Service: "lambda", Name: "AWS Lambda", Status: "unavailable"}) {
+		t.Fatalf("coverage gaps=%#v err=%v", freshness.CoverageGaps, err)
+	}
+	// No gap, and a reader that predates the member, are both the empty list.
+	for name, member := range map[string]string{"empty": `,"coverage_gaps":[]`, "absent": ``} {
+		freshness, err := read(member)
+		if err != nil || freshness.CoverageGaps == nil || len(freshness.CoverageGaps) != 0 {
+			t.Fatalf("%s coverage gaps=%#v err=%v", name, freshness.CoverageGaps, err)
+		}
+	}
+	many := make([]string, 0, 17)
+	for index := 0; index < 17; index++ {
+		many = append(many, `{"service":"service-`+string(rune('a'+index))+`","name":"Service","status":"unavailable"}`)
+	}
+	if _, err := read(`,"coverage_gaps":[` + strings.Join(many[:16], ",") + `]`); err != nil {
+		t.Fatalf("sixteen gaps refused: %v", err)
+	}
+	for name, member := range map[string]string{
+		"unsorted":             `,"coverage_gaps":[` + unavailable + `,` + denied + `]`,
+		"duplicate service":    `,"coverage_gaps":[` + denied + `,` + denied + `]`,
+		"unknown status":       `,"coverage_gaps":[{"service":"lambda","name":"AWS Lambda","status":"collected"}]`,
+		"more than sixteen":    `,"coverage_gaps":[` + strings.Join(many, ",") + `]`,
+		"unknown member":       `,"coverage_gaps":[{"service":"lambda","name":"AWS Lambda","status":"unavailable","region":"us-east-1"}]`,
+		"missing member":       `,"coverage_gaps":[{"service":"lambda","status":"unavailable"}]`,
+		"empty name":           `,"coverage_gaps":[{"service":"lambda","name":"","status":"unavailable"}]`,
+		"malformed service":    `,"coverage_gaps":[{"service":"Lambda Functions","name":"AWS Lambda","status":"unavailable"}]`,
+		"null list":            `,"coverage_gaps":null`,
+		"object list":          `,"coverage_gaps":{}`,
+		"unknown top member":   `,"coverage":[]`,
+		"non-object list item": `,"coverage_gaps":["lambda"]`,
+	} {
+		if _, err := read(member); !errors.Is(err, ErrRepositoryUnavailable) {
+			t.Errorf("%s: err=%v", name, err)
+		}
+	}
+}

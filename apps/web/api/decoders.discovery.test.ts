@@ -90,7 +90,10 @@ const freshness = {
     search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" },
   },
   updated_at: "2026-08-19T00:00:04Z",
+  coverage_gaps: [],
 } as const;
+const deniedGap = { service: "bedrock-agent", name: "Amazon Bedrock Agents", status: "access_denied" } as const;
+const unavailableGap = { service: "lambda", name: "AWS Lambda", status: "unavailable" } as const;
 
 describe("production discovery response decoders", () => {
   it("accepts exact queued, running, succeeded, and failed recovery tuples", () => {
@@ -224,7 +227,24 @@ describe("production discovery response decoders", () => {
     ["unavailable projection with error", { ...freshness, projections: { ...freshness.projections, search: { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: "terminal" } } }],
     ["internal projection error", { ...freshness, projections: { ...freshness.projections, search: { ...freshness.projections.search, last_error_code: "opensearch_index_failed" } } }],
     ["extra freshness member", { ...freshness, outbox_id: syncID }],
+    ["missing coverage gaps", (({ coverage_gaps: _gaps, ...rest }) => rest)(freshness)],
+    ["null coverage gaps", { ...freshness, coverage_gaps: null }],
+    ["unsorted coverage gaps", { ...freshness, coverage_gaps: [unavailableGap, deniedGap] }],
+    ["repeated coverage gap", { ...freshness, coverage_gaps: [deniedGap, deniedGap] }],
+    ["coverage gap with an unknown status", { ...freshness, coverage_gaps: [{ ...deniedGap, status: "collected" }] }],
+    ["coverage gap with an unknown member", { ...freshness, coverage_gaps: [{ ...deniedGap, region: "us-east-1" }] }],
+    ["coverage gap without a name", { ...freshness, coverage_gaps: [{ service: "lambda", status: "unavailable" }] }],
+    ["coverage gap with an empty name", { ...freshness, coverage_gaps: [{ ...deniedGap, name: "" }] }],
+    ["coverage gap with a malformed service", { ...freshness, coverage_gaps: [{ ...deniedGap, service: "Bedrock Agents" }] }],
+    ["more than sixteen coverage gaps", { ...freshness, coverage_gaps: Array.from({ length: 17 }, (_, index) => ({ service: `service-${String.fromCharCode(97 + index)}`, name: "Service", status: "unavailable" })) }],
   ])("rejects %s", (_name, value) => {
     expect(() => decodeIntegrationFreshness(value)).toThrow("schema mismatch");
+  });
+
+  it("accepts the AI services a collection could not read, ordered by service", () => {
+    expect(decodeIntegrationFreshness(freshness).coverage_gaps).toEqual([]);
+    expect(decodeIntegrationFreshness({ ...freshness, coverage_gaps: [deniedGap, unavailableGap] }).coverage_gaps).toEqual([deniedGap, unavailableGap]);
+    const sixteen = Array.from({ length: 16 }, (_, index) => ({ service: `service-${String.fromCharCode(97 + index)}`, name: "Service", status: "unavailable" }));
+    expect(decodeIntegrationFreshness({ ...freshness, coverage_gaps: sixteen }).coverage_gaps).toHaveLength(16);
   });
 });

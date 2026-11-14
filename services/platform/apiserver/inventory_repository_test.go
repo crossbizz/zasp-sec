@@ -196,9 +196,42 @@ func TestInventorySummaryDiscoveryIsConsistentWithKindAndOwner(t *testing.T) {
 			t.Errorf("%s accepted: %s", name, raw)
 		}
 	}
+	// Dismissal: the reserved tag on an agent found without a declaration is
+	// "dismissed" and nothing else; on a declared agent it means nothing.
+	tagged := func(raw string) string { return replaceInventoryJSON(raw, `"tags":[]`, `"tags":["critical","not-an-agent"]`) }
+	dismissed := func(raw, state string) string {
+		return replaceInventoryJSON(tagged(raw), `"management_state":"`+state+`"`, `"management_state":"dismissed"`)
+	}
+	for name, raw := range map[string]string{
+		"dismissed provider agent":       dismissed(agent, "unmanaged"),
+		"dismissed owned provider agent": dismissed(owned, "managed"),
+		"dismissed inferred agent":       dismissed(inferred, "unmanaged"),
+		"declared agent with the tag":    tagged(declared),
+	} {
+		if !decode(raw, InventoryKindAgent) {
+			t.Errorf("%s refused: %s", name, raw)
+		}
+	}
+	for name, raw := range map[string]string{
+		"tagged provider agent called unmanaged": tagged(agent),
+		"tagged owned agent called managed":      tagged(owned),
+		"tagged inferred agent called unmanaged": tagged(inferred),
+		"untagged agent called dismissed":        replaceInventoryJSON(agent, `"management_state":"unmanaged"`, `"management_state":"dismissed"`),
+		"untagged owned agent called dismissed":  replaceInventoryJSON(owned, `"management_state":"managed"`, `"management_state":"dismissed"`),
+		"declared agent called dismissed":        dismissed(declared, "managed"),
+		"near-miss tag called dismissed":         replaceInventoryJSON(dismissed(agent, "unmanaged"), `"not-an-agent"`, `"not-an-agent "`),
+	} {
+		if decode(raw, InventoryKindAgent) {
+			t.Errorf("%s accepted: %s", name, raw)
+		}
+	}
+	if !validAgentOwnershipInput(AgentOwnershipInput{Owner: "security", Team: "platform", Tags: []string{"critical", InventoryNotAnAgentTag}}) {
+		t.Error("the reserved tag is refused by the ownership input validation")
+	}
 	identity := inventorySummaryJSON(entityID, "identity")
 	for name, raw := range map[string]string{
 		"identity called unmanaged": replaceInventoryJSON(identity, `"management_state":"not_applicable"`, `"management_state":"unmanaged"`),
+		"identity called dismissed": replaceInventoryJSON(replaceInventoryJSON(identity, `"tags":[]`, `"tags":["not-an-agent"]`), `"management_state":"not_applicable"`, `"management_state":"dismissed"`),
 		"identity called inferred":  replaceInventoryJSON(replaceInventoryJSON(identity, `"method":"provider_api"`, `"method":"inferred"`), `"signals":[]`, `"signals":["env:openai"]`),
 	} {
 		if decode(raw, InventoryKindIdentity) {

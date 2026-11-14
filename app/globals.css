@@ -176,6 +176,9 @@ button:disabled { cursor: default; }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(109,40,217,.1); }
 .field small { color: var(--muted-2); font-weight: 450; }
 .field .field-error { color: var(--critical); }
+.checkbox-field { display: flex; flex-direction: column; gap: 7px; color: #4b4e56; font-size: 12px; font-weight: 620; }
+.checkbox-field label { display: inline-flex; align-items: center; gap: 8px; }
+.checkbox-field small { color: var(--muted-2); font-weight: 450; }
 .select-wrap { position: relative; }
 .select-wrap select { appearance: none; padding-right: 30px; }
 .select-wrap svg { position: absolute; top: 12px; right: 10px; pointer-events: none; }

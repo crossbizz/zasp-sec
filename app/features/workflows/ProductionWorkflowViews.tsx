@@ -762,6 +762,10 @@ function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cad
       <p>Search projection: {freshness.value.value.projections.search.state}</p>
       {freshness.value.value.last_good && <p>Last good inventory: {freshness.value.value.last_good.discovered_count} discovered · {freshness.value.value.last_good.changed_count} changed · {freshness.value.value.last_good.removed_count} removed</p>}
     </div>}
+    {freshness.status === "success" && freshness.value && freshness.value.value.coverage_gaps.length > 0 && <>
+      <h4>Agent discovery coverage</h4>
+      <ul aria-label="Agent discovery coverage">{freshness.value.value.coverage_gaps.map((gap) => <li key={gap.service}>{coverageGapText(gap)}</li>)}</ul>
+    </>}
     {canSync && <Button variant="primary" disabled={locked} onClick={onSync}>Sync inventory now</Button>}
     <h3>Automatic sync schedule</h3>
     {schedule.status === "loading" && <p>Loading automatic sync schedule…</p>}
@@ -778,6 +782,20 @@ function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cad
     {syncDetail.status === "error" && <p>Sync detail is unavailable.</p>}
     {syncDetail.status === "success" && syncDetail.value && <p>Sync detail: {syncDetail.value.value.status} · {syncDetail.value.value.discovered_count} discovered · {syncDetail.value.value.changed_count} changed · {syncDetail.value.value.removed_count} removed</p>}
   </section>;
+}
+
+// The read-role actions each AI service needs before its agents can be listed.
+const coverageGapActions: Readonly<Record<string, readonly string[]>> = {
+  "bedrock-agent": ["bedrock:ListAgents", "bedrock:GetAgent"],
+  "bedrock-agentcore": ["bedrock-agentcore:ListAgentRuntimes", "bedrock-agentcore:GetAgentRuntime", "bedrock-agentcore:ListGateways"],
+  lambda: ["lambda:ListFunctions"],
+};
+
+// Why agents of one AI service are missing, and what to do about it.
+function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
+  if (gap.status === "unavailable") return `${gap.name}: not offered in this account's regions.`;
+  const actions = Object.hasOwn(coverageGapActions, gap.service) ? coverageGapActions[gap.service] : [];
+  return actions.length > 0 ? `${gap.name}: permission missing. Add ${actions.join(", ")} to the read role.` : `${gap.name}: permission missing. Add this service's list and read actions to the read role.`;
 }
 
 // Connectors authorized by a reference to customer material held outside

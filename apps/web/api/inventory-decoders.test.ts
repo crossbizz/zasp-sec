@@ -110,6 +110,30 @@ describe("typed inventory decoders", () => {
     ]) expect(() => page(refused)).toThrow();
   });
 
+  it("calls an agent dismissed exactly when it was found without a declaration and carries the reserved tag", () => {
+    const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
+    const found = { ...summary, owner: "", team: "", tags: [], provider: "aws", source_kind: "aws_bedrock_agent", discovery: { method: "provider_api", platform: "bedrock_agent", signals: [] }, management_state: "unmanaged" } as const;
+    const inferred = { ...found, provider: "okta", source_kind: "okta_ai_application", discovery: { method: "inferred", platform: "saas_assistant", signals: ["app:chatgpt"] } } as const;
+    const tags = ["critical", "not-an-agent"];
+    for (const accepted of [
+      { ...found, tags, management_state: "dismissed" },
+      { ...found, owner: "security", team: "platform", tags, management_state: "dismissed" },
+      { ...inferred, tags, management_state: "dismissed" },
+      // The owner of a declared agent labelled it: the tag means nothing there.
+      { ...summary, tags, management_state: "managed" },
+    ]) expect(page(accepted).items).toHaveLength(1);
+    for (const refused of [
+      { ...found, tags },
+      { ...found, owner: "security", team: "platform", tags, management_state: "managed" },
+      { ...inferred, tags },
+      { ...found, management_state: "dismissed" },
+      { ...found, owner: "security", management_state: "dismissed" },
+      { ...found, tags: ["not-an-agent-2"], management_state: "dismissed" },
+      { ...summary, tags, management_state: "dismissed" },
+      { ...summary, kind: "identity", tags, provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "dismissed" },
+    ]) expect(() => page(refused)).toThrow();
+  });
+
   it("accepts objects found by Microsoft and Salesforce and refuses an unknown provider", () => {
     const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
     const unowned = { ...summary, owner: "", team: "", management_state: "unmanaged" } as const;

@@ -123,9 +123,10 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
   return value as InventorySummary;
 }
 
-// How the object was found. Only an agent can be declared, inferred or
-// unmanaged; an agent is unmanaged exactly while it was found without a
-// declaration and has no owner.
+// How the object was found. Only an agent can be declared, inferred,
+// unmanaged or dismissed. An agent found without a declaration is dismissed
+// exactly while its tags hold the reserved tag not-an-agent; otherwise it is
+// unmanaged exactly while it has no owner. A declared agent is always managed.
 function decodeInventoryDiscovery(record: Record<string, unknown>): void {
   enumValue(record.provider, DISCOVERY_PROVIDERS);
   if (typeof record.source_kind !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(record.source_kind)) fail();
@@ -134,12 +135,16 @@ function decodeInventoryDiscovery(record: Record<string, unknown>): void {
   if (typeof discovery.platform !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(discovery.platform)) fail();
   const signals = array(discovery.signals, 16); let prior = "";
   for (const signal of signals) { if (typeof signal !== "string" || !/^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$/.test(signal) || prior !== "" && signal <= prior) fail(); prior = signal as string; }
-  enumValue(record.management_state, ["managed", "unmanaged", "not_applicable"]);
+  enumValue(record.management_state, ["managed", "unmanaged", "dismissed", "not_applicable"]);
   if (record.kind !== "agent") { if (discovery.method !== "provider_api" || record.management_state !== "not_applicable" || signals.length !== 0) fail(); return; }
   if (discovery.method === "declared") { if (record.management_state !== "managed" || signals.length !== 0) fail(); return; }
   if (discovery.method === "inferred" && signals.length === 0) fail();
+  if (Array.isArray(record.tags) && record.tags.includes(NOT_AN_AGENT_TAG)) { if (record.management_state !== "dismissed") fail(); return; }
   if (record.management_state !== (record.owner === "" ? "unmanaged" : "managed")) fail();
 }
+
+/** The reserved annotation tag that dismisses an agent found without a declaration. */
+export const NOT_AN_AGENT_TAG = "not-an-agent";
 
 export function decodeAgentMutation(value: unknown): AgentMutation {
   const record = exactRecord(value, ["agent", "audit_id"]);
@@ -348,8 +353,15 @@ export function decodeIntegrationSchedule(value: unknown): IntegrationSchedule {
 }
 
 export function decodeIntegrationFreshness(value: unknown): IntegrationFreshness {
-  const record = exactRecord(value, ["integration_id", "version", "last_good", "latest_sync", "projections", "updated_at"]);
+  const record = exactRecord(value, ["integration_id", "version", "last_good", "latest_sync", "projections", "updated_at", "coverage_gaps"]);
   productID(record.integration_id); positiveInteger(record.version); dateTime(record.updated_at);
+  let priorService = "";
+  for (const item of array(record.coverage_gaps, 16)) {
+    const gap = exactRecord(item, ["service", "name", "status"]);
+    if (typeof gap.service !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(gap.service) || priorService !== "" && gap.service <= priorService) fail();
+    priorService = gap.service as string;
+    boundedString(gap.name, 1, 128); enumValue(gap.status, ["access_denied", "unavailable"]);
+  }
   if (record.last_good !== null) {
     const lastGood = exactRecord(record.last_good, ["snapshot_id", "collected_at", "discovered_count", "changed_count", "removed_count"]);
     productID(lastGood.snapshot_id); dateTime(lastGood.collected_at);

@@ -26,6 +26,7 @@ const freshness: IntegrationFreshness = {
     graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: null },
     search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" },
   }, updated_at: "2026-08-19T00:00:04Z",
+  coverage_gaps: [{ service: "lambda", name: "AWS Lambda", status: "access_denied" }],
 };
 
 describe("production integration discovery API", () => {

@@ -1746,29 +1746,102 @@ END $rule_catalog_digest$;
 --                     only the product kind)
 --   discovery         method (declared, provider_api or inferred), platform
 --                     and the catalog signals an inference rests on
---   management_state  for an agent: unmanaged while it was found without a
---                     declaration and has no owner, managed otherwise; for
---                     every other kind not_applicable
+--   management_state  for an agent: dismissed when a person marked it as not
+--                     an agent (the reserved annotation tag not-an-agent on
+--                     an agent that was found without a declaration; the tag
+--                     means nothing on a declared agent, whose owner
+--                     labelled it); otherwise unmanaged while it was found
+--                     without a declaration and has no owner, managed
+--                     otherwise; for every other kind not_applicable
+--
+-- Re-run: a function that already holds exactly these members is left alone;
+-- one that holds the members of the completion before 'dismissed' existed has
+-- them replaced by these; one that holds neither gains them at its anchor.
+-- Any other definition naming management_state is refused.
 DO $inventory_discovery_summary$
 DECLARE detail CONSTANT regprocedure:='public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure;
  page CONSTANT regprocedure:='public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure;
  source_kind CONSTANT text:=$source_kind$(SELECT observation.source_kind FROM public.zasp_inventory_source_observations observation WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(row_value.organization_id,row_value.workspace_id,row_value.environment_id,row_value.winning_integration_id,row_value.winning_source,row_value.id))$source_kind$;
- members CONSTANT text:=replace($members$jsonb_build_object('provider',row_value.winning_provider,'source_kind',SOURCE_KIND,'discovery',jsonb_build_object('method',CASE WHEN row_value.product_kind<>'agent' THEN 'provider_api' ELSE COALESCE(row_value.winning_attributes->'discovery'->>'method','declared') END,'platform',COALESCE(row_value.winning_attributes->'discovery'->>'platform',SOURCE_KIND),'signals',COALESCE(row_value.winning_attributes->'discovery'->'signals','[]'::jsonb)),'management_state',CASE WHEN row_value.product_kind<>'agent' THEN 'not_applicable' WHEN row_value.winning_attributes->'discovery' IS NULL OR COALESCE(annotation_value->>'owner','')<>'' THEN 'managed' ELSE 'unmanaged' END)$members$,'SOURCE_KIND',source_kind);
+ template CONSTANT text:=replace($members$jsonb_build_object('provider',row_value.winning_provider,'source_kind',SOURCE_KIND,'discovery',jsonb_build_object('method',CASE WHEN row_value.product_kind<>'agent' THEN 'provider_api' ELSE COALESCE(row_value.winning_attributes->'discovery'->>'method','declared') END,'platform',COALESCE(row_value.winning_attributes->'discovery'->>'platform',SOURCE_KIND),'signals',COALESCE(row_value.winning_attributes->'discovery'->'signals','[]'::jsonb)),'management_state',MANAGEMENT_STATE)$members$,'SOURCE_KIND',source_kind);
+ members CONSTANT text:=replace(template,'MANAGEMENT_STATE',$state$CASE WHEN row_value.product_kind<>'agent' THEN 'not_applicable' WHEN COALESCE(row_value.winning_attributes->'discovery'->>'method','declared')<>'declared' AND COALESCE(annotation_value->'tags','[]'::jsonb) ? 'not-an-agent' THEN 'dismissed' WHEN row_value.winning_attributes->'discovery' IS NULL OR COALESCE(annotation_value->>'owner','')<>'' THEN 'managed' ELSE 'unmanaged' END$state$);
+ earlier CONSTANT text:=replace(template,'MANAGEMENT_STATE',$state$CASE WHEN row_value.product_kind<>'agent' THEN 'not_applicable' WHEN row_value.winning_attributes->'discovery' IS NULL OR COALESCE(annotation_value->>'owner','')<>'' THEN 'managed' ELSE 'unmanaged' END$state$);
  detail_anchor CONSTANT text:='INTO summary_value;';
  page_anchor CONSTANT text:=$anchor$'version',annotation_version) ORDER BY id)$anchor$;
- d text;
+ target record;d text;
 BEGIN
- d:=pg_get_functiondef(detail);
- IF position('management_state' in d)=0 THEN
-  IF length(d)-length(replace(d,detail_anchor,''))<>length(detail_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory detail summary predecessor changed';END IF;
-  EXECUTE replace(d,detail_anchor,detail_anchor||' summary_value:=summary_value||'||replace(members,'row_value.','entity_record.')||';');
- END IF;
- d:=pg_get_functiondef(page);
- IF position('management_state' in d)=0 THEN
-  IF length(d)-length(replace(d,page_anchor,''))<>length(page_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory page summary predecessor changed';END IF;
-  EXECUTE replace(d,page_anchor,$head$'version',annotation_version)||$head$||replace(members,'row_value.','visible.')||' ORDER BY id)');
- END IF;
+ FOR target IN SELECT * FROM(VALUES
+  (detail,'entity_record.',detail_anchor,detail_anchor||' summary_value:=summary_value||MEMBERS;','inventory detail summary predecessor changed'),
+  (page,'visible.',page_anchor,$head$'version',annotation_version)||MEMBERS ORDER BY id)$head$,'inventory page summary predecessor changed')
+ ) listed(signature,row_name,anchor,patched,refusal) LOOP
+  d:=pg_get_functiondef(target.signature);
+  IF position(replace(members,'row_value.',target.row_name) in d)>0 THEN CONTINUE;END IF;
+  IF position(replace(earlier,'row_value.',target.row_name) in d)>0 THEN
+   EXECUTE replace(d,replace(earlier,'row_value.',target.row_name),replace(members,'row_value.',target.row_name));
+   CONTINUE;
+  END IF;
+  IF position('management_state' in d)>0 OR length(d)-length(replace(d,target.anchor,''))<>length(target.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=target.refusal;END IF;
+  EXECUTE replace(d,target.anchor,replace(target.patched,'MEMBERS',replace(members,'row_value.',target.row_name)));
+ END LOOP;
 END $inventory_discovery_summary$;
+
+-- X5a. A dismissed agent raises no posture finding.
+--
+-- zasp_inventory_refresh_posture_findings raises the agent posture findings
+-- (ownerless_agent and eleven more) and resolves every posture finding its
+-- rules no longer match. An agent a person marked as not an agent (section
+-- X5: found without a declaration, annotation tag not-an-agent) is not an
+-- agent to hold to those rules, so it leaves the set the rules read: nothing
+-- is raised for it, and the findings it had are resolved by the same call.
+-- zasp_inventory_update_agent, which records the mark, calls the refresh in
+-- its own transaction; the risk projection apply calls it after every
+-- collection.
+DO $inventory_posture_dismissal$
+DECLARE target CONSTANT regprocedure:='public.zasp_inventory_refresh_posture_findings(text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$anchor$   AND entity_value.winning_evidence_id IS NOT NULL$anchor$;
+ condition CONSTANT text:=$condition$
+   AND NOT (COALESCE(entity_value.winning_attributes->'discovery'->>'method','declared')<>'declared' AND COALESCE(annotation.tags,'[]'::jsonb) ? 'not-an-agent')$condition$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(anchor||condition in d)=0 THEN
+  IF position('not-an-agent' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory posture refresh predecessor changed';END IF;
+  EXECUTE replace(d,anchor,anchor||condition);
+ END IF;
+END $inventory_posture_dismissal$;
+
+-- X5b. AI service coverage gaps on the integration freshness.
+--
+-- The AWS collector records, per AI service it asks for agents (Bedrock
+-- agents, AgentCore, Lambda), an aws_service observation whose attributes say
+-- whether the service was collected, refused the read role (access_denied) or
+-- is not offered in the account's regions (unavailable). Nothing showed it:
+-- agents were missing and the integration looked healthy. The freshness read
+-- (GET /integrations/{id}/freshness, zasp_temporal72.last_good_freshness)
+-- gains the member coverage_gaps: one {service,name,status} per service of
+-- this integration whose current present observation is access_denied or
+-- unavailable, at most 16, ordered by service. It is [] for an integration
+-- with no such observation, so for every provider other than AWS. The chain's
+-- reader (public.zasp_execution_last_good_freshness) is left as it is.
+DO $integration_coverage_gaps$
+DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=E'\n RETURN b;';
+ gaps CONSTANT text:=$gaps$
+ b:=b||jsonb_build_object('coverage_gaps',COALESCE((SELECT jsonb_agg(jsonb_build_object('service',gap.service,'name',gap.name,'status',gap.status) ORDER BY gap.service) FROM(
+  SELECT DISTINCT ON(observation.stable_fields->>'service') observation.stable_fields->>'service' service,COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name) name,observation.attributes->>'status' status
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='aws' AND observation.source_kind='aws_service' AND observation.source_state='present'
+   AND observation.attributes->>'status' IN('access_denied','unavailable')
+   AND observation.stable_fields->>'service' ~ '^[a-z][a-z0-9-]{0,63}$'
+   AND length(COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name)) BETWEEN 1 AND 128
+  ORDER BY observation.stable_fields->>'service',observation.last_seen_at DESC,observation.source
+  LIMIT 16) gap),'[]'::jsonb));$gaps$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(gaps in d)=0 THEN
+  IF position('coverage_gaps' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration freshness predecessor changed';END IF;
+  EXECUTE replace(d,anchor,gaps||anchor);
+ END IF;
+END $integration_coverage_gaps$;
 
 -- ---------------------------------------------------------------------------
 -- X5. Security Agent counts of the home summary.

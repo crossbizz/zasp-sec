@@ -426,7 +426,24 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	if err != nil {
 		t.Fatal(err)
 	}
+	// This database first ran the section as it stood before dismissal
+	// existed. The current section replaces those members, and running it
+	// again changes nothing.
+	if _, err := connection.Exec(ctx, inventoryDiscoverySummaryBefore, pgx.QueryExecModeSimpleProtocol); err != nil {
+		t.Fatalf("earlier inventory discovery summary: %v", err)
+	}
+	if earlier := inventorySummaryDefinitions(t, ctx, connection); strings.Count(earlier, "'management_state'") != 2 || strings.Contains(earlier, "dismissed") || strings.Contains(earlier, "not-an-agent") {
+		t.Fatal("the earlier section did not install the earlier summary members")
+	}
 	applyInventoryDiscoverySummary(t, ctx, connection)
+	patched := inventorySummaryDefinitions(t, ctx, connection)
+	if strings.Count(patched, "'management_state'") != 2 || strings.Count(patched, "THEN 'dismissed'") != 2 || strings.Count(patched, "not-an-agent") != 3 {
+		t.Fatalf("the current section did not replace the earlier summary members: management_state=%d dismissed=%d tag=%d", strings.Count(patched, "'management_state'"), strings.Count(patched, "THEN 'dismissed'"), strings.Count(patched, "not-an-agent"))
+	}
+	applyInventoryDiscoverySummary(t, ctx, connection)
+	if inventorySummaryDefinitions(t, ctx, connection) != patched {
+		t.Fatal("re-running the section changed an already patched function")
+	}
 	// Two of the agents were found without a declaration: their winning
 	// observation is the inferred kind and carries how they were found.
 	inferredAgents := map[string]bool{"pid_81000001-0000-4000-8000-000000000001": true, "pid_81000002-0000-4000-8000-000000000002": true}
@@ -526,6 +543,74 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	}
 	if entityVersion != 1 || annotationVersion != 2 || auditRows != 1 || genericRows != 0 {
 		t.Fatalf("typed agent mutation residue entity=%d annotation=%d audits=%d generic=%d", entityVersion, annotationVersion, auditRows, genericRows)
+	}
+	// Dismissal. The other inferred agent has no owner, so the refresh the
+	// first ownership update ran raised ownerless_agent for it. Marking it as
+	// not an agent goes through the same ownership update: the summary says
+	// dismissed, and the refresh that update runs resolves its findings.
+	const dismissedAgentID, declaredAgentID = "pid_81000002-0000-4000-8000-000000000002", "pid_81000003-0000-4000-8000-000000000003"
+	openPostureFindings := func(agent string) (open, resolved int) {
+		t.Helper()
+		if err := connection.QueryRow(ctx, `SELECT count(*) FILTER(WHERE status<>'resolved'),count(*) FILTER(WHERE status='resolved') FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,source,agent_id)=($1,$2,$3,'posture',$4)`, organizationID, workspaceID, environmentID, agent).Scan(&open, &resolved); err != nil {
+			t.Fatal(err)
+		}
+		return open, resolved
+	}
+	if open, resolved := openPostureFindings(dismissedAgentID); open != 1 || resolved != 0 {
+		t.Fatalf("ownerless inferred agent posture findings before dismissal open=%d resolved=%d", open, resolved)
+	}
+	updateOwnership := func(agent, key, tags, audit, correlation string) InventorySummary {
+		t.Helper()
+		if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+			t.Fatal(err)
+		}
+		var payload json.RawMessage
+		if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
+			organizationID, workspaceID, environmentID, identity.PrincipalID.String(), agent, key, "security", "platform", tags, audit, correlation).Scan(&payload); err != nil {
+			t.Fatalf("ownership update of %s: %v", agent, err)
+		}
+		if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+			t.Fatal(err)
+		}
+		var updated struct {
+			Agent         InventorySummary `json:"agent"`
+			AuditID       string           `json:"audit_id"`
+			CorrelationID string           `json:"correlation_id"`
+			Replayed      bool             `json:"replayed"`
+		}
+		if decodeStrictInventory(payload, &updated) != nil || updated.Agent.ID != agent || !validInventorySummary(updated.Agent, InventoryKindAgent) {
+			t.Fatalf("ownership update of %s = %s", agent, payload)
+		}
+		return updated.Agent
+	}
+	if dismissed := updateOwnership(dismissedAgentID, "typed-agent-dismiss-0001", `["not-an-agent"]`, "pid_82000007-0000-4000-8000-000000000007", "pid_82000008-0000-4000-8000-000000000008"); dismissed.ManagementState != "dismissed" || dismissed.Discovery.Method != "inferred" || dismissed.Owner != "security" || !reflect.DeepEqual(dismissed.Tags, []string{"not-an-agent"}) {
+		t.Fatalf("dismissed inferred agent = %#v", dismissed)
+	}
+	if open, resolved := openPostureFindings(dismissedAgentID); open != 0 || resolved != 1 {
+		t.Fatalf("dismissed agent posture findings open=%d resolved=%d", open, resolved)
+	}
+	// A declared agent's owner labelled it: the tag means nothing there.
+	if declared := updateOwnership(declaredAgentID, "typed-agent-dismiss-0002", `["not-an-agent"]`, "pid_82000009-0000-4000-8000-000000000009", "pid_8200000a-0000-4000-8000-00000000000a"); declared.ManagementState != "managed" || declared.Discovery.Method != "declared" || !reflect.DeepEqual(declared.Tags, []string{"not-an-agent"}) {
+		t.Fatalf("declared agent with the tag = %#v", declared)
+	}
+	// A dismissed agent with a posture fact that would match stays without a
+	// finding on the next refresh; without the tag the same fact raises one.
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes=winning_attributes||'{"posture":{"human_credential":true}}'::jsonb WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) AND id=ANY($4)`, organizationID, workspaceID, environmentID, []string{dismissedAgentID, agentID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_inventory_refresh_posture_findings($1,$2,$3)`, organizationID, workspaceID, environmentID); err != nil {
+		t.Fatalf("posture refresh: %v", err)
+	}
+	if open, resolved := openPostureFindings(dismissedAgentID); open != 0 || resolved != 1 {
+		t.Fatalf("dismissed agent posture findings after refresh open=%d resolved=%d", open, resolved)
+	}
+	if open, _ := openPostureFindings(agentID); open != 1 {
+		t.Fatalf("owned inferred agent human_credential findings open=%d", open)
+	}
+	// Both reads report it: the list and the detail.
+	firstPage, err := repository.ListInventoryPage(ctx, scope, InventoryKindAgent, "", 3)
+	if err != nil || len(firstPage.Items) != 3 || firstPage.Items[0].ManagementState != "managed" || firstPage.Items[1].ID != dismissedAgentID || firstPage.Items[1].ManagementState != "dismissed" || firstPage.Items[2].ID != declaredAgentID || firstPage.Items[2].ManagementState != "managed" {
+		t.Fatalf("page after dismissal = %#v / %v", firstPage, err)
 	}
 	const (
 		serviceAccountID = "pid_84000001-0000-4000-8000-000000000001"
@@ -1041,20 +1126,234 @@ func TestProductionTypedInventoryCutoverPostgresSelectsDeterministicWinnerAcross
 
 // applyInventoryDiscoverySummary gives a database built from the historical
 // chain the inventory summary members the baseline completion adds
-// (completion.sql, section X5), by running that section as the baseline does.
+// (completion.sql, section X5) and the posture refresh that skips a dismissed
+// agent (section X5a), by running those sections as the baseline does.
 func applyInventoryDiscoverySummary(t *testing.T, ctx context.Context, connection *pgx.Conn) {
+	t.Helper()
+	applyCompletionBlock(t, ctx, connection, "inventory_discovery_summary")
+	applyCompletionBlock(t, ctx, connection, "inventory_posture_dismissal")
+}
+
+// completionBlock returns the one DO block of completion.sql with this
+// dollar-quote tag.
+func completionBlock(t *testing.T, tag string) string {
 	t.Helper()
 	completion, err := os.ReadFile(filepath.Join("..", "migrations", "baseline", "completion.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	const opening, closing = "DO $inventory_discovery_summary$", "END $inventory_discovery_summary$;"
+	opening, closing := "DO $"+tag+"$", "END $"+tag+"$;"
 	start := strings.Index(string(completion), opening)
 	end := strings.Index(string(completion), closing)
 	if start < 0 || end < start || strings.Count(string(completion), opening) != 1 {
-		t.Fatal("completion.sql does not hold exactly one inventory discovery summary section")
+		t.Fatalf("completion.sql does not hold exactly one %s section", tag)
 	}
-	if _, err := connection.Exec(ctx, string(completion[start:end+len(closing)]), pgx.QueryExecModeSimpleProtocol); err != nil {
-		t.Fatalf("inventory discovery summary: %v", err)
+	return string(completion[start : end+len(closing)])
+}
+
+func applyCompletionBlock(t *testing.T, ctx context.Context, connection *pgx.Conn, tag string) {
+	t.Helper()
+	if _, err := connection.Exec(ctx, completionBlock(t, tag), pgx.QueryExecModeSimpleProtocol); err != nil {
+		t.Fatalf("%s: %v", tag, err)
+	}
+}
+
+// inventoryDiscoverySummaryBefore is completion.sql section X5 as it stood
+// before an agent could be dismissed. A database that ran it holds these
+// summary members; the current section must replace them.
+const inventoryDiscoverySummaryBefore = `DO $inventory_discovery_summary$
+DECLARE detail CONSTANT regprocedure:='public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure;
+ page CONSTANT regprocedure:='public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure;
+ source_kind CONSTANT text:=$source_kind$(SELECT observation.source_kind FROM public.zasp_inventory_source_observations observation WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(row_value.organization_id,row_value.workspace_id,row_value.environment_id,row_value.winning_integration_id,row_value.winning_source,row_value.id))$source_kind$;
+ members CONSTANT text:=replace($members$jsonb_build_object('provider',row_value.winning_provider,'source_kind',SOURCE_KIND,'discovery',jsonb_build_object('method',CASE WHEN row_value.product_kind<>'agent' THEN 'provider_api' ELSE COALESCE(row_value.winning_attributes->'discovery'->>'method','declared') END,'platform',COALESCE(row_value.winning_attributes->'discovery'->>'platform',SOURCE_KIND),'signals',COALESCE(row_value.winning_attributes->'discovery'->'signals','[]'::jsonb)),'management_state',CASE WHEN row_value.product_kind<>'agent' THEN 'not_applicable' WHEN row_value.winning_attributes->'discovery' IS NULL OR COALESCE(annotation_value->>'owner','')<>'' THEN 'managed' ELSE 'unmanaged' END)$members$,'SOURCE_KIND',source_kind);
+ detail_anchor CONSTANT text:='INTO summary_value;';
+ page_anchor CONSTANT text:=$anchor$'version',annotation_version) ORDER BY id)$anchor$;
+ d text;
+BEGIN
+ d:=pg_get_functiondef(detail);
+ IF position('management_state' in d)=0 THEN
+  IF length(d)-length(replace(d,detail_anchor,''))<>length(detail_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory detail summary predecessor changed';END IF;
+  EXECUTE replace(d,detail_anchor,detail_anchor||' summary_value:=summary_value||'||replace(members,'row_value.','entity_record.')||';');
+ END IF;
+ d:=pg_get_functiondef(page);
+ IF position('management_state' in d)=0 THEN
+  IF length(d)-length(replace(d,page_anchor,''))<>length(page_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory page summary predecessor changed';END IF;
+  EXECUTE replace(d,page_anchor,$head$'version',annotation_version)||$head$||replace(members,'row_value.','visible.')||' ORDER BY id)');
+ END IF;
+END $inventory_discovery_summary$;`
+
+// inventorySummaryDefinitions is the current source of the two functions
+// section X5 patches.
+func inventorySummaryDefinitions(t *testing.T, ctx context.Context, connection *pgx.Conn) string {
+	t.Helper()
+	var definitions string
+	if err := connection.QueryRow(ctx, `SELECT pg_get_functiondef('public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure)||pg_get_functiondef('public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure)||pg_get_functiondef('public.zasp_inventory_refresh_posture_findings(text,text,text)'::regprocedure)`).Scan(&definitions); err != nil {
+		t.Fatal(err)
+	}
+	return definitions
+}
+
+// temporalFreshnessChainDefinition is zasp_temporal72.last_good_freshness as
+// migration 0072 creates it, the function completion.sql section X5b patches.
+const temporalFreshnessChainDefinition = `CREATE FUNCTION zasp_temporal72.last_good_freshness(o text,w text,e text,i text) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $freshness$
+DECLARE b jsonb;
+BEGIN
+ PERFORM zasp_temporal72.require_principal('zasp_discovery_api');
+ b:=public.zasp_execution_last_good_freshness(o,w,e,i);
+ IF b->'latest_sync'<>'null'::jsonb THEN b:=b||jsonb_build_object('latest_sync',zasp_temporal72.sync_body(o,w,e,i,b->'latest_sync'->>'id'));END IF;
+ RETURN b;
+END $freshness$;`
+
+func TestTemporalFreshnessChainDefinitionIsTheMigrations(t *testing.T) {
+	chain, err := os.ReadFile(filepath.Join("..", "migrations", "sql", "0072_production_temporal_discovery.up.sql"))
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("migration sources are not beside this test binary")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(chain), temporalFreshnessChainDefinition) != 1 {
+		t.Fatal("migration 0072 no longer defines zasp_temporal72.last_good_freshness as the coverage gap test installs it")
+	}
+}
+
+// The freshness of an integration names the AI services its last collection
+// could not read. The database is the historical chain at the typed inventory
+// cutover, which predates the zasp_temporal72 schema; the test installs the
+// chain's definition of the one function section X5b patches (its two helpers
+// are stand-ins that defer to the chain's readers), runs the section, and
+// reads through the repository as the API does.
+func TestInventoryIntegrationFreshnessPostgresReportsAWSCoverageGaps(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	migrateToTypedInventoryCutover(t, ctx, connection)
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	discovery, err := newDiscoveryRepositoryUnchecked(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	scope := identity.Scope
+	organizationID, workspaceID, environmentID := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
+	observed := time.Now().UTC().Truncate(time.Second).Add(-time.Minute)
+	const awsIntegration, otherIntegration = "pid_76000001-0000-4000-8000-000000000001", "pid_76000002-0000-4000-8000-000000000002"
+	for sequence, integrationID := range []string{awsIntegration, otherIntegration} {
+		syncID := fmt.Sprintf("pid_77%06x-0000-4000-8000-%012x", sequence+1, sequence+1)
+		snapshotID := fmt.Sprintf("pid_78%06x-0000-4000-8000-%012x", sequence+1, sequence+1)
+		if _, err := discovery.CreateIntegration(ctx, identity, IntegrationCreate{ID: integrationID, Kind: "kubernetes", ConnectorVersion: "1.0.0", DisplayName: fmt.Sprintf("Integration %d", sequence+1), Configuration: json.RawMessage(`{}`)}); err != nil {
+			t.Fatal(err)
+		}
+		requestDigest := sha256.Sum256([]byte(fmt.Sprintf("coverage-gaps-%d", sequence)))
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,parser_version,tool_version) VALUES($1,$2,$3,$4,$5,$6,$7,'manual',$8,'parser_v1','tool_v1')`, organizationID, workspaceID, environmentID, syncID, integrationID, fmt.Sprintf("coverage-gaps-sync-%04d", sequence), requestDigest[:], identity.PrincipalID.String()); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at) VALUES($1,$2,$3,$4,$5,$6,1,$7,$8,$9,'complete',$9,'{}'::jsonb,true,true,$10,$10)`, organizationID, workspaceID, environmentID, snapshotID, integrationID, syncID, []string{"aws", "kubernetes"}[sequence], "s3://zasp-evidence/coverage/"+snapshotID+".json", requestDigest[:], observed); err != nil {
+			t.Fatalf("snapshot %d: %v", sequence, err)
+		}
+	}
+	// The services of one collection: two the read role may not list, one not
+	// offered in the account's regions, one collected, the EC2 record (which
+	// carries no status), a refused service of an earlier collection that is
+	// no longer present, and a record of another provider's integration.
+	type service struct {
+		ordinal                                    int
+		integration, source, provider, kind, state string
+		native, display, stable, attributes        string
+	}
+	for _, item := range []service{
+		{1, awsIntegration, "aws", "aws", "aws_service", "present", "aws:lambda", "AWS Lambda", `{"account_id":"123456789012","name":"AWS Lambda","service":"lambda"}`, `{"status":"access_denied"}`},
+		{2, awsIntegration, "aws", "aws", "aws_service", "present", "aws:bedrock-agentcore", "Amazon Bedrock AgentCore", `{"account_id":"123456789012","name":"Amazon Bedrock AgentCore","service":"bedrock-agentcore"}`, `{"status":"unavailable"}`},
+		{3, awsIntegration, "aws", "aws", "aws_service", "present", "aws:bedrock-agent", "Amazon Bedrock Agents", `{"account_id":"123456789012","name":"Amazon Bedrock Agents","service":"bedrock-agent"}`, `{"status":"access_denied"}`},
+		{4, awsIntegration, "aws", "aws", "aws_service", "present", "aws:sagemaker", "Amazon SageMaker", `{"account_id":"123456789012","name":"Amazon SageMaker","service":"sagemaker"}`, `{"status":"collected"}`},
+		{5, awsIntegration, "aws", "aws", "aws_service", "present", "aws:ec2", "Amazon EC2", `{"account_id":"123456789012","name":"Amazon EC2","service":"ec2"}`, `{}`},
+		{6, awsIntegration, "aws", "aws", "aws_service", "removed", "aws:comprehend", "Amazon Comprehend", `{"account_id":"123456789012","name":"Amazon Comprehend","service":"comprehend"}`, `{"status":"access_denied"}`},
+		{7, awsIntegration, "aws", "aws", "aws_role", "present", "arn:aws:iam::123456789012:role/reader", "reader", `{"service":"iam"}`, `{"status":"access_denied"}`},
+		{8, otherIntegration, "kubernetes", "kubernetes", "aws_service", "present", "aws:lambda", "AWS Lambda", `{"name":"AWS Lambda","service":"lambda"}`, `{"status":"access_denied"}`},
+	} {
+		entityID := fmt.Sprintf("pid_81%06x-0000-4000-8000-%012x", item.ordinal, item.ordinal)
+		evidenceID := fmt.Sprintf("pid_91%06x-0000-4000-8000-%012x", item.ordinal, item.ordinal)
+		snapshotID := "pid_78000001-0000-4000-8000-000000000001"
+		if item.integration == otherIntegration {
+			snapshotID = "pid_78000002-0000-4000-8000-000000000002"
+		}
+		var removed *time.Time
+		if item.state == "removed" {
+			removed = &observed
+		}
+		if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_entities(
+ organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,state,first_seen_at,last_seen_at,version,
+ product_kind,confidence_basis_points,winning_evidence_id,winning_snapshot_id,winning_generation,observed_at,fresh_until,projection_version,
+ winning_integration_id,winning_provider,winning_source,winning_source_native_id,winning_identity_rule,winning_source_projection)
+VALUES($1,$2,$3,$4,'asset',$5,'{}','active',$6,$6,1,'asset',9000,$7,$8,1,$6,$9,1,$10,$11,$12,$13,1,1)`,
+			organizationID, workspaceID, environmentID, entityID, item.display, observed, evidenceID, snapshotID, observed.Add(24*time.Hour), item.integration, item.provider, item.source, item.native); err != nil {
+			t.Fatalf("entity %d: %v", item.ordinal, err)
+		}
+		if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_source_observations(
+ organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at,removed_at,
+ provider,source_kind,display_name,stable_fields,identity_namespace,product_kind,generation,content_digest,evidence_id,confidence_basis_points,observed_at,fresh_until,
+ identity_rule_version,identity_priority,source_projection_version)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$11,$12,$13,$14,$15,$16::jsonb,$14,'asset',1,digest(convert_to($7,'UTF8'),'sha256'),$17,9000,$11,$18,1,100,1)`,
+			organizationID, workspaceID, environmentID, item.integration, item.source, entityID, item.native, snapshotID, item.state, item.attributes, observed, removed,
+			item.provider, item.kind, item.display, item.stable, evidenceID, observed.Add(24*time.Hour)); err != nil {
+			t.Fatalf("observation %d: %v", item.ordinal, err)
+		}
+	}
+	// The chain's function and stand-ins for the two helpers it calls.
+	for _, statement := range []string{
+		`CREATE SCHEMA zasp_temporal72`,
+		`CREATE FUNCTION zasp_temporal72.require_principal(a text) RETURNS void LANGUAGE sql AS $$ SELECT $$`,
+		`CREATE FUNCTION zasp_temporal72.sync_body(o text,w text,e text,i text,s text) RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT public.zasp_execution_sync_body(o,w,e,i,s) $$`,
+		temporalFreshnessChainDefinition,
+	} {
+		if _, err := connection.Exec(ctx, statement, pgx.QueryExecModeSimpleProtocol); err != nil {
+			t.Fatalf("%s: %v", strings.SplitN(statement, "(", 2)[0], err)
+		}
+	}
+	temporal := &DiscoveryRepository{database: database, schema: DiscoveryExecutionSchemaVersion, authority: discovery.authority, temporal: true}
+	// Before the section runs the reader predates the member: no gap.
+	before, err := temporal.GetIntegrationFreshness(ctx, scope, awsIntegration)
+	if err != nil || before.CoverageGaps == nil || len(before.CoverageGaps) != 0 || before.LastGood == nil || before.LatestSync == nil {
+		t.Fatalf("freshness before the section = %#v / %v", before, err)
+	}
+	applyCompletionBlock(t, ctx, connection, "integration_coverage_gaps")
+	var patched, again string
+	definition := `SELECT pg_get_functiondef('zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure)`
+	if err := connection.QueryRow(ctx, definition).Scan(&patched); err != nil {
+		t.Fatal(err)
+	}
+	applyCompletionBlock(t, ctx, connection, "integration_coverage_gaps")
+	if err := connection.QueryRow(ctx, definition).Scan(&again); err != nil || again != patched || strings.Count(patched, "'coverage_gaps'") != 1 {
+		t.Fatalf("re-running the section changed the function or it holds the member %d times: %v", strings.Count(patched, "'coverage_gaps'"), err)
+	}
+	freshness, err := temporal.GetIntegrationFreshness(ctx, scope, awsIntegration)
+	want := []IntegrationCoverageGap{
+		{Service: "bedrock-agent", Name: "Amazon Bedrock Agents", Status: "access_denied"},
+		{Service: "bedrock-agentcore", Name: "Amazon Bedrock AgentCore", Status: "unavailable"},
+		{Service: "lambda", Name: "AWS Lambda", Status: "access_denied"},
+	}
+	if err != nil || !reflect.DeepEqual(freshness.CoverageGaps, want) || freshness.LastGood == nil || freshness.LatestSync == nil || freshness.Version != before.Version {
+		t.Fatalf("freshness = %#v / %v", freshness, err)
+	}
+	other, err := temporal.GetIntegrationFreshness(ctx, scope, otherIntegration)
+	if err != nil || other.CoverageGaps == nil || len(other.CoverageGaps) != 0 {
+		t.Fatalf("freshness of another provider's integration = %#v / %v", other, err)
+	}
+	// Once the role is fixed and the service collected, the gap is gone.
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET attributes='{"status":"collected"}'::jsonb WHERE (organization_id,workspace_id,environment_id,integration_id,source_native_id)=($1,$2,$3,$4,'aws:lambda')`, organizationID, workspaceID, environmentID, awsIntegration); err != nil {
+		t.Fatal(err)
+	}
+	if freshness, err = temporal.GetIntegrationFreshness(ctx, scope, awsIntegration); err != nil || !reflect.DeepEqual(freshness.CoverageGaps, want[:2]) {
+		t.Fatalf("freshness after the role was fixed = %#v / %v", freshness, err)
 	}
 }

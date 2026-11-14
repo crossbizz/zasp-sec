@@ -199,6 +199,128 @@ describe("production typed inventory API", () => {
     expect(screen.getByRole("list", { name: "Discovery signals" })).toHaveTextContent("app:chatgpt");
   });
 
+  it("dismisses a found agent with the checkbox and never shows the reserved tag in the Tags field", async () => {
+    const user = userEvent.setup();
+    const shadow = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical"], provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "managed" as const };
+    const updateAgent = vi.fn(async (_id: string, version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...shadow, ...input, management_state: input.tags.includes("not-an-agent") ? "dismissed" as const : "managed" as const, version: version + 1 }, audit_id: ids.evidence }));
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [shadow], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => ({ summary: shadow, sources: [], evidence: [] }) as never, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [], updateAgent,
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} canWrite onNavigate={() => undefined} /></APIProvider>);
+    await user.click(await screen.findByRole("button", { name: "Open Shadow" }));
+    const checkbox = await screen.findByRole("checkbox", { name: "Not an agent" });
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByText(/An owner and team are needed so the decision has a name on it\./)).toBeVisible();
+    expect(screen.getByRole("textbox", { name: /^Tags/ })).toHaveValue("critical");
+    expect(screen.queryByRole("button", { name: /^Dismissed/ })).toBeNull();
+
+    await user.click(checkbox);
+    await user.click(screen.getByRole("button", { name: "Save ownership" }));
+    await waitFor(() => expect(updateAgent).toHaveBeenLastCalledWith(ids.second, 1, { owner: "security", team: "platform", tags: ["critical", "not-an-agent"] }, expect.stringMatching(/^agent_/)));
+    expect(await screen.findByText(/Dismissed: marked as not an agent/)).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "Not an agent" })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: /^Tags/ })).toHaveValue("critical");
+
+    // Unchecking sends the same update without the tag.
+    await user.click(screen.getByRole("checkbox", { name: "Not an agent" }));
+    await user.click(screen.getByRole("button", { name: "Save ownership" }));
+    await waitFor(() => expect(updateAgent).toHaveBeenLastCalledWith(ids.second, 2, { owner: "security", team: "platform", tags: ["critical"] }, expect.stringMatching(/^agent_/)));
+    expect(await screen.findByText(/Okta · SaaS assistant · Inferred from signals · Managed/)).toBeVisible();
+  });
+
+  it("keeps the reserved tag out of the Tags field of an agent that arrives dismissed, and out of what a person types", async () => {
+    const user = userEvent.setup();
+    const dismissed = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical", "not-an-agent"], provider: "aws" as const, source_kind: "aws_inferred_agent", discovery: { method: "inferred" as const, platform: "lambda_function", signals: ["env:openai"] }, management_state: "dismissed" as const };
+    const updateAgent = vi.fn(async (_id: string, version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...dismissed, ...input, version: version + 1 }, audit_id: ids.evidence }));
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [dismissed], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => ({ summary: dismissed, sources: [], evidence: [] }) as never, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [], updateAgent,
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} canWrite onNavigate={() => undefined} /></APIProvider>);
+    // The only agent is dismissed: the agent list is empty and says why.
+    expect(await screen.findByRole("button", { name: "All agents (0)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Every agent found in this scope was dismissed.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Dismissed (1)" }));
+    await user.click(screen.getByRole("button", { name: "Open Shadow" }));
+    expect(await screen.findByRole("checkbox", { name: "Not an agent" })).toBeChecked();
+    const tags = screen.getByRole("textbox", { name: /^Tags/ });
+    expect(tags).toHaveValue("critical");
+    // Typing the reserved tag does not smuggle it past the checkbox.
+    await user.type(tags, ", not-an-agent, production");
+    await user.click(screen.getByRole("checkbox", { name: "Not an agent" }));
+    await user.click(screen.getByRole("button", { name: "Save ownership" }));
+    await waitFor(() => expect(updateAgent).toHaveBeenCalledWith(ids.second, 1, { owner: "security", team: "platform", tags: ["critical", "production"] }, expect.stringMatching(/^agent_/)));
+  });
+
+  it("offers no dismissal for a declared agent, for a reader, or for other inventory", async () => {
+    const user = userEvent.setup();
+    const declared = { ...summary(ids.first, "Declared"), owner: "security", team: "platform", tags: ["not-an-agent"] };
+    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const };
+    const updateAgent = vi.fn(async (_id: string, version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...declared, ...input, version: version + 1 }, audit_id: ids.evidence }));
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [declared, shadow], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async (id) => ({ summary: id === ids.first ? declared : shadow, sources: [], evidence: [] }) as never, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [], updateAgent,
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    const writer = render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} canWrite onNavigate={() => undefined} /></APIProvider>);
+    // The tag on a declared agent is an ordinary tag: it stays managed and listed.
+    expect(await screen.findByRole("row", { name: /Declared.*Declared by owner.*Managed/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: "All agents (2)" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Dismissed/ })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open Declared" }));
+    expect(await screen.findByLabelText("Owner")).toHaveValue("security");
+    expect(screen.queryByRole("checkbox", { name: "Not an agent" })).toBeNull();
+    writer.unmount();
+
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    await user.click(await screen.findByRole("button", { name: "Open Shadow" }));
+    expect(await screen.findByRole("heading", { name: "How it was found" })).toBeVisible();
+    expect(screen.queryByRole("checkbox", { name: "Not an agent" })).toBeNull();
+  });
+
+  it("lists dismissed agents under their own filter and leaves them out of the agent list", async () => {
+    const user = userEvent.setup();
+    const declared = summary(ids.first, "Declared");
+    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const };
+    const falsePositive = { ...summary(ids.relationship, "Report job"), owner: "security", team: "platform", tags: ["not-an-agent"], provider: "aws" as const, source_kind: "aws_inferred_agent", discovery: { method: "inferred" as const, platform: "lambda_function", signals: ["env:openai"] }, management_state: "dismissed" as const };
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [declared, shadow, falsePositive], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => ({ summary: falsePositive, sources: [], evidence: [] }) as never, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => ({ agent: falsePositive, audit_id: ids.evidence }),
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    expect(await screen.findByRole("button", { name: "All agents (2)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByRole("button", { name: /^(All agents|Unmanaged|Dismissed) \(\d+\)$/ }).map((button) => button.textContent)).toEqual(["All agents (2)", "Unmanaged (1)", "Dismissed (1)"]);
+    expect(screen.getByRole("button", { name: "Open Declared" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Open Shadow" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Open Report job" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Unmanaged (1)" }));
+    expect(screen.queryByRole("button", { name: "Open Report job" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open Declared" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Dismissed (1)" }));
+    expect(screen.getByRole("button", { name: "Dismissed (1)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("row", { name: /Report job.*AWS · Lambda function.*Inferred from signals.*Dismissed.*security/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Open Declared" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open Shadow" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open Report job" }));
+    expect(await screen.findByText(/AWS · Lambda function · Inferred from signals · Dismissed: marked as not an agent/)).toBeVisible();
+  });
+
   it("shows the provider for non-agent inventory without agent-only columns", async () => {
     const tool = { ...summary(ids.first, "Gateway"), kind: "tool" as const, provider: "aws" as const, source_kind: "aws_agentcore_gateway", discovery: { method: "provider_api" as const, platform: "aws_agentcore_gateway", signals: [] }, management_state: "not_applicable" as const };
     const api: ProductionAgentSecurityAPI = {

@@ -56,8 +56,10 @@ type InventorySummary struct {
 	FreshnessState        string        `json:"freshness_state"`
 	Version               int64         `json:"version"`
 	// How the object was found. Provider and SourceKind name the winning
-	// observation; ManagementState is "unmanaged" for an agent that was found
-	// without a declaration and has no owner.
+	// observation; ManagementState is "dismissed" for an agent that was found
+	// without a declaration and that a person marked as not an agent (the tag
+	// not-an-agent), otherwise "unmanaged" for an agent that was found without
+	// a declaration and has no owner.
 	Provider        string             `json:"provider"`
 	SourceKind      string             `json:"source_kind"`
 	Discovery       InventoryDiscovery `json:"discovery"`
@@ -505,8 +507,9 @@ var (
 )
 
 // validInventoryDiscovery checks the members that say how an object was
-// found. Only an agent can be declared, inferred or unmanaged; every other
-// kind is a provider record whose management state does not apply.
+// found. Only an agent can be declared, inferred, unmanaged or dismissed;
+// every other kind is a provider record whose management state does not
+// apply. A declared agent is always managed, whatever its tags.
 func validInventoryDiscovery(item InventorySummary, kind InventoryKind) bool {
 	discovery := item.Discovery
 	if !isDiscoveryProvider(item.Provider) || !inventorySourceKindPattern.MatchString(item.SourceKind) || !inventorySourceKindPattern.MatchString(discovery.Platform) || discovery.Signals == nil || len(discovery.Signals) > 16 {
@@ -533,7 +536,26 @@ func validInventoryDiscovery(item InventorySummary, kind InventoryKind) bool {
 	default:
 		return false
 	}
+	// A person marked it as not an agent: the reserved tag on an agent that
+	// was found without a declaration, and nothing else, is "dismissed".
+	if inventoryTagsDismiss(item.Tags) {
+		return item.ManagementState == "dismissed"
+	}
 	return item.ManagementState == "managed" && item.Owner != "" || item.ManagementState == "unmanaged" && item.Owner == ""
+}
+
+// InventoryNotAnAgentTag is the reserved annotation tag that dismisses an
+// agent found without a declaration. It is an ordinary tag to the ownership
+// update, which records who set it.
+const InventoryNotAnAgentTag = "not-an-agent"
+
+func inventoryTagsDismiss(tags []string) bool {
+	for _, tag := range tags {
+		if tag == InventoryNotAnAgentTag {
+			return true
+		}
+	}
+	return false
 }
 
 func validInventoryDetail(detail InventoryDetail, kind InventoryKind) bool {

@@ -663,7 +663,14 @@ describe("production workflow concurrency contract", () => {
 
     const freshnessSchema = document.components.schemas.IntegrationFreshness;
     assert.equal(freshnessSchema.additionalProperties, false);
-    assert.deepEqual(freshnessSchema.required, ["integration_id", "version", "last_good", "latest_sync", "projections", "updated_at"]);
+    assert.deepEqual(freshnessSchema.required, ["integration_id", "version", "last_good", "latest_sync", "projections", "updated_at", "coverage_gaps"]);
+    assert.equal(freshnessSchema.properties.coverage_gaps.maxItems, 16);
+    assert.deepEqual(freshnessSchema.properties.coverage_gaps.items, { $ref: "#/components/schemas/IntegrationCoverageGap" });
+    const coverageGap = document.components.schemas.IntegrationCoverageGap;
+    assert.equal(coverageGap.additionalProperties, false);
+    assert.deepEqual(coverageGap.required, ["service", "name", "status"]);
+    assert.deepEqual(coverageGap.properties.status.enum, ["access_denied", "unavailable"]);
+    assert.deepEqual(document.components.schemas.InventoryManagementState.enum, ["managed", "unmanaged", "dismissed", "not_applicable"]);
     assert.deepEqual(document.components.schemas.IntegrationProjectionStatus.required, ["state", "snapshot_id", "completed_at", "last_error_code"]);
     assert.deepEqual(document.components.schemas.IntegrationProjectionStatus.properties.state.enum, ["current", "pending", "degraded", "unavailable"]);
 

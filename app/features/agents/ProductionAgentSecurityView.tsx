@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { APIClient } from "../../../apps/web/api/client";
 import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "../../../apps/web/api/client";
-import { decodeAgentMutation, decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryDetail, decodeInventoryPage, decodeRelationshipPage } from "../../../apps/web/api/decoders";
+import { NOT_AN_AGENT_TAG, decodeAgentMutation, decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryDetail, decodeInventoryPage, decodeRelationshipPage } from "../../../apps/web/api/decoders";
 import type { AgentMutation, AgentOwnershipInput, AgentSession, Capability, HomeSummary, InventoryDetail, InventorySummary, Relationship } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import { useAPI } from "../../api/APIProvider";
@@ -113,15 +113,23 @@ function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(p
 function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean }) {
   const [mutatedRows, setMutatedRows] = useState<Record<string, InventorySummary>>({});
   const rows = values.map((value) => mutatedRows[value.id] && mutatedRows[value.id].version >= value.version ? mutatedRows[value.id] : value);
-  const [unmanagedOnly, setUnmanagedOnly] = useState(false);
+  const [requestedFilter, setFilter] = useState<"all" | "unmanaged" | "dismissed">("all");
   const unmanagedCount = rows.filter((row) => row.management_state === "unmanaged").length;
-  const visibleRows = category === "agent" && unmanagedOnly ? rows.filter((row) => row.management_state === "unmanaged") : rows;
+  const dismissedCount = rows.filter((row) => row.management_state === "dismissed").length;
+  // The Dismissed filter exists only while something is dismissed.
+  const filter = requestedFilter === "dismissed" && dismissedCount === 0 ? "all" : requestedFilter;
+  // A dismissed agent is a recorded false positive: it leaves the agent list
+  // and stays reachable under its own filter.
+  const visibleRows = category !== "agent" ? rows : filter === "all" ? rows.filter((row) => row.management_state !== "dismissed") : rows.filter((row) => row.management_state === filter);
   const [selected, setSelected] = useState<InventoryDetail | null>(null);
   const [agentContext, setAgentContext] = useState<AgentContext | null>(null);
   const [detailError, setDetailError] = useState(false);
   const [owner, setOwner] = useState("");
   const [team, setTeam] = useState("");
   const [tags, setTags] = useState("");
+  const [notAnAgent, setNotAnAgent] = useState(false);
+  // The reserved tag is the checkbox's, never the free-text field's.
+  const populate = (summary: InventorySummary) => { setOwner(summary.owner); setTeam(summary.team); setTags(summary.tags.filter((tag) => tag !== NOT_AN_AGENT_TAG).join(", ")); setNotAnAgent(summary.tags.includes(NOT_AN_AGENT_TAG)); };
   const [mutationError, setMutationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ id: string; version: number; input: AgentOwnershipInput; key: string } | null>(null);
@@ -132,7 +140,7 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
       const detail = await loaders[category](id, signal);
       const context = category === "agent" ? await loadAgentContext(api, id, signal) : null;
       if (signal?.aborted) return;
-      setSelected(detail); setAgentContext(context); setOwner(detail.summary.owner); setTeam(detail.summary.team); setTags(detail.summary.tags.join(", ")); setDetailError(false);
+      setSelected(detail); setAgentContext(context); populate(detail.summary); setDetailError(false);
     }
     catch { if (!signal?.aborted) setDetailError(true); }
   };
@@ -142,7 +150,7 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     detailRequest.current?.abort(); detailRequest.current = controller;
     const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
     void loaders[category](initialDetailID, controller.signal).then(async (detail) => ({ detail, context: category === "agent" ? await loadAgentContext(api, initialDetailID, controller.signal) : null })).then(
-      ({ detail, context }) => { if (!controller.signal.aborted) { setSelected(detail); setAgentContext(context); setOwner(detail.summary.owner); setTeam(detail.summary.team); setTags(detail.summary.tags.join(", ")); setDetailError(false); } },
+      ({ detail, context }) => { if (!controller.signal.aborted) { setSelected(detail); setAgentContext(context); populate(detail.summary); setDetailError(false); } },
       () => { if (!controller.signal.aborted) setDetailError(true); },
     );
     return () => { controller.abort(); if (detailRequest.current === controller) detailRequest.current = null; };
@@ -157,7 +165,9 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     if (!canWrite || category !== "agent" || !selected || saving) return;
     let retained = pending;
     if (!retained) {
-      const canonicalTags = [...new Set(tags.split(",").map((value) => value.trim()).filter(Boolean))].sort();
+      const dismissible = selected.summary.discovery.method !== "declared";
+      const freeTags = tags.split(",").map((value) => value.trim()).filter((value) => value !== "" && value !== NOT_AN_AGENT_TAG);
+      const canonicalTags = [...new Set(dismissible && notAnAgent ? [...freeTags, NOT_AN_AGENT_TAG] : freeTags)].sort();
       if (owner.trim() !== owner || team.trim() !== team || owner.length < 1 || owner.length > 128 || team.length < 1 || team.length > 128 || canonicalTags.length > 32 || canonicalTags.some((value) => value.length > 64)) { setMutationError("Enter bounded ownership and canonical tags."); return; }
       retained = { id: selected.summary.id, version: selected.summary.version, input: { owner, team, tags: canonicalTags }, key: `agent_${globalThis.crypto.randomUUID()}` };
       setPending(retained);
@@ -170,15 +180,16 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     } catch (error) {
       if (error instanceof APIProductError && error.status === 409) {
         setPending(null);
-        try { const authoritative = await api.getAgent(retained.id); setSelected(authoritative); setOwner(authoritative.summary.owner); setTeam(authoritative.summary.team); setTags(authoritative.summary.tags.join(", ")); setMutationError("Ownership changed elsewhere. The authoritative record was reloaded."); }
+        try { const authoritative = await api.getAgent(retained.id); setSelected(authoritative); populate(authoritative.summary); setMutationError("Ownership changed elsewhere. The authoritative record was reloaded."); }
         catch { setMutationError("Ownership changed elsewhere and could not be reloaded."); }
       } else setMutationError("The response was interrupted. Retry reuses the exact ownership change.");
     } finally { setSaving(false); }
   };
-  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}{category === "agent" && rows.length > 0 && <div role="group" aria-label="Agent filter" className="page-actions"><Button aria-pressed={!unmanagedOnly} onClick={() => setUnmanagedOnly(false)}>All agents ({rows.length})</Button><Button aria-pressed={unmanagedOnly} onClick={() => setUnmanagedOnly(true)}>Unmanaged ({unmanagedCount})</Button></div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : visibleRows.length === 0 ? <p>No unmanaged agents in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Source</th>{category === "agent" && <th>Found by</th>}{category === "agent" && <th>Status</th>}<th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{visibleRows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{sourceLabel(item)}</td>{category === "agent" && <td>{discoveryMethodLabels[item.discovery.method]}</td>}{category === "agent" && <td>{item.management_state === "unmanaged" ? "Unmanaged" : "Managed"}</td>}<td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} /><Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>How it was found</h3><p>{sourceLabel(selected.summary)} · {discoveryMethodLabels[selected.summary.discovery.method]}{category === "agent" ? ` · ${selected.summary.management_state === "unmanaged" ? "Unmanaged: no owner has claimed this agent" : "Managed"}` : ""}</p>{selected.summary.discovery.signals.length > 0 && <ul aria-label="Discovery signals">{selected.summary.discovery.signals.map((signal) => <li key={signal}><code>{signal}</code></li>)}</ul>}<h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>{category === "agent" && agentContext && <AgentContextDetail value={agentContext} />}</div></Drawer>}</div>;
+  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}{category === "agent" && rows.length > 0 && <div role="group" aria-label="Agent filter" className="page-actions"><Button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All agents ({rows.length - dismissedCount})</Button><Button aria-pressed={filter === "unmanaged"} onClick={() => setFilter("unmanaged")}>Unmanaged ({unmanagedCount})</Button>{dismissedCount > 0 && <Button aria-pressed={filter === "dismissed"} onClick={() => setFilter("dismissed")}>Dismissed ({dismissedCount})</Button>}</div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : visibleRows.length === 0 ? <p>{filter === "unmanaged" ? "No unmanaged agents in this scope." : "Every agent found in this scope was dismissed."}</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Source</th>{category === "agent" && <th>Found by</th>}{category === "agent" && <th>Status</th>}<th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{visibleRows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{sourceLabel(item)}</td>{category === "agent" && <td>{discoveryMethodLabels[item.discovery.method]}</td>}{category === "agent" && <td>{managementStateLabels[item.management_state]}</td>}<td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} />{selected.summary.discovery.method !== "declared" && <div className="checkbox-field"><label><input type="checkbox" checked={notAnAgent} disabled={saving || pending !== null} onChange={(event) => setNotAnAgent(event.target.checked)} /> Not an agent</label><small>Marks this as a false positive and removes it from the agent list. An owner and team are needed so the decision has a name on it.</small></div>}<Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>How it was found</h3><p>{sourceLabel(selected.summary)} · {discoveryMethodLabels[selected.summary.discovery.method]}{category === "agent" ? ` · ${selected.summary.management_state === "dismissed" ? "Dismissed: marked as not an agent" : selected.summary.management_state === "unmanaged" ? "Unmanaged: no owner has claimed this agent" : "Managed"}` : ""}</p>{selected.summary.discovery.signals.length > 0 && <ul aria-label="Discovery signals">{selected.summary.discovery.signals.map((signal) => <li key={signal}><code>{signal}</code></li>)}</ul>}<h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>{category === "agent" && agentContext && <AgentContextDetail value={agentContext} />}</div></Drawer>}</div>;
 }
 
 const providerLabels = { aws: "AWS", kubernetes: "Kubernetes", github: "GitHub", okta: "Okta", microsoft: "Microsoft", salesforce: "Salesforce" } as const;
+const managementStateLabels = { managed: "Managed", unmanaged: "Unmanaged", dismissed: "Dismissed", not_applicable: "Managed" } as const;
 const discoveryMethodLabels = { declared: "Declared by owner", provider_api: "Provider record", inferred: "Inferred from signals" } as const;
 const platformLabels: Readonly<Record<string, string>> = { bedrock_agent: "Bedrock agent", agentcore_runtime: "AgentCore runtime", lambda_function: "Lambda function", kubernetes_workload: "workload", kubernetes_agent: "workload", github_repository: "repository", entra_agent_identity: "Entra agent identity", copilot_studio: "Copilot Studio agent", agentforce: "Agentforce agent" };
 

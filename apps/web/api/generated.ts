@@ -3393,12 +3393,24 @@ export type components = {
         readonly IntegrationConfiguration: {
             readonly [key: string]: string;
         };
+        readonly IntegrationCoverageGap: {
+            readonly name: string;
+            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. */
+            readonly service: string;
+            /**
+             * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.
+             * @enum {string}
+             */
+            readonly status: "access_denied" | "unavailable";
+        };
         readonly IntegrationDeletionReceiptResult: {
             readonly id: components["schemas"]["ProductID"];
             /** @constant */
             readonly status: "deleted";
         };
         readonly IntegrationFreshness: {
+            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS. */
+            readonly coverage_gaps: readonly components["schemas"]["IntegrationCoverageGap"][];
             readonly integration_id: components["schemas"]["ProductID"];
             readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;
             readonly latest_sync: components["schemas"]["IntegrationSync"] | null;
@@ -3559,10 +3571,10 @@ export type components = {
         /** @enum {string} */
         readonly InventoryKind: "asset" | "agent" | "tool" | "identity" | "runtime";
         /**
-         * @description For an agent, unmanaged while it was found without a declaration and has no owner. Not applicable to other kinds.
+         * @description For an agent, dismissed when it was found without a declaration and a person marked it as not an agent (the reserved tag not-an-agent, set through the ownership update; the tag is ignored on a declared agent, which stays managed). Otherwise unmanaged while it was found without a declaration and has no owner, and managed in every other case. Not applicable to other kinds.
          * @enum {string}
          */
-        readonly InventoryManagementState: "managed" | "unmanaged" | "not_applicable";
+        readonly InventoryManagementState: "managed" | "unmanaged" | "dismissed" | "not_applicable";
         readonly InventoryPage: {
             readonly items: readonly components["schemas"]["InventorySummary"][];
             readonly page_info: components["schemas"]["PageInfo"];
@@ -5343,6 +5355,7 @@ export type IntegrationAuthorization = components['schemas']['IntegrationAuthori
 export type IntegrationAuthorizationRemediationInput = components['schemas']['IntegrationAuthorizationRemediationInput'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
+export type IntegrationCoverageGap = components['schemas']['IntegrationCoverageGap'];
 export type IntegrationDeletionReceiptResult = components['schemas']['IntegrationDeletionReceiptResult'];
 export type IntegrationFreshness = components['schemas']['IntegrationFreshness'];
 export type IntegrationInput = components['schemas']['IntegrationInput'];
