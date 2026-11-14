@@ -8,9 +8,8 @@ import (
 )
 
 const (
-	postgresRedTeamGetScheduleSQL   = `SELECT zasp_red_team_get_schedule($1,$2,$3,$4)`
-	postgresRedTeamPutScheduleSQL   = `SELECT zasp_red_team_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	postgresRedTeamFireSchedulesSQL = `SELECT zasp_red_team_fire_due_schedules($1,$2)`
+	postgresRedTeamGetScheduleSQL = `SELECT zasp_red_team_get_schedule($1,$2,$3,$4)`
+	postgresRedTeamPutScheduleSQL = `SELECT zasp_red_team_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 
 	redTeamScheduleMinimumCadenceSeconds = 3600
 	redTeamScheduleMaximumCadenceSeconds = 2_678_400
@@ -39,12 +38,6 @@ type RedTeamScheduleUpdate struct {
 	Enabled         bool
 	CadenceSeconds  *int
 	OnTargetChange  bool
-}
-
-// RedTeamScheduleSweep is the result of one pass over the due schedules.
-type RedTeamScheduleSweep struct {
-	Examined int `json:"examined"`
-	Queued   int `json:"queued"`
 }
 
 // RedTeamScheduleAuthority reads and saves the schedule of a test definition.
@@ -126,23 +119,6 @@ func decodeRedTeamSchedule(payload []byte, definitionID string) (RedTeamSchedule
 		return RedTeamSchedule{}, ErrRepositoryUnavailable
 	}
 	return result, nil
-}
-
-// FireDueRedTeamSchedules queues a run for every due red team schedule, up to
-// limit. The database decides what is due and applies the non-production rule.
-func (repository *DiscoveryExecutionRepository) FireDueRedTeamSchedules(ctx context.Context, worker string, limit int) (RedTeamScheduleSweep, error) {
-	if repository == nil || repository.database == nil || ctx == nil || ctx.Err() != nil || repository.authority != DiscoveryExecutionAuthorityScheduler || worker == "" || len(worker) > 128 || limit < 1 || limit > 50 {
-		return RedTeamScheduleSweep{}, ErrRepositoryOperation
-	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRedTeamFireSchedulesSQL, worker, limit)
-	if err != nil {
-		return RedTeamScheduleSweep{}, discoveryProviderError(err)
-	}
-	var sweep RedTeamScheduleSweep
-	if !exactJSONFields(payload, "examined", "queued") || decodeStrictDiscovery(payload, &sweep) != nil || sweep.Examined < 0 || sweep.Examined > limit || sweep.Queued < 0 || sweep.Queued > sweep.Examined {
-		return RedTeamScheduleSweep{}, ErrRepositoryUnavailable
-	}
-	return sweep, nil
 }
 
 func (handler *redTeamPublicHTTPHandler) getProbeCatalog(writer http.ResponseWriter, request *http.Request) {

@@ -12,6 +12,14 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/redteam/probes"
 )
 
+const postgresRedTeamFireSchedulesSQL = `SELECT zasp_red_team_fire_due_schedules($1,$2)`
+
+// RedTeamScheduleSweep is what the scheduler worker reads from one sweep.
+type RedTeamScheduleSweep struct {
+	Examined int `json:"examined"`
+	Queued   int `json:"queued"`
+}
+
 // TestRedTeamProbeLibraryCompletionPostgres applies completion.sql sections
 // WS2a, WS2b and WS2c to a database migrated through the red team invocation
 // release and exercises the result with the worker, adapter, API and

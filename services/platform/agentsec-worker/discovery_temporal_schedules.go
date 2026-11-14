@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 )
 
@@ -152,6 +153,38 @@ func (s *temporalDiscoveryScheduleSource) releaseAbandoned(ctx context.Context, 
 	return
 }
 
+// redTeamRetestInterval is how often the scheduler asks the database to queue
+// the due red team re-tests. The database decides what is due: a cadence that
+// has elapsed, or a target whose inventory record changed.
+const redTeamRetestInterval = time.Minute
+
+// fireRedTeamSchedules queues a run for each due red team schedule
+// (completion.sql, section WS2c) and returns how many runs were queued. The
+// database applies the non-production rule to every one. A database that does
+// not hold the section yet has no schedules, so that is not a failure.
+func (s *temporalDiscoveryScheduleSource) fireRedTeamSchedules(ctx context.Context, limit int) (queued int, result error) {
+	result = s.withConnection(ctx, func(ctx context.Context, c *pgx.Conn) error {
+		var raw []byte
+		var wire struct {
+			Examined *int `json:"examined"`
+			Queued   *int `json:"queued"`
+		}
+		if err := c.QueryRow(ctx, `SELECT zasp_red_team_fire_due_schedules('discovery-scheduler',$1)`, min(limit, 50)).Scan(&raw); err != nil {
+			var provider *pgconn.PgError
+			if errors.As(err, &provider) && provider.Code == "42883" {
+				return nil
+			}
+			return errWorkerExecution
+		}
+		if json.Unmarshal(raw, &wire) != nil || wire.Examined == nil || wire.Queued == nil || *wire.Queued < 0 || *wire.Queued > *wire.Examined {
+			return errWorkerExecution
+		}
+		queued = *wire.Queued
+		return nil
+	})
+	return
+}
+
 // This scans desired changes, never due work. One startup pass also repairs
 // deleted or missing Temporal Schedules through the same reconciliation path.
 // On a timer it also releases abandoned discovery runs.
@@ -167,6 +200,31 @@ type temporalDiscoveryScheduleProcessor struct {
 	release     func(context.Context, int) (int, error)
 	now         func() time.Time
 	lastRelease time.Time
+	// retest is replaced in tests; nil means the source.
+	retest     func(context.Context, int) (int, error)
+	lastRetest time.Time
+}
+
+// retestDue queues the due red team re-tests when its interval has elapsed. A
+// failed pass is retried on the next one.
+func (p *temporalDiscoveryScheduleProcessor) retestDue(ctx context.Context) error {
+	now := time.Now
+	if p.now != nil {
+		now = p.now
+	}
+	at := now()
+	if !p.lastRetest.IsZero() && at.Sub(p.lastRetest) < redTeamRetestInterval {
+		return nil
+	}
+	retest := p.retest
+	if retest == nil {
+		retest = p.source.fireRedTeamSchedules
+	}
+	if _, err := retest(ctx, p.limit); err != nil {
+		return err
+	}
+	p.lastRetest = at
+	return nil
 }
 
 // releaseDue runs the release sweep when its interval has elapsed. A failed
@@ -201,7 +259,7 @@ func (p *temporalDiscoveryScheduleProcessor) RunOnce(ctx context.Context) error 
 	if err != nil {
 		return err
 	}
-	result := p.releaseDue(ctx)
+	result := errors.Join(p.releaseDue(ctx), p.retestDue(ctx))
 	for _, ref := range refs {
 		result = errors.Join(result, p.reconciler.Reconcile(ctx, ref))
 		p.after = strings.Join([]string{ref.OrganizationID, ref.WorkspaceID, ref.EnvironmentID, ref.ScheduleID, ref.IntegrationID}, "/")
