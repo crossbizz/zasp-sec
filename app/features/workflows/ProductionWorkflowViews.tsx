@@ -802,11 +802,23 @@ const coverageGapActions: Readonly<Record<string, readonly string[]>> = {
   "bedrock-agent": ["bedrock:ListAgents", "bedrock:GetAgent"],
   "bedrock-agentcore": ["bedrock-agentcore:ListAgentRuntimes", "bedrock-agentcore:GetAgentRuntime", "bedrock-agentcore:ListGateways"],
   lambda: ["lambda:ListFunctions"],
+  cloudtrail: ["cloudtrail:LookupEvents"],
+  "resolver-query-logs": ["route53resolver:ListResolverQueryLogConfigs", "logs:StartQuery", "logs:GetQueryResults"],
+  "vpc-flow-logs": ["ec2:DescribeFlowLogs", "logs:StartQuery", "logs:GetQueryResults"],
+};
+
+// The account's own logs the agentless runtime signal is read from, and what
+// to turn on when one is not there.
+const coverageGapLogSources: Readonly<Record<string, string>> = {
+  cloudtrail: "CloudTrail event history could not be read in this account's regions, so roles that invoke models are not found from the audit log.",
+  "resolver-query-logs": "not delivered to CloudWatch Logs. Turn on Route 53 Resolver query logging for the VPCs with a CloudWatch Logs destination; workloads that reach model APIs are then found without anything installed.",
+  "vpc-flow-logs": "not delivered to CloudWatch Logs. Create a VPC flow log with a CloudWatch Logs destination; it confirms that a workload connected to the model API it resolved.",
 };
 
 // Why agents of one AI service are missing, and what to do about it.
 function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
   if (gap.service === "runtime-observations") return `${gap.name}: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.`;
+  if (gap.status === "unavailable" && Object.hasOwn(coverageGapLogSources, gap.service)) return `${gap.name}: ${coverageGapLogSources[gap.service]}`;
   if (gap.status === "unavailable") return `${gap.name}: not offered in this account's regions.`;
   const actions = Object.hasOwn(coverageGapActions, gap.service) ? coverageGapActions[gap.service] : [];
   return actions.length > 0 ? `${gap.name}: permission missing. Add ${actions.join(", ")} to the read role.` : `${gap.name}: permission missing. Add this service's list and read actions to the read role.`;

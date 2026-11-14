@@ -693,7 +693,7 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "aws_agentcore_gateway":
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "gateway_id", "name", "region"), attributes: state}, true
 		case "aws_inferred_agent":
-			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
 		}
 	case collection.ProviderKubernetes:
 		namespaced := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, true)}, state)

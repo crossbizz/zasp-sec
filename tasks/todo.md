@@ -1,3 +1,91 @@
+# Parity with Akto and Noma, agentless (2026-11-14)
+
+## Request
+Make Zasp better than, or at minimum equivalent to, Akto and Noma. Everything agentless. Connectors on Nango. Employee endpoints out of scope.
+
+Plan and detail: `docs/superpowers/plans/2026-11-14-parity-with-akto-and-noma.md`. Task IDs below are the plan's.
+
+## Decisions
+- [x] Agentless throughout; node sensor and inline gateway are optional add-ons, not on the parity path
+- [x] Build the cloud-log runtime signal (VPC Flow Logs with Route 53 Resolver query logs)
+- [x] Nango for SaaS connectors (Elastic License 2.0; auth and proxy only; already deployed). First-party connectors stay first-party
+- [ ] Counsel confirms the Nango license for customer-hosted installs
+- [ ] Confirm Nango's free self-hosted feature set against its documentation
+
+## State on 2026-11-14 after the first implementation pass
+Built and pushed: A1, A4, C1, C2 (a, b, d and the join), G1, and parts of A5, A7 and C2c. Everything else below is not started. What was built ran against fakes only: no AWS account, no CloudTrail, no real log group. The three agent checks reach the Findings page through the existing discovery finding channel, so no schema change or baseline rebuild was needed.
+
+Why the rest is not done in this pass, from reading the code:
+- B1 (generic `saas` provider) touches about forty switches and SQL constraints and needs a baseline rebuild; B2 to B5 and D1 to D4 depend on it or on new tables.
+- E1 (a Security Agent action per provider control) is 12 to 20 files per action: metadata, validation, readiness file, SQL key arrays, API and worker executors.
+- F1 and F2: red team has exactly one prompt per category, pinned in Go, SQL and OpenAPI; a probe library is a redesign of that shape, not an import.
+- A2 (a page per framework) means changing the compliance SQL function, validators, OpenAPI pattern and UI together; the per-finding references of A1 do not need it.
+- A6 needs a last-activity field on the inventory summary (SQL).
+- I1, H1, I2, I3 need real systems or accounts.
+
+## Step 1: proof
+- [ ] I1 Golden path in production (launch plan steps 0 to 10)
+- [ ] H1 One Security Agent run end to end: plan, approval, action, containment, re-test
+
+## Step 2: agentless parity floor
+- [x] A1 AI compliance mapping (`services/platform/compliancemap`): every posture rule and agent check maps to OWASP LLM and Agentic Top 10, MITRE ATLAS, NIST AI RMF, ISO 42001 and EU AI Act controls; shown on each finding. The control identifiers are from memory and need a compliance review before they are quoted to a customer
+- [ ] A2 Compliance page and export per framework (API, then UI)
+- [ ] A3 Agent credential inventory
+- [x] A4 Dormant credential finding: an agent whose execution role was not used for 90 days (`agent_role_unused_90_days`, AWS)
+- [ ] A5 Over-privileged agent findings. Built: execution role with administrator access (`agent_role_administrator_access`). Not built: granted actions against actions actually used
+- [ ] A6 Inactive agent state and filter
+- [ ] A7 Guardrail posture findings. Built: Bedrock agent with no guardrail (`agent_guardrail_missing`). Not built: Copilot Studio and Agentforce
+- [x] C1 CloudTrail reader: roles that invoked a model in the last seven days become inferred agents (`invoke:bedrock_model`); a function gains the signal of its role. Agent invocations are data events and are not read
+- [x] C2a Flow log and resolver log source discovery, with a coverage line on the integration when a log or a permission is missing. CloudWatch Logs destinations only; S3 and Firehose are reported as not delivered
+- [x] C2b Bounded log reader (two Logs Insights queries per region, last 24 hours, 1,000 rows) that keeps catalog tokens only
+- [ ] C2c Attribution. Built: EC2 instances (the resolver log names the instance). Not built: ECS tasks, Lambda functions, and pods on EKS, which are attributed to their node
+- [x] C2d Read policy additions (local stack fixture and runbook)
+- [x] C2 Inferred agents from the cloud-log join, end to end against fakes: worker read, agents page, typed snapshot. Not run against AWS; LocalStack does not serve Logs Insights for these logs
+
+## Step 3: connectors and MCP governance
+- [ ] B1 Generic `saas` provider and kinds (one baseline rebuild)
+- [ ] B2 Collector over the Nango proxy
+- [ ] B3 Platform definition format, documented
+- [ ] B4 Catalog and setup flow read platform definitions
+- [ ] Gate: the second platform took under two days
+- [ ] B5 Databricks
+- [ ] B5 ServiceNow
+- [ ] B5 Google Workspace
+- [ ] B5 Slack
+- [ ] B5 OpenAI organization
+- [ ] B5 Anthropic organization
+- [ ] B5 GitLab
+- [ ] B5 Atlassian
+- [ ] D1 MCP servers as inventory objects
+- [ ] D2 MCP tool inventory with risk flags
+- [ ] D3 MCP registry: approved, unapproved, blocked
+- [ ] D4 MCP posture checks
+
+## Step 4: enforcement, red team, supply chain, lead
+- [ ] E1 Agentless enforcement through Security Agent actions on provider-native controls
+- [ ] E2 Guardrail decision API for the customer's own gateway
+- [ ] F1 Probe packs from Garak and Promptfoo
+- [ ] F2 Agentic probe categories
+- [ ] F3 Continuous re-test
+- [x] G1 AI bill of materials: CycloneDX 1.6 download on an agent's detail, built in the browser from its discovery signals. No versions (discovery does not record them)
+- [ ] G2 Skills and plugins inventory
+- [ ] H2 Attack paths through agents
+- [ ] H3 Remediation action on each new finding type
+- [ ] H4 Evidence pack export
+
+## Step 5
+- [ ] C3 Azure AI Foundry and Azure OpenAI through the Microsoft connection
+- [ ] F4 Attack Lab as a supported workflow
+- [ ] I3 AWS Marketplace listing
+- [ ] I4 Public documentation
+
+## On request only
+- [ ] C4 Google Cloud provider
+- [ ] D5 MCP gateway (inline add-on)
+- [ ] E3 Inline guardrails on the runtime gateway (add-on)
+
+---
+
 # Automatic agent discovery (2026-11-14)
 
 ## Request

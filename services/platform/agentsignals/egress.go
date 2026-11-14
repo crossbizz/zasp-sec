@@ -224,3 +224,57 @@ func (workload EgressWorkload) Current(now time.Time) []string {
 	}
 	return tokens
 }
+
+// Recorded invocations: API calls the provider's own audit log says a
+// principal made. They are stronger than any declaration, so all are strong.
+var invocationEvents = map[string]string{
+	"invokemodel": "bedrock_model", "invokemodelwithresponsestream": "bedrock_model", "converse": "bedrock_model", "conversestream": "bedrock_model",
+	"invokeagent": "bedrock_agent", "invokeinlineagent": "bedrock_agent", "invokeflow": "bedrock_agent",
+	"invokeagentruntime": "agentcore",
+}
+
+// InvocationEventNames lists the audit event names Invoked understands, for
+// a collector that has to ask for them by name.
+func InvocationEventNames() []string {
+	return []string{"Converse", "ConverseStream", "InvokeAgent", "InvokeAgentRuntime", "InvokeFlow", "InvokeInlineAgent", "InvokeModel", "InvokeModelWithResponseStream"}
+}
+
+// Invoked records model and agent invocations found in an audit log, by
+// event name.
+func (evidence *Evidence) Invoked(eventNames ...string) {
+	for _, name := range eventNames {
+		if token, ok := invocationEvents[strings.ToLower(name)]; ok {
+			evidence.set().add("invoke", token, strong)
+		}
+	}
+}
+
+// AddSignals merges already-recorded catalog signals (class:token) into the
+// evidence. Unknown classes are ignored. Used to join signals found by
+// different readers of one subject.
+func (evidence *Evidence) AddSignals(signals ...string) {
+	for _, signal := range signals {
+		class, token, ok := strings.Cut(signal, ":")
+		if !ok {
+			continue
+		}
+		switch class {
+		case "egress":
+			evidence.Egress(token)
+		case "invoke":
+			for _, known := range invocationEvents {
+				if known == token {
+					evidence.set().add("invoke", token, strong)
+					break
+				}
+			}
+		}
+	}
+}
+
+// EgressHostPrefilter is a regular expression fragment (RE2 and CloudWatch
+// Logs Insights syntax, no delimiters) that every catalog host name
+// matches. A log reader uses it to ask the log service only for names that
+// could be in the catalog; EgressHost still decides. It matches more than
+// the catalog on purpose and must never be used as the classifier.
+const EgressHostPrefilter = `openai|anthropic|bedrock-|googleapis|cohere|mistral|groq|together|fireworks|perplexity|deepseek|api\.x\.ai|openrouter|replicate|huggingface|langchain|composio|langfuse|tavily|e2b\.dev|browserbase|services\.ai\.azure|^mcp\.`

@@ -201,7 +201,7 @@ describe("production typed inventory API", () => {
 
   it("says a runtime egress signal was seen by the node sensor", async () => {
     const user = userEvent.setup();
-    const runtime = { ...summary(ids.second, "shop/support-bot"), source_kind: "kubernetes_inferred_agent", discovery: { method: "inferred" as const, platform: "kubernetes_workload", signals: ["egress:anthropic", "env:openai"] }, management_state: "unmanaged" as const };
+    const runtime = { ...summary(ids.second, "shop/support-bot"), source_kind: "kubernetes_inferred_agent", discovery: { method: "inferred" as const, platform: "kubernetes_workload", signals: ["egress:anthropic", "env:openai", "invoke:bedrock_model"] }, management_state: "unmanaged" as const };
     const detail = { summary: runtime, sources: [], evidence: [] } as never;
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [runtime], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
@@ -215,8 +215,9 @@ describe("production typed inventory API", () => {
     await user.click(await screen.findByRole("button", { name: "Open shop/support-bot" }));
     const signals = await screen.findByRole("list", { name: "Discovery signals" });
     const items = signals.querySelectorAll("li");
-    expect(items[0]).toHaveTextContent("egress:anthropic — seen at run time: the node sensor saw this workload resolve and connect to the service");
+    expect(items[0]).toHaveTextContent("egress:anthropic — seen at run time: this workload resolved the service's name and connected to it");
     expect(items[1]).toHaveTextContent(/^env:openai$/);
+    expect(items[2]).toHaveTextContent("invoke:bedrock_model — seen in the provider's audit log: this identity invoked a model");
   });
 
   it("dismisses a found agent with the checkbox and never shows the reserved tag in the Tags field", async () => {

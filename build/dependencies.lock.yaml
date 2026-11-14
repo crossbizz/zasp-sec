@@ -198,6 +198,22 @@ dependencies:
     review: approved
   - ecosystem: go
     manifest: services/platform/go.mod
+    name: github.com/aws/aws-sdk-go-v2/service/cloudtrail
+    version: v1.58.7
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
+    name: github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs
+    version: v1.82.3
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
     name: github.com/aws/aws-sdk-go-v2/service/lambda
     version: v1.102.0
     license: Apache-2.0
@@ -208,6 +224,14 @@ dependencies:
     manifest: services/platform/go.mod
     name: github.com/aws/aws-sdk-go-v2/service/opensearch
     version: v1.75.6
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
+    name: github.com/aws/aws-sdk-go-v2/service/route53resolver
+    version: v1.48.7
     license: Apache-2.0
     owner: platform-data
     scope: runtime

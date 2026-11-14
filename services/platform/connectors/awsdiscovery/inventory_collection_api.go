@@ -268,6 +268,17 @@ func (api *InventoryCollectionAPI) posturePage(ctx context.Context, request Coll
 		findingID := deterministicAWSInventoryID(api.authority.Scope, request.Subject, "prowler_finding", finding.CheckID+"\x1f"+finding.ResourceARN)
 		findings = append(findings, marshalInventoryFinding(findingID, entityID, finding, api.authority.ObservedAt))
 	}
+	// The failed posture checks of the account's agents are findings on the
+	// agent entities the agents phase emitted.
+	agents, ok := decodeAgentInventorySource(inventory.AgentSource, request.Subject.ID)
+	if !ok {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+	}
+	for _, check := range agents.Checks {
+		entityID := deterministicAWSInventoryID(api.authority.Scope, request.Subject, agentInventoryKind(check.ARN), check.ARN)
+		findingID := deterministicAWSInventoryID(api.authority.Scope, request.Subject, "agent_check_finding", check.Check+"\x1f"+check.ARN)
+		findings = append(findings, marshalInventoryFinding(findingID, entityID, prowlerSecurityFinding{CheckID: check.Check, Severity: "high", Status: "FAIL", ResourceARN: check.ARN}, api.authority.ObservedAt))
+	}
 	sortRawInventory(findings)
 	return NewCollectionPageWithFindings(request.Subject, inventoryCursor("complete", request.Subject, digest), true, nil, nil, findings)
 }
