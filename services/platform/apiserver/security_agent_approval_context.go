@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 	"unicode/utf8"
 )
 
@@ -99,6 +100,14 @@ func validApprovalContext(approval SecurityAgentApproval) bool {
 		if value.Risk.Class != "destructive" || approval.ExpectedEffect != "Revoke integration connection" {
 			return false
 		}
+	case securityagent.ActionAttachBedrockGuardrail:
+		if value.Risk.Class != "moderate" || approval.ExpectedEffect != "Attach Bedrock guardrail" {
+			return false
+		}
+	case securityagent.ActionDetachRoleAdministratorPolicy:
+		if value.Risk.Class != "destructive" || approval.ExpectedEffect != "Detach administrator policy from agent role" {
+			return false
+		}
 	default:
 		return false
 	}
@@ -169,6 +178,10 @@ func decodeSecurityAgentApprovalContext(raw json.RawMessage, approval SecurityAg
 		risk, effect = "containment", "Isolate runtime session"
 	case "revoke_integration_connection":
 		risk, effect = "destructive", "Revoke integration connection"
+	case securityagent.ActionAttachBedrockGuardrail:
+		risk, effect = "moderate", "Attach Bedrock guardrail"
+	case securityagent.ActionDetachRoleAdministratorPolicy:
+		risk, effect = "destructive", "Detach administrator policy from agent role"
 	default:
 		return nil, ErrRepositoryUnavailable
 	}

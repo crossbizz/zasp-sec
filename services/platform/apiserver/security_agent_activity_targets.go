@@ -42,7 +42,7 @@ func projectSecurityAgentActivityTargets(raw json.RawMessage, runID, kind, after
 	}
 	if detail.Plan != nil {
 		for _, step := range detail.Plan.Steps {
-			if !stringIn(step.Action, "update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection") {
+			if !stringIn(step.Action, "update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "attach_bedrock_guardrail", "detach_role_administrator_policy") {
 				result.Coverage = "partial"
 				continue
 			}

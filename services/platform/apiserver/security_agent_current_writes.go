@@ -43,6 +43,9 @@ func (repository *PostgresRepository) runSecurityAgentCurrent(ctx context.Contex
 		!validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || (input.TriggerVersion == nil) != (input.TriggerSource == nil) {
 		return SecurityAgentRunResult{}, ErrRepositoryOperation
 	}
+	if input.Remediation != nil {
+		return repository.runSecurityAgentRemediationCurrent(ctx, identity, input)
+	}
 	if input.TriggerKind == "manual" {
 		return repository.runSecurityAgentManualCurrent(ctx, identity, input)
 	}
@@ -104,7 +107,7 @@ func (repository *PostgresRepository) runSecurityAgentCurrent(ctx context.Contex
 // setSecurityAgentExecutionControlCurrent changes one execution switch under
 // current authorization with one authorized statement.
 func (repository *PostgresRepository) setSecurityAgentExecutionControlCurrent(ctx context.Context, identity RequestIdentity, input SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error) {
-	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response")
+	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, securityAgentExecutionControlActions...)
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || input.FreshAuthExpiresAt != identity.FreshAuthExpiresAt || !validTarget || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 0 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
 		return SecurityAgentExecutionControlResult{}, ErrRepositoryOperation
 	}

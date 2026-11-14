@@ -15,6 +15,9 @@ type securityAgentRunInput struct {
 	TriggerID      string  `json:"trigger_id"`
 	TriggerVersion *int64  `json:"trigger_version,omitempty"`
 	TriggerSource  *string `json:"trigger_source,omitempty"`
+	// Remediation names a provider remediation action and its parameters. It
+	// is taken only with a finding trigger and without a trigger version.
+	Remediation *securityAgentRemediationInput `json:"-"`
 }
 
 func (input *securityAgentRunInput) UnmarshalJSON(raw []byte) error {
@@ -39,6 +42,13 @@ func (input *securityAgentRunInput) UnmarshalJSON(raw []byte) error {
 	if version {
 		keys = append(keys, "trigger_version", "trigger_source")
 	}
+	remediationRaw, remediation := object["remediation"]
+	if remediation {
+		if !kind || version {
+			return ErrRepositoryOperation
+		}
+		keys = append(keys, "remediation")
+	}
 	if _, err := auditExportClosedObject(raw, 16384, keys...); err != nil {
 		return ErrRepositoryOperation
 	}
@@ -56,6 +66,13 @@ func (input *securityAgentRunInput) UnmarshalJSON(raw []byte) error {
 		}
 	} else {
 		decoded.TriggerKind = "manual"
+	}
+	if remediation {
+		value, err := decodeSecurityAgentRemediationInput(remediationRaw)
+		if err != nil || decoded.TriggerKind != "finding" {
+			return ErrRepositoryOperation
+		}
+		decoded.Remediation = value
 	}
 	*input = securityAgentRunInput(decoded)
 	return nil

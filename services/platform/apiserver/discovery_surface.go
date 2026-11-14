@@ -13,6 +13,9 @@ func NewDiscoveryWorkflowSurface(workflow, discovery http.Handler) (http.Handler
 }
 
 type discoveryWorkflowSurface struct {
+	// guardrail serves the guardrail decision API and the Environment's
+	// guardrail policy. It is nil where they are not composed.
+	guardrail *guardrailHTTPHandler
 	workflow  http.Handler
 	discovery http.Handler
 }
@@ -24,7 +27,13 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 		return
 	}
 	switch routed.OperationID {
-	case "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus":
+	case "createGuardrailDecision", "getGuardrailPolicy", "putGuardrailPolicy":
+		if surface.guardrail == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.guardrail.ServeHTTP(writer, request, routed.OperationID)
+	case "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus", "getIntegrationRemediationRole", "putIntegrationRemediationRole":
 		surface.discovery.ServeHTTP(writer, request)
 	default:
 		surface.workflow.ServeHTTP(writer, request)

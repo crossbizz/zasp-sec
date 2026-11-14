@@ -616,8 +616,9 @@ export function decodeSecurityAgentExecutionControls(value: unknown): SecurityAg
   const record = exactRecord(value, ["global", "environment", "actions"]);
   decodeSecurityAgentExecutionControl(record.global, "global", "*", false);
   decodeSecurityAgentExecutionControl(record.environment, "environment", "*", true);
-  const actions = array(record.actions, 8);
+  const actions = array(record.actions, 10);
   const shapes: Record<number, string[]> = {
+    10: ["attach_bedrock_guardrail", "create_evidence_export", "create_temporary_policy", "detach_role_administrator_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"],
     2: ["create_temporary_policy", "update_finding_response"],
     3: ["create_temporary_policy", "revoke_integration_connection", "update_finding_response"],
     4: ["create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"],
@@ -632,7 +633,7 @@ export function decodeSecurityAgentExecutionControls(value: unknown): SecurityAg
   });
   return value as SecurityAgentExecutionControls;
 }
-export function decodeSecurityAgentExecutionControlResult(value: unknown): SecurityAgentExecutionControlResult { const record = exactRecord(value, ["target", "action_key", "enabled", "version", "audit_id", "correlation_id", "receipt_id", "replayed"]); if (record.target === "environment" && record.action_key !== "*" || record.target === "action" && !["create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"].includes(record.action_key as string) || record.target !== "environment" && record.target !== "action" || typeof record.enabled !== "boolean") fail(); boundedInteger(record.version, 1, 1000000); productID(record.audit_id); productID(record.correlation_id); productID(record.receipt_id); if (typeof record.replayed !== "boolean" || record.audit_id === record.correlation_id || record.audit_id === record.receipt_id || record.correlation_id === record.receipt_id) fail(); return value as SecurityAgentExecutionControlResult; }
+export function decodeSecurityAgentExecutionControlResult(value: unknown): SecurityAgentExecutionControlResult { const record = exactRecord(value, ["target", "action_key", "enabled", "version", "audit_id", "correlation_id", "receipt_id", "replayed"]); if (record.target === "environment" && record.action_key !== "*" || record.target === "action" && !["attach_bedrock_guardrail", "create_evidence_export", "create_temporary_policy", "detach_role_administrator_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"].includes(record.action_key as string) || record.target !== "environment" && record.target !== "action" || typeof record.enabled !== "boolean") fail(); boundedInteger(record.version, 1, 1000000); productID(record.audit_id); productID(record.correlation_id); productID(record.receipt_id); if (typeof record.replayed !== "boolean" || record.audit_id === record.correlation_id || record.audit_id === record.receipt_id || record.correlation_id === record.receipt_id) fail(); return value as SecurityAgentExecutionControlResult; }
 export function decodeSecurityAgentSimulation(value: unknown): SecurityAgentSimulation { const record = exactRecord(value, ["run_id", "definition_id", "definition_version", "plan_hash", "catalog_version", "expires_at", "matched_evidence_ids", "summary", "steps", "side_effects", "version"]); productID(record.run_id); productID(record.definition_id); positiveInteger(record.definition_version); checksum(record.plan_hash); if (record.catalog_version !== "security-agent-actions-v1") fail(); dateTime(record.expires_at); productIDArray(record.matched_evidence_ids, 100); boundedString(record.summary, 1, 500); const steps = array(record.steps, 100); if (steps.length < 1) fail(); steps.forEach((step, index) => { const entry = exactRecord(step, ["index", "action", "authorization", "approval_required"]); if (entry.index !== index) fail(); boundedString(entry.action, 1, 128); enumValue(entry.authorization, ["allow", "approval_required", "deny"]); if (typeof entry.approval_required !== "boolean" || entry.approval_required !== (entry.authorization === "approval_required")) fail(); }); if (record.side_effects !== 0 || record.version !== 1) fail(); return value as SecurityAgentSimulation; }
 export function decodeSecurityAgentRun(value: unknown): SecurityAgentRun { const record = exactRecord(value, ["id", "agent_id", "state", "evidence_ids", "definition_version", "version"], ["manual_trigger"]); productID(record.id); productID(record.agent_id); enumValue(record.state, ["queued", "planning", "waiting_approval", "running", "verifying", "contained", "remediated", "needs_human", "failed", "inconclusive", "cancelled"]); decodeSecurityAgentManualEvidence(record, record.evidence_ids, 100); positiveInteger(record.definition_version); positiveInteger(record.version); return value as SecurityAgentRun; }
 
@@ -712,7 +713,7 @@ function decodeSecurityAgentFindingResponseArguments(value: unknown, requireEnri
 export function decodeSecurityAgentApproval(value: unknown): SecurityAgentApproval {
   const record = exactRecord(value, ["id", "run_id", "step_id", "state", "expires_at", "version", "expected_effect", "reversible", "ttl_seconds", "evidence_summary"], ["approval_context", "attack_lab", "manual_trigger"]);
   productID(record.id); productID(record.run_id); productID(record.step_id); enumValue(record.state, ["pending", "approved", "rejected", "cancelled", "expired"]); dateTime(record.expires_at); positiveInteger(record.version);
-  printableString(record.expected_effect, 1, 128); const validEffect = (record.expected_effect === "Move finding to under review" || record.expected_effect === FINDING_RESPONSE_EFFECT || record.expected_effect === "Create run-scoped evidence export") && record.ttl_seconds === 0 && record.reversible === true || (record.expected_effect === "Apply temporary containment policy" || record.expected_effect === "Apply temporary monitoring policy") && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Isolate runtime session" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Revoke integration connection" && record.ttl_seconds === 0 && record.reversible === false || (record.expected_effect === "Run existing test" || record.expected_effect === "Rerun existing test") && record.ttl_seconds === 0 && record.reversible === false; if (!validEffect && !(record.expected_effect === ATTACK_LAB_EFFECT && record.ttl_seconds === 0 && record.reversible === false && record.attack_lab !== undefined)) fail(); decodeSecurityAgentManualEvidence(record, record.evidence_summary, 100);
+  printableString(record.expected_effect, 1, 128); const validEffect = (record.expected_effect === "Move finding to under review" || record.expected_effect === FINDING_RESPONSE_EFFECT || record.expected_effect === "Create run-scoped evidence export") && record.ttl_seconds === 0 && record.reversible === true || (record.expected_effect === "Apply temporary containment policy" || record.expected_effect === "Apply temporary monitoring policy") && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Isolate runtime session" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Revoke integration connection" && record.ttl_seconds === 0 && record.reversible === false || record.expected_effect === "Attach Bedrock guardrail" && record.ttl_seconds === 0 && record.reversible === true || record.expected_effect === "Detach administrator policy from agent role" && record.ttl_seconds === 0 && record.reversible === false || (record.expected_effect === "Run existing test" || record.expected_effect === "Rerun existing test") && record.ttl_seconds === 0 && record.reversible === false; if (!validEffect && !(record.expected_effect === ATTACK_LAB_EFFECT && record.ttl_seconds === 0 && record.reversible === false && record.attack_lab !== undefined)) fail(); decodeSecurityAgentManualEvidence(record, record.evidence_summary, 100);
   if (record.expected_effect === FINDING_RESPONSE_EFFECT && record.approval_context === undefined) fail();
   if (record.approval_context !== undefined) decodeSecurityAgentApprovalContext(record.approval_context, record.expected_effect, record.run_id);
   if (record.attack_lab !== undefined) {
@@ -726,7 +727,7 @@ function decodeSecurityAgentApprovalContext(value: unknown, effect: unknown, run
   const context = exactRecord(value, ["agent_id", "action", "target_id", "plan_hash", "catalog_version", "requester", "reason", "risk", "rationale"], ["export_selection", "finding_response"]);
   productID(context.agent_id); if (context.target_id !== null) productID(context.target_id); checksum(context.plan_hash);
   if (context.catalog_version !== "security-agent-actions-v1") fail();
-  enumValue(context.action, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export"]);
+  enumValue(context.action, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export", "attach_bedrock_guardrail", "detach_role_administrator_policy"]);
   if (context.action === "create_evidence_export") {
     if (context.target_id !== runID) fail();
     validateSecurityAgentExportSelections(context.export_selection);
@@ -741,6 +742,7 @@ function decodeSecurityAgentApprovalContext(value: unknown, effect: unknown, run
   const expected: Record<string, readonly [string, string]> = {
     update_finding_response: ["low", enrichedFinding ? FINDING_RESPONSE_EFFECT : "Move finding to under review"], create_temporary_policy: ["containment", effect === "Apply temporary monitoring policy" ? "Apply temporary monitoring policy" : "Apply temporary containment policy"],
     isolate_session: ["containment", "Isolate runtime session"], revoke_integration_connection: ["destructive", "Revoke integration connection"],
+    attach_bedrock_guardrail: ["moderate", "Attach Bedrock guardrail"], detach_role_administrator_policy: ["destructive", "Detach administrator policy from agent role"],
     run_test: ["low", "Run existing test"], rerun_test: ["low", "Rerun existing test"],
     start_attack_lab: ["moderate", ATTACK_LAB_EFFECT],
     create_evidence_export: ["low", "Create run-scoped evidence export"],
@@ -819,7 +821,7 @@ export function decodeSecurityAgentRunDetail(value: unknown): SecurityAgentRunDe
       if (step.authorization !== "approval_required" || approval.expected_effect !== "Create run-scoped evidence export" || approval.ttl_seconds !== 0 || !approval.reversible) fail();
       continue;
     }
-    const validEffect = step?.action === "update_finding_response" && (approval.expected_effect === "Move finding to under review" || approval.expected_effect === FINDING_RESPONSE_EFFECT) && approval.ttl_seconds === 0 && approval.reversible || step?.action === "create_temporary_policy" && (approval.expected_effect === "Apply temporary containment policy" || approval.expected_effect === "Apply temporary monitoring policy") && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "isolate_session" && approval.expected_effect === "Isolate runtime session" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "revoke_integration_connection" && approval.expected_effect === "Revoke integration connection" && approval.ttl_seconds === 0 && !approval.reversible || (step?.action === "run_test" && approval.expected_effect === "Run existing test" || step?.action === "rerun_test" && approval.expected_effect === "Rerun existing test") && approval.ttl_seconds === 0 && !approval.reversible;
+    const validEffect = step?.action === "update_finding_response" && (approval.expected_effect === "Move finding to under review" || approval.expected_effect === FINDING_RESPONSE_EFFECT) && approval.ttl_seconds === 0 && approval.reversible || step?.action === "create_temporary_policy" && (approval.expected_effect === "Apply temporary containment policy" || approval.expected_effect === "Apply temporary monitoring policy") && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "isolate_session" && approval.expected_effect === "Isolate runtime session" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "revoke_integration_connection" && approval.expected_effect === "Revoke integration connection" && approval.ttl_seconds === 0 && !approval.reversible || step?.action === "attach_bedrock_guardrail" && approval.expected_effect === "Attach Bedrock guardrail" && approval.ttl_seconds === 0 && approval.reversible || step?.action === "detach_role_administrator_policy" && approval.expected_effect === "Detach administrator policy from agent role" && approval.ttl_seconds === 0 && !approval.reversible || (step?.action === "run_test" && approval.expected_effect === "Run existing test" || step?.action === "rerun_test" && approval.expected_effect === "Rerun existing test") && approval.ttl_seconds === 0 && !approval.reversible;
     if (!step || step.authorization !== "approval_required" || !validEffect && !(step.action === "start_attack_lab" && approval.expected_effect === ATTACK_LAB_EFFECT && approval.attack_lab && approval.ttl_seconds === 0 && !approval.reversible)) fail();
   }
   const execution = array(record.execution, 100); if (execution.length !== steps.length) fail(); const executionIDs = new Set<string>();
@@ -837,7 +839,7 @@ function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknow
     const item = exactRecord(details[index], ["step_id", "action", "arguments", "result", "ttl_seconds", "control_expires_at", "rollback", "verification"], ["existing_test", "attack_lab"]);
     const step = steps[index] as Record<string, unknown>, executed = execution[index] as Record<string, unknown>;
     if (item.step_id !== step.id || item.action !== step.action) fail();
-    enumValue(item.action, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export"]);
+    enumValue(item.action, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export", "attach_bedrock_guardrail", "detach_role_administrator_policy"]);
     const exportAction = item.action === "create_evidence_export";
     if (exportAction && item.arguments === null) fail();
     const existingTest = item.action === "run_test" || item.action === "rerun_test";
@@ -853,7 +855,9 @@ function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknow
     if (item.arguments !== null) {
       const fields = exportAction ? ["target_id", "evidence_ids"] : item.action === "update_finding_response" ? ["target_id", "expected_version", "target_status"]
         : item.action === "create_temporary_policy" ? ["target_id", "mode", "scope", "ttl_seconds"]
-          : item.action === "isolate_session" ? ["target_id", "session_id", "device_id", "scope", "ttl_seconds"] : exactTest ? ["target_id", "expected_version"] : ["target_id", "integration_id"];
+          : item.action === "isolate_session" ? ["target_id", "session_id", "device_id", "scope", "ttl_seconds"] : exactTest ? ["target_id", "expected_version"]
+            : item.action === "attach_bedrock_guardrail" ? ["target_id", "integration_id", "guardrail_identifier", "guardrail_version"]
+              : item.action === "detach_role_administrator_policy" ? ["target_id", "integration_id", "policy_arn"] : ["target_id", "integration_id"];
       const args = exactRecord(item.arguments, fields, item.action === "update_finding_response" ? ["assignee_id", "response_status", "note"] : []);
       productID(args.target_id);
       if (exportAction) {
@@ -866,7 +870,12 @@ function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknow
         if (item.action === "create_temporary_policy") { if (args.mode !== "block" && args.mode !== "monitor" || args.scope !== args.target_id) fail(); }
         else { productID(args.device_id); if (args.session_id !== args.target_id) fail(); }
       } else if (exactTest) boundedInteger(args.expected_version, 1, 1000000);
-      else productID(args.integration_id);
+      else {
+        productID(args.integration_id);
+        // Provider remediation parameters are identifiers of the provider.
+        if (item.action === "attach_bedrock_guardrail") { patternString(args.guardrail_identifier, BEDROCK_GUARDRAIL_IDENTIFIER); patternString(args.guardrail_version, BEDROCK_GUARDRAIL_VERSION); }
+        if (item.action === "detach_role_administrator_policy") patternString(args.policy_arn, IAM_MANAGED_POLICY_ARN);
+      }
     }
     if (item.ttl_seconds !== ttl) fail();
     if (item.control_expires_at !== null) { if (!policy || item.result === null) fail(); dateTime(item.control_expires_at); }
@@ -890,7 +899,7 @@ function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknow
       const rollbackState = state === "cleaned" ? "completed" : state === "cleanup_failed" ? "failed" : state === "cleanup_pending" || state === "leased" && (verification.state === "verified" || cleanup.state !== "unavailable") ? "pending" : "not_started";
       if (rollback.state !== rollbackState) fail();
     } else {
-      if (rollback.support !== (item.action === "update_finding_response" ? "manual" : "not_supported") || rollback.state !== "unavailable" || cleanup.state !== "unavailable" || cleanup.source !== "none" || ["cleaned", "cleanup_failed"].includes(state as string) || state === "cleanup_pending" && item.action !== "create_evidence_export") fail();
+      if (rollback.support !== (item.action === "update_finding_response" || item.action === "attach_bedrock_guardrail" || item.action === "detach_role_administrator_policy" ? "manual" : "not_supported") || rollback.state !== "unavailable" || cleanup.state !== "unavailable" || cleanup.source !== "none" || ["cleaned", "cleanup_failed"].includes(state as string) || state === "cleanup_pending" && item.action !== "create_evidence_export") fail();
       const expected = state === null ? "unavailable" : state === "verified" ? "verified" : state === "known_failure" ? "failed" : state === "unknown_outcome" || state === "cleanup_pending" ? "inconclusive" : "pending";
       if (verification.state !== expected || verification.source !== (state === null ? "none" : "effect_record")) fail();
     }
@@ -1470,3 +1479,25 @@ function optionalCursor(value: unknown): void { if (value === undefined) return;
 function stringRecord(value: unknown, maximum: number, minimum = 0, minimumValueLength = 0): void { if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length < minimum || Object.keys(value).length > maximum || Object.entries(value).some(([key, item]) => key.length < 1 || key.length > 128 || typeof item !== "string" || item.length < minimumValueLength || item.length > 2048)) fail(); }
 function enumValue(value: unknown, allowed: readonly string[]): void { if (typeof value !== "string" || !allowed.includes(value)) fail(); }
 function fail(): never { throw new Error("schema mismatch"); }
+
+// Provider remediation (Security Agent actions that change a customer's AWS
+// account through its integration, with approval).
+export { validSecurityAgentRemediation } from "./ordered-security-agent";
+export type { SecurityAgentRemediation } from "./ordered-security-agent";
+const BEDROCK_GUARDRAIL_IDENTIFIER = /^(?:[a-z0-9]{1,64}|arn:aws(?:-us-gov|-cn)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:guardrail\/[a-z0-9]{1,64})$/;
+const BEDROCK_GUARDRAIL_VERSION = /^(?:[1-9][0-9]{0,7}|DRAFT)$/;
+const IAM_MANAGED_POLICY_ARN = /^arn:aws(?:-us-gov|-cn)?:iam::(?:aws|[0-9]{12}):policy\/[A-Za-z0-9+=,.@_/-]{1,512}$/;
+function patternString(value: unknown, pattern: RegExp): string { if (typeof value !== "string" || !pattern.test(value)) fail(); return value as string; }
+
+export type IntegrationRemediationRole = { integration_id: string; supported: boolean; configured: boolean; role_arn: string | null; version: number; updated_at: string | null };
+
+export function decodeIntegrationRemediationRole(value: unknown, expectedIntegrationID?: string): IntegrationRemediationRole {
+  const record = exactRecord(value, ["integration_id", "supported", "configured", "role_arn", "version", "updated_at"]);
+  productID(record.integration_id);
+  if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();
+  if (typeof record.supported !== "boolean" || typeof record.configured !== "boolean") fail();
+  boundedInteger(record.version, 0, 1000000);
+  if (record.configured) { patternString(record.role_arn, AWS_ROLE_ARN); dateTime(record.updated_at); if (!record.supported || record.version === 0) fail(); }
+  else if (record.role_arn !== null || record.updated_at !== null || record.version !== 0) fail();
+  return value as IntegrationRemediationRole;
+}

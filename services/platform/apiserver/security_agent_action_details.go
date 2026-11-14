@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 	"strings"
 )
 
@@ -22,6 +23,10 @@ type SecurityAgentActionArguments struct {
 	SessionID       string                         `json:"session_id,omitempty"`
 	DeviceID        string                         `json:"device_id,omitempty"`
 	IntegrationID   string                         `json:"integration_id,omitempty"`
+	// The parameters of a provider remediation. They are identifiers.
+	GuardrailIdentifier string `json:"guardrail_identifier,omitempty"`
+	GuardrailVersion    string `json:"guardrail_version,omitempty"`
+	PolicyARN           string `json:"policy_arn,omitempty"`
 }
 
 func decodeSecurityAgentActionArguments(action string, raw json.RawMessage) (*SecurityAgentActionArguments, error) {
@@ -51,6 +56,10 @@ func decodeSecurityAgentActionArguments(action string, raw json.RawMessage) (*Se
 		fields = []string{"target_id", "session_id", "device_id", "scope", "ttl_seconds"}
 	case "revoke_integration_connection":
 		fields = []string{"target_id", "integration_id"}
+	case securityagent.ActionAttachBedrockGuardrail:
+		fields = []string{"target_id", "integration_id", "guardrail_identifier", "guardrail_version"}
+	case securityagent.ActionDetachRoleAdministratorPolicy:
+		fields = []string{"target_id", "integration_id", "policy_arn"}
 	default:
 		return nil, ErrRepositoryUnavailable
 	}
@@ -103,6 +112,10 @@ func decodeSecurityAgentActionArguments(action string, raw json.RawMessage) (*Se
 		valid = value.SessionID == value.TargetID && validProductID(value.DeviceID) && validProductID(value.Scope) && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600
 	case "revoke_integration_connection":
 		valid = validProductID(value.IntegrationID)
+	case securityagent.ActionAttachBedrockGuardrail:
+		valid = validProductID(value.IntegrationID) && securityagent.ValidProviderRemediationParameters(action, map[string]string{"guardrail_identifier": value.GuardrailIdentifier, "guardrail_version": value.GuardrailVersion}, "", "")
+	case securityagent.ActionDetachRoleAdministratorPolicy:
+		valid = validProductID(value.IntegrationID) && securityagent.ValidProviderRemediationParameters(action, map[string]string{"policy_arn": value.PolicyARN}, "", "")
 	}
 	if !valid {
 		return nil, ErrRepositoryUnavailable

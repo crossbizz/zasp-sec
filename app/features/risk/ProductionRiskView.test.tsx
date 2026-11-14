@@ -149,6 +149,32 @@ describe("production risk views", () => {
     expect(within(dialog).getByRole("list", { name: "Framework references" })).toHaveTextContent("OWASP LLM Top 10 LLM01: Prompt InjectionEU AI Act Article 15: Accuracy, robustness and cybersecurity");
   });
 
+  it("offers the matching Security Agent action on a finding only to a principal who may run Security Agents", async () => {
+    const check = { ...finding, source: "prowler", rule: "agent_guardrail_missing", title: "Discovered AWS control agent_guardrail_missing" } as unknown as typeof finding;
+    const riskAPI = fixtureAPI({ async listFindings() { return [check]; }, async getFinding() { return { value: check, version: '"1"' }; } });
+    const agent = { id: "pid_20000001-0000-4000-8000-000000000001", name: "Guardrail remediation", version: 4, environmentID: "pid_10000003-0000-4000-8000-000000000003" };
+    const startRemediation = vi.fn(async () => ({ runID: "pid_50000001-0000-4000-8000-000000000001", state: "waiting_approval" }));
+    const remediationAPI = { listRemediationAgents: vi.fn(async () => [agent]), startRemediation };
+    const view = render(<APIProvider><QueryScope><ProductionRiskView path="/violations" api={riskAPI} remediationAPI={remediationAPI} canRemediate canWrite={false} onNavigate={vi.fn()} activityScope={activityScope} /></QueryScope></APIProvider>);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Agent has no guardrail attached" }));
+    const dialog = await screen.findByRole("dialog", { name: "Agent has no guardrail attached" });
+    const section = await within(dialog).findByRole("region", { name: "Fix with a Security Agent" });
+    await userEvent.type(within(section).getByLabelText("Guardrail identifier or ARN"), "gr1abc");
+    await userEvent.type(within(section).getByLabelText("Guardrail version"), "3");
+    await userEvent.click(within(section).getByRole("button", { name: /Request approval: attach bedrock guardrail/ }));
+    await waitFor(() => expect(startRemediation).toHaveBeenCalledWith(agent, check.id, { action: "attach_bedrock_guardrail", parameters: { guardrail_identifier: "gr1abc", guardrail_version: "3" } }));
+    expect(await within(section).findByRole("status")).toHaveTextContent("waiting for approval");
+    view.unmount();
+
+    // Without the right to run Security Agents the section is not offered and nothing is asked of the API.
+    const silent = { listRemediationAgents: vi.fn(async () => [agent]), startRemediation: vi.fn() };
+    render(<APIProvider><QueryScope><ProductionRiskView path="/violations" api={riskAPI} remediationAPI={silent} canWrite={false} onNavigate={vi.fn()} activityScope={activityScope} /></QueryScope></APIProvider>);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Agent has no guardrail attached" }));
+    const plain = await screen.findByRole("dialog", { name: "Agent has no guardrail attached" });
+    expect(within(plain).queryByRole("region", { name: "Fix with a Security Agent" })).toBeNull();
+    expect(silent.listRemediationAgents).not.toHaveBeenCalled();
+  });
+
   it("explains why, path, fix, and verification from authoritative finding fields", async () => {
     const navigate = vi.fn();
     renderRisk("/violations", fixtureAPI(), false, navigate);

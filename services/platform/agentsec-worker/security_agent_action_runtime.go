@@ -34,6 +34,14 @@ type securityAgentActionProcessorConfig struct {
 	Now               func() time.Time
 	NewLeaseToken     func() (string, error)
 	NewProductID      func() (string, error)
+	// Remediation performs provider remediations. It is optional: without
+	// it the worker leaves dispatched remediations unclaimed.
+	Remediation providerRemediationExecutor
+}
+
+// providerRemediationExecutor performs one claimed provider remediation.
+type providerRemediationExecutor interface {
+	Execute(context.Context, apiserver.ProviderRemediationClaim) (apiserver.ProviderRemediationOutcome, error)
 }
 
 type securityAgentActionProcessor struct {
@@ -91,8 +99,9 @@ func (processor *securityAgentActionProcessor) RunOnce(ctx context.Context) erro
 			return errWorkerExecution
 		}
 	}
+	remediationErr := processor.processProviderRemediations(ctx)
 	processor.mu.RUnlock()
-	if reconciliationErr != nil {
+	if reconciliationErr != nil || remediationErr != nil {
 		return errWorkerExecution
 	}
 	return nil

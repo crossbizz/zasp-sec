@@ -35,8 +35,16 @@ export function hasOrderedSecurityAgent(value: unknown): boolean {
 export function decodeSecurityAgentManualRunInput(value: unknown): SecurityAgentManualRunInput {
   check(value !== null && typeof value === "object");
   const ordered = Object.hasOwn(value, "trigger_version") || Object.hasOwn(value, "trigger_source");
-  const v = record(value, ordered ? ["environment_id", "trigger_kind", "trigger_id", "trigger_version", "trigger_source"] : ["environment_id", "trigger_kind", "trigger_id"]);
-  id(v.environment_id); id(v.trigger_id); oneOf(v.trigger_kind, ordered ? ["finding", "attack_path"] : ["finding", "attack_path", "session"]);
+  // A provider remediation is requested on a finding, without a trigger version.
+  const remediation = !ordered && Object.hasOwn(value, "remediation");
+  const v = record(value, ordered ? ["environment_id", "trigger_kind", "trigger_id", "trigger_version", "trigger_source"] : remediation ? ["environment_id", "trigger_kind", "trigger_id", "remediation"] : ["environment_id", "trigger_kind", "trigger_id"]);
+  id(v.environment_id); id(v.trigger_id); oneOf(v.trigger_kind, ordered ? ["finding", "attack_path"] : remediation ? ["finding"] : ["finding", "attack_path", "session"]);
+  if (remediation) {
+    const r = record(v.remediation, ["action", "parameters"]);
+    oneOf(r.action, ["attach_bedrock_guardrail", "detach_role_administrator_policy"]);
+    const parameters = record(r.parameters, r.action === "attach_bedrock_guardrail" ? ["guardrail_identifier", "guardrail_version"] : ["policy_arn"]);
+    check(validSecurityAgentRemediation({ action: r.action, parameters } as SecurityAgentRemediation));
+  }
   if (ordered) {
     integer(v.trigger_version);
     check(typeof v.trigger_source === "string" && v.trigger_source.length > 0 && new TextEncoder().encode(v.trigger_source).length <= 128 && !/^\p{White_Space}|\p{White_Space}$/u.test(v.trigger_source) && [...v.trigger_source].every((char) => char.charCodeAt(0) >= 32 && (char.charCodeAt(0) < 127 || char.charCodeAt(0) > 159)));
@@ -188,4 +196,20 @@ export function validateOrderedSecurityAgentJSON(text: string): void {
     }
   };
   visit(0); check(cursor === tokens.length);
+}
+
+// Provider remediation: a Security Agent action that changes a customer's AWS
+// account through its integration, after approval.
+export type SecurityAgentRemediation =
+  | { action: "attach_bedrock_guardrail"; parameters: { guardrail_identifier: string; guardrail_version: string } }
+  | { action: "detach_role_administrator_policy"; parameters: { policy_arn: string } };
+
+const BEDROCK_GUARDRAIL_IDENTIFIER = /^(?:[a-z0-9]{1,64}|arn:aws(?:-us-gov|-cn)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:guardrail\/[a-z0-9]{1,64})$/;
+const BEDROCK_GUARDRAIL_VERSION = /^(?:[1-9][0-9]{0,7}|DRAFT)$/;
+const IAM_MANAGED_POLICY_ARN = /^arn:aws(?:-us-gov|-cn)?:iam::(?:aws|[0-9]{12}):policy\/[A-Za-z0-9+=,.@_/-]{1,512}$/;
+
+// validSecurityAgentRemediation checks a remediation with the rules the API applies.
+export function validSecurityAgentRemediation(value: SecurityAgentRemediation): boolean {
+  if (value.action === "attach_bedrock_guardrail") return typeof value.parameters.guardrail_identifier === "string" && BEDROCK_GUARDRAIL_IDENTIFIER.test(value.parameters.guardrail_identifier) && typeof value.parameters.guardrail_version === "string" && BEDROCK_GUARDRAIL_VERSION.test(value.parameters.guardrail_version);
+  return value.action === "detach_role_administrator_policy" && typeof value.parameters.policy_arn === "string" && IAM_MANAGED_POLICY_ARN.test(value.parameters.policy_arn);
 }

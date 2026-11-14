@@ -25,8 +25,25 @@ func composeSecurityAgentActionWorkerRuntime(config workerRuntimeConfig, databas
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+	// Provider remediations are performed only where the worker was given
+	// its own cloud identity for them.
+	var remediation providerRemediationExecutor
+	closeRemediation := func() error { return nil }
+	if config.RemediationRoleARN != "" {
+		factory, factoryErr := newProductionRemediationClientFactory(config)
+		if factoryErr != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		executor, executorErr := newSecurityAgentRemediationExecutor(factory, minDuration(config.LeaseDuration/2, time.Minute))
+		if executorErr != nil {
+			_ = factory.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		remediation, closeRemediation = executor, factory.Close
+	}
 	processor, err := newSecurityAgentActionProcessor(securityAgentActionProcessorConfig{
-		Authority: repository, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3,
+		Remediation: remediation,
+		Authority:   repository, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3,
 		KeyID: config.GatewaySigningKeyID, PrivateKey: privateKey, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken,
 		NewProductID: func() (string, error) {
 			value, newErr := domain.NewProductID()
@@ -34,9 +51,16 @@ func composeSecurityAgentActionWorkerRuntime(config workerRuntimeConfig, databas
 		},
 	})
 	if err != nil {
+		_ = closeRemediation()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: processor.Close}, nil
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: func() error {
+		closeErr := processor.Close()
+		if err := closeRemediation(); closeErr == nil {
+			closeErr = err
+		}
+		return closeErr
+	}}, nil
 }
 
 func loadSecurityAgentActionPrivateKey(path string) (ed25519.PrivateKey, error) {

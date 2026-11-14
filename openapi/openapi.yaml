@@ -1382,6 +1382,132 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/guardrails/decisions:
+    post:
+      operationId: createGuardrailDecision
+      summary: Decide whether one model interaction is allowed, redacted or blocked
+      description: >-
+        For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model
+        (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the
+        Environment that has the view permission; a browser session is not accepted. The detectors are deterministic (regular
+        expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail
+        policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision
+        holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
+      security:
+        - ProductAPIToken: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailInteraction' } } }
+      responses:
+        '200':
+          description: The decision. It was recorded before it was returned.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailDecision' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '413': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/guardrails/policy:
+    get:
+      operationId: getGuardrailPolicy
+      summary: Get the guardrail policy of the Environment
+      description: Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+      responses:
+        '200':
+          description: The guardrail policy.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putGuardrailPolicy
+      summary: Set the guardrail policy of the Environment
+      description: >-
+        BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names
+        the current version ("0" when no policy was saved); a stale version is refused with 409, which also makes a repeated request
+        safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailPolicyInput' } } }
+      responses:
+        '200':
+          description: The guardrail policy after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/remediation-role:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationRemediationRole
+      summary: Get the remediation role of an integration
+      description: >-
+        Provider remediations (Security Agent actions that change the customer's account) never use the role discovery reads with.
+        They use this separately configured role, and are refused while none is configured.
+      responses:
+        '200':
+          description: The remediation role setting.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationRemediationRole' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putIntegrationRemediationRole
+      summary: Set or remove the remediation role of an integration
+      description: >-
+        BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names
+        the current version ("0" when no role is configured); a request that names a stale version is refused with 409, which also
+        makes a repeated request safe. The role must be an IAM role of the account the integration reads and must not be the role
+        discovery reads with. The change is audited.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationRemediationRoleInput' } } }
+      responses:
+        '200':
+          description: The remediation role setting after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationRemediationRole' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/test-delivery:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -4000,7 +4126,7 @@ components:
       required: [target, action_key, enabled, version]
       properties:
         target: { type: string, enum: [global, environment, action] }
-        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
+        action_key: { type: string, enum: ['*', attach_bedrock_guardrail, create_evidence_export, create_temporary_policy, detach_role_administrator_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
         version: { type: integer, minimum: 0, maximum: 1000000 }
     SecurityAgentExecutionControls:
@@ -4010,14 +4136,14 @@ components:
       properties:
         global: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
         environment: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
-        actions: { type: array, oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }], items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
+        actions: { type: array, oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }, { minItems: 10, maxItems: 10 }], items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
     SecurityAgentExecutionControlInput:
       type: object
       additionalProperties: false
       required: [target, action_key, enabled]
       properties:
         target: { type: string, enum: [environment, action] }
-        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
+        action_key: { type: string, enum: ['*', attach_bedrock_guardrail, create_evidence_export, create_temporary_policy, detach_role_administrator_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
     SecurityAgentExecutionControlResult:
       type: object
@@ -4025,7 +4151,7 @@ components:
       required: [target, action_key, enabled, version, audit_id, correlation_id, receipt_id, replayed]
       properties:
         target: { type: string, enum: [environment, action] }
-        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
+        action_key: { type: string, enum: ['*', attach_bedrock_guardrail, create_evidence_export, create_temporary_policy, detach_role_administrator_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
         version: { type: integer, minimum: 1, maximum: 1000000 }
         audit_id: { $ref: '#/components/schemas/ProductID' }
@@ -4126,6 +4252,59 @@ components:
       oneOf:
         - { $ref: '#/components/schemas/SecurityAgentLegacyTriggerInput' }
         - { $ref: '#/components/schemas/SecurityAgentOrderedTriggerInput' }
+        - { $ref: '#/components/schemas/SecurityAgentRemediationTriggerInput' }
+    SecurityAgentRemediationTriggerInput:
+      type: object
+      additionalProperties: false
+      description: >-
+        Start a provider remediation on an open finding. The Security Agent's only allowed action must be the remediation's action
+        and the finding's rule must be the one the action answers (attach_bedrock_guardrail answers agent_guardrail_missing,
+        detach_role_administrator_policy answers agent_role_administrator_access). The run is created waiting for approval; nothing
+        is changed at the provider before a person other than the requester approves. The request is refused with 409
+        remediation_role_not_configured when the integration that describes the agent has no remediation role.
+      required: [environment_id, trigger_kind, trigger_id, remediation]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        trigger_kind: { type: string, const: finding }
+        trigger_id: { $ref: '#/components/schemas/ProductID' }
+        remediation: { $ref: '#/components/schemas/SecurityAgentRemediation' }
+    SecurityAgentRemediation:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [action, parameters]
+          properties:
+            action: { type: string, const: attach_bedrock_guardrail }
+            parameters:
+              type: object
+              additionalProperties: false
+              required: [guardrail_identifier, guardrail_version]
+              properties:
+                guardrail_identifier: { $ref: '#/components/schemas/BedrockGuardrailIdentifier' }
+                guardrail_version: { $ref: '#/components/schemas/BedrockGuardrailVersion' }
+        - type: object
+          additionalProperties: false
+          required: [action, parameters]
+          properties:
+            action: { type: string, const: detach_role_administrator_policy }
+            parameters:
+              type: object
+              additionalProperties: false
+              required: [policy_arn]
+              properties:
+                policy_arn: { $ref: '#/components/schemas/IAMManagedPolicyARN' }
+    BedrockGuardrailIdentifier:
+      type: string
+      description: The identifier of an existing Bedrock guardrail, or its ARN in the agent's own account and Region.
+      pattern: '^(?:[a-z0-9]{1,64}|arn:aws(?:-us-gov|-cn)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:guardrail/[a-z0-9]{1,64})$'
+    BedrockGuardrailVersion:
+      type: string
+      description: A numbered guardrail version, or DRAFT.
+      pattern: '^(?:[1-9][0-9]{0,7}|DRAFT)$'
+    IAMManagedPolicyARN:
+      type: string
+      description: The ARN of an AWS managed policy, or of a customer managed policy of the agent's own account.
+      pattern: '^arn:aws(?:-us-gov|-cn)?:iam::(?:aws|[0-9]{12}):policy/[A-Za-z0-9+=,.@_/-]{1,512}$'
     SecurityAgentLegacyTriggerInput:
       type: object
       additionalProperties: false
@@ -4390,6 +4569,23 @@ components:
       oneOf:
         - type: 'null'
         - type: object
+          description: attach_bedrock_guardrail. The target is the Bedrock agent; the guardrail is named by identifier or ARN.
+          additionalProperties: false
+          required: [target_id, integration_id, guardrail_identifier, guardrail_version]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            integration_id: { $ref: '#/components/schemas/ProductID' }
+            guardrail_identifier: { $ref: '#/components/schemas/BedrockGuardrailIdentifier' }
+            guardrail_version: { $ref: '#/components/schemas/BedrockGuardrailVersion' }
+        - type: object
+          description: detach_role_administrator_policy. The target is the Bedrock agent whose execution role the policy is detached from.
+          additionalProperties: false
+          required: [target_id, integration_id, policy_arn]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            integration_id: { $ref: '#/components/schemas/ProductID' }
+            policy_arn: { $ref: '#/components/schemas/IAMManagedPolicyARN' }
+        - type: object
           additionalProperties: false
           required: [target_id, evidence_ids]
           properties:
@@ -4493,7 +4689,7 @@ components:
         attack_lab: { $ref: '#/components/schemas/SecurityAgentAttackLabDetail' }
         existing_test: { $ref: '#/components/schemas/SecurityAgentExistingTestDetail' }
         step_id: { $ref: '#/components/schemas/ProductID' }
-        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export] }
+        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export, attach_bedrock_guardrail, detach_role_administrator_policy] }
         arguments: { $ref: '#/components/schemas/SecurityAgentActionArguments' }
         result: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentActionResult' }, { type: 'null' }] }
         ttl_seconds: { type: [integer, 'null'], minimum: 60, maximum: 3600, description: 'Persisted containment TTL. Null is unavailable or not applicable, never zero.' }
@@ -4750,7 +4946,7 @@ components:
         state: { type: string, enum: [pending, approved, rejected, cancelled, expired] }
         expires_at: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
-        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Apply temporary monitoring policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export] }
+        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Apply temporary monitoring policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export, Attach Bedrock guardrail, Detach administrator policy from agent role] }
         reversible: { type: boolean }
         ttl_seconds: { type: integer, minimum: 0, maximum: 3600 }
         evidence_summary: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
@@ -4796,7 +4992,7 @@ components:
       properties:
         finding_response: { $ref: '#/components/schemas/SecurityAgentFindingResponseApproval' }
         agent_id: { $ref: '#/components/schemas/ProductID' }
-        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export] }
+        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export, attach_bedrock_guardrail, detach_role_administrator_policy] }
         export_selection:
           type: array
           minItems: 1
@@ -6397,6 +6593,111 @@ components:
         completed_at: { type: [string, 'null'], format: date-time }
         error_code: { type: string, enum: ['', delivery_failed] }
         audit_id: { $ref: '#/components/schemas/ProductID' }
+    GuardrailRuleID:
+      type: string
+      enum:
+        - injection.instruction_override
+        - injection.role_switch
+        - injection.hidden_text
+        - injection.tool_call
+        - pii.email
+        - pii.phone
+        - pii.credit_card
+        - pii.us_ssn
+        - secret.aws_access_key_id
+        - secret.private_key
+        - secret.bearer_token
+    GuardrailMode:
+      type: string
+      description: block stops the interaction; redact replaces the matched text (sensitive-data rules only); monitor reports the match and changes nothing; off ignores the rule.
+      enum: [block, redact, monitor, 'off']
+    GuardrailInteraction:
+      type: object
+      additionalProperties: false
+      required: [direction, text]
+      properties:
+        direction: { type: string, enum: [input, output], description: input is text on its way into a model; output is text a model produced. }
+        text: { type: string, description: The interaction text. At most 32768 bytes of UTF-8; a longer text is refused with 413. }
+        agent_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: 'Optional identifier of the agent, as the gateway knows it. Recorded with the decision.' }
+        tool_name: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: Optional name of the tool whose call or result the text is. Recorded with the decision. }
+    GuardrailMatchedRule:
+      type: object
+      additionalProperties: false
+      required: [id, category, mode, count]
+      properties:
+        id: { $ref: '#/components/schemas/GuardrailRuleID' }
+        category: { type: string, enum: [prompt_injection, sensitive_data] }
+        mode: { type: string, enum: [block, redact, monitor] }
+        count: { type: integer, minimum: 1, maximum: 9999 }
+    GuardrailDecision:
+      type: object
+      additionalProperties: false
+      required: [decision_id, decision, matched_rules, policy_version]
+      properties:
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        decision: { type: string, enum: [allow, redact, block] }
+        redacted_text: { type: string, description: 'Present only when decision is redact: the text with every match of a redacting rule replaced by [REDACTED:<rule id>]. Forward this instead of the original.' }
+        matched_rules: { type: array, maxItems: 11, items: { $ref: '#/components/schemas/GuardrailMatchedRule' }, description: 'Every rule that matched and is not off, including rules that only monitor.' }
+        policy_version: { type: integer, minimum: 0, maximum: 1000000 }
+    GuardrailPolicyRule:
+      type: object
+      additionalProperties: false
+      required: [id, category, description, mode, default_mode, redactable]
+      properties:
+        id: { $ref: '#/components/schemas/GuardrailRuleID' }
+        category: { type: string, enum: [prompt_injection, sensitive_data] }
+        description: { type: string, minLength: 1, maxLength: 512 }
+        mode: { $ref: '#/components/schemas/GuardrailMode' }
+        default_mode: { $ref: '#/components/schemas/GuardrailMode' }
+        redactable: { type: boolean, description: Only a redactable rule can have the redact mode. }
+    GuardrailPolicy:
+      type: object
+      additionalProperties: false
+      required: [environment_id, version, updated_at, rules]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+        rules: { type: array, minItems: 11, maxItems: 11, items: { $ref: '#/components/schemas/GuardrailPolicyRule' } }
+    GuardrailPolicyInput:
+      type: object
+      additionalProperties: false
+      required: [rules]
+      properties:
+        rules:
+          type: object
+          description: Rule identifier to mode. A rule that is not named has its default mode.
+          maxProperties: 11
+          propertyNames: { $ref: '#/components/schemas/GuardrailRuleID' }
+          additionalProperties: { $ref: '#/components/schemas/GuardrailMode' }
+    IntegrationRemediationRole:
+      type: object
+      additionalProperties: false
+      description: >-
+        The separate IAM role provider remediations of this integration use. It is named by ARN only; no credential is stored.
+        supported is false for a provider without remediation actions. When configured is false, role_arn and updated_at are null
+        and version is 0, and remediations of the integration are refused.
+      required: [integration_id, supported, configured, role_arn, version, updated_at]
+      properties:
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        supported: { type: boolean }
+        configured: { type: boolean }
+        role_arn: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/AWSRoleARN' }] }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+    IntegrationRemediationRoleInput:
+      type: object
+      additionalProperties: false
+      required: [role_arn]
+      properties:
+        role_arn:
+          description: An IAM role of the account the integration reads, different from the role discovery reads with. The empty string removes the setting.
+          oneOf:
+            - { type: string, const: '' }
+            - { $ref: '#/components/schemas/AWSRoleARN' }
+    AWSRoleARN:
+      type: string
+      pattern: '^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$'
     IntegrationSetupStatus:
       type: object
       additionalProperties: false
