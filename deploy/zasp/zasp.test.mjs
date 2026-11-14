@@ -511,9 +511,12 @@ test("the chart renders one pod with every dependency ordered before the product
     assert.deepEqual(service.spec.ports, [{ name: "https", port: 8443, targetPort: "https" }]);
     // No secret value is passed as a plain environment value.
     const secret = rendered.documents.find(document => document.kind === "Secret");
-    const values = Object.values(secret.data).map(value => Buffer.from(value, "base64").toString("utf8")).filter(value => value.length >= 16);
-    const statefulSet = JSON.stringify(rendered.documents.find(document => document.kind === "StatefulSet"));
-    for (const value of values) assert.equal(statefulSet.includes(value.split("\n")[1] ?? value), false);
+    // Compared by their longest line: a certificate spans lines, and a raw key may contain a line break.
+    const longestLine = value => value.split("\n").reduce((longest, line) => (line.length > longest.length ? line : longest), "");
+    const values = Object.values(secret.data).map(value => longestLine(Buffer.from(value, "base64").toString("latin1"))).filter(value => value.length >= 16);
+    const statefulSet = rendered.stdout.slice(rendered.stdout.indexOf("kind: StatefulSet"));
+    assert.ok(values.length >= 20);
+    for (const value of values) assert.equal(statefulSet.includes(value), false);
     const settings = rendered.documents.find(document => document.metadata.name === "zasp-settings").data;
     assert.equal(settings.ZASP_PUBLIC_ORIGIN, "https://zasp.example.test:8443");
     assert.equal(settings.ZASP_BOOTSTRAP_ADMIN_EMAIL, "admin@example.test");
