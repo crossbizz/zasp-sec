@@ -74,6 +74,49 @@ PG_SUPERUSER="postgres"
 PG_DATABASE="zasp"
 
 fail() { echo "real-stack: $*" >&2; exit 1; }
+
+# One machine runs one stack. The containers (PostgreSQL, Neo4j, LocalStack,
+# OpenSearch, Temporal, OpenFGA), their ports and the fixed secret paths under
+# /var/run are shared by every state directory, while the secrets a stack puts
+# into them are generated per state directory: the Neo4j user's password, the
+# graph and external-ID secrets in LocalStack, the customer role's trust
+# policy, the verification keys registered in the database and the Security
+# Agent key files. A command run with a second state directory would replace
+# all of those and break the stack that created them. Every command that
+# writes them therefore first claims the machine for its state directory and
+# refuses when another state directory holds it.
+#
+# The holder is recorded in OWNER_FILE. Without a record (a stack created
+# before this check) it is read from the Neo4j container, which mounts the
+# certificate directory of the state that created it.
+OWNER_FILE="${ZASP_REAL_STACK_OWNER_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/zasp-real-stack.owner}"
+machine_owner() {
+  if [ -f "$OWNER_FILE" ]; then
+    head -n 1 "$OWNER_FILE"
+    return 0
+  fi
+  local mount
+  mount="$(docker inspect zasp-real-stack-neo4j --format '{{range .Mounts}}{{println .Source}}{{end}}' 2>/dev/null | grep -E '/tls/neo4j$' | head -n 1 || true)"
+  [ -z "$mount" ] || echo "${mount%/tls/neo4j}"
+}
+claim_machine() {
+  mkdir -p "$STATE"
+  local mine owner
+  mine="$(cd "$STATE" && pwd -P)"
+  owner="$(machine_owner)"
+  # A holder whose state directory is gone holds nothing.
+  if [ -n "$owner" ] && [ "$owner" != "$mine" ] && [ -d "$owner/secrets" ] && [ "${ZASP_REAL_STACK_TAKE_OVER:-}" != "1" ]; then
+    fail "this machine's stack belongs to the state directory '$owner'; '$mine' is another one.
+  The containers and the secrets inside them are shared: continuing would replace that stack's Neo4j password,
+  LocalStack secrets, registered verification keys and Security Agent key files.
+  Use that state directory (ZASP_REAL_STACK_STATE='$owner'), or stop that stack and take the machine over on
+  purpose with ZASP_REAL_STACK_TAKE_OVER=1 (that stack then no longer works until it takes the machine back)."
+  fi
+  if [ "$owner" != "$mine" ] || [ ! -f "$OWNER_FILE" ]; then
+    mkdir -p "$(dirname "$OWNER_FILE")"
+    printf '%s\n' "$mine" > "$OWNER_FILE.$$" && mv "$OWNER_FILE.$$" "$OWNER_FILE" || fail "could not record the stack's state directory in $OWNER_FILE"
+  fi
+}
 # URL-safe base64 without padding. (basenc is GNU-only; openssl is everywhere.)
 b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '=\n'; }
 # psql from this machine when it is installed, otherwise the one inside the
@@ -376,7 +419,7 @@ init_graph() {
 migrate() { ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" "$1" || fail "agentsec-migrate $1 refused"; }
 
 cmd_up() {
-  mkdir -p "$STATE"
+  claim_machine
   docker compose -f "$COMPOSE" up -d
   start_local_cloud
   write_identity_token
@@ -405,6 +448,7 @@ cmd_up() {
 
 cmd_bootstrap() {
   [ "$#" -eq 3 ] || fail "usage: $0 bootstrap <organization name> <domain> <admin email>"
+  claim_machine
   require_provider
   load_environment
   local result reference organization
@@ -427,6 +471,7 @@ cmd_bootstrap() {
 }
 
 cmd_api() {
+  claim_machine
   require_provider
   load_environment
   [ -n "${ZASP_STYTCH_ORGANIZATION_ID:-}" ] || fail "run '$0 bootstrap' first"
@@ -577,6 +622,7 @@ provision_customer_account() {
 # not create yet.
 cmd_worker() {
   [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|outbox|discovery|security-agent|security-agent-action|projection-graph|projection-search|projection-risk}"
+  claim_machine
   load_environment
   export ZASP_WORKER_MODE="$1" ZASP_WORKER_ID="real-stack-$1" ZASP_AWS_REGION=us-east-1
   export ZASP_POLL_INTERVAL=1s ZASP_LEASE_DURATION=30s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_BATCH_SIZE=10 ZASP_PROVIDER_TIMEOUT=10s
@@ -849,6 +895,7 @@ cmd_ui() {
 # same arguments once a minute.
 cmd_project() {
   [ "$#" -eq 0 ] || fail "usage: $0 project"
+  claim_machine
   require_provider
   load_environment
   local interval="${ZASP_REAL_STACK_PROJECT_INTERVAL:-5}" reconcile_dsn
@@ -969,6 +1016,7 @@ dependency_running() {
 # the web application behind its TLS front. Safe to repeat.
 cmd_start() {
   [ "$#" -eq 0 ] || fail "usage: $0 start"
+  claim_machine
   require_provider
   command -v node >/dev/null 2>&1 || fail "Node.js is required for the web application (see package.json for the version)"
   [ -d "$ROOT/node_modules" ] || fail "install the web dependencies first: (cd '$ROOT' && npm ci)"

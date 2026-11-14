@@ -515,6 +515,12 @@ func classifyPostgresError(err error) error {
 		if provider.Code == "22023" && provider.Message == "security agent cost budget configuration required" {
 			return ErrRepositoryCostBudgetRequired
 		}
+		if provider.Code == "40001" && provider.Message == "authorization changed; retry from Check" {
+			return ErrAuthorizationChanged
+		}
+		if provider.Code == "40001" && provider.Message == "security agent trigger source mismatch" {
+			return ErrSecurityAgentTriggerSourceMismatch
+		}
 		switch provider.Code {
 		case "22023", "22P02", "23514":
 			return ErrRepositoryOperation

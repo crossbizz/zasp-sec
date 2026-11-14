@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -220,7 +221,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if err != nil {
 		return err
 	}
-	workflow, err := reconciler.workflows.GetWorkflow(providerContext, scope, "integration", lease.IntegrationID)
+	workflow, err := reconciler.workflows.GetWorkflow(withConnectorLease(providerContext, lease), scope, "integration", lease.IntegrationID)
 	providerKey, configuration, valid := authorizedOAuthIntegration(workflow, lease.IntegrationID)
 	definition, ready := reconciler.registry.Provider(providerContext, providerKey)
 	if lease.LastErrorCode == "cleanup_pending" {
@@ -313,7 +314,10 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, fina
 	if err != nil {
 		return err
 	}
-	workflow, err := reconciler.workflows.GetWorkflow(providerContext, scope, "integration", lease.IntegrationID)
+	workflow, err := reconciler.workflows.GetWorkflow(withConnectorLease(providerContext, lease), scope, "integration", lease.IntegrationID)
+	if referenceConnectorKey(lease.Provider) {
+		return reconciler.reconcileReferenceRevocation(finalizationContext, lease, workflow, err)
+	}
 	providerKey, configuration, valid := authorizedOAuthIntegrationStatus(workflow, lease.IntegrationID, "revoking")
 	definition, ready := reconciler.registry.Provider(providerContext, providerKey)
 	provider, providerErr := connectorOAuthProvider(definition, configuration)
@@ -344,13 +348,55 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, fina
 	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_revocation_ambiguous", err)
 }
 
+// referenceConnectorKey reports the connectors that are authorized by a
+// reference to an identity the customer owns (an AWS role and its external-ID
+// reference, a Kubernetes connection reference) instead of an OAuth grant.
+// CombinedConnectorCapabilities routes the same keys to the reference
+// registry.
+func referenceConnectorKey(key string) bool {
+	return stringIn(key, "aws", "kubernetes")
+}
+
+// reconcileReferenceRevocation completes the revocation of a reference
+// connector. The product holds no grant at the provider for these connectors:
+// the verified connection is only the stored reference, and the customer
+// owns the role or cluster credential it names. Revoking it is therefore
+// the local transition alone, which the database performs under the lease
+// (credential and connection revoked, integration deleted, receipt settled).
+// The integration must still be the reference connector of the lease, in
+// "revoking", naming the reference the revocation was requested for.
+func (reconciler *ConnectorReconciler) reconcileReferenceRevocation(finalizationContext context.Context, lease ConnectorEffectLease, workflow WorkflowValue, readErr error) error {
+	valid := false
+	if readErr == nil && workflow.Version >= 1 && len(workflow.Body) >= 2 && len(workflow.Body) <= 16<<10 {
+		var body struct {
+			ID            string          `json:"id"`
+			ConnectorKey  string          `json:"connector_key"`
+			Status        string          `json:"status"`
+			Configuration json.RawMessage `json:"configuration"`
+		}
+		if json.Unmarshal(workflow.Body, &body) == nil && body.ID == lease.IntegrationID && body.ConnectorKey == lease.Provider && body.Status == "revoking" {
+			_, reference, parsed := parseReferenceAuthorizationConfiguration(lease.Provider, body.Configuration)
+			valid = parsed && reference == lease.ConnectionReference
+		}
+	}
+	if !valid {
+		if lease.Attempt >= 100 {
+			_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, "provider_revocation_ambiguous")
+			return quarantineErr
+		}
+		return ErrRepositoryUnavailable
+	}
+	_, err := reconciler.repository.CompleteConnectorRevocation(finalizationContext, lease)
+	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_revocation_ambiguous", err)
+}
+
 func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finalizationContext context.Context, lease ConnectorEffectLease, provider ConnectorOAuthProvider, reason string) error {
 	providerKey := ""
 	if provider == nil {
 		definition, resolvedProviderKey, ready := reconciler.registry.ProviderForAuthority(providerContext, lease.Provider)
 		providerKey = resolvedProviderKey
 		if ready {
-			workflow, err := reconciler.workflows.GetWorkflow(providerContext, mustConnectorLeaseScope(lease), "integration", lease.IntegrationID)
+			workflow, err := reconciler.workflows.GetWorkflow(withConnectorLease(providerContext, lease), mustConnectorLeaseScope(lease), "integration", lease.IntegrationID)
 			workflowProviderKey, configuration, valid := authorizedOAuthIntegration(workflow, lease.IntegrationID)
 			if err == nil && valid && workflowProviderKey == providerKey && definition.AuthorityProvider == lease.Provider {
 				provider, _ = connectorOAuthProvider(definition, configuration)

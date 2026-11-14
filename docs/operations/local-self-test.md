@@ -9,7 +9,7 @@ Follow it from top to bottom: prerequisites, start, sign in, the golden path, th
 Verified on 2026-11-14 in a Linux sandbox with headless Chromium, on a stack that already held test data from earlier work:
 
 - Every step of the [golden path](#golden-path) below was clicked through in the browser, including the changes: connecting and authorizing an AWS integration, a sync, a policy from creation to deletion, accepting a risk and reopening the finding, creating and revoking an API token, renaming a workspace and restoring the name, and a Security Agent from creation to a closed run.
-- After each of those changes the page became usable again without a reload. The one exception is deleting an authorized integration (see [Known issues](#known-issues)).
+- After each of those changes the page became usable again without a reload. The one exception in that browser run was deleting an authorized integration, which stayed in `revoking` and kept every change locked. That is fixed since (see [Known issues](#known-issues)); the fix was verified through the API, not in the browser.
 - Every page in the left navigation opened with a signed-in session and without an error message.
 
 The signed-in session of that run was a test fixture, not a sign-in. Sign-in needs a person's inbox or Google account, so the session was issued in the local database through the product's own session functions, for the existing administrator. It shows what the pages do once a session exists. It does not show that sign-in works.
@@ -213,7 +213,7 @@ Before the first run, the planning worker must be running (see [Start](#start)) 
 4. Optional: type a **Simulation goal** and the ID of a finding as **Evidence ID** (the ID is in the finding's address and in its dialog), then **Simulate plan**. You see "Simulation only. This does not execute the proposed steps." and a summary such as "Planned 1 action(s) from 1 evidence record(s)", with "zero side effects".
 5. Type the ID of an open finding as **Evidence ID** and click **Start supervised run**. The run appears at the top of "Security Agent runs" as `queued`.
 
-   The finding must match the agent's trigger. The Finding Response template reacts to findings whose rule is `credential`. The two findings of the AWS sync have other rules (`iam_role_administratoraccess_policy` and `ec2_instance_imdsv2_enabled`), and a run for one of them is refused (`409 operation_conflict`, shown as "The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled."). The test run used "Long-lived credential reachable by an agent" findings with the rule `credential`, which earlier work had written into the local database by hand. A fresh stack has none: see [Known issues](#known-issues). A second run of the same agent for the same finding is refused ("The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled.").
+   The finding must match the agent's trigger. An agent saved with the default trigger reacts to findings whose rule is `credential`. The two findings of the AWS sync have other rules (`iam_role_administratoraccess_policy` and `ec2_instance_imdsv2_enabled`), and a run of such an agent for one of them is refused (`409 trigger_source_mismatch` since 2026-11-14, `409 operation_conflict` before; the browser run saw "The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled."). The browser run used "Long-lived credential reachable by an agent" findings with the rule `credential`, which earlier work had written into the local database by hand. A fresh stack has none; use an agent whose trigger is the rule of a finding of the sync instead: see [Known issues](#known-issues). A second run of the same agent for the same finding is refused ("The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled.").
 
 ### 7. The provider rejects the plan; close the run
 
@@ -338,24 +338,21 @@ Seen on 2026-11-13 and 2026-11-14. Where the cause is an API answer, the route a
 
 **Things that stop you**
 
-- **Deleting an authorized integration locks every change.** **Delete integration** on an integration in the state `active` moves it to `revoking`. Nothing on this stack completes a revocation, so it stays there. The top of every page then shows **Recover committed operations** for "Delete Integration", and **Acknowledge recovered result** answers "Authoritative resource still exists after the committed deletion". All buttons that change something stay disabled for your user. Do not delete an authorized integration on this stack. An integration that still waits for authorization (`pending_authorization`) is deleted at once. To get out of the locked state, [reset](#reset), or mark the receipt as acknowledged in the local database:
-
-  ```bash
-  psql "postgres://postgres@127.0.0.1:55434/zasp?sslmode=disable" \
-    -c "update zasp_workflow_receipts set acknowledged_at = now() where acknowledged_at is null and operation = 'deleteIntegration'"
-  ```
-
-- **On a fresh stack no finding can start a Security Agent run.** The emulated AWS account produces two findings, and neither matches the trigger of the Finding Response template (see step 6). Steps 6.5 and 7 were done with findings that had been inserted into the local database by hand; no way to create such a finding through the product was found on this stack. On a fresh stack you can create, validate and enable an agent, and the run step ends with the refusal message.
-- **A deleted sync schedule cannot be set again.** After **Delete automatic sync** the schedule answers `404` on read, and saving a new cadence answers `409` whatever version is sent. The integration then has manual syncs only.
-- **Webhook delivery status and test delivery fail.** `GET /api/v1/integrations/{id}/delivery-status` and `POST /api/v1/integrations/{id}/test-delivery` answer `503`. They depend on a readiness record that only a later release step creates.
+- **A run needs an agent whose trigger is the finding's rule.** The two findings of the AWS sync have the rules `iam_role_administratoraccess_policy` and `ec2_instance_imdsv2_enabled`; an agent saved with the default trigger reacts to the rule `credential` and is refused for them (see step 6). Fixed on 2026-11-14 on the API side and verified through the API only: an agent whose trigger source is one of those rules starts a run on that finding. In the browser this has not been tried again; the place to set the rule is **Finding family** under the trigger mode **Configured automatic trigger**.
+- **A webhook test delivery cannot succeed here.** The routes work since 2026-11-14, but a delivery needs a destination reachable over HTTPS and its signing secret in the secret store; the one delivery tried ended `failed` (`delivery_failed`).
 - **Exports are not available.** The export routes are not mounted on this stack and answer `404`.
+
+**Fixed on 2026-11-14, verified through the API and not yet in the browser**
+
+- **Deleting an authorized integration.** **Delete integration** on an `active` integration moves it to `revoking`; the API finishes the revocation in the background and the integration is deleted, about 15 to 20 seconds later. The receipt of the deletion then shows the deleted result and can be acknowledged. In the browser run of 2026-11-14 the integration stayed in `revoking` for ever and **Acknowledge recovered result** answered "Authoritative resource still exists after the committed deletion"; expect that message only during those seconds now.
+- **A deleted sync schedule can be set again.** After **Delete automatic sync**, saving a cadence creates a new schedule (version 1). In the browser run the save answered `409` whatever version was sent.
+- **Starting a run with the short request.** `POST /api/v1/security-agents/{id}/runs` accepts the request that names only the finding; the `400` the developer console showed before the web application repeated the request with the finding's version should no longer appear.
 
 **Things that look wrong and are not**
 
 - **A few seconds of waiting after every change.** See [What happens after every change](#what-happens-after-every-change). Underneath, the API answers `503 authorization_unavailable` or `409 authorization_changed` until the permission projector's next pass; the web application repeats the request. The browser's developer console lists those answers in red.
-- **A `400` in the developer console when a run starts.** `POST /api/v1/security-agents/{id}/runs` refuses the short form of the request with `400 invalid_request` on this stack; the web application then sends the form that carries the finding's version and source, which is accepted (`202`).
-- **`409 operation_conflict` on reads for some seconds** while several runs are being processed (seen on the lists of runs, execution controls and receipts). The web application repeats the read.
-- **A record that does not exist answers `403`, not `404`.** Opening the address of a deleted policy, integration, Security Agent or finding shows an authorization message.
+- **`409 authorization_changed` on reads for some seconds** while several runs are being processed (seen on the lists of runs, execution controls and receipts): the permissions changed between the check of the request and its read. The answer is marked retryable and the web application repeats the read. Until 2026-11-14 the same case answered `409 operation_conflict`, marked not retryable.
+- **A record that does not exist.** `GET` of a policy, integration, Security Agent or finding that does not exist in your Environment answers `404` when you may read such records there (since 2026-11-14; before, `403`). For the few seconds after a deletion in which the permissions are still being applied the answer is the retryable `503 authorization_unavailable`, then `404`. Other routes below a missing record, for example an integration's setup status, still answer `403`.
 - `GET /api/v1/integrations/{id}/schedule` answers `404` until a schedule is saved; the dialog shows "No automatic sync schedule."
 - `GET /api/v1/security-agent-runs/{id}/cleanup-recovery` answers `404` for a run with nothing to clean up; the run shows "Cleanup recovery is unavailable for this run."
 - "Coverage is degraded" and "Security plane degraded": no runtime sensor is enrolled, and the identity provider reports `degraded`.
@@ -364,7 +361,7 @@ Seen on 2026-11-13 and 2026-11-14. Where the cause is an API answer, the route a
 
 - **Nothing after planning has been exercised.** With no OpenRouter credits every run ends with `planner_provider_rejected`. Plans, approvals, actions, verification and the AI rationale have not been seen in the browser.
 - **A run that was cut off blocks its agent until someone closes it.** A run with unknown planner usage (`budget_usage_unknown`) keeps holding its agent's capacity. Close it with "Accept that the AI usage stays unknown".
-- **A sync that was cut off keeps its integration reserved.** For example when the discovery worker is stopped in the middle of a page. A later sync waits in `queued`. The reservation is released only by the next sync that is requested after the abandoned one has been quiet for ten minutes. This is in the schema (`release_abandoned` in `completion.sql`); it was not exercised in the browser.
+- **A sync that was cut off keeps its integration reserved for ten minutes.** For example when the discovery worker is stopped in the middle of a page. A later sync waits in `queued`. Once the abandoned sync has been quiet for ten minutes it is released, by the next sync or by the scheduler worker within a minute, and ends `failed`. Seen on 2026-11-14 through the API (released after 10 minutes 26 seconds); it was not exercised in the browser.
 
 **Smaller things**
 
