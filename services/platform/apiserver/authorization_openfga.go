@@ -270,7 +270,10 @@ func authorizationTargetDenied(operation string) error {
 // missingObjectOperations are the reads of one object by its ID that answer
 // 404 when the object is not in the caller's Environment and the caller holds
 // the operation's permission on that Environment.
-var missingObjectOperations = map[string]bool{"getPolicy": true, "getIntegration": true, "getSecurityAgent": true, "getFinding": true}
+// Inventory objects are included because a sync removes what the provider no
+// longer reports: the agent a person has open can be gone after the next one.
+var missingObjectOperations = map[string]bool{"getPolicy": true, "getIntegration": true, "getSecurityAgent": true, "getFinding": true,
+	"getAgent": true, "getTool": true, "getIdentity": true, "getRuntime": true, "getAsset": true}
 
 // missingTarget decides the answer when the object of a request resolves to
 // nothing in the caller's own scope: it does not exist, it was deleted, or it

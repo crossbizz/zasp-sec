@@ -76,3 +76,65 @@ test("without a record the holder is the state that created the Neo4j container"
     assert.equal(box.owner(), join(box.root, "a"));
   } finally { rmSync(box.root, { recursive: true, force: true }); }
 });
+
+// 'reset' deletes the state directory and everything in the containers. The
+// stand-ins: a docker that accepts every command and records it, and a curl
+// that finds nothing listening.
+function resetSandbox() {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "zasp-stack-reset-")));
+  const bin = join(root, "bin");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "docker"), `#!/bin/sh\necho "$*" >> "${root}/docker.log"\n[ "$1" = inspect ] && exit 1\nexit 0\n`);
+  writeFileSync(join(bin, "curl"), "#!/bin/sh\nexit 7\n");
+  chmodSync(join(bin, "docker"), 0o755);
+  chmodSync(join(bin, "curl"), 0o755);
+  const run = (state, ...args) => spawnSync("bash", [script, "reset", ...args], {
+    encoding: "utf8",
+    env: { PATH: `${bin}:${process.env.PATH}`, HOME: root, ZASP_REAL_STACK_STATE: join(root, state), ZASP_REAL_STACK_OWNER_FILE: join(root, "owner") },
+  });
+  const docker = () => (existsSync(join(root, "docker.log")) ? readFileSync(join(root, "docker.log"), "utf8") : "");
+  return { root, run, docker };
+}
+
+test("reset needs --yes and deletes nothing without it", () => {
+  const box = resetSandbox();
+  try {
+    mkdirSync(join(box.root, "a", "secrets"), { recursive: true });
+    const result = box.run("a");
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /reset --yes/);
+    assert.ok(existsSync(join(box.root, "a", "secrets")));
+    assert.equal(box.docker(), "");
+  } finally { rmSync(box.root, { recursive: true, force: true }); }
+});
+
+test("reset removes the containers, the service volumes and the state, and keeps provider.env", () => {
+  const box = resetSandbox();
+  try {
+    mkdirSync(join(box.root, "a", "secrets"), { recursive: true });
+    writeFileSync(join(box.root, "a", "provider.env"), "STYTCH_PROJECT_ID=project-test-kept\n");
+    writeFileSync(join(box.root, "a", "organization.env"), "ZASP_STYTCH_ORGANIZATION_ID=organization-test-gone\n");
+    writeFileSync(join(box.root, "owner"), `${join(box.root, "a")}\n`);
+    const result = box.run("a", "--yes");
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(box.docker(), /^rm -f -v zasp-real-stack-pg zasp-real-stack-neo4j zasp-real-stack-opensearch zasp-real-stack-localstack$/m);
+    assert.match(box.docker(), /^compose -f .*temporal-openfga\.compose\.yaml down --volumes --remove-orphans$/m);
+    assert.equal(readFileSync(join(box.root, "a", "provider.env"), "utf8"), "STYTCH_PROJECT_ID=project-test-kept\n");
+    assert.equal(existsSync(join(box.root, "a", "secrets")), false);
+    assert.equal(existsSync(join(box.root, "a", "organization.env")), false);
+    assert.equal(existsSync(join(box.root, "owner")), false);
+  } finally { rmSync(box.root, { recursive: true, force: true }); }
+});
+
+test("reset refuses a state directory that does not hold the machine", () => {
+  const box = resetSandbox();
+  try {
+    mkdirSync(join(box.root, "a", "secrets"), { recursive: true });
+    writeFileSync(join(box.root, "owner"), `${join(box.root, "a")}\n`);
+    const result = box.run("b", "--yes");
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /belongs to the state directory/);
+    assert.ok(existsSync(join(box.root, "a", "secrets")));
+    assert.doesNotMatch(box.docker(), /rm -f|down/);
+  } finally { rmSync(box.root, { recursive: true, force: true }); }
+});

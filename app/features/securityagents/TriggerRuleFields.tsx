@@ -9,12 +9,22 @@ export function triggerRuleDraft(source: string, rules?: SecurityAgentTriggerRul
   const runtime = automatic && "runtime" in automatic ? automatic.runtime : undefined;
   return { mode: rules?.mode ?? "legacy", family: finding?.family ?? source, severity: finding?.minimum_severity ?? "low", state: path?.state ?? "verified", decision: runtime?.decision ?? "block", action: runtime?.action ?? "http_request", risk: runtime?.risk ?? "", count: String(runtime?.count ?? 1), window: String(runtime?.window_seconds ?? 300), cooldown: String(automatic?.cooldown_seconds ?? 600) };
 }
+// The rule of a finding as the API stores it in trigger_source: 1 to 64 bytes,
+// no surrounding space, no control characters. Decided by the decoder of the
+// automatic finding rule, whose family is held to the same limits.
+export function validFindingRule(value: string): boolean {
+  try { decodeSecurityAgentTriggerRules({ version: 1, mode: "automatic", cooldown_seconds: 1, finding: { family: value, minimum_severity: "low" } }, "finding", value); return true; } catch { return false; }
+}
 export function triggerRuleSource(draft: TriggerRuleDraft, kind: string, legacy: string): string {
+  // A manual finding responder still acts on findings of one rule: the API
+  // refuses a run on a finding of another rule (409 trigger_source_mismatch).
+  if (draft.mode === "manual") return kind === "finding" ? draft.family : legacy;
   if (draft.mode !== "automatic") return legacy;
   return kind === "finding" ? draft.family : kind === "attack_path" ? draft.state : legacy;
 }
 export function triggerRuleValue(draft: TriggerRuleDraft, kind: string, source: string): SecurityAgentTriggerRules | null | undefined {
   if (draft.mode === "legacy") return undefined;
+  if (draft.mode === "manual" && kind === "finding" && !validFindingRule(draft.family)) return null;
   const value = draft.mode === "manual" ? { version: 1, mode: "manual" } : {
     version: 1, mode: "automatic", cooldown_seconds: Number(draft.cooldown),
     ...(kind === "finding" ? { finding: { family: draft.family, minimum_severity: draft.severity } } : kind === "attack_path" ? { attack_path: { state: draft.state } } : { runtime: { decision: draft.decision, action: draft.action, count: Number(draft.count), window_seconds: Number(draft.window), ...(draft.risk ? { risk: draft.risk } : {}) } }),
@@ -26,6 +36,7 @@ export function TriggerRuleFields({ value, kind, disabled, onChange }: { value: 
   return <section aria-label="Trigger rules">
     <Select label="Trigger mode" value={value.mode} disabled={disabled} onChange={event => set("mode", event.target.value)}><option value="legacy">Existing template behavior</option><option value="manual">Manual only</option><option value="automatic">Configured automatic trigger</option></Select>
     {value.mode === "manual" && <p>Automatic sources cannot start this responder. Authorized manual runs remain available.</p>}
+    {value.mode === "manual" && kind === "finding" && <><Field label="Finding rule" value={value.family} disabled={disabled} maxLength={64} aria-invalid={!validFindingRule(value.family)} onChange={event => set("family", event.target.value)} /><p>A manual run is accepted only for a finding with this rule. The rule is shown in the finding&apos;s detail as &quot;Rule&quot;, for example iam_role_administratoraccess_policy.</p></>}
     {value.mode === "automatic" && <>
       {kind === "finding" && <><Field label="Finding family" value={value.family} disabled={disabled} maxLength={64} onChange={event => set("family", event.target.value)} /><Select label="Minimum finding severity" value={value.severity} disabled={disabled} onChange={event => set("severity", event.target.value)}>{["low", "medium", "high", "critical"].map(level => <option key={level}>{level}</option>)}</Select></>}
       {kind === "attack_path" && <Select label="Path evidence state" value={value.state} disabled={disabled} onChange={event => set("state", event.target.value)}>{["potential", "observed", "verified"].map(state => <option key={state}>{state}</option>)}</Select>}

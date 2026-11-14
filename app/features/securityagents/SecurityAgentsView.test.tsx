@@ -70,6 +70,41 @@ it("submits configured trigger rules through the real public client", async () =
   expect(requests[0]).toMatchObject({ trigger_kind: "finding", trigger_source: "credential", enabled: false, trigger_rules: { version: 1, mode: "automatic", cooldown_seconds: 600, finding: { family: "credential", minimum_severity: "high" } } });
 });
 
+it("saves a manual-only finding responder with the finding rule the tester chose", async () => {
+  const requests: unknown[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    const body = await request.json() as Record<string, unknown>; requests.push(body);
+    return Response.json({ ...body, id: agentID }, { headers: { ETag: '"1"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent: actual.createSecurityAgent })} environmentID={environmentID} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+  await userEvent.selectOptions(screen.getByLabelText("Trigger mode"), "manual");
+  await userEvent.clear(screen.getByLabelText("Finding rule"));
+  expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  await userEvent.type(screen.getByLabelText("Finding rule"), "iam_role_administratoraccess_policy");
+  await userEvent.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+  await screen.findByRole("button", { name: "Open Bounded response definition" });
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({ trigger_kind: "finding", trigger_source: "iam_role_administratoraccess_policy", enabled: false, trigger_rules: { version: 1, mode: "manual" } });
+});
+
+it("names the trigger source when a run is refused for a finding of another rule", async () => {
+  const manual: SecurityAgentDefinition = { ...created, enabled: true, max_ai_cost_nano_credits: 1000, trigger_rules: { mode: "manual", version: 1 } };
+  const runSecurityAgent = vi.fn(async () => { throw new APIProductError(409, { code: "trigger_source_mismatch", message: "The finding's rule is not this Security Agent's trigger source", correlation_id: auditID, retryable: false }); });
+  const api = fixtureAPI({ getSecurityAgent: async () => ({ value: manual, version: '"3"' }), getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }), runSecurityAgent });
+  render(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={{ agents: [manual], templates: [], actions: [action] }} autoLoad={false} />);
+  await userEvent.click(screen.getByRole("button", { name: `Open ${manual.name}` }));
+  await screen.findByRole("button", { name: "Start supervised run" });
+  expect(screen.getByText(/accepted only when the finding's rule is/)).toHaveTextContent("credential");
+  await userEvent.type(screen.getByLabelText("Evidence ID"), evidenceID);
+  await userEvent.click(screen.getByRole("button", { name: "Start supervised run" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("409 trigger_source_mismatch");
+  expect(alert).toHaveTextContent('This agent runs only on findings whose rule is "credential"');
+  expect(runSecurityAgent).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("button", { name: "Start supervised run" })).toBeEnabled();
+});
+
 it("edits trigger rules as a disabled draft through the public client", async () => {
   const configured: SecurityAgentDefinition = { ...created, enabled: true, max_ai_cost_nano_credits: 1000, trigger_rules: { mode: "automatic", finding: { family: "credential", minimum_severity: "high" }, version: 1, cooldown_seconds: 600 } };
   const requests: unknown[] = [];
