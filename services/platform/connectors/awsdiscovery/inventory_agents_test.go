@@ -489,3 +489,39 @@ func TestInventoryRefusesAHostileAgentSource(t *testing.T) {
 		t.Fatalf("entities at the bound = %d", len(page.Entities))
 	}
 }
+
+// The audit log's newest invocation of a role is an attribute of every agent
+// that runs as it, and of nothing else; the page stays a valid typed page.
+func TestAgentPageCarriesWhenTheRoleLastInvokedAModel(t *testing.T) {
+	t.Parallel()
+	source := awsAgentSourceValue()
+	source.Invocations = []AgentInventoryInvocation{{LastInvokedAt: "2026-11-12T07:00:00Z", RoleARN: awsAgentTestRole}}
+	page, _ := fetchAWSAgentPage(t, awsAgentInventory(t, source))
+	entities, _ := decodeAWSAgentPage(t, page)
+	for arn, entity := range entities {
+		invoked, present := entity.Attributes["last_invoked_at"]
+		runsAsRole := arn == source.BedrockAgents[0].ARN || arn == source.LambdaFunctions[0].ARN || arn == source.LambdaFunctions[1].ARN
+		if runsAsRole != present || present && invoked != "2026-11-12T07:00:00Z" {
+			t.Fatalf("%s last_invoked_at = %v (present %t), runs as the role %t", arn, invoked, present, runsAsRole)
+		}
+	}
+	// Without an invocation the attribute is absent.
+	plain, _ := fetchAWSAgentPage(t, awsAgentInventory(t, awsAgentSourceValue()))
+	plainEntities, _ := decodeAWSAgentPage(t, plain)
+	if _, present := plainEntities[source.BedrockAgents[0].ARN].Attributes["last_invoked_at"]; present {
+		t.Fatal("an agent without an audit record has an invocation time")
+	}
+	for name, invocations := range map[string][]AgentInventoryInvocation{
+		"a time with minutes":          {{LastInvokedAt: "2026-11-12T07:30:00Z", RoleARN: awsAgentTestRole}},
+		"a time with an offset":        {{LastInvokedAt: "2026-11-12T07:00:00+01:00", RoleARN: awsAgentTestRole}},
+		"a role of another account":    {{LastInvokedAt: "2026-11-12T07:00:00Z", RoleARN: "arn:aws:iam::999999999999:role/read"}},
+		"something that is not a role": {{LastInvokedAt: "2026-11-12T07:00:00Z", RoleARN: "arn:aws:lambda:us-east-1:123456789012:function:bot"}},
+		"a repeated role":              {{LastInvokedAt: "2026-11-12T07:00:00Z", RoleARN: awsAgentTestRole}, {LastInvokedAt: "2026-11-12T08:00:00Z", RoleARN: awsAgentTestRole}},
+	} {
+		hostile := awsAgentSourceValue()
+		hostile.Invocations = invocations
+		if _, ok := EncodeAgentInventorySource(hostile); ok {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+}

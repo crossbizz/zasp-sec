@@ -6539,7 +6539,7 @@ components:
         last_activity_at:
           type: [string, 'null']
           format: date-time
-          description: For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent, or the time of the collection that last saw it call a model or an AI endpoint in the provider's own logs (inside the collector's lookback window, seven days for CloudTrail). Null when there is none, and for every other kind.
+          description: For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind.
         activity_state: { $ref: '#/components/schemas/InventoryActivityState' }
         owner: { type: string, maxLength: 128 }
         team: { type: string, maxLength: 128 }

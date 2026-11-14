@@ -4722,12 +4722,16 @@ END $ai_framework_compliance$;
 -- gains two members, from what is recorded without anything installed:
 --   last_activity_at  the latest time activity of the agent is known, or
 --                     null: the newest runtime event attributed to the agent
---                     (zasp_runtime_session_events), or, when the agent's
---                     winning observation carries an invoke: or egress:
---                     signal (the provider's own logs showed it calling a
---                     model or an AI endpoint inside the collector's
---                     lookback window, seven days for CloudTrail), the time
---                     of that observation
+--                     (zasp_runtime_session_events); the time the provider's
+--                     audit log last showed the agent's role invoking a
+--                     model (the attribute last_invoked_at of an AWS agent:
+--                     the newest CloudTrail event time inside the
+--                     collector's seven-day window, to the hour); or, for an
+--                     observation that carries an egress: signal, or an
+--                     invoke: signal without that attribute (the provider's
+--                     logs showed the activity inside the collector's
+--                     lookback window but no event time was recorded), the
+--                     time of that observation
 --   activity_state    active when last_activity_at is within 30 days;
 --                     inactive when it is older, or when there is none and
 --                     the agent has an open agent_role_unused_90_days
@@ -4752,7 +4756,8 @@ BEGIN
      ELSE 'unknown' END)
    FROM (SELECT GREATEST(
     (SELECT max(event.event_time) FROM public.zasp_runtime_session_events event WHERE (event.organization_id,event.workspace_id,event.environment_id,event.agent_id)=(organization_value,workspace_value,environment_value,id_value)),
-    CASE WHEN jsonb_typeof(attributes_value->'discovery'->'signals')='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(attributes_value->'discovery'->'signals') signal WHERE signal LIKE 'invoke:%' OR signal LIKE 'egress:%') THEN observed_value END) last_value) seen) END
+    CASE WHEN attributes_value->>'last_invoked_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:00:00Z$' THEN (attributes_value->>'last_invoked_at')::timestamptz END,
+    CASE WHEN jsonb_typeof(attributes_value->'discovery'->'signals')='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(attributes_value->'discovery'->'signals') signal WHERE signal LIKE 'egress:%' OR signal LIKE 'invoke:%' AND NOT COALESCE(attributes_value->>'last_invoked_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:00:00Z$',false)) THEN observed_value END) last_value) seen) END
  $agent_activity$;
  ALTER FUNCTION public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz) OWNER TO zasp_discovery_authority;
  REVOKE ALL ON FUNCTION public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz) FROM PUBLIC;

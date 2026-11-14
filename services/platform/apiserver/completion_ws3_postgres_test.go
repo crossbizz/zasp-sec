@@ -472,6 +472,11 @@ func TestCompletionAgentActivityPostgres(t *testing.T) {
 	invoked := `{"discovery":{"method":"provider_api","platform":"bedrock_agent","signals":["iam:bedrock_invoke_model","invoke:bedrock_model"]}}`
 	egress := `{"discovery":{"method":"inferred","platform":"kubernetes_workload","signals":["egress:openai","image:langgraph"]}}`
 	static := `{"discovery":{"method":"inferred","platform":"kubernetes_workload","signals":["env:openai","image:langgraph"]}}`
+	// timed is an AWS agent whose role CloudTrail showed invoking a model at
+	// the given time (recorded to the hour).
+	timed := func(at time.Time) string {
+		return `{"last_invoked_at":"` + at.UTC().Truncate(time.Hour).Format("2006-01-02T15:04:05Z") + `","discovery":{"method":"provider_api","platform":"bedrock_agent","signals":["invoke:bedrock_model"]}}`
+	}
 	recentAgent, oldAgent, otherAgent, unusedAgent, resolvedAgent, quietAgent := ws3ID("7d", 1), ws3ID("7d", 2), ws3ID("7d", 3), ws3ID("7d", 4), ws3ID("7d", 5), ws3ID("7d", 6)
 	recent, old := now.Add(-29*24*time.Hour), now.Add(-31*24*time.Hour)
 	event(1, recentAgent, old)
@@ -500,12 +505,17 @@ func TestCompletionAgentActivityPostgres(t *testing.T) {
 		"network logs showed egress to an AI API":     {quietAgent, "agent", egress, collected, "active", stamp(collected)},
 		"an invocation seen by a collection long ago": {quietAgent, "agent", invoked, stale, "inactive", stamp(stale)},
 		"a newer runtime event than the collection":   {recentAgent, "agent", invoked, stale, "active", stamp(recent)},
-		"static signals are not activity":             {quietAgent, "agent", static, collected, "unknown", ""},
-		"the role is reported unused for 90 days":     {unusedAgent, "agent", plain, collected, "inactive", ""},
-		"a resolved unused-role finding":              {resolvedAgent, "agent", plain, collected, "unknown", ""},
-		"no activity source":                          {quietAgent, "agent", plain, collected, "unknown", ""},
-		"a declared agent without attributes":         {quietAgent, "agent", `{}`, collected, "unknown", ""},
-		"an identity":                                 {recentAgent, "identity", plain, collected, "not_applicable", ""},
+		// CloudTrail's own event time is the activity, not the collection time.
+		"the audit log's invocation time":           {quietAgent, "agent", timed(now.Add(-3 * 24 * time.Hour)), collected, "active", stamp(now.Add(-3 * 24 * time.Hour).Truncate(time.Hour))},
+		"an invocation time 40 days ago":            {quietAgent, "agent", timed(stale), collected, "inactive", stamp(stale.Truncate(time.Hour))},
+		"a newer runtime event than the invocation": {recentAgent, "agent", timed(stale), collected, "active", stamp(recent)},
+		"a malformed invocation time":               {quietAgent, "agent", `{"last_invoked_at":"yesterday","discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]}}`, collected, "unknown", ""},
+		"static signals are not activity":           {quietAgent, "agent", static, collected, "unknown", ""},
+		"the role is reported unused for 90 days":   {unusedAgent, "agent", plain, collected, "inactive", ""},
+		"a resolved unused-role finding":            {resolvedAgent, "agent", plain, collected, "unknown", ""},
+		"no activity source":                        {quietAgent, "agent", plain, collected, "unknown", ""},
+		"a declared agent without attributes":       {quietAgent, "agent", `{}`, collected, "unknown", ""},
+		"an identity":                               {recentAgent, "identity", plain, collected, "not_applicable", ""},
 	} {
 		if state, last := activity(item.agent, item.kind, item.attributes, item.observed); state != item.state || last != item.last {
 			t.Errorf("%s: activity = %q / %q, want %q / %q", name, state, last, item.state, item.last)
