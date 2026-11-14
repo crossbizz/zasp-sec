@@ -1,0 +1,14 @@
+{
+  "cliVersion": "5.216.0",
+  "generatorName": "fernapi/fern-python-sdk",
+  "generatorVersion": "5.42.0",
+  "generatorConfig": {
+    "package_name": "zasp",
+    "client": {
+      "class_name": "Zasp"
+    }
+  },
+  "originGitCommit": "a8af1224692485fb030349f98140512c583f52dc",
+  "originGitCommitIsDirty": true,
+  "invokedBy": "manual"
+}

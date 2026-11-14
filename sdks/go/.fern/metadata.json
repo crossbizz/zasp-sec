@@ -1,0 +1,13 @@
+{
+  "cliVersion": "5.216.0",
+  "generatorName": "fernapi/fern-go-sdk",
+  "generatorVersion": "1.71.0",
+  "generatorConfig": {
+    "packageName": "zasp",
+    "importPath": "github.com/zasp-ai/zasp-sec/sdks/go",
+    "enableWireTests": false
+  },
+  "originGitCommit": "a8af1224692485fb030349f98140512c583f52dc",
+  "originGitCommitIsDirty": true,
+  "invokedBy": "manual"
+}

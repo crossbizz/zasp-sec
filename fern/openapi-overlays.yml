@@ -1,0 +1,92 @@
+overlay: 1.0.0
+info:
+  title: Shapes of the Zasp API contract that Fern cannot read as written
+  version: 1.0.0
+# Applied after openapi-overrides.yml. Each action changes how Fern reads the
+# contract, never what the API accepts or returns. openapi/openapi.yaml stays
+# the contract.
+actions:
+  # PageInfo is a oneOf of "more pages" (next_cursor is a cursor, has_more is
+  # true) and "last page" (next_cursor is null, has_more is false). Fern's
+  # auto-pagination needs one object whose next_cursor it can name, so the two
+  # branches are read as one object with a nullable cursor. The wire form is
+  # the same.
+  - target: $.components.schemas.PageInfo.oneOf
+    description: Read PageInfo as one object instead of a oneOf of two.
+    remove: true
+  - target: $.components.schemas.PageInfo
+    update:
+      type: object
+      required:
+        - next_cursor
+        - has_more
+      properties:
+        next_cursor:
+          oneOf:
+            - $ref: '#/components/schemas/Cursor'
+            - type: 'null'
+          description: Cursor of the next page, or null on the last page.
+        has_more:
+          type: boolean
+          description: True when another page exists.
+
+  # CompliancePageInfo has the same two branches with its own cursor type.
+  - target: $.components.schemas.CompliancePageInfo.oneOf
+    description: Read CompliancePageInfo as one object instead of a oneOf of two.
+    remove: true
+  - target: $.components.schemas.CompliancePageInfo
+    update:
+      type: object
+      required:
+        - next_cursor
+        - has_more
+      properties:
+        next_cursor:
+          oneOf:
+            - $ref: '#/components/schemas/ComplianceCursor'
+            - type: 'null'
+          description: Cursor of the next page, or null on the last page.
+        has_more:
+          type: boolean
+          description: True when another page exists.
+
+  # The inline enum of Policy.rollout would be named PolicyRollout, which is
+  # already the name of the rollout result object. Name the enum apart.
+  - target: $.components.schemas.Policy.properties.rollout
+    description: Avoid a generated type name that collides with the PolicyRollout schema.
+    update:
+      x-fern-type-name: PolicyRolloutState
+
+  # Four mutations accept an API token and name the CSRF header as required.
+  # The contract says in each description that a token request omits it, and
+  # that OpenAPI cannot express the condition. For Fern they take the optional
+  # form of the same header, which the contract already defines, so an SDK
+  # caller is not asked for a browser value.
+  - target: $.paths['/api/v1/agents/{id}'].patch.parameters[?(@['$ref'] == '#/components/parameters/CSRFToken')]
+    description: Drop the required CSRF header of a mutation an API token may call.
+    remove: true
+  - target: $.paths['/api/v1/agents/{id}'].patch.parameters
+    description: Add the optional form of the CSRF header.
+    update:
+      - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+  - target: $.paths['/api/v1/findings/{id}'].patch.parameters[?(@['$ref'] == '#/components/parameters/CSRFToken')]
+    description: Drop the required CSRF header of a mutation an API token may call.
+    remove: true
+  - target: $.paths['/api/v1/findings/{id}'].patch.parameters
+    description: Add the optional form of the CSRF header.
+    update:
+      - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+  - target: $.paths['/api/v1/findings/{id}/accept-risk'].post.parameters[?(@['$ref'] == '#/components/parameters/CSRFToken')]
+    description: Drop the required CSRF header of a mutation an API token may call.
+    remove: true
+  - target: $.paths['/api/v1/findings/{id}/accept-risk'].post.parameters
+    description: Add the optional form of the CSRF header.
+    update:
+      - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+  - target: $.paths['/api/v1/findings/{id}/ticket'].post.parameters[?(@['$ref'] == '#/components/parameters/CSRFToken')]
+    description: Drop the required CSRF header of a mutation an API token may call.
+    remove: true
+  - target: $.paths['/api/v1/findings/{id}/ticket'].post.parameters
+    description: Add the optional form of the CSRF header.
+    update:
+      - $ref: '#/components/parameters/BrowserMutationCSRFToken'

@@ -1,0 +1,6 @@
+# Files kept when the SDK is generated again. Everything else in this
+# directory is written by the Fern generator and must not be edited.
+.fernignore
+README.md
+pom.xml
+src/test/java/SmokeTest.java

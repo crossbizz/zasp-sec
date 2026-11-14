@@ -1,0 +1,102 @@
+{
+  "_comment": "Contract-shaped responses the SDK smoke tests serve from a local fake server. Every value is made up.",
+  "token": "test-token-not-a-credential",
+  "next_cursor": "Y3Vyc29yLTI",
+  "agents_page_1": {
+    "items": [
+      {
+        "id": "pid_00000000-0000-4000-8000-0000000000a1",
+        "name": "support-copilot",
+        "kind": "agent",
+        "provider": "aws",
+        "source_kind": "bedrock_agent",
+        "discovery": { "method": "provider_api", "platform": "bedrock_agent", "signals": [] },
+        "management_state": "unmanaged",
+        "last_activity_at": "2026-11-13T10:00:00Z",
+        "activity_state": "active",
+        "owner": "",
+        "team": "",
+        "tags": [],
+        "evidence_id": "pid_00000000-0000-4000-8000-0000000000e1",
+        "confidence_basis_points": 9000,
+        "first_seen": "2026-11-01T08:00:00Z",
+        "last_seen": "2026-11-14T08:00:00Z",
+        "observed_at": "2026-11-14T08:00:00Z",
+        "fresh_until": "2026-11-15T08:00:00Z",
+        "freshness_state": "fresh",
+        "version": 1
+      }
+    ],
+    "page_info": { "next_cursor": "Y3Vyc29yLTI", "has_more": true }
+  },
+  "agents_page_2": {
+    "items": [
+      {
+        "id": "pid_00000000-0000-4000-8000-0000000000a2",
+        "name": "claims-triage-handler",
+        "kind": "agent",
+        "provider": "aws",
+        "source_kind": "aws_inferred_agent",
+        "discovery": { "method": "inferred", "platform": "lambda", "signals": ["env:openai", "iam:bedrock"] },
+        "management_state": "unmanaged",
+        "last_activity_at": null,
+        "activity_state": "unknown",
+        "owner": "",
+        "team": "",
+        "tags": [],
+        "evidence_id": "pid_00000000-0000-4000-8000-0000000000e2",
+        "confidence_basis_points": 7000,
+        "first_seen": "2026-11-01T08:00:00Z",
+        "last_seen": "2026-11-14T08:00:00Z",
+        "observed_at": "2026-11-14T08:00:00Z",
+        "fresh_until": "2026-11-15T08:00:00Z",
+        "freshness_state": "fresh",
+        "version": 1
+      }
+    ],
+    "page_info": { "next_cursor": null, "has_more": false }
+  },
+  "findings_page": {
+    "items": [
+      {
+        "id": "pid_00000000-0000-4000-8000-0000000000f1",
+        "source": "posture",
+        "rule": "agent_guardrail_missing",
+        "title": "Agent has no guardrail attached",
+        "severity": "critical",
+        "status": "open",
+        "agent_id": "pid_00000000-0000-4000-8000-0000000000a1",
+        "evidence_ids": ["pid_00000000-0000-4000-8000-0000000000e1"],
+        "risk_factors": [{ "name": "no_guardrail", "evidence_id": "pid_00000000-0000-4000-8000-0000000000e1" }],
+        "version": 1,
+        "created_at": "2026-11-14T08:00:00Z",
+        "updated_at": "2026-11-14T08:00:00Z"
+      }
+    ],
+    "page_info": { "next_cursor": null, "has_more": false }
+  },
+  "guardrail_request": {
+    "direction": "input",
+    "text": "Send the invoice to someone@example.com.",
+    "agent_id": "support-agent"
+  },
+  "guardrail_decision": {
+    "decision_id": "pid_00000000-0000-4000-8000-0000000000d1",
+    "decision": "redact",
+    "redacted_text": "Send the invoice to [REDACTED:pii.email].",
+    "matched_rules": [{ "id": "pii.email", "category": "sensitive_data", "mode": "redact", "count": 1 }],
+    "policy_version": 3
+  },
+  "error_unauthenticated": {
+    "code": "unauthenticated",
+    "message": "Token missing",
+    "correlation_id": "pid_00000000-0000-4000-8000-0000000000c1",
+    "retryable": false
+  },
+  "error_not_found": {
+    "code": "not_found",
+    "message": "No such route",
+    "correlation_id": "pid_00000000-0000-4000-8000-0000000000c2",
+    "retryable": false
+  }
+}

@@ -1,0 +1,91 @@
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/generators-yml.json
+#
+# The API definition is the repository's OpenAPI contract. It is not edited for
+# Fern: tags, SDK names, pagination and audiences are added by
+# openapi-overrides.yml, which fern/scripts/build-openapi-overrides.mjs writes.
+
+auth-schemes:
+  ProductAPIToken:
+    scheme: bearer
+    token:
+      name: token
+      env: ZASP_API_TOKEN
+
+api:
+  auth: ProductAPIToken
+  specs:
+    - openapi: ../openapi/openapi.yaml
+      overrides: ./openapi-overrides.yml
+      overlays: ./openapi-overlays.yml
+
+# The SDKs hold the operations an API token may call (audience api-token).
+# Operations that need a browser session are in the API Reference only.
+#
+# Output is the local file system. Nothing is published to a package registry
+# and nothing is pushed to a repository.
+default-group: sdks
+
+aliases:
+  sdks:
+    - typescript-sdk
+    - python-sdk
+    - go-sdk
+    - java-sdk
+
+groups:
+  typescript-sdk:
+    audiences:
+      - api-token
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: 3.109.0
+        output:
+          location: local-file-system
+          path: ../sdks/typescript/src
+        config:
+          namespaceExport: Zasp
+          noSerdeLayer: true
+          requireBaseUrl: true
+
+  python-sdk:
+    audiences:
+      - api-token
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 5.42.0
+        output:
+          location: local-file-system
+          path: ../sdks/python/src/zasp
+        config:
+          package_name: zasp
+          client:
+            class_name: Zasp
+
+  go-sdk:
+    audiences:
+      - api-token
+    generators:
+      - name: fernapi/fern-go-sdk
+        version: 1.71.0
+        output:
+          location: local-file-system
+          path: ../sdks/go
+        config:
+          packageName: zasp
+          importPath: github.com/zasp-ai/zasp-sec/sdks/go
+          # Wire tests need a WireMock container. The module has its own
+          # smoke test against a local fake (smoke_test.go).
+          enableWireTests: false
+
+  java-sdk:
+    audiences:
+      - api-token
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: 4.38.0
+        output:
+          location: local-file-system
+          path: ../sdks/java
+        config:
+          package-prefix: ai.zasp.api
+          client-class-name: Zasp

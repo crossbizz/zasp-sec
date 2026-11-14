@@ -48,3 +48,14 @@ yarn-error.log*
 services/runtime-gateway/runtime-gateway
 # Local Go build output for the sensor agent command.
 services/sensor-agent/sensor-agent
+# Build output of the generated SDKs. The generated sources are committed.
+/sdks/typescript/dist/
+/sdks/typescript/node_modules/
+/sdks/python/src/*.egg-info/
+/sdks/python/.pytest_cache/
+/sdks/python/.venv/
+/sdks/java/target/
+# Fern CLI state.
+/fern/.preview/
+/fern/.guest-session
+/sdks/typescript/package-lock.json
