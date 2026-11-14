@@ -115,9 +115,12 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		t.Fatal("a second run of the sections changed a function or a constraint")
 	}
 	// The compiled catalog is the one of the latest section that adds rules
-	// (WS5a); with it applied, the saas sections have nothing left to do.
-	applyCompletionBlock(t, ctx, connection, "ws5_rule_catalog")
-	for _, tag := range []string{"rule_catalog_digest", "saas_rule_catalog", "ws5_rule_catalog"} {
+	// (X3d, Google Cloud); with WS5a and it applied, the saas sections have
+	// nothing left to do.
+	for _, tag := range []string{"ws5_rule_catalog", "ws8_gcp_provider", "ws8_gcp_rule_catalog"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
+	for _, tag := range []string{"rule_catalog_digest", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws8_gcp_provider", "ws8_gcp_rule_catalog"} {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}
 	catalog()

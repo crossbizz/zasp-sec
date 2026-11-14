@@ -9,6 +9,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
@@ -35,8 +36,10 @@ type productionDiscoveryClientConfig struct {
 	SalesforceCollectorVersion string
 	// SaaSCollectorVersion and SaaSProxy serve the generic saas provider:
 	// both are set or neither is.
-	SaaSCollectorVersion   string
-	SaaSProxy              saasdiscovery.Proxy
+	SaaSCollectorVersion string
+	SaaSProxy            saasdiscovery.Proxy
+	// GCPCollectorVersion serves Google Cloud. Empty leaves it unregistered.
+	GCPCollectorVersion    string
 	ParserVersion          string
 	ToolVersion            string
 	KubernetesAllowedCIDRs []string
@@ -59,7 +62,7 @@ func newProductionLiveDiscoveryCollectorFactory(config productionDiscoveryClient
 			return nil, errRuntimeUnavailable
 		}
 	}
-	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion} {
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion, config.GCPCollectorVersion} {
 		if version != "" && !discoveryCollectorVersionPattern.MatchString(version) {
 			return nil, errRuntimeUnavailable
 		}
@@ -215,6 +218,20 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectionFactoryForAuth
 		}
 		registrations = append(registrations, registration)
 	}
+	if version := factory.config.GCPCollectorVersion; version != "" {
+		// The scope arrives in the page request subject and the credential
+		// is one short-lived access token.
+		api, err := gcpdiscovery.NewGCPCollectionAPI(gcpdiscovery.CollectionAPIConfig{Timeout: factory.config.ProviderTimeout, Clock: factory.config.Clock})
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		client, err := gcpdiscovery.NewGCPCollectionClient(&discoveryBearerCollectionAPI{provider: collection.ProviderGCP, gcp: api, timeout: factory.config.ProviderTimeout}, factory.config.Artifacts, gcpdiscovery.CollectionClientConfig{CollectorVersion: version, ParserVersion: factory.config.ParserVersion, ToolVersion: factory.config.ToolVersion, Clock: factory.config.Clock})
+		registration, err := factory.optionalRegistration(collection.ProviderGCP, collection.CredentialGCPAccessToken, version, client, err)
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		registrations = append(registrations, registration)
+	}
 	return newFirstPartyCollectionFactory(registrations)
 }
 
@@ -250,6 +267,8 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectorVersion(provide
 		return factory.config.SalesforceCollectorVersion
 	case collection.ProviderSaaS:
 		return factory.config.SaaSCollectorVersion
+	case collection.ProviderGCP:
+		return factory.config.GCPCollectorVersion
 	default:
 		return ""
 	}

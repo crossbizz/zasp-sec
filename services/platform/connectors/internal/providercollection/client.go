@@ -547,7 +547,7 @@ func validProviderFindings(provider collection.Provider, findings []json.RawMess
 	if len(findings) == 0 {
 		return true
 	}
-	if provider != collection.ProviderAWS || len(findings) > 100_000 {
+	if provider != collection.ProviderAWS && provider != collection.ProviderGCP || len(findings) > 100_000 {
 		return false
 	}
 	seen := make(map[string]struct{}, len(findings))
@@ -824,6 +824,39 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "saas_mcp_server":
 			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("endpoint_host"))}, true
 		}
+	case collection.ProviderGCP:
+		// Google Cloud. scope is the organization, folder or project the
+		// integration names; project is a project id below it. Every kind
+		// below a project carries both.
+		object := requiredStringFields("location", "name", "object_type", "project", "scope")
+		// What every agent kind may carry: the service account it runs as,
+		// when the audit log last shows it invoking a model, and whether
+		// Model Armor screens Vertex AI in its project and location.
+		agent := mergeInventorySchemas(state, discoveredAgentAttributes(), agentInvocationAttribute(), optionalStringFields("agent_framework", "identity_type", "service_account"),
+			inventoryObjectSchema{"model_armor": enumInventoryField(false, "floor_setting", "none", "template")})
+		switch kind {
+		case "gcp_scope":
+			return providerEntityDefinition{stable: requiredStringFields("name", "scope"), attributes: inventoryObjectSchema{}}, true
+		case "gcp_project":
+			return providerEntityDefinition{stable: requiredStringFields("name", "project", "project_number", "scope"), attributes: state}, true
+		case "gcp_service":
+			// One per Google API the collector reads. status is collected,
+			// access_denied or unavailable (the API is enabled in no project
+			// read); affected_projects counts the projects that refused.
+			return providerEntityDefinition{stable: requiredStringFields("name", "scope", "service"), attributes: mergeInventorySchemas(state, optionalStringFields("affected_projects"))}, true
+		case "gcp_agent_engine", "gcp_conversational_agent", "gcp_gemini_enterprise_agent":
+			return providerEntityDefinition{stable: object, attributes: agent}, true
+		case "gcp_inferred_agent":
+			return providerEntityDefinition{stable: mergeInventorySchemas(object, inventoryObjectSchema{"resource_type": enumInventoryField(true, "cloud_function", "cloud_run_service", "service_account")}), attributes: agent}, true
+		case "gcp_model_endpoint":
+			return providerEntityDefinition{stable: object, attributes: state}, true
+		case "gcp_deployed_model":
+			return providerEntityDefinition{stable: mergeInventorySchemas(object, requiredStringFields("endpoint")), attributes: mergeInventorySchemas(state, optionalStringFields("model", "model_version", "service_account"))}, true
+		case "gcp_service_account":
+			// roles are the roles the project's IAM policy binds the account
+			// to, comma-separated; admin_roles the administrator-level ones.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "project", "scope"), attributes: mergeInventorySchemas(state, optionalStringFields("admin_roles", "roles"))}, true
+		}
 	}
 	return providerEntityDefinition{}, false
 }
@@ -849,6 +882,9 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 		attributes["type"] = stringInventoryField(true)
 	case collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
 		kinds = tokenSet("contains")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderGCP:
+		kinds = tokenSet("contains", "uses_identity")
 		attributes["type"] = stringInventoryField(true)
 	default:
 		return false
@@ -897,6 +933,12 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment"),
 		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
 		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
+		collection.ProviderGCP: tokenSet(
+			"gcp_scope|contains|gcp_project", "gcp_scope|contains|gcp_service",
+			"gcp_project|contains|gcp_agent_engine", "gcp_project|contains|gcp_conversational_agent", "gcp_project|contains|gcp_gemini_enterprise_agent", "gcp_project|contains|gcp_inferred_agent",
+			"gcp_project|contains|gcp_model_endpoint", "gcp_project|contains|gcp_service_account", "gcp_model_endpoint|contains|gcp_deployed_model",
+			"gcp_agent_engine|uses_identity|gcp_service_account", "gcp_inferred_agent|uses_identity|gcp_service_account", "gcp_deployed_model|uses_identity|gcp_service_account",
+		),
 	}
 	return allowed[provider][key]
 }
@@ -1845,7 +1887,7 @@ func validCursor(cursor collection.Cursor, provider collection.Provider) bool {
 
 func validProvider(provider collection.Provider) bool {
 	switch provider {
-	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
+	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS, collection.ProviderGCP:
 		return true
 	default:
 		return false

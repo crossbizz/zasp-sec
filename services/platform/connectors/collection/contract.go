@@ -34,7 +34,7 @@ var (
 	versionPattern           = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
 	tokenPattern             = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 	checksumPattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	referencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta|microsoft|salesforce)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
+	referencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta|microsoft|salesforce|gcp)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
 	awsSubjectPattern        = regexp.MustCompile(`^[0-9]{12}$`)
 	kubernetesSubjectPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,252}/[a-z0-9][a-z0-9._-]{0,127}$`)
 	oktaSubjectPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.okta\.com$`)
@@ -47,6 +47,10 @@ var (
 	saasSubjectPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$`)
 	// The saas provider's credential is a Nango connection, named by
 	// reference. Nango holds the provider token; the product never does.
+	// A Google Cloud scope is the organization, folder or project the
+	// customer named: organizations/<number>, folders/<number> or
+	// projects/<project id>.
+	gcpSubjectPattern               = regexp.MustCompile(`^(organizations/[1-9][0-9]{0,18}|folders/[1-9][0-9]{0,18}|projects/[a-z][a-z0-9-]{4,28}[a-z0-9])$`)
 	nangoConnectionReferencePattern = regexp.MustCompile(`^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
 
@@ -65,11 +69,15 @@ const (
 	// through the Nango proxy. The platform (databricks, slack, ...) is an
 	// attribute of the subject and of every entity, not a provider.
 	ProviderSaaS Provider = "saas"
+	// ProviderGCP is Google Cloud, read with a read-only service account the
+	// worker reaches through workload identity federation or a key held by
+	// reference. A deployment serves it only where its collector runs.
+	ProviderGCP Provider = "gcp"
 )
 
 func (provider Provider) valid() bool {
 	switch provider {
-	case ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta, ProviderMicrosoft, ProviderSalesforce, ProviderSaaS:
+	case ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta, ProviderMicrosoft, ProviderSalesforce, ProviderSaaS, ProviderGCP:
 		return true
 	default:
 		return false
@@ -88,6 +96,9 @@ const (
 	// CredentialNangoConnection is a reference to a Nango connection, the
 	// class the connector authorization tables already name.
 	CredentialNangoConnection CredentialClass = "nango_connection_reference"
+	// CredentialGCPAccessToken is a short-lived Google access token of the
+	// customer's read-only service account.
+	CredentialGCPAccessToken CredentialClass = "gcp_access_token"
 )
 
 func credentialMatchesProvider(class CredentialClass, provider Provider) bool {
@@ -106,6 +117,8 @@ func credentialMatchesProvider(class CredentialClass, provider Provider) bool {
 		return class == CredentialSalesforceClient
 	case ProviderSaaS:
 		return class == CredentialNangoConnection
+	case ProviderGCP:
+		return class == CredentialGCPAccessToken
 	default:
 		return false
 	}
@@ -182,7 +195,7 @@ type SubjectBinding struct {
 }
 
 func (binding SubjectBinding) valid(provider Provider) bool {
-	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant", ProviderMicrosoft: "microsoft_tenant", ProviderSalesforce: "salesforce_org", ProviderSaaS: "saas_tenant"}[provider]
+	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant", ProviderMicrosoft: "microsoft_tenant", ProviderSalesforce: "salesforce_org", ProviderSaaS: "saas_tenant", ProviderGCP: "gcp_scope"}[provider]
 	if binding.Kind != want || !boundedText(binding.ID, 512) {
 		return false
 	}
@@ -205,6 +218,8 @@ func (binding SubjectBinding) valid(provider Provider) bool {
 		return salesforceSubjectPattern.MatchString(binding.ID)
 	case ProviderSaaS:
 		return saasSubjectPattern.MatchString(binding.ID) && !strings.Contains(binding.ID, "..")
+	case ProviderGCP:
+		return gcpSubjectPattern.MatchString(binding.ID)
 	default:
 		return false
 	}

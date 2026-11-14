@@ -4288,8 +4288,11 @@ BEGIN
   END IF;
   old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
   new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  -- A later section (X3d) appends to the list this section wrote; a list
+  -- that starts with it is this section's work already done.
   SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
-   WHERE c.conrelid=relation AND c.contype='c' AND pg_get_constraintdef(c.oid) IN(old_definition,new_definition);
+   WHERE c.conrelid=relation AND c.contype='c' AND (pg_get_constraintdef(c.oid) IN(old_definition,new_definition)
+    OR left(pg_get_constraintdef(c.oid),length(new_definition)-4)=left(new_definition,length(new_definition)-4));
   IF matches<>1 THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('saas provider list constraint predecessor changed: %s',listed_column);
   END IF;
@@ -4578,6 +4581,14 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('agent_guardrail_missing','owasp_llm_top10_2025','LLM01'),
   ('agent_guardrail_missing','owasp_llm_top10_2025','LLM02'),
   ('agent_guardrail_missing','owasp_llm_top10_2025','LLM05'),
+  ('agent_model_armor_missing','eu_ai_act','Article 15'),
+  ('agent_model_armor_missing','eu_ai_act','Article 9'),
+  ('agent_model_armor_missing','iso_iec_42001_2023','A.6.2.6'),
+  ('agent_model_armor_missing','mitre_atlas','AML.T0051'),
+  ('agent_model_armor_missing','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_model_armor_missing','owasp_llm_top10_2025','LLM01'),
+  ('agent_model_armor_missing','owasp_llm_top10_2025','LLM02'),
+  ('agent_model_armor_missing','owasp_llm_top10_2025','LLM05'),
   ('agent_role_administrator_access','eu_ai_act','Article 15'),
   ('agent_role_administrator_access','nist_ai_rmf_1_0','MEASURE 2.7'),
   ('agent_role_administrator_access','owasp_agentic_top10_2026','ASI03'),
@@ -4591,6 +4602,10 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MEASURE 2.7'),
   ('agent_role_unused_ai_permissions','owasp_agentic_top10_2026','ASI03'),
   ('agent_role_unused_ai_permissions','owasp_llm_top10_2025','LLM06'),
+  ('agent_service_account_admin_role','eu_ai_act','Article 15'),
+  ('agent_service_account_admin_role','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_service_account_admin_role','owasp_agentic_top10_2026','ASI03'),
+  ('agent_service_account_admin_role','owasp_llm_top10_2025','LLM06'),
   ('cicd_production_secret','eu_ai_act','Article 15'),
   ('cicd_production_secret','mitre_atlas','AML.T0055'),
   ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
@@ -6861,3 +6876,230 @@ END $guardrail_decide_permission$;
 ALTER FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) TO zasp_discovery_api;
+
+-- X3d. Google Cloud as a discovery provider (workstream WS8, plan task C4).
+--
+-- Sections X3b and X3c widened every provider list for Microsoft, Salesforce
+-- and the generic saas provider. This section widens them once more, for gcp:
+-- the projects of one Google Cloud organization, folder or project, read
+-- with a read-only service account of the customer.
+--
+-- gcp is reference-authorized like AWS. Its configuration names what to read
+-- (scope) and how the service account is reached (identity_reference):
+--   * workload identity federation: identity_reference is
+--     ref:gcp/workload-identity/<project>/<service account name> and audience
+--     the customer's workload identity pool provider. The product's own AWS
+--     role is exchanged for a token of that service account; nothing is
+--     stored anywhere;
+--   * a service account key: identity_reference is
+--     ref:gcp/service-account-key/<id>, a key held in Secrets Manager. The
+--     configuration then has no audience.
+-- Neither shape carries key material, and zasp_reference_only still refuses
+-- any member that names a secret.
+--
+-- What gcp adds beyond the lists:
+--   * subject: gcp_scope, id organizations/<number>, folders/<number> or
+--     projects/<project id>, equal to scope of the configuration;
+--   * credential class of a collection: gcp_access_token;
+--   * the discovery finding channel (zasp_inventory_apply_findings) accepts
+--     source gcp, for the two checks the collector raises on an agent;
+--   * ten identity rules and the catalog digest that includes them;
+--   * the coverage gaps of an integration name the Google APIs a collection
+--     could not read (gcp_service observations), beside the AWS ones.
+--
+-- The edits are made the way X3c makes them. A CHECK constraint is found by
+-- its definition, dropped and re-added under the same name. A function body
+-- is read with pg_get_functiondef, one exact text is replaced, and the result
+-- is executed. Every function edit leaves the text X3b and X3c wrote in
+-- place (a list is extended beside itself, a clause is added before or after
+-- theirs), so those sections remain no-ops when the file runs again; X3c's
+-- constraint check accepts a list that starts with its own for the same
+-- reason. An edit whose replacement is already present is skipped; one whose
+-- anchor is not present exactly once raises. Nothing here creates a role,
+-- changes an owner or grants a privilege.
+DO $ws8_gcp_provider$
+DECLARE six CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce'$v$;
+ seven CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce','saas'$v$;
+ reference_four CONSTANT text:=$v$'aws','kubernetes','microsoft','salesforce'$v$;
+ -- The Nango connection grammar of section X3c: the anchor of its clause.
+ connection CONSTANT text:='^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
+ scope CONSTANT text:='^(organizations/[1-9][0-9]{0,18}|folders/[1-9][0-9]{0,18}|projects/[a-z][a-z0-9-]{4,28}[a-z0-9])$';
+ federation CONSTANT text:='^ref:gcp/workload-identity/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z][a-z0-9-]{4,28}[a-z0-9]$';
+ key_reference CONSTANT text:='^ref:gcp/service-account-key/[a-z0-9][a-z0-9._-]{7,127}$';
+ audience CONSTANT text:='^//iam[.]googleapis[.]com/projects/[1-9][0-9]{0,18}/locations/global/workloadIdentityPools/[a-z][a-z0-9-]{2,30}[a-z0-9]/providers/[a-z][a-z0-9-]{2,30}[a-z0-9]$';
+ provider_columns CONSTANT text[]:=ARRAY[
+  'public.zasp_discovery_connection_subjects.provider','public.zasp_discovery_generation_reservations.source',
+  'public.zasp_discovery_job_authorities.provider','public.zasp_discovery_job_checkpoints.provider',
+  'public.zasp_discovery_snapshot_inputs.source','public.zasp_discovery_projection_cursors.source',
+  'public.zasp_discovery_risk_projection_current.source','public.zasp_inventory_identity_rules.provider',
+  'zasp_temporal72.runs.provider','public.zasp_discovery_connection_subjects.subject_kind'];
+ listed_column text;relation regclass;column_name text;old_values text[];new_values text[];old_definition text;new_definition text;
+ edit record;found_name name;found_definition text;matches integer;d text;
+BEGIN
+ FOREACH listed_column IN ARRAY provider_columns LOOP
+  relation:=substring(listed_column FROM '^(.*)\.[a-z_]+$')::regclass;
+  column_name:=substring(listed_column FROM '\.([a-z_]+)$');
+  IF column_name='subject_kind' THEN
+   old_values:=ARRAY['aws_account','kubernetes_cluster','github_installation','okta_tenant','microsoft_tenant','salesforce_org','saas_tenant'];
+   new_values:=old_values||ARRAY['gcp_scope'];
+  ELSE
+   old_values:=ARRAY['aws','kubernetes','github','okta','microsoft','salesforce','saas'];
+   new_values:=old_values||ARRAY['gcp'];
+  END IF;
+  old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
+  new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  -- A later section may append to the list this section wrote; a list that
+  -- starts with it is this section's work already done.
+  SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
+   WHERE c.conrelid=relation AND c.contype='c' AND (pg_get_constraintdef(c.oid) IN(old_definition,new_definition)
+    OR left(pg_get_constraintdef(c.oid),length(new_definition)-4)=left(new_definition,length(new_definition)-4));
+  IF matches<>1 THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('gcp provider list constraint predecessor changed: %s',listed_column);
+  END IF;
+  IF found_definition=old_definition THEN
+   EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I',relation,found_name);
+   EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I CHECK(%I IN(%s))',relation,found_name,column_name,(SELECT string_agg(quote_literal(item),',' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  END IF;
+ END LOOP;
+
+ FOR edit IN SELECT * FROM (VALUES
+   -- The provider lists, each extended beside the text X3c left.
+   ('public.zasp_connector_provider_valid(text)',format($v$value IN (%s) OR value='saas'$v$,six),format($v$value IN (%s) OR value='saas' OR value='gcp'$v$,six)),
+   ('public.zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)',format($v$source NOT IN(%s) AND source<>'saas'$v$,six),format($v$source NOT IN(%s) AND source<>'saas' AND source<>'gcp'$v$,six)),
+   ('public.zasp_execution_checkpoint_partial(text,text,text,text,text,text,bigint,text,text,text,text,text,text,bytea,bigint,text,text,text,text)',format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,six),format($v$provider_value NOT IN(%s) AND provider_value<>'saas' AND provider_value<>'gcp'$v$,six)),
+   ('public.zasp_execution_apply_risk_projection(text,text,text,text,text,text,text,text,text,bigint,bytea,jsonb)',format($v$source_value NOT IN(%s) AND source_value<>'saas'$v$,six),format($v$source_value NOT IN(%s) AND source_value<>'saas' AND source_value<>'gcp'$v$,six)),
+   -- The discovery finding channel: the Google Cloud collector raises checks on agents.
+   ('public.zasp_inventory_apply_findings(text,text,text,jsonb)',format($v$item->>'source' NOT IN(%s) AND item->>'source'<>'saas'$v$,six),format($v$item->>'source' NOT IN(%s) AND item->>'source'<>'saas' AND item->>'source'<>'gcp'$v$,six)),
+   ('public.zasp_inventory_validate_typed_entities(text,jsonb)',format($v$(provider_value IN(%s) OR provider_value='saas')$v$,six),format($v$((provider_value IN(%s) OR provider_value='saas') OR provider_value='gcp')$v$,six)),
+   ('zasp_temporal72.normalize_relationships(text,text,text,text,text,jsonb)',format($v$(source_value IN(%s) OR source_value='saas')$v$,six),format($v$((source_value IN(%s) OR source_value='saas') OR source_value='gcp')$v$,six)),
+   ('zasp_temporal72.release_abandoned(text,text,text,text,text,text)',format($v$(provider_value IN(%s) OR provider_value='saas')$v$,six),format($v$((provider_value IN(%s) OR provider_value='saas') OR provider_value='gcp')$v$,six)),
+   ('zasp_authorization80.integration_setup_status(text,text,text,text)',format($v$(integration.kind IN(%s) OR integration.kind='saas')$v$,six),format($v$((integration.kind IN(%s) OR integration.kind='saas') OR integration.kind='gcp')$v$,six)),
+   ('zasp_temporal72.release_abandoned_due(integer)',format('x.provider IN(%s)',seven),format($v$(x.provider IN(%s) OR x.provider='gcp')$v$,seven)),
+   -- The reference-authorized providers.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,reference_four),format($v$provider_value NOT IN(%s) AND provider_value<>'saas' AND provider_value<>'gcp'$v$,reference_four)),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,reference_four),format($v$provider_value NOT IN(%s) AND provider_value<>'saas' AND provider_value<>'gcp'$v$,reference_four)),
+   ('zasp_authorization80.integration_reference_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text,text,text)',format($v$(provider_value IN(%s) OR provider_value='saas')$v$,reference_four),format($v$((provider_value IN(%s) OR provider_value='saas') OR provider_value='gcp')$v$,reference_four)),
+   ('zasp_authorization80.integration_setup_status(text,text,text,text)',format($v$(integration_row.kind IN(%s) OR integration_row.kind='saas')$v$,reference_four),format($v$((integration_row.kind IN(%s) OR integration_row.kind='saas') OR integration_row.kind='gcp')$v$,reference_four)),
+   -- The reference a gcp connection is bound to is the one its configuration names.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'saas' THEN configuration_value->>'connection_reference'$v$,$v$WHEN 'gcp' THEN configuration_value->>'identity_reference' WHEN 'saas' THEN configuration_value->>'connection_reference'$v$),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'saas' THEN configuration_value->>'connection_reference'$v$,$v$WHEN 'gcp' THEN configuration_value->>'identity_reference' WHEN 'saas' THEN configuration_value->>'connection_reference'$v$),
+   -- Subject of a connection.
+   ('public.zasp_execution_subject_valid(text,text,text)',$v$  WHEN 'saas' THEN kind_value='saas_tenant'$v$,format($v$  WHEN 'gcp' THEN kind_value='gcp_scope' AND id_value ~ %L
+  WHEN 'saas' THEN kind_value='saas_tenant'$v$,scope)),
+   -- Configuration accepted at reference authorization: federation (an
+   -- audience and a workload-identity reference) or a key reference alone.
+   ('public.zasp_reference_authorization_configuration_valid(text,jsonb)',format($v$      AND configuration_value->>'connection_reference' ~ %L$v$,connection),format($v$      AND configuration_value->>'connection_reference' ~ %1$L
+    OR provider_value='gcp'
+      AND NOT EXISTS(SELECT 1 FROM jsonb_each(configuration_value) member WHERE jsonb_typeof(member.value)<>'string')
+      AND configuration_value->>'scope' ~ %2$L
+      AND ((SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key)=ARRAY['audience','identity_reference','scope']::text[]
+            AND configuration_value->>'audience' ~ %3$L AND configuration_value->>'identity_reference' ~ %4$L
+        OR (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key)=ARRAY['identity_reference','scope']::text[]
+            AND configuration_value->>'identity_reference' ~ %5$L)$v$,connection,scope,audience,federation,key_reference)),
+   -- Configuration accepted when the integration is created or updated.
+   ('zasp_authorization80.integration_setup_valid(text,jsonb)',$v$ WHEN 'saas' THEN RETURN keys=ARRAY['connection_reference','platform','tenant_id']$v$,format($v$ WHEN 'gcp' THEN RETURN c->>'scope'~%1$L
+  AND (keys=ARRAY['audience','identity_reference','scope'] AND c->>'audience'~%2$L AND c->>'identity_reference'~%3$L
+   OR keys=ARRAY['identity_reference','scope'] AND c->>'identity_reference'~%4$L);
+ WHEN 'saas' THEN RETURN keys=ARRAY['connection_reference','platform','tenant_id']$v$,scope,audience,federation,key_reference)),
+   -- A run stays current only while its subject is the one its configuration names.
+   ('zasp_temporal72.require_current_run(zasp_temporal72.runs,timestamptz)',$v$ WHEN 'saas' THEN r.subject_kind='saas_tenant'$v$,$v$ WHEN 'gcp' THEN r.subject_kind='gcp_scope' AND r.subject_id=i.configuration->>'scope'
+ WHEN 'saas' THEN r.subject_kind='saas_tenant'$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$     WHEN 'saas' THEN subject.subject_kind='saas_tenant'$v$,$v$     WHEN 'gcp' THEN subject.subject_kind='gcp_scope' AND subject.subject_id=integration.configuration->>'scope'
+     WHEN 'saas' THEN subject.subject_kind='saas_tenant'$v$),
+   -- Credential class of a collection.
+   ('zasp_temporal72.prepare_page(text,text,text,text,text,text,timestamptz,bigint,text)',$v$WHEN 'saas' THEN 'nango_connection_reference'$v$,$v$WHEN 'gcp' THEN 'gcp_access_token' WHEN 'saas' THEN 'nango_connection_reference'$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$WHEN 'saas' THEN 'nango_connection_reference'$v$,$v$WHEN 'gcp' THEN 'gcp_access_token' WHEN 'saas' THEN 'nango_connection_reference'$v$)
+  ) AS listed(target,old_text,new_text) LOOP
+  d:=pg_get_functiondef(edit.target::regprocedure);
+  CONTINUE WHEN position(edit.new_text in d)>0;
+  IF length(d)-length(replace(d,edit.old_text,''))<>length(edit.old_text) THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('gcp provider predecessor changed: %s',edit.target);
+  END IF;
+  EXECUTE replace(d,edit.old_text,edit.new_text);
+ END LOOP;
+END $ws8_gcp_provider$;
+
+-- The Google Cloud identity rules, and the catalog digest that includes
+-- them. The agents Google's control plane names are provider records (9500);
+-- a Cloud Run service, a function or a service account is concluded to be an
+-- agent from signals (7000); a service account is an identity; the scope,
+-- the projects, the model endpoints, their deployed models and the per-API
+-- coverage records are assets. The catalog is then 66 rows. The earlier
+-- digests are the ones section WS5a names and the one it pins. A later
+-- section that adds rules pins its own digest; when the file runs again this
+-- section then has nothing left to do.
+DO $ws8_gcp_rule_catalog$
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b','cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169'];
+ current_value CONSTANT text:='cfe53338b370e87af5e4b8303dcb8d2972ea45662c3289270bac1e287a49235c';
+ previous text;f regprocedure;d text;
+BEGIN
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>66
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
+ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+  ('gcp','gcp_agent_engine','gcp_agent_engine','agent',1,160,9500,86400),
+  ('gcp','gcp_conversational_agent','gcp_conversational_agent','agent',1,160,9500,86400),
+  ('gcp','gcp_deployed_model','gcp_deployed_model','asset',1,160,9500,86400),
+  ('gcp','gcp_gemini_enterprise_agent','gcp_gemini_enterprise_agent','agent',1,160,9500,86400),
+  ('gcp','gcp_inferred_agent','gcp_inferred_agent','agent',1,160,7000,86400),
+  ('gcp','gcp_model_endpoint','gcp_model_endpoint','asset',1,160,9500,86400),
+  ('gcp','gcp_project','gcp_project','asset',1,160,9500,86400),
+  ('gcp','gcp_scope','gcp_scope','asset',1,160,9500,86400),
+  ('gcp','gcp_service','gcp_service','asset',1,160,9500,86400),
+  ('gcp','gcp_service_account','gcp_service_account','identity',1,160,9500,86400)
+ ON CONFLICT(provider,source_kind) DO NOTHING;
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>66
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE provider='gcp' AND rule_version=1 AND priority=160 AND freshness_seconds=86400 AND source_kind=identity_namespace
+      AND (source_kind,product_kind,confidence_basis_points) IN(
+       ('gcp_agent_engine','agent',9500),('gcp_conversational_agent','agent',9500),('gcp_deployed_model','asset',9500),('gcp_gemini_enterprise_agent','agent',9500),
+       ('gcp_inferred_agent','agent',7000),('gcp_model_endpoint','asset',9500),('gcp_project','asset',9500),('gcp_scope','asset',9500),
+       ('gcp_service','asset',9500),('gcp_service_account','identity',9500)))<>10 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
+ END LOOP;
+END $ws8_gcp_rule_catalog$;
+
+-- Coverage gaps of a Google Cloud integration.
+--
+-- Section X5b put the AI services an AWS collection could not read on the
+-- freshness of an integration (coverage_gaps). The Google Cloud collector
+-- records the same thing per Google API it reads: a gcp_service observation
+-- whose status is collected, access_denied (at least one project refused the
+-- read-only service account) or unavailable (the API is switched off in
+-- every project read). Those join coverage_gaps: at most 16 in all, ordered
+-- by service. The statement is added after the one X5b wrote, which is left
+-- as it is, so X5b remains a no-op when the file runs again.
+DO $ws8_gcp_coverage_gaps$
+DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=E'\n RETURN b;';
+ gaps CONSTANT text:=$gaps$
+ b:=jsonb_set(b,'{coverage_gaps}',COALESCE((SELECT jsonb_agg(merged.gap ORDER BY merged.gap->>'service') FROM(
+  SELECT listed.gap FROM(
+   SELECT gap FROM jsonb_array_elements(b->'coverage_gaps') gap
+   UNION ALL
+   (SELECT DISTINCT ON(observation.stable_fields->>'service') jsonb_build_object('service',observation.stable_fields->>'service','name',COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name),'status',observation.attributes->>'status')
+   FROM public.zasp_inventory_source_observations observation
+   WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+    AND observation.provider='gcp' AND observation.source_kind='gcp_service' AND observation.source_state='present'
+    AND observation.attributes->>'status' IN('access_denied','unavailable')
+    AND observation.stable_fields->>'service' ~ '^[a-z][a-z0-9-]{0,63}$'
+    AND length(COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name)) BETWEEN 1 AND 128
+   ORDER BY observation.stable_fields->>'service',observation.last_seen_at DESC,observation.source)) listed
+  ORDER BY listed.gap->>'service' LIMIT 16) merged),'[]'::jsonb));$gaps$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(gaps in d)=0 THEN
+  IF position('gcp_service' in d)>0 OR position('coverage_gaps' in d)=0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp integration freshness predecessor changed';END IF;
+  EXECUTE replace(d,anchor,gaps||anchor);
+ END IF;
+END $ws8_gcp_coverage_gaps$;

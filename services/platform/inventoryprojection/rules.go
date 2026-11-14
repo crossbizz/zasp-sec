@@ -83,6 +83,19 @@ var ruleCatalog = []Rule{
 	{Provider: "saas", SourceKind: "saas_ai_application", Namespace: "saas_ai_application", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
 	{Provider: "saas", SourceKind: "saas_mcp_server", Namespace: "saas_mcp_server", ProductKind: KindTool, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "saas", SourceKind: "saas_tenant", Namespace: "saas_tenant", ProductKind: KindAsset, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	// Google Cloud: agents its control plane names, workloads and service
+	// accounts inferred to be agents, and the projects, model endpoints and
+	// service accounts around them.
+	{Provider: "gcp", SourceKind: "gcp_agent_engine", Namespace: "gcp_agent_engine", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_conversational_agent", Namespace: "gcp_conversational_agent", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_deployed_model", Namespace: "gcp_deployed_model", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_gemini_enterprise_agent", Namespace: "gcp_gemini_enterprise_agent", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_inferred_agent", Namespace: "gcp_inferred_agent", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_model_endpoint", Namespace: "gcp_model_endpoint", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_project", Namespace: "gcp_project", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_scope", Namespace: "gcp_scope", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_service", Namespace: "gcp_service", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_service_account", Namespace: "gcp_service_account", ProductKind: KindIdentity, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 }
 
 func RuleCatalog() []Rule {
