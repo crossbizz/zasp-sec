@@ -334,6 +334,8 @@ variable "discovery_optional_providers" {
     microsoft_collector         = optional(string, "")
     microsoft_client_secret_id  = optional(string, "")
     microsoft_egress_cidrs      = optional(list(string), [])
+    microsoft_azure             = optional(bool, false)
+    azure_egress_cidrs          = optional(list(string), [])
     salesforce_collector        = optional(string, "")
     salesforce_client_secret_id = optional(string, "")
     salesforce_egress_cidrs     = optional(list(string), [])
@@ -358,6 +360,21 @@ variable "discovery_optional_providers" {
       )
     ])
     error_message = "A disabled optional provider sets nothing. An enabled one needs a bounded collector version, a lower-case client-secret reference identifier and one to 16 distinct canonical non-global egress CIDRs."
+  }
+  # Azure OpenAI and Azure AI Foundry are read by the Microsoft collector from
+  # Azure Resource Manager (management.azure.com). microsoft_azure is valid
+  # only with microsoft_collector and then needs the addresses of Resource
+  # Manager, which only the discovery worker may reach.
+  validation {
+    condition = (
+      var.discovery_optional_providers.microsoft_azure ?
+      var.discovery_optional_providers.microsoft_collector != "" &&
+      length(var.discovery_optional_providers.azure_egress_cidrs) >= 1 && length(var.discovery_optional_providers.azure_egress_cidrs) <= 16 && length(distinct(var.discovery_optional_providers.azure_egress_cidrs)) == length(var.discovery_optional_providers.azure_egress_cidrs) && alltrue([
+        for cidr in var.discovery_optional_providers.azure_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && cidr != "0.0.0.0/0" && cidr != "::/0"
+      ]) :
+      length(var.discovery_optional_providers.azure_egress_cidrs) == 0
+    )
+    error_message = "microsoft_azure needs microsoft_collector and one to 16 distinct canonical non-global azure_egress_cidrs; without it azure_egress_cidrs is empty."
   }
 }
 

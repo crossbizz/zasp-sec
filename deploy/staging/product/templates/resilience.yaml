@@ -203,6 +203,12 @@ spec:
 {{- $connectorMicrosoft = .Values.network.connectorEgressCIDRs.microsoft | default list }}
 {{- if not $connectorMicrosoft }}{{ fail "network.connectorEgressCIDRs.microsoft is required when discovery.microsoftCollectorVersion is set" }}{{ end }}
 {{- end }}
+{{- /* Azure Resource Manager: the discovery worker only, under discovery.microsoftAzure. */}}
+{{- $connectorAzure := list }}
+{{- if .Values.discovery.microsoftAzure }}
+{{- $connectorAzure = .Values.network.connectorEgressCIDRs.azure | default list }}
+{{- if not $connectorAzure }}{{ fail "network.connectorEgressCIDRs.azure is required when discovery.microsoftAzure is set" }}{{ end }}
+{{- end }}
 {{- $connectorSalesforce := list }}
 {{- if .Values.discovery.salesforceCollectorVersion }}
 {{- $connectorSalesforce = .Values.network.connectorEgressCIDRs.salesforce | default list }}
@@ -308,7 +314,7 @@ metadata:
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
     zasp.io/network-policy-boundary: native-cidr-snapshot
-    zasp.io/endpoint-groups: aws-sts-sqs-s3-kms-secretsmanager,github-api,okta-tenant,kubernetes-customer-api{{ if $connectorMicrosoft }},microsoft-entra-graph-dataverse{{ end }}{{ if $connectorSalesforce }},salesforce-my-domain{{ end }}
+    zasp.io/endpoint-groups: aws-sts-sqs-s3-kms-secretsmanager,github-api,okta-tenant,kubernetes-customer-api{{ if $connectorMicrosoft }},microsoft-entra-graph-dataverse{{ end }}{{ if $connectorAzure }},azure-resource-manager{{ end }}{{ if $connectorSalesforce }},salesforce-my-domain{{ end }}
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
   policyTypes: [Egress]
@@ -316,7 +322,7 @@ spec:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to:
-      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) (required "network.s3CIDRs is required" .Values.network.s3CIDRs) $connectorMicrosoft $connectorSalesforce }}
+      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) (required "network.s3CIDRs is required" .Values.network.s3CIDRs) $connectorAzure $connectorMicrosoft $connectorSalesforce }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]

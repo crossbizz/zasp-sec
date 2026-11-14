@@ -208,6 +208,12 @@ discovery:
   # hands a discovery run (collector_v1) and list the provider's addresses
   # under network.connectorEgressCIDRs.
   microsoftCollectorVersion: ""
+  # Azure OpenAI and Azure AI Foundry through the Microsoft collector: the
+  # worker also reads Azure Resource Manager with the same application
+  # (ZASP_DISCOVERY_MICROSOFT_AZURE=enabled). Off by default; valid only with
+  # microsoftCollectorVersion, and then network.connectorEgressCIDRs.azure
+  # is required.
+  microsoftAzure: false
   salesforceCollectorVersion: ""
   # The generic saas provider: every SaaS platform read through the Nango
   # proxy (docs/operations/saas-connectors.md). Disabled by default. Setting
@@ -540,6 +546,10 @@ network:
     # addresses too; the worker and the API still call only the exact hosts.
     microsoft: []
     salesforce: []
+    # Azure Resource Manager (management.azure.com; the AzureResourceManager
+    # service tag): admitted for the discovery worker only, only while
+    # discovery.microsoftAzure is true, and then required.
+    azure: []
   findingTicketEgressCIDRs: []
 canary:
   enabled: true

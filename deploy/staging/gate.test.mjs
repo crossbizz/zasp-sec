@@ -269,3 +269,55 @@ test("optional discovery providers are disabled by default and gated by their co
   const outputs = await read("./outputs.tf");
   assert.match(outputs, /ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION\s+= var\.discovery_optional_providers\.microsoft_collector\n\s+ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION = var\.discovery_optional_providers\.salesforce_collector\n\s+\} : name => version if version != ""/);
 });
+
+// Azure OpenAI and AI Foundry are read by the Microsoft collector when
+// ZASP_DISCOVERY_MICROSOFT_AZURE is "enabled". Text-level, like the checks
+// above: off by default, only with the Microsoft collector, and Resource
+// Manager is reachable by the discovery worker alone.
+test("the Azure setting of the Microsoft collector is off by default and reaches only the discovery worker", async () => {
+  const read = (name) => readFile(new URL(name, import.meta.url), "utf8");
+  const values = load(await read("./product/values.yaml"));
+  assert.equal(values.discovery.microsoftAzure, false);
+  assert.deepEqual(values.network.connectorEgressCIDRs.azure, []);
+  for (const name of ["./product/values-saas.yaml", "./product/values-single-tenant.yaml", "./product/values-customer-edge.yaml", "../production/values-production.example.yaml"]) {
+    const overlay = load(await read(name)) ?? {};
+    assert.ok(!overlay.discovery?.microsoftAzure, name);
+    assert.deepEqual(overlay.network?.connectorEgressCIDRs?.azure ?? [], [], name);
+  }
+
+  // The variable is rendered once, for the discovery worker, with the one
+  // value the worker accepts, inside the gate, which fails a render that
+  // sets it without the Microsoft collector.
+  const workloads = await read("./product/templates/workloads.yaml");
+  const gate = `{{- if .Values.discovery.microsoftAzure }}\n            {{- if not .Values.discovery.microsoftCollectorVersion }}{{ fail "discovery.microsoftAzure needs discovery.microsoftCollectorVersion" }}{{ end }}\n            - { name: ZASP_DISCOVERY_MICROSOFT_AZURE, value: "enabled" }\n            {{- end }}`;
+  assert.ok(workloads.includes(gate), "worker gate");
+  assert.equal(workloads.split("ZASP_DISCOVERY_MICROSOFT_AZURE").length - 1, 1);
+  assert.equal(workloads.split(".Values.discovery.microsoftAzure").length - 1, 1);
+  const worker = workloads.split("\n---\n").filter((document) => document.includes("ZASP_DISCOVERY_MICROSOFT_AZURE"));
+  assert.equal(worker.length, 1);
+  assert.match(worker[0], /name: agentsec-discovery-worker\n/);
+
+  const network = await read("./product/templates/resilience.yaml");
+  const definition = `{{- $connectorAzure := list }}\n{{- if .Values.discovery.microsoftAzure }}\n{{- $connectorAzure = .Values.network.connectorEgressCIDRs.azure | default list }}\n{{- if not $connectorAzure }}{{ fail "network.connectorEgressCIDRs.azure is required when discovery.microsoftAzure is set" }}{{ end }}\n{{- end }}`;
+  assert.ok(network.includes(definition), "azure egress gate");
+  assert.equal(network.split(".Values.network.connectorEgressCIDRs.azure").length - 1, 1);
+  const policies = network.split("\n---\n").filter((document) => /concat [^\n]*\$connectorAzure/.test(document));
+  assert.equal(policies.length, 1);
+  assert.match(policies[0], /podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-discovery-worker \} \}/);
+  assert.match(policies[0], /concat [^\n]*\$connectorAzure \$connectorMicrosoft \$connectorSalesforce \}\}\n\s+- ipBlock: \{ cidr: \{\{ \$cidr \| quote \}\} \}\n\s+\{\{- end \}\}\n\s+ports: \[\{ protocol: TCP, port: 443 \}\]/);
+  assert.match(policies[0], /\{\{ if \$connectorAzure \}\},azure-resource-manager\{\{ end \}\}/);
+  assert.equal(network.split("$connectorAzure").length - 1, 5);
+
+  const variables = await read("./variables.tf");
+  const optional = variables.slice(variables.indexOf('variable "discovery_optional_providers"'), variables.indexOf('variable "kubernetes_connector_egress_cidrs"'));
+  assert.match(optional, /microsoft_azure\s+= optional\(bool, false\)/);
+  assert.match(optional, /azure_egress_cidrs\s+= optional\(list\(string\), \[\]\)/);
+  assert.match(optional, /var\.discovery_optional_providers\.microsoft_azure \?\n\s+var\.discovery_optional_providers\.microsoft_collector != "" &&\n\s+length\(var\.discovery_optional_providers\.azure_egress_cidrs\) >= 1 && length\(var\.discovery_optional_providers\.azure_egress_cidrs\) <= 16 /);
+  assert.match(optional, /for cidr in var\.discovery_optional_providers\.azure_egress_cidrs : [^\n]*cidr != "0\.0\.0\.0\/0" && cidr != "::\/0"\n\s+\]\) :\n\s+length\(var\.discovery_optional_providers\.azure_egress_cidrs\) == 0\n/);
+
+  const outputs = await read("./outputs.tf");
+  assert.match(outputs, /var\.discovery_optional_providers\.microsoft_azure \? \{ ZASP_DISCOVERY_MICROSOFT_AZURE = "enabled" \} : \{\}/);
+  const production = await read("./production.tf");
+  assert.match(production, /microsoftAzure\s+= var\.discovery_optional_providers\.microsoft_azure\n/);
+  assert.match(production, /azure\s+= var\.discovery_optional_providers\.azure_egress_cidrs\n/);
+});

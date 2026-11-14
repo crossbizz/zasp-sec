@@ -560,6 +560,11 @@ spec:
             {{- with .Values.discovery.microsoftCollectorVersion }}
             - { name: ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
+            {{- /* Azure Resource Manager is read by the Microsoft collector only. */}}
+            {{- if .Values.discovery.microsoftAzure }}
+            {{- if not .Values.discovery.microsoftCollectorVersion }}{{ fail "discovery.microsoftAzure needs discovery.microsoftCollectorVersion" }}{{ end }}
+            - { name: ZASP_DISCOVERY_MICROSOFT_AZURE, value: "enabled" }
+            {{- end }}
             {{- with .Values.discovery.salesforceCollectorVersion }}
             - { name: ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
