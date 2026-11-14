@@ -147,6 +147,24 @@ Evidence gate before B5: B1 to B3 must show that the second platform took under 
 | Attack paths | Level with Noma | Level | Level | Ahead (H2) |
 | Production proof | None | Depends on I1 | Depends on I1 | Depends on I1 |
 
+## First implementation pass (2026-11-14)
+
+Built, tested against fakes, pushed:
+
+| ID | What exists now | Limits |
+| --- | --- | --- |
+| A1 | `services/platform/compliancemap`: rule to framework controls; each finding carries `frameworks`; the finding detail lists them | Control identifiers are from memory, unreviewed. No per-framework page (A2). |
+| A4 | Finding `agent_role_unused_90_days` | AWS only. Reads `iam:GetRole` for at most 200 agent roles per sync. |
+| A5 (part) | Finding `agent_role_administrator_access` | Only "allow everything on everything" in a managed policy. Not used-against-granted. |
+| A7 (part) | Finding `agent_guardrail_missing` | Bedrock agents only. |
+| C1 | CloudTrail `LookupEvents` for the four Bedrock runtime calls, seven days, at most 200 events per call name and region; roles become `aws_inferred_agent` with resource type `iam_role` | Whether these calls appear as management events in every account is unverified. Identity Center and service-linked roles are skipped. A busy account is sampled. |
+| C2 | Resolver query logs joined to flow logs through Logs Insights; an instance that resolved a catalog name and connected to the answered address becomes `aws_inferred_agent` with resource type `ec2_instance` | CloudWatch Logs destinations only. Instances only: a pod on EKS shows as its node, Lambda and Fargate are not attributed. First 100 sources and 300 destinations per region. The Insights field names (`srcids.instance`, `answers.N.Rdata`, `srcAddr`) are from memory. |
+| G1 | CycloneDX 1.6 download per agent | Built from signals; no versions. |
+
+How the checks reach the Findings page: the AWS collector emits them on the posture page as discovery findings on the agent entity (the channel Prowler findings use), so there was no schema change. Their stored title is generic ("Discovered AWS control ..."); the web application shows the proper title and guidance by rule.
+
+What the next pass should start with: B1, because the connector breadth and the MCP inventory both wait on it, and it is the one item that needs the baseline rebuilt.
+
 ## Risks
 
 - **Breadth claims are easy to make and hard to verify.** Every connector in B5 and C3 is written against documentation and a fake. Mark each unverified until it has run against a real tenant, and say so in the catalog.
