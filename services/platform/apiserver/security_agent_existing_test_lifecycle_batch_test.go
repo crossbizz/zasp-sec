@@ -60,9 +60,9 @@ func TestExistingTestLifecycleBatchCatalog(t *testing.T) {
 			}
 			want := []string{}
 			if operation == "listSecurityActions" {
-				want = []string{"create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"}
+				want = []string{"attach_bedrock_guardrail", "create_temporary_policy", "detach_role_administrator_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"}
 				if available {
-					want = []string{"create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"}
+					want = []string{"attach_bedrock_guardrail", "create_temporary_policy", "detach_role_administrator_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"}
 				}
 			} else if available {
 				want = []string{"run_test", "rerun_test"}

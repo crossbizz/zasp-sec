@@ -816,7 +816,12 @@ func (handler *securityAgentPublicHTTPHandler) run(writer http.ResponseWriter, r
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	ids, valid := handler.newDistinctIDs(4, correlationIDFromContext(request.Context()))
+	// A remediation also names the approval its admission creates.
+	idCount := 3
+	if input.Remediation != nil {
+		idCount = 4
+	}
+	ids, valid := handler.newDistinctIDs(idCount, correlationIDFromContext(request.Context()))
 	if !valid {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return

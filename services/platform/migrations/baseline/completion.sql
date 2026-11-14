@@ -4070,7 +4070,8 @@ LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $provider_remediatio
     AND parameters_value->>'guardrail_version' ~ '^([1-9][0-9]{0,7}|DRAFT)$'
    WHEN 'detach_role_administrator_policy' THEN
     (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(parameters_value) key)=ARRAY['policy_arn']
-    AND parameters_value->>'policy_arn' ~ '^arn:aws(-us-gov|-cn)?:iam::(aws|[0-9]{12}):policy/[A-Za-z0-9+=,.@_/-]{1,512}$'
+    AND parameters_value->>'policy_arn' ~ '^arn:aws(-us-gov|-cn)?:iam::(aws|[0-9]{12}):policy/[A-Za-z0-9+=,.@_/-]+$'
+    AND length(split_part(parameters_value->>'policy_arn',':policy/',2)) BETWEEN 1 AND 512
     AND split_part(parameters_value->>'policy_arn',':',5) IN('aws',account_value)
    ELSE false END,false)
 $provider_remediation_parameters_valid$;
