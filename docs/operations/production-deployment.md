@@ -44,7 +44,7 @@ Use `baseline` for every new installation. It is the only form that works on man
 The job is the `pre-install,pre-upgrade` hook `agentsec-schema-v<schema.expectedVersion>`. It runs these commands in order and stops at the first failure:
 
 1. `agentsec-migrate verify-baseline`. It succeeds only when the database holds this release's baseline, sealed and unchanged.
-2. Only if step 1 failed: `agentsec-migrate install-baseline`, then `verify-baseline` again. On an empty database this installs the schema in one transaction. On a database that holds anything else, including a baseline installed from a different release artifact, `install-baseline` refuses and the job fails without changing the database. The chart has no in-place upgrade between baseline artifacts.
+2. Only if step 1 failed: `agentsec-migrate install-baseline`, then `verify-baseline` again. On an empty database this installs the schema in one transaction. On a database that holds anything else, including a baseline installed from a different release artifact, `install-baseline` refuses and the job fails without changing the database. The chart has no in-place upgrade between baseline artifacts: [replace the database](baseline-schema-install.md#reinstalling-over-an-earlier-artifact) first, which discards its data.
 3. `register-authorization-verifier`, `register-worker-authorization-verifier`, `register-compensation-authorization-verifier` and `register-approval-maintenance-verifier`. They run on every install and upgrade.
 4. Only when `schema.registerIdentityVerifiers` is `true`: `register-identity-session-verifier` and `register-identity-webhook-verifier`.
 
@@ -52,7 +52,7 @@ The job does not run `register-temporal-executor-principals` or any `up-` comman
 
 #### Before the first install
 
-1. Create the `zasp_operator` role and the empty database as [the installer requires](baseline-schema-install.md#requirements). Store the operator DSN as the Secrets Manager object named by `secrets.migrationPostgresDSNObjectName`. The DSN's user must be `zasp_operator`; the chart refuses any other `databasePrincipals.migration`.
+1. Create the `zasp_operator` role and the empty database as [the installer requires](baseline-schema-install.md#requirements). On managed PostgreSQL the administrative role is not a superuser and needs the `GRANT` shown there before `CREATE DATABASE`. Store the operator DSN as the Secrets Manager object named by `secrets.migrationPostgresDSNObjectName`. The DSN's user must be `zasp_operator`; the chart refuses any other `databasePrincipals.migration`.
 2. Create these Kubernetes Secrets in the release namespace. The job is a pre-install hook, so they must exist before `helm upgrade --install`:
 
    | Secret | Key | Content |
@@ -89,9 +89,9 @@ The first `helm upgrade --install` runs the schema job before any workload start
 
 The chart does not run `zasp-bootstrap` and does not set login passwords.
 
-Alternatively, install the schema yourself before the first Helm install, as [the installer guide](baseline-schema-install.md#install) describes, then do steps 4 to 6 and install the chart once with `schema.registerIdentityVerifiers: true`. The job then finds the baseline installed, verifies it and runs the registrations. The production Neon project was installed outside the chart in this way.
+Alternatively, install the schema yourself before the first Helm install, as [the installer guide](baseline-schema-install.md#install) describes, then do steps 4 to 6 and install the chart once with `schema.registerIdentityVerifiers: true`. The job then finds the baseline installed, verifies it and runs the registrations. The production Neon project was installed outside the chart in this way. To run the registrations yourself as well, see [Registering the verification keys by hand](baseline-schema-install.md#registering-the-verification-keys-by-hand).
 
-Neither sequence has been run end to end against a cluster.
+Neither sequence has been run end to end against a cluster. On 2026-11-14 the second sequence was run by hand, without the chart, against a Neon development branch over the WebSocket transport: a new database, `install-baseline`, the 31 passwords, the four registrations, `zasp-bootstrap`, and the two identity registrations. The API and the scheduler, outbox and discovery workers of the [local stack](../../deploy/local/real-stack/README.md) then reported ready against it.
 
 #### Settings the chart supplies on the baseline
 
