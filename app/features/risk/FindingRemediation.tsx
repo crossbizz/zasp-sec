@@ -61,7 +61,6 @@ export function FindingRemediation({ finding, api, disabled, onNavigate }: { fin
   useEffect(() => {
     if (!action) return;
     const controller = new AbortController();
-    setAgents("loading");
     api.listRemediationAgents(action, controller.signal).then((value) => {
       if (controller.signal.aborted) return;
       setAgents(value);

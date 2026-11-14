@@ -91,8 +91,8 @@ export async function runSecurityAgentExportMountedBrowser({ sql, author, login,
   await login("author", author, "/protect/security-agents"); await waitForBrowserScope(cdp,scope);
   await waitForBrowserText(cdp,/Tenant-scoped response definitions/);
   const controls = await read("/api/v1/security-agent-execution-controls");
-  assert.deepEqual(controls.actions.map(value=>value.action_key),["create_evidence_export","create_temporary_policy","isolate_session","rerun_test","revoke_integration_connection","run_test","start_attack_lab","update_finding_response"]);
-  assert.equal(controls.actions[0].enabled,false); assert.equal(controls.actions[0].version,0);
+  assert.deepEqual(controls.actions.map(value=>value.action_key),["attach_bedrock_guardrail","create_evidence_export","create_temporary_policy","detach_role_administrator_policy","isolate_session","rerun_test","revoke_integration_connection","run_test","start_attack_lab","update_finding_response"]);
+  assert.equal(controls.actions[1].enabled,false); assert.equal(controls.actions[1].version,0);
   await clickBrowserText(cdp,"Create Security Agent");
   await selectBrowserOption(cdp,"Definition template","Run-scoped evidence export");
   await fillBrowserLabel(cdp,"Definition name","Browser run-scoped export");
