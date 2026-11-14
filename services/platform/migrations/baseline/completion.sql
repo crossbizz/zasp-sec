@@ -4145,3 +4145,61 @@ BEGIN
   EXECUTE replace(d,target.anchor,target.patched);
  END LOOP;
 END $ai_framework_compliance$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-A6. Agent activity on the inventory summary.
+--
+-- Nothing said whether a discovered agent is still in use. The summary of an
+-- agent (the lists, the detail and the agent update all read the summary
+-- zasp_inventory_detail builds; the historical page builds the same summary)
+-- gains two members, from what is recorded without anything installed:
+--   last_activity_at  the latest time activity of the agent is known, or
+--                     null: the newest runtime event attributed to the agent
+--                     (zasp_runtime_session_events), or, when the agent's
+--                     winning observation carries an invoke: or egress:
+--                     signal (the provider's own logs showed it calling a
+--                     model or an AI endpoint inside the collector's
+--                     lookback window, seven days for CloudTrail), the time
+--                     of that observation
+--   activity_state    active when last_activity_at is within 30 days;
+--                     inactive when it is older, or when there is none and
+--                     the agent has an open agent_role_unused_90_days
+--                     finding (AWS reports its execution role unused for 90
+--                     days); unknown when there is no activity source at
+--                     all, which is not the same as inactive; not_applicable
+--                     for every other kind
+-- The index serves the newest event of one agent.
+CREATE INDEX IF NOT EXISTS zasp_runtime_session_events_agent_activity_idx ON public.zasp_runtime_session_events(organization_id,workspace_id,environment_id,agent_id,event_time DESC) WHERE agent_id IS NOT NULL;
+
+DO $inventory_agent_activity$
+DECLARE target record;d text;
+BEGIN
+ CREATE OR REPLACE FUNCTION public.zasp_inventory_agent_activity(organization_value text,workspace_value text,environment_value text,id_value text,kind_value text,attributes_value jsonb,observed_value timestamptz) RETURNS jsonb
+ LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $agent_activity$
+  SELECT CASE WHEN kind_value<>'agent' THEN jsonb_build_object('last_activity_at',NULL,'activity_state','not_applicable')
+  ELSE (SELECT jsonb_build_object(
+    'last_activity_at',rtrim(rtrim(to_char(seen.last_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US'),'0'),'.')||'Z',
+    'activity_state',CASE WHEN seen.last_value>=statement_timestamp()-interval '30 days' THEN 'active'
+     WHEN seen.last_value IS NOT NULL THEN 'inactive'
+     WHEN EXISTS(SELECT 1 FROM public.zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.agent_id,finding.rule)=(organization_value,workspace_value,environment_value,id_value,'agent_role_unused_90_days') AND finding.status IN('open','under_review')) THEN 'inactive'
+     ELSE 'unknown' END)
+   FROM (SELECT GREATEST(
+    (SELECT max(event.event_time) FROM public.zasp_runtime_session_events event WHERE (event.organization_id,event.workspace_id,event.environment_id,event.agent_id)=(organization_value,workspace_value,environment_value,id_value)),
+    CASE WHEN jsonb_typeof(attributes_value->'discovery'->'signals')='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(attributes_value->'discovery'->'signals') signal WHERE signal LIKE 'invoke:%' OR signal LIKE 'egress:%') THEN observed_value END) last_value) seen) END
+ $agent_activity$;
+ ALTER FUNCTION public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz) FROM PUBLIC;
+ -- Re-run: a function that already calls the helper is left alone; any other
+ -- shape than the one section X5 leaves is refused.
+ FOR target IN SELECT * FROM (VALUES
+  ('public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure,$a$result_value:=jsonb_build_object('summary',summary_value,$a$,
+   $b$summary_value:=summary_value||public.zasp_inventory_agent_activity(organization_value,workspace_value,environment_value,entity_record.id,entity_record.product_kind,entity_record.winning_attributes,entity_record.observed_at);result_value:=jsonb_build_object('summary',summary_value,$b$,'inventory detail activity predecessor changed'),
+  ('public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure,$a$ ORDER BY id)$a$,
+   $b$||public.zasp_inventory_agent_activity(organization_value,workspace_value,environment_value,visible.id,visible.product_kind,visible.winning_attributes,visible.observed_at) ORDER BY id)$b$,'inventory page activity predecessor changed')
+ ) listed(signature,anchor,patched,refusal) LOOP
+  d:=pg_get_functiondef(target.signature);
+  IF position('zasp_inventory_agent_activity(' in d)>0 THEN CONTINUE;END IF;
+  IF position('management_state' in d)=0 OR length(d)-length(replace(d,target.anchor,''))<>length(target.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=target.refusal;END IF;
+  EXECUTE replace(d,target.anchor,target.patched);
+ END LOOP;
+END $inventory_agent_activity$;

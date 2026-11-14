@@ -35,7 +35,7 @@ const summary = {
   provider: "kubernetes",
   source_kind: "kubernetes_agent",
   discovery: { method: "declared", platform: "kubernetes_agent", signals: [] },
-  management_state: "managed",
+  management_state: "managed", last_activity_at: null, activity_state: "unknown",
 } as const;
 
 const pageInfo = { next_cursor: null, has_more: false } as const;
@@ -89,22 +89,22 @@ describe("typed inventory decoders", () => {
 
   it("binds how an object was found to its kind and owner", () => {
     const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
-    const found = { ...summary, owner: "", team: "", provider: "aws", source_kind: "aws_bedrock_agent", discovery: { method: "provider_api", platform: "bedrock_agent", signals: [] }, management_state: "unmanaged" } as const;
+    const found = { ...summary, owner: "", team: "", provider: "aws", source_kind: "aws_bedrock_agent", discovery: { method: "provider_api", platform: "bedrock_agent", signals: [] }, management_state: "unmanaged", last_activity_at: null, activity_state: "unknown" } as const;
     const inferred = { ...found, provider: "okta", source_kind: "okta_ai_application", discovery: { method: "inferred", platform: "saas_assistant", signals: ["app:chatgpt"] } } as const;
-    const identity = { ...summary, kind: "identity", provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "not_applicable" } as const;
-    for (const accepted of [found, inferred, { ...found, owner: "security", management_state: "managed" }, identity]) expect(page(accepted).items).toHaveLength(1);
+    const identity = { ...summary, kind: "identity", provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "not_applicable", last_activity_at: null, activity_state: "not_applicable" } as const;
+    for (const accepted of [found, inferred, { ...found, owner: "security", management_state: "managed", last_activity_at: null, activity_state: "unknown" }, identity]) expect(page(accepted).items).toHaveLength(1);
     for (const refused of [
-      { ...found, management_state: "managed" },
+      { ...found, management_state: "managed", last_activity_at: null, activity_state: "unknown" },
       { ...found, owner: "security" },
-      { ...found, management_state: "not_applicable" },
-      { ...summary, management_state: "unmanaged" },
+      { ...found, management_state: "not_applicable", last_activity_at: null, activity_state: "not_applicable" },
+      { ...summary, management_state: "unmanaged", last_activity_at: null, activity_state: "unknown" },
       { ...inferred, discovery: { ...inferred.discovery, signals: [] } },
       { ...inferred, discovery: { ...inferred.discovery, signals: ["env:OPENAI_API_KEY=sk-live"] } },
       { ...inferred, discovery: { ...inferred.discovery, signals: ["package:langgraph", "env:openai"] } },
       { ...inferred, discovery: { ...inferred.discovery, value: "x" } },
       { ...found, provider: "azure" },
       { ...found, discovery: { ...found.discovery, method: "guessed" } },
-      { ...identity, management_state: "unmanaged" },
+      { ...identity, management_state: "unmanaged", last_activity_at: null, activity_state: "unknown" },
       { ...identity, discovery: { method: "inferred", platform: "aws_role", signals: ["env:openai"] } },
       (({ discovery: _discovery, ...rest }) => rest)(found),
     ]) expect(() => page(refused)).toThrow();
@@ -112,38 +112,38 @@ describe("typed inventory decoders", () => {
 
   it("calls an agent dismissed exactly when it was found without a declaration and carries the reserved tag", () => {
     const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
-    const found = { ...summary, owner: "", team: "", tags: [], provider: "aws", source_kind: "aws_bedrock_agent", discovery: { method: "provider_api", platform: "bedrock_agent", signals: [] }, management_state: "unmanaged" } as const;
+    const found = { ...summary, owner: "", team: "", tags: [], provider: "aws", source_kind: "aws_bedrock_agent", discovery: { method: "provider_api", platform: "bedrock_agent", signals: [] }, management_state: "unmanaged", last_activity_at: null, activity_state: "unknown" } as const;
     const inferred = { ...found, provider: "okta", source_kind: "okta_ai_application", discovery: { method: "inferred", platform: "saas_assistant", signals: ["app:chatgpt"] } } as const;
     const tags = ["critical", "not-an-agent"];
     for (const accepted of [
-      { ...found, tags, management_state: "dismissed" },
-      { ...found, owner: "security", team: "platform", tags, management_state: "dismissed" },
-      { ...inferred, tags, management_state: "dismissed" },
+      { ...found, tags, management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
+      { ...found, owner: "security", team: "platform", tags, management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
+      { ...inferred, tags, management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
       // The owner of a declared agent labelled it: the tag means nothing there.
-      { ...summary, tags, management_state: "managed" },
+      { ...summary, tags, management_state: "managed", last_activity_at: null, activity_state: "unknown" },
     ]) expect(page(accepted).items).toHaveLength(1);
     for (const refused of [
       { ...found, tags },
-      { ...found, owner: "security", team: "platform", tags, management_state: "managed" },
+      { ...found, owner: "security", team: "platform", tags, management_state: "managed", last_activity_at: null, activity_state: "unknown" },
       { ...inferred, tags },
-      { ...found, management_state: "dismissed" },
-      { ...found, owner: "security", management_state: "dismissed" },
-      { ...found, tags: ["not-an-agent-2"], management_state: "dismissed" },
-      { ...summary, tags, management_state: "dismissed" },
-      { ...summary, kind: "identity", tags, provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "dismissed" },
+      { ...found, management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
+      { ...found, owner: "security", management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
+      { ...found, tags: ["not-an-agent-2"], management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
+      { ...summary, tags, management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
+      { ...summary, kind: "identity", tags, provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "dismissed", last_activity_at: null, activity_state: "unknown" },
     ]) expect(() => page(refused)).toThrow();
   });
 
   it("accepts objects found by Microsoft and Salesforce and refuses an unknown provider", () => {
     const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
-    const unowned = { ...summary, owner: "", team: "", management_state: "unmanaged" } as const;
+    const unowned = { ...summary, owner: "", team: "", management_state: "unmanaged", last_activity_at: null, activity_state: "unknown" } as const;
     const accepted = [
       { ...unowned, provider: "microsoft", source_kind: "microsoft_agent_identity", discovery: { method: "provider_api", platform: "entra_agent_identity", signals: [] } },
       { ...unowned, provider: "microsoft", source_kind: "microsoft_copilot_agent", discovery: { method: "provider_api", platform: "copilot_studio", signals: [] } },
       { ...unowned, provider: "microsoft", source_kind: "microsoft_ai_application", confidence_basis_points: 7000, discovery: { method: "inferred", platform: "saas_assistant", signals: ["app:chatgpt"] } },
       { ...unowned, provider: "salesforce", source_kind: "salesforce_agent", discovery: { method: "provider_api", platform: "agentforce", signals: [] } },
-      { ...summary, kind: "asset", provider: "microsoft", source_kind: "microsoft_tenant", discovery: { method: "provider_api", platform: "microsoft_tenant", signals: [] }, management_state: "not_applicable" },
-      { ...summary, kind: "asset", provider: "salesforce", source_kind: "salesforce_org", discovery: { method: "provider_api", platform: "salesforce_org", signals: [] }, management_state: "not_applicable" },
+      { ...summary, kind: "asset", provider: "microsoft", source_kind: "microsoft_tenant", discovery: { method: "provider_api", platform: "microsoft_tenant", signals: [] }, management_state: "not_applicable", last_activity_at: null, activity_state: "not_applicable" },
+      { ...summary, kind: "asset", provider: "salesforce", source_kind: "salesforce_org", discovery: { method: "provider_api", platform: "salesforce_org", signals: [] }, management_state: "not_applicable", last_activity_at: null, activity_state: "not_applicable" },
     ];
     for (const item of accepted) expect(page(item).items[0]).toEqual(item);
     for (const provider of ["azure", "entra", "microsoft-entra", "Microsoft", "salesforce ", "servicenow", ""]) {
@@ -156,5 +156,38 @@ describe("typed inventory decoders", () => {
     expect(decodeInventoryDetail({ summary: agentforce, sources: [source], evidence }).sources[0]?.provider).toBe("salesforce");
     expect(decodeInventoryDetail({ summary: accepted[0], sources: [{ ...source, provider: "microsoft", source: "microsoft" }], evidence }).sources[0]?.provider).toBe("microsoft");
     expect(() => decodeInventoryDetail({ summary: agentforce, sources: [{ ...source, provider: "servicenow" }], evidence })).toThrow();
+  });
+});
+
+describe("inventory activity members", () => {
+  const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
+  const seen = "2026-11-01T10:00:00Z";
+  const identity = { ...summary, kind: "identity", provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "not_applicable", last_activity_at: null, activity_state: "not_applicable" } as const;
+
+  it("accepts every state an agent can report", () => {
+    for (const accepted of [
+      { ...summary, last_activity_at: null, activity_state: "unknown" },
+      { ...summary, last_activity_at: seen, activity_state: "active" },
+      { ...summary, last_activity_at: seen, activity_state: "inactive" },
+      // The provider reports the role unused: inactive without a time.
+      { ...summary, last_activity_at: null, activity_state: "inactive" },
+      identity,
+    ]) expect(page(accepted).items).toHaveLength(1);
+  });
+
+  it("refuses a state that contradicts the kind or the time", () => {
+    const { activity_state: _state, ...withoutState } = summary;
+    const { last_activity_at: _last, ...withoutTime } = summary;
+    for (const refused of [
+      { ...summary, last_activity_at: null, activity_state: "active" },
+      { ...summary, last_activity_at: seen, activity_state: "unknown" },
+      { ...summary, last_activity_at: null, activity_state: "not_applicable" },
+      { ...summary, last_activity_at: "yesterday", activity_state: "inactive" },
+      { ...summary, activity_state: "zombie" },
+      withoutState,
+      withoutTime,
+      { ...identity, activity_state: "inactive" },
+      { ...identity, last_activity_at: seen },
+    ]) expect(() => page(refused)).toThrow();
   });
 });

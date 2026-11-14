@@ -55,9 +55,9 @@ func inventorySummaryJSON(id, kind string) string {
 // provider's control plane lists and nobody owns yet, or a provider record.
 func inventoryDiscoveryJSON(kind string) string {
 	if kind == "agent" {
-		return `"provider":"aws","source_kind":"aws_bedrock_agent","discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]},"management_state":"unmanaged"`
+		return `"provider":"aws","source_kind":"aws_bedrock_agent","discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]},"management_state":"unmanaged","last_activity_at":null,"activity_state":"unknown"`
 	}
-	return `"provider":"aws","source_kind":"aws_role","discovery":{"method":"provider_api","platform":"aws_role","signals":[]},"management_state":"not_applicable"`
+	return `"provider":"aws","source_kind":"aws_role","discovery":{"method":"provider_api","platform":"aws_role","signals":[]},"management_state":"not_applicable","last_activity_at":null,"activity_state":"not_applicable"`
 }
 
 func TestInventoryRepositoryStrictPageAndDetailAuthority(t *testing.T) {
@@ -198,7 +198,9 @@ func TestInventorySummaryDiscoveryIsConsistentWithKindAndOwner(t *testing.T) {
 	}
 	// Dismissal: the reserved tag on an agent found without a declaration is
 	// "dismissed" and nothing else; on a declared agent it means nothing.
-	tagged := func(raw string) string { return replaceInventoryJSON(raw, `"tags":[]`, `"tags":["critical","not-an-agent"]`) }
+	tagged := func(raw string) string {
+		return replaceInventoryJSON(raw, `"tags":[]`, `"tags":["critical","not-an-agent"]`)
+	}
 	dismissed := func(raw, state string) string {
 		return replaceInventoryJSON(tagged(raw), `"management_state":"`+state+`"`, `"management_state":"dismissed"`)
 	}

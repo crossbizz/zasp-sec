@@ -111,9 +111,10 @@ export function decodeInventoryPage(value: unknown): InventoryPage {
 }
 
 export function decodeInventorySummary(value: unknown): InventorySummary {
-  const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version", "provider", "source_kind", "discovery", "management_state"];
+  const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version", "provider", "source_kind", "discovery", "management_state", "last_activity_at", "activity_state"];
   const record = exactRecord(value, required);
   decodeInventoryDiscovery(record);
+  decodeInventoryActivity(record);
   productID(record.id); boundedString(record.name, 1, 256); enumValue(record.kind, ["asset", "agent", "tool", "identity", "runtime"]);
   boundedString(record.owner, 0, 128); boundedString(record.team, 0, 128); stringArray(record.tags, 32, 64); productID(record.evidence_id); boundedInteger(record.confidence_basis_points, 1, 10000); positiveInteger(record.version);
   for (const key of ["first_seen", "last_seen", "observed_at", "fresh_until"] as const) dateTime(record[key]);
@@ -121,6 +122,16 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
   enumValue(record.freshness_state, ["fresh", "stale"]);
   const tags = record.tags as readonly string[]; for (let index = 1; index < tags.length; index += 1) if (tags[index] <= tags[index - 1]) fail();
   return value as InventorySummary;
+}
+
+// Whether an agent is still in use. Only an agent has an activity state:
+// active needs a time, unknown has none, inactive may have either (an old
+// time, or none when the provider reports the agent's role unused).
+function decodeInventoryActivity(record: Record<string, unknown>): void {
+  enumValue(record.activity_state, ["active", "inactive", "unknown", "not_applicable"]);
+  if (record.last_activity_at !== null) dateTime(record.last_activity_at);
+  if (record.kind !== "agent") { if (record.activity_state !== "not_applicable" || record.last_activity_at !== null) fail(); return; }
+  if (record.activity_state === "not_applicable" || record.activity_state === "active" && record.last_activity_at === null || record.activity_state === "unknown" && record.last_activity_at !== null) fail();
 }
 
 // How the object was found. Only an agent can be declared, inferred,

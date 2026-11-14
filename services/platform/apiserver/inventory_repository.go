@@ -64,6 +64,16 @@ type InventorySummary struct {
 	SourceKind      string             `json:"source_kind"`
 	Discovery       InventoryDiscovery `json:"discovery"`
 	ManagementState string             `json:"management_state"`
+	// Whether an agent is still in use, from what is recorded without
+	// anything installed. LastActivityAt is the latest known activity (the
+	// newest runtime event attributed to the agent, or the collection that
+	// last saw it call a model or an AI endpoint in the provider's logs), or
+	// nil. ActivityState is "active" when that is within 30 days, "inactive"
+	// when it is older or the provider reports the agent's role unused for 90
+	// days, "unknown" when there is no activity source (not the same as
+	// inactive), and "not_applicable" for every other kind.
+	LastActivityAt *string `json:"last_activity_at"`
+	ActivityState  string  `json:"activity_state"`
 }
 
 type InventoryDiscovery struct {
@@ -503,7 +513,7 @@ func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
 		}
 		prior = tag
 	}
-	if !validInventoryDiscovery(item, kind) {
+	if !validInventoryDiscovery(item, kind) || !validInventoryActivity(item, kind) {
 		return false
 	}
 	first, okFirst := parseInventoryTime(item.FirstSeen)
@@ -511,6 +521,28 @@ func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
 	observed, okObserved := parseInventoryTime(item.ObservedAt)
 	fresh, okFresh := parseInventoryTime(item.FreshUntil)
 	return okFirst && okLast && okObserved && okFresh && !last.Before(first) && fresh.After(observed)
+}
+
+// validInventoryActivity checks the activity members. Only an agent has an
+// activity state; "active" needs a time, "unknown" has none.
+func validInventoryActivity(item InventorySummary, kind InventoryKind) bool {
+	if item.LastActivityAt != nil {
+		if _, ok := parseInventoryTime(*item.LastActivityAt); !ok {
+			return false
+		}
+	}
+	if kind != InventoryKindAgent {
+		return item.ActivityState == "not_applicable" && item.LastActivityAt == nil
+	}
+	switch item.ActivityState {
+	case "active":
+		return item.LastActivityAt != nil
+	case "inactive":
+		return true
+	case "unknown":
+		return item.LastActivityAt == nil
+	}
+	return false
 }
 
 var (

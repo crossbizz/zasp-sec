@@ -485,6 +485,7 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	if total != 1002 || pages != 11 || len(seen) != 1002 {
 		t.Fatalf("pagination total=%d pages=%d unique=%d", total, pages, len(seen))
 	}
+	assertInventoryAgentActivity(t, ctx, connection, repository, scope, observed)
 	agentID := "pid_81000001-0000-4000-8000-000000000001"
 	auditID := "pid_82000001-0000-4000-8000-000000000001"
 	correlationID := "pid_82000002-0000-4000-8000-000000000002"
@@ -1132,6 +1133,15 @@ func applyInventoryDiscoverySummary(t *testing.T, ctx context.Context, connectio
 	t.Helper()
 	applyCompletionBlock(t, ctx, connection, "inventory_discovery_summary")
 	applyCompletionBlock(t, ctx, connection, "inventory_posture_dismissal")
+	// The activity members (section WS3-A6) extend the summary section X5
+	// leaves, so they are applied after it. They read the runtime events,
+	// which a later release than this chain creates: a table with the
+	// columns the section reads stands in for it. The baseline test
+	// (TestCompletionAgentActivityPostgres) runs the section on the real one.
+	if _, err := connection.Exec(ctx, `CREATE TABLE IF NOT EXISTS public.zasp_runtime_session_events(organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,event_id text NOT NULL,session_id text,agent_id text,confidence text NOT NULL,source text NOT NULL,event_class text NOT NULL,action text NOT NULL,title text NOT NULL,evidence_id text NOT NULL,event_time timestamptz NOT NULL);GRANT SELECT ON public.zasp_runtime_session_events TO zasp_discovery_authority`, pgx.QueryExecModeSimpleProtocol); err != nil {
+		t.Fatalf("runtime events stand-in: %v", err)
+	}
+	applyCompletionBlock(t, ctx, connection, "inventory_agent_activity")
 }
 
 // completionBlock returns the one DO block of completion.sql with this
@@ -1365,5 +1375,88 @@ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$11,$12,$13,$14,$15,$16::jsonb,
 	}
 	if freshness, err = temporal.GetIntegrationFreshness(ctx, scope, awsIntegration); err != nil || !reflect.DeepEqual(freshness.CoverageGaps, want[:2]) {
 		t.Fatalf("freshness after the role was fixed = %#v / %v", freshness, err)
+	}
+}
+
+// assertInventoryAgentActivity proves the activity members of the agent
+// summary (completion.sql section WS3-A6) on the list and the detail the
+// repository reads: an agent with a recent runtime event is active, one whose
+// newest event is older than 30 days is inactive, one the provider's logs
+// showed invoking a model is active as of that collection, one whose role
+// the provider reports unused is inactive without a time, and one with no
+// activity source is unknown, not inactive.
+func assertInventoryAgentActivity(t *testing.T, ctx context.Context, connection *pgx.Conn, repository *PostgresInventoryRepository, scope domain.Scope, observed time.Time) {
+	t.Helper()
+	agent := func(ordinal int) string { return fmt.Sprintf("pid_81%06x-0000-4000-8000-%012x", ordinal, ordinal) }
+	organizationID, workspaceID, environmentID := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
+	recent := time.Now().UTC().Truncate(time.Second).Add(-48 * time.Hour)
+	old := time.Now().UTC().Truncate(time.Second).Add(-45 * 24 * time.Hour)
+	event := func(ordinal int, agentID string, at time.Time) {
+		t.Helper()
+		id := func(prefix string) string {
+			return fmt.Sprintf("pid_%s%06x-0000-4000-8000-%012x", prefix, ordinal, ordinal)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$5,$6,'exact','otlp','tool','invoke','Tool call',$7,$8)`,
+			organizationID, workspaceID, environmentID, id("a1"), id("a2"), agentID, id("a3"), at); err != nil {
+			t.Fatalf("runtime event %d: %v", ordinal, err)
+		}
+	}
+	// Agent 3: an old and a recent event. Agent 4: only an old event.
+	event(1, agent(3), old)
+	event(2, agent(3), recent)
+	event(3, agent(4), old)
+	// Agent 5: the provider's logs showed it invoking a model at the last
+	// collection. Agent 6: its role is reported unused. Agent 7: a resolved
+	// finding of that rule is no evidence. Agent 8: nothing.
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes='{"discovery":{"method":"provider_api","platform":"bedrock_agent","signals":["invoke:bedrock_model"]}}'::jsonb WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, agent(5)); err != nil {
+		t.Fatal(err)
+	}
+	for ordinal, item := range []struct{ agent, status string }{{agent(6), "open"}, {agent(7), "resolved"}} {
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,agent_id) VALUES($1,$2,$3,$4,'posture','agent_role_unused_90_days','Unused role','medium',$5,$6)`,
+			organizationID, workspaceID, environmentID, fmt.Sprintf("pid_a4%06x-0000-4000-8000-%012x", ordinal+1, ordinal+1), item.status, item.agent); err != nil {
+			t.Fatalf("finding %d: %v", ordinal, err)
+		}
+	}
+	page, err := repository.ListInventoryPage(ctx, scope, InventoryKindAgent, "", 100)
+	if err != nil {
+		t.Fatalf("activity page: %v", err)
+	}
+	found := map[string]InventorySummary{}
+	for _, item := range page.Items {
+		found[item.ID] = item
+	}
+	stamp := func(at time.Time) string { return at.UTC().Format("2006-01-02T15:04:05Z") }
+	for ordinal, want := range map[int]struct{ state, last string }{
+		3: {"active", stamp(recent)}, 4: {"inactive", stamp(old)}, 5: {"active", stamp(observed)}, 6: {"inactive", ""}, 7: {"unknown", ""}, 8: {"unknown", ""},
+	} {
+		item, listed := found[agent(ordinal)]
+		last := ""
+		if item.LastActivityAt != nil {
+			last = *item.LastActivityAt
+		}
+		if !listed || item.ActivityState != want.state || last != want.last {
+			t.Fatalf("agent %d activity = %q / %q, want %q / %q", ordinal, item.ActivityState, last, want.state, want.last)
+		}
+	}
+	// The detail carries the same members; agent 5 was not declared, so the
+	// read must still be the one section X5 patched.
+	var detail []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_detail($1,$2,$3,$4,'agent')->'summary'`, organizationID, workspaceID, environmentID, agent(4)).Scan(&detail); err != nil {
+		t.Fatalf("activity detail: %v", err)
+	}
+	var summary InventorySummary
+	if decodeStrictInventory(detail, &summary) != nil || !validInventorySummary(summary, InventoryKindAgent) || summary.ActivityState != "inactive" || summary.LastActivityAt == nil || *summary.LastActivityAt != stamp(old) {
+		t.Fatalf("activity detail = %s", detail)
+	}
+	// Every other kind has no activity state.
+	var other []byte
+	if err := connection.QueryRow(ctx, `SELECT public.zasp_inventory_agent_activity($1,$2,$3,$4,'identity','{}'::jsonb,$5)`, organizationID, workspaceID, environmentID, agent(3), observed).Scan(&other); err != nil || string(other) != `{"activity_state": "not_applicable", "last_activity_at": null}` {
+		t.Fatalf("identity activity = %s / %v", other, err)
+	}
+	// Re-running the section changes nothing.
+	before := inventorySummaryDefinitions(t, ctx, connection)
+	applyCompletionBlock(t, ctx, connection, "inventory_agent_activity")
+	if after := inventorySummaryDefinitions(t, ctx, connection); after != before || strings.Count(after, "zasp_inventory_agent_activity(") != 2 {
+		t.Fatalf("re-running the activity section changed the summary functions, or they call the helper %d times", strings.Count(after, "zasp_inventory_agent_activity("))
 	}
 }

@@ -3578,6 +3578,11 @@ export type components = {
             /** @enum {string} */
             readonly signature_status: "signed" | "unconfirmed";
         };
+        /**
+         * @description For an agent, active when last_activity_at is within 30 days; inactive when it is older, or when there is none and the provider reports the agent's execution role unused for 90 days (an open agent_role_unused_90_days finding); unknown when there is no activity source at all, which is not the same as inactive. Every other kind is not_applicable.
+         * @enum {string}
+         */
+        readonly InventoryActivityState: "active" | "inactive" | "unknown" | "not_applicable";
         readonly InventoryDetail: {
             readonly evidence: readonly components["schemas"]["InventoryEvidenceReference"][];
             readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
@@ -3635,6 +3640,7 @@ export type components = {
             readonly winning: boolean;
         };
         readonly InventorySummary: {
+            readonly activity_state: components["schemas"]["InventoryActivityState"];
             readonly confidence_basis_points: number;
             readonly discovery: components["schemas"]["InventoryDiscovery"];
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -3645,6 +3651,11 @@ export type components = {
             readonly freshness_state: components["schemas"]["InventoryFreshnessState"];
             readonly id: components["schemas"]["ProductID"];
             readonly kind: components["schemas"]["InventoryKind"];
+            /**
+             * Format: date-time
+             * @description For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent, or the time of the collection that last saw it call a model or an AI endpoint in the provider's own logs (inside the collector's lookback window, seven days for CloudTrail). Null when there is none, and for every other kind.
+             */
+            readonly last_activity_at: string | null;
             /** Format: date-time */
             readonly last_seen: string;
             readonly management_state: components["schemas"]["InventoryManagementState"];
@@ -5447,6 +5458,7 @@ export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus
 export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncTriggerKind'];
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type IntegrationWebhookTestStatus = components['schemas']['IntegrationWebhookTestStatus'];
+export type InventoryActivityState = components['schemas']['InventoryActivityState'];
 export type InventoryDetail = components['schemas']['InventoryDetail'];
 export type InventoryDiscovery = components['schemas']['InventoryDiscovery'];
 export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];

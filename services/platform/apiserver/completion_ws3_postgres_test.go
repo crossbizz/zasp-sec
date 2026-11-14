@@ -418,3 +418,97 @@ VALUES($1,$2,$3,$4,$5,decode(repeat('11',32),'hex'),'ws3-export',$6::jsonb,diges
 		t.Fatal("the export request still accepts only the product frameworks")
 	}
 }
+
+// The agent activity helper and the summary functions that call it, on the
+// baseline catalog and its real runtime events table (completion.sql section
+// inventory_agent_activity).
+func TestCompletionAgentActivityPostgres(t *testing.T) {
+	ctx, connection := startBaselineDatabase(t)
+	signatures := []string{"public.zasp_inventory_detail(text,text,text,text,text)", "public.zasp_inventory_page(text,text,text,text,text,integer)"}
+	applyCompletionBlock(t, ctx, connection, "inventory_agent_activity")
+	patched := map[string]string{}
+	for _, signature := range signatures {
+		patched[signature] = functionDefinition(t, ctx, connection, signature)
+		if strings.Count(patched[signature], "public.zasp_inventory_agent_activity(") != 1 || !strings.Contains(patched[signature], "'management_state'") {
+			t.Fatalf("%s does not add the activity members to the summary section X5 leaves", signature)
+		}
+	}
+	applyCompletionBlock(t, ctx, connection, "inventory_agent_activity")
+	for _, signature := range signatures {
+		if functionDefinition(t, ctx, connection, signature) != patched[signature] {
+			t.Fatalf("re-running the section changed %s", signature)
+		}
+	}
+	// The index of the section is plain DDL outside the block.
+	if _, err := connection.Exec(ctx, `CREATE INDEX IF NOT EXISTS zasp_runtime_session_events_agent_activity_idx ON public.zasp_runtime_session_events(organization_id,workspace_id,environment_id,agent_id,event_time DESC) WHERE agent_id IS NOT NULL`); err != nil {
+		t.Fatal(err)
+	}
+	activity := func(agent, kind, attributes string, observed time.Time) (string, string) {
+		t.Helper()
+		var state string
+		var last *string
+		if err := connection.QueryRow(ctx, `SELECT a->>'activity_state',a->>'last_activity_at' FROM public.zasp_inventory_agent_activity($1,$2,$3,$4,$5,$6::jsonb,$7) a`, ws3Organization, ws3Workspace, ws3Environment, agent, kind, attributes, observed).Scan(&state, &last); err != nil {
+			t.Fatalf("activity of %s: %v", agent, err)
+		}
+		if last == nil {
+			return state, ""
+		}
+		return state, *last
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	stamp := func(at time.Time) string { return at.Format("2006-01-02T15:04:05Z") }
+	event := func(ordinal int, agent string, at time.Time, scope ...string) {
+		t.Helper()
+		environment := ws3Environment
+		if len(scope) == 1 {
+			environment = scope[0]
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO public.zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$5,$6,'exact','otlp','tool','invoke','Tool call',$7,$8)`,
+			ws3Organization, ws3Workspace, environment, ws3ID("7a", ordinal), ws3ID("7b", ordinal), agent, ws3ID("7c", ordinal), at); err != nil {
+			t.Fatalf("runtime event %d: %v", ordinal, err)
+		}
+	}
+	plain := `{"discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]}}`
+	invoked := `{"discovery":{"method":"provider_api","platform":"bedrock_agent","signals":["iam:bedrock_invoke_model","invoke:bedrock_model"]}}`
+	egress := `{"discovery":{"method":"inferred","platform":"kubernetes_workload","signals":["egress:openai","image:langgraph"]}}`
+	static := `{"discovery":{"method":"inferred","platform":"kubernetes_workload","signals":["env:openai","image:langgraph"]}}`
+	recentAgent, oldAgent, otherAgent, unusedAgent, resolvedAgent, quietAgent := ws3ID("7d", 1), ws3ID("7d", 2), ws3ID("7d", 3), ws3ID("7d", 4), ws3ID("7d", 5), ws3ID("7d", 6)
+	recent, old := now.Add(-29*24*time.Hour), now.Add(-31*24*time.Hour)
+	event(1, recentAgent, old)
+	event(2, recentAgent, recent)
+	event(3, oldAgent, old)
+	// An event of the same agent identifier in another Environment is not
+	// this agent's activity.
+	event(4, otherAgent, recent, ws3ID("7e", 1))
+	ws3Finding(t, ctx, connection, 101, "posture", "agent_role_unused_90_days", unusedAgent)
+	resolved := ws3Finding(t, ctx, connection, 102, "posture", "agent_role_unused_90_days", resolvedAgent)
+	if _, err := connection.Exec(ctx, `UPDATE public.zasp_risk_findings SET status='resolved' WHERE id=$1`, resolved); err != nil {
+		t.Fatal(err)
+	}
+	ws3Finding(t, ctx, connection, 103, "posture", "ownerless_agent", quietAgent)
+	collected := now.Add(-time.Hour)
+	stale := now.Add(-40 * 24 * time.Hour)
+	for name, item := range map[string]struct {
+		agent, kind, attributes string
+		observed                time.Time
+		state, last             string
+	}{
+		"a runtime event 29 days ago":                 {recentAgent, "agent", plain, collected, "active", stamp(recent)},
+		"the newest runtime event 31 days ago":        {oldAgent, "agent", plain, collected, "inactive", stamp(old)},
+		"an event in another Environment":             {otherAgent, "agent", plain, collected, "unknown", ""},
+		"the provider's logs showed an invocation":    {quietAgent, "agent", invoked, collected, "active", stamp(collected)},
+		"network logs showed egress to an AI API":     {quietAgent, "agent", egress, collected, "active", stamp(collected)},
+		"an invocation seen by a collection long ago": {quietAgent, "agent", invoked, stale, "inactive", stamp(stale)},
+		"a newer runtime event than the collection":   {recentAgent, "agent", invoked, stale, "active", stamp(recent)},
+		"static signals are not activity":             {quietAgent, "agent", static, collected, "unknown", ""},
+		"the role is reported unused for 90 days":     {unusedAgent, "agent", plain, collected, "inactive", ""},
+		"a resolved unused-role finding":              {resolvedAgent, "agent", plain, collected, "unknown", ""},
+		"no activity source":                          {quietAgent, "agent", plain, collected, "unknown", ""},
+		"a declared agent without attributes":         {quietAgent, "agent", `{}`, collected, "unknown", ""},
+		"an identity":                                 {recentAgent, "identity", plain, collected, "not_applicable", ""},
+	} {
+		if state, last := activity(item.agent, item.kind, item.attributes, item.observed); state != item.state || last != item.last {
+			t.Errorf("%s: activity = %q / %q, want %q / %q", name, state, last, item.state, item.last)
+		}
+	}
+}

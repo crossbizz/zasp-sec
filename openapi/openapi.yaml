@@ -6444,7 +6444,7 @@ components:
     InventorySummary:
       type: object
       additionalProperties: false
-      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version, provider, source_kind, discovery, management_state]
+      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version, provider, source_kind, discovery, management_state, last_activity_at, activity_state]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
@@ -6453,6 +6453,11 @@ components:
         source_kind: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
         discovery: { $ref: '#/components/schemas/InventoryDiscovery' }
         management_state: { $ref: '#/components/schemas/InventoryManagementState' }
+        last_activity_at:
+          type: [string, 'null']
+          format: date-time
+          description: For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent, or the time of the collection that last saw it call a model or an AI endpoint in the provider's own logs (inside the collector's lookback window, seven days for CloudTrail). Null when there is none, and for every other kind.
+        activity_state: { $ref: '#/components/schemas/InventoryActivityState' }
         owner: { type: string, maxLength: 128 }
         team: { type: string, maxLength: 128 }
         tags:
@@ -6488,6 +6493,10 @@ components:
       type: string
       description: For an agent, dismissed when it was found without a declaration and a person marked it as not an agent (the reserved tag not-an-agent, set through the ownership update; the tag is ignored on a declared agent, which stays managed). Otherwise unmanaged while it was found without a declaration and has no owner, and managed in every other case. Not applicable to other kinds.
       enum: [managed, unmanaged, dismissed, not_applicable]
+    InventoryActivityState:
+      type: string
+      description: For an agent, active when last_activity_at is within 30 days; inactive when it is older, or when there is none and the provider reports the agent's execution role unused for 90 days (an open agent_role_unused_90_days finding); unknown when there is no activity source at all, which is not the same as inactive. Every other kind is not_applicable.
+      enum: [active, inactive, unknown, not_applicable]
     InventoryRecord:
       $ref: '#/components/schemas/InventorySummary'
     InventorySourceObservation:
