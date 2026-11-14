@@ -842,7 +842,7 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
       type: "array",
-      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }],
+      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }, { minItems: 10, maxItems: 10 }],
       items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
     });
     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "attach_bedrock_guardrail", "create_evidence_export", "create_temporary_policy", "detach_role_administrator_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"]);

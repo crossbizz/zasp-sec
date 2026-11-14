@@ -82,29 +82,6 @@ type guardrailHTTPHandler struct {
 	newProductID func() (string, error)
 }
 
-// guardrailSurface serves the guardrail operations and passes every other
-// operation to the surface it wraps.
-type guardrailSurface struct {
-	next      http.Handler
-	guardrail *guardrailHTTPHandler
-}
-
-func newGuardrailSurface(next http.Handler, database JSONDatabase, newProductID func() (string, error)) (http.Handler, error) {
-	if nilInterface(next) || nilInterface(database) || newProductID == nil {
-		return nil, ErrRepositoryConfiguration
-	}
-	return &guardrailSurface{next: next, guardrail: &guardrailHTTPHandler{database: database, newProductID: newProductID}}, nil
-}
-
-func (surface *guardrailSurface) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	routed, ok := RoutedOperationFromRequest(request)
-	if ok && stringIn(routed.OperationID, "createGuardrailDecision", "getGuardrailPolicy", "putGuardrailPolicy") {
-		surface.guardrail.ServeHTTP(writer, request, routed.OperationID)
-		return
-	}
-	surface.next.ServeHTTP(writer, request)
-}
-
 func (handler *guardrailHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request, operation string) {
 	writer.Header().Set("Cache-Control", "no-store")
 	identity, ok := IdentityFromRequest(request)

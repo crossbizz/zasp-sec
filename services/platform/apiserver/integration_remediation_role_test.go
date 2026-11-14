@@ -40,7 +40,7 @@ func TestIntegrationRemediationRoleRoutes(t *testing.T) {
 		t.Fatalf("get: status=%d body=%s statements=%v", response.Code, response.Body.String(), tx.statements)
 	}
 	headers := map[string]string{"Idempotency-Key": "remediation-role-0001", "If-Match": `"0"`}
-	written := strings.TrimSuffix(configured, "}") + `,"audit_id":"` + audit + `","correlation_id":"pid_00000000-0000-4000-8000-000000000000"}`
+	written := strings.TrimSuffix(configured, "}") + `,"audit_id":"` + audit + `","correlation_id":"` + fallbackCorrelationID + `"}`
 	response, tx = serve("putIntegrationRemediationRole", http.MethodPut, `{"role_arn":"`+role+`"}`, written, headers)
 	var value IntegrationRemediationRole
 	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"1"` || response.Header().Get("X-Audit-ID") != audit || json.Unmarshal(response.Body.Bytes(), &value) != nil || !value.Configured || *value.RoleARN != role || strings.Contains(response.Body.String(), "audit_id") {
@@ -78,7 +78,7 @@ func TestIntegrationRemediationRoleRoutes(t *testing.T) {
 	if handled, allowed := integrationRemediationRoleStatementAllowed(grant, currentIntegrationRemediationRoleSQL, append(append([]any(nil), scope...), "pid_80000009-0000-4000-8000-000000000009")); !handled || allowed {
 		t.Fatalf("read of another integration: handled=%t allowed=%t", handled, allowed)
 	}
-	if handled, allowed := integrationRemediationRoleStatementAllowed(grant, currentIntegrationSetRemediationRoleSQL, append(append([]any(nil), scope...), f.identity.PrincipalID.String(), integration, role, int64(0), audit, "pid_00000000-0000-4000-8000-000000000000")); !handled || allowed {
+	if handled, allowed := integrationRemediationRoleStatementAllowed(grant, currentIntegrationSetRemediationRoleSQL, append(append([]any(nil), scope...), f.identity.PrincipalID.String(), integration, role, int64(0), audit, fallbackCorrelationID)); !handled || allowed {
 		t.Fatalf("a write under a read request: handled=%t allowed=%t", handled, allowed)
 	}
 }
