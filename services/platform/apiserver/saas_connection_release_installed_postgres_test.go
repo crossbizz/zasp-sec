@@ -129,7 +129,7 @@ func TestSaaSConnectionReleaseOnInstalledBaselinePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: connectors, Workflows: repository, Registry: oauthRegistry, Secrets: secrets, Owner: "installed-reconciler", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: connectors, Workflows: repository, Registry: oauthRegistry, Secrets: secrets, Owner: "installed-reconciler", LeaseSeconds: 30, Limit: 1, Interval: time.Second}) // One effect a pass: this test's database handle is a single connection.
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,13 +240,20 @@ func TestSaaSConnectionReleaseOnInstalledBaselinePostgres(t *testing.T) {
 		return baseline.text(`SELECT (deleted_at IS NOT NULL)::text FROM zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,kind,id)=($1,$2,$3,'integration',$4)`, scoped(integration)...) == "true"
 	}
 	// The reconciler finishes the revocation a deletion of an authorized
-	// integration leaves; its fifteen second wait is skipped by ageing the effect.
+	// integration leaves. It takes the oldest effect of a provider first and
+	// waits fifteen seconds before taking one, so the effect is aged here.
+	// Effects another tenant of this database left behind can hold the
+	// provider's lane for the length of a lease; the passes continue until
+	// that lease has ended.
 	revoke := func(integration string) {
 		t.Helper()
-		for pass := 0; pass < 20 && !deleted(integration); pass++ {
-			baseline.exec(`UPDATE zasp_connector_effects SET updated_at=clock_timestamp()-interval '20 seconds' WHERE (organization_id,workspace_id,environment_id,integration_id)=($1,$2,$3,$4) AND status='unknown' AND lease_owner IS NULL`, scoped(integration)...)
+		for deadline := time.Now().Add(75 * time.Second); time.Now().Before(deadline) && !deleted(integration); time.Sleep(250 * time.Millisecond) {
+			baseline.exec(`UPDATE zasp_connector_effects SET updated_at='2000-01-01T00:00:00Z' WHERE (organization_id,workspace_id,environment_id,integration_id)=($1,$2,$3,$4) AND status='unknown' AND lease_owner IS NULL`, scoped(integration)...)
+			// A pass also takes effects of other tenants of this database,
+			// whose providers this test does not serve; only this
+			// integration's outcome is judged.
 			if err := reconciler.reconcileOnce(ctx); err != nil {
-				t.Fatalf("reconciler: %v", err)
+				t.Logf("reconciler pass: %v", err)
 			}
 		}
 		if !deleted(integration) {

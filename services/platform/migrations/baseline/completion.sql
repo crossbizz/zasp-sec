@@ -7209,6 +7209,8 @@ BEGIN
   CONSTRAINT zasp_saas_connection_releases_lease_check CHECK((lease_owner IS NULL)=(lease_token IS NULL) AND (lease_owner IS NULL)=(lease_expires_at IS NULL) AND (status='pending' OR lease_owner IS NULL)),
   CONSTRAINT zasp_saas_connection_releases_error_check CHECK(last_error_code IS NULL OR last_error_code ~ '^[a-z][a-z0-9_]{1,63}$'));
  CREATE INDEX IF NOT EXISTS zasp_saas_connection_releases_due ON public.zasp_saas_connection_releases(available_at) WHERE status='pending';
+ -- The connections an integration's sign-ins created, for the trigger below.
+ CREATE INDEX IF NOT EXISTS zasp_saas_sign_in_attempts_completed ON public.zasp_saas_sign_in_attempts(organization_id,workspace_id,environment_id,integration_id) WHERE status='completed';
  EXECUTE format('ALTER TABLE public.zasp_saas_connection_releases OWNER TO %I',owner_value);
  ALTER TABLE public.zasp_saas_connection_releases ENABLE ROW LEVEL SECURITY;
  REVOKE ALL ON TABLE public.zasp_saas_connection_releases FROM PUBLIC;

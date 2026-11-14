@@ -3,8 +3,13 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 // Every connector authorization statement is admitted for its own operations,
@@ -168,6 +173,61 @@ func TestConnectorCheckedStatementRouting(t *testing.T) {
 		}
 		if !checked && statement != postgresConnectorActivatePKCECleanupSQL {
 			t.Fatalf("%s was routed to the connector statement", operation)
+		}
+	}
+}
+
+type connectorCleanupFailure struct {
+	*connectorAuthorizationStub
+	err error
+}
+
+func (stub connectorCleanupFailure) CompleteConnectorCleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, stub.err
+}
+
+// Recording the connection makes the integration active, which moves the
+// Organization's authorization revision: the request's proof then no longer
+// admits the bookkeeping statement that follows. The person is still returned
+// to the product, because the connection is recorded and the reconciler
+// completes the pending effect. Any other failure of that statement is still
+// an error.
+func TestConnectorCallbackReturnsTheBrowserWhenOnlyTheBookkeepingIsRefusedByAMovedRevision(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	for name, test := range map[string]struct {
+		err  error
+		code int
+	}{
+		"the revision moved":      {discoveryProviderError(ErrAuthorizationChanged), http.StatusSeeOther},
+		"the database is down":    {discoveryProviderError(ErrRepositoryUnavailable), http.StatusServiceUnavailable},
+		"another conflict":        {ErrRepositoryConflict, http.StatusConflict},
+		"the bookkeeping is done": {nil, http.StatusSeeOther},
+	} {
+		state := strings.Repeat("s", 43)
+		workflow := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
+		stub := &connectorAuthorizationStub{consumed: OAuthConsumption{
+			ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: time.Now().UTC().Add(5 * time.Minute), ConsumedAt: time.Now().UTC(),
+		}}
+		digest := connectorAuthorizationIntentDigest(identity, workflow, stub.consumed.IntegrationID, stub.consumed.ID, "github", map[string]string{}, stub.consumed.RequestedScopes)
+		stub.consumed.RequestDigest = jsonDigest(digest[:])
+		var repository ConnectorAuthorizationRepository = stub
+		if test.err != nil {
+			repository = connectorCleanupFailure{stub, test.err}
+		}
+		secrets := &connectorSecretStub{reference: stub.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43))}}
+		handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/oauth/callback?code=provider-code-0001&state="+state, nil)
+		request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+		request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+		request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "completeIntegrationOAuthCallback", PathParameters: map[string]string{}}))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != test.code || (test.code == http.StatusSeeOther) != (response.Header().Get("Location") == "/connectors") || stub.completed.AttemptID != stub.consumed.ID {
+			t.Fatalf("%s: status=%d location=%q completion=%+v body=%s", name, response.Code, response.Header().Get("Location"), stub.completed, response.Body.String())
 		}
 	}
 }

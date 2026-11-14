@@ -83,6 +83,25 @@ func (provider *installedOAuthProvider) Discard(context.Context, string, bool) e
 }
 func (*installedOAuthProvider) Revoke(context.Context, string) error { return nil }
 
+// installedManagedOAuthProvider stands for the Nango connector provider
+// (Slack): Nango starts the authorization and finishes the exchange, and the
+// product receives the reference of the connection Nango created.
+type installedManagedOAuthProvider struct {
+	installedOAuthProvider
+	started   ConnectorAuthorizationStart
+	completed ConnectorAuthorizationCompletion
+}
+
+func (provider *installedManagedOAuthProvider) StartAuthorization(_ context.Context, input ConnectorAuthorizationStart) (ConnectorAuthorizationTarget, error) {
+	provider.started = input
+	return ConnectorAuthorizationTarget{URL: "https://slack.com/oauth/v2/authorize?" + url.Values{"state": {input.ProposedState}}.Encode(), State: input.ProposedState, ExpiresAt: input.ExpiresAt}, nil
+}
+
+func (provider *installedManagedOAuthProvider) CompleteAuthorization(_ context.Context, input ConnectorAuthorizationCompletion) (ConnectorOAuthGrant, error) {
+	provider.completed = input
+	return ConnectorOAuthGrant{ConnectionReference: provider.reference, ProviderSubject: provider.subject, CredentialClass: provider.class, Metadata: json.RawMessage(provider.metadata)}, nil
+}
+
 type installedOAuthFactory struct{ provider *installedOAuthProvider }
 
 func (factory installedOAuthFactory) Provider(configuration map[string]string) (ConnectorOAuthProvider, error) {
@@ -146,7 +165,7 @@ func TestConnectorOAuthOnInstalledBaselinePostgres(t *testing.T) {
 	}
 	github := &installedOAuthProvider{host: "github.com", class: "github_installation_reference", reference: "ref:github/installation-0001", subject: "installation:123", metadata: `{"account_login":"acme","installation_id":123}`}
 	okta := &installedOAuthProvider{host: "acme.okta.com", class: "okta_refresh_reference", reference: "ref:okta/refresh-0001", subject: "00u1abcdefghijklmnop", metadata: `{"tenant":"acme.okta.com"}`}
-	slack := &connectorLongTailProviderStub{}
+	slack := &installedManagedOAuthProvider{installedOAuthProvider: installedOAuthProvider{host: "slack.com", class: "nango_connection_reference", reference: "ref:nango/connection/11111111-1111-4111-8111-111111111111", subject: "user_0123456789abcdef", metadata: `{"connector_key":"slack"}`}}
 	secrets := &installedOAuthSecrets{material: map[string]OAuthSecretMaterial{}}
 	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: connectors, Workflows: repository, Secrets: secrets, Clock: func() time.Time { return time.Now().UTC() }, Providers: map[string]ConnectorOAuthProviderDefinition{
 		"github": {Provider: github, RequestedScopes: []string{"actions:read", "contents:read", "metadata:read"}, CredentialClass: "github_installation_reference"},
@@ -230,18 +249,23 @@ func TestConnectorOAuthOnInstalledBaselinePostgres(t *testing.T) {
 	}
 
 	// reconcile runs the API server's connector reconciler until the effects
-	// of an attempt are settled. The reconciler waits fifteen seconds before
-	// it takes an effect; the wait is skipped here by ageing the effect.
-	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: connectors, Workflows: repository, Registry: handler.(*connectorHTTPHandler).registry, Secrets: secrets, Owner: "installed-reconciler", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	// of an attempt are settled. The reconciler takes the oldest effect of a
+	// provider first and waits fifteen seconds before taking one, so the
+	// effect is aged here. Effects another tenant of this database left
+	// behind can hold the provider's lane for the length of a lease; the
+	// passes continue until that lease has ended.
+	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: connectors, Workflows: repository, Registry: handler.(*connectorHTTPHandler).registry, Secrets: secrets, Owner: "installed-reconciler", LeaseSeconds: 30, Limit: 1, Interval: time.Second}) // One effect a pass: this test's database handle is a single connection.
 	if err != nil {
 		t.Fatal(err)
 	}
 	reconcile := func(attempt string) {
 		t.Helper()
-		for pass := 0; pass < 20; pass++ {
-			baseline.exec(`UPDATE zasp_connector_effects SET updated_at=clock_timestamp()-interval '20 seconds' WHERE (organization_id,workspace_id,environment_id,oauth_attempt_id)=($1,$2,$3,$4) AND status='unknown' AND lease_owner IS NULL`, scoped(attempt)...)
+		for deadline := time.Now().Add(75 * time.Second); time.Now().Before(deadline); time.Sleep(250 * time.Millisecond) {
+			baseline.exec(`UPDATE zasp_connector_effects SET updated_at='2000-01-01T00:00:00Z' WHERE (organization_id,workspace_id,environment_id,oauth_attempt_id)=($1,$2,$3,$4) AND status='unknown' AND lease_owner IS NULL`, scoped(attempt)...)
+			// A pass also takes effects of other tenants of this database;
+			// only this attempt's outcome is judged.
 			if err := reconciler.reconcileOnce(ctx); err != nil {
-				t.Fatalf("reconciler: %v", err)
+				t.Logf("reconciler pass: %v", err)
 			}
 			if baseline.text(`SELECT count(*)::text FROM zasp_connector_effects WHERE (organization_id,workspace_id,environment_id,oauth_attempt_id)=($1,$2,$3,$4) AND status='unknown'`, scoped(attempt)...) == "0" {
 				return
@@ -264,7 +288,7 @@ func TestConnectorOAuthOnInstalledBaselinePostgres(t *testing.T) {
 	}{
 		"github": {`{"connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"}}`, "github", github.reference, github.class},
 		"okta":   {`{"connector_key":"okta","name":"Okta","configuration":{"issuer":"https://acme.okta.com"}}`, "okta", okta.reference, okta.class},
-		"slack":  {`{"connector_key":"slack","name":"Slack","configuration":{"workspace_label":"Acme"}}`, "nango:slack", "ref:nango/connection/11111111-1111-4111-8111-111111111111", "nango_connection_reference"},
+		"slack":  {`{"connector_key":"slack","name":"Slack","configuration":{"workspace_label":"Acme"}}`, "nango:slack", slack.reference, slack.class},
 	}
 	for _, key := range []string{"github", "okta", "slack"} {
 		connection := connections[key]
@@ -393,8 +417,11 @@ func TestConnectorOAuthOnInstalledBaselinePostgres(t *testing.T) {
 			t.Fatalf("%s: a second callback for the same state was accepted", key)
 		}
 	}
-	if github.completed != 1 || okta.completed != 1 || slack.complete.Code == "" {
-		t.Fatalf("provider completions github=%d okta=%d slack=%+v", github.completed, okta.completed, slack.complete)
+	// Nango was asked under the private provider authority of the connector,
+	// for the person who started, and received the provider's code.
+	if github.completed != 1 || okta.completed != 1 || slack.completed.Code == "" || slack.completed.AuthorityProvider != "nango:slack" || slack.completed.ConnectorKey != "slack" ||
+		slack.started.PrincipalID != administrator.identity.PrincipalID.String() || slack.completed.AttemptID != slack.started.AttemptID {
+		t.Fatalf("provider completions github=%d okta=%d slack started=%+v completed=%+v", github.completed, okta.completed, slack.started, slack.completed)
 	}
 
 	// The provider refuses (the person pressed Cancel): the attempt is

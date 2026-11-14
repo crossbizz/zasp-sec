@@ -239,7 +239,9 @@ How it works, and what to expect:
    again when an integration that names it is deleted or given another
    connection.
 
-To see what is waiting or failed, as the database owner:
+To see what is waiting or failed, with a database role that may read the
+table (it belongs to the product's schema owner and is not granted to the
+service logins):
 
 ```sql
 SELECT organization_id, environment_id, integration_id, platform, connection_reference,
@@ -257,7 +259,8 @@ attempt ended without an outcome).
 
 The worker runs only where sign-in does (the saas collector version, Nango
 and a public HTTPS origin are configured) and the database has the release
-section. Elsewhere nothing is listed or deleted.
+section. A database that has the section lists connections wherever it runs;
+without the worker the rows stay `pending` until an API with sign-in starts.
 
 Deleting an authorized saas integration first revokes it: the integration
 shows `revoking` until the API's connector reconciler has finished, a few
