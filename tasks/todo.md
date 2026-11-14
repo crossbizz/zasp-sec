@@ -17,15 +17,20 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [x] Baseline artifact rebuilt; `generate.sh` runs without Docker
 - [x] Customer AWS read policy and runbook
 
-## Not done (needs a real system or a decision)
-- [ ] Run each collector against a real AWS account, cluster, GitHub organization and Okta tenant; measure false positives and misses per signal class
-- [ ] Reinstall the Neon databases with the new baseline artifact
-- [ ] Microsoft provider: Copilot Studio (Dataverse) and Entra agent identities
-- [ ] Salesforce provider: Agentforce
-- [ ] Runtime discovery from the sensor (needs a DNS or SNI source; evidence gate in the plan)
-- [ ] Unknown `agent_id` on telemetry as a candidate agent
+## In progress (second pass, 2026-11-14)
+- [ ] Provider groundwork: `microsoft` and `salesforce` in the collection contract, kinds, rule catalog, search allow-list
+- [ ] Provider plumbing: credentials, connector catalog, worker registration, SQL constraints, OpenAPI and web enums, deployment egress
+- [ ] Microsoft collector: Entra agent identities, AI enterprise applications, Copilot Studio agents (Dataverse)
+- [ ] Salesforce collector: Agentforce agents
 - [ ] Show AI service permission gaps on the integration detail
-- [ ] A way to dismiss a false positive outside Kubernetes
+- [ ] Dismiss a false positive ("not an agent")
+- [ ] Unknown `agent_id` on telemetry surfaced as a candidate
+- [ ] Baseline artifact rebuilt and all suites compared against the previous commit
+
+## Not buildable here
+- [ ] Run each collector against a real AWS account, cluster, GitHub organization, Okta tenant, Entra tenant and Salesforce org; measure false positives and misses per signal class (needs those systems)
+- [ ] Reinstall the Neon databases with the new baseline artifact (needs database access)
+- [ ] Runtime discovery from the sensor: stays behind the evidence gate in the plan. Open-source Tetragon gives IP and port only, so it needs a DNS or SNI source and a measurement on one cluster first
 
 ## Review
 No provider was added: a fifth provider touches about forty switches and SQL constraints, a new kind under an existing provider about twelve. SaaS agents therefore arrive through the identity provider first, and Copilot Studio and Agentforce are separate provider tasks. Nothing ran against a real provider. The confidence numbers (60 to 70% for inferred agents) are judgement until the first item above is done.
