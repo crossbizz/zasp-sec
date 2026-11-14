@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagent"
@@ -131,6 +132,9 @@ type discoveryAWSRegionAgents struct {
 	gateways                   []awsdiscovery.AgentInventoryGateway
 	functions                  []awsdiscovery.AgentInventoryLambdaFunction
 	scannedFunctions           int
+	// guardrailMissing lists the ARNs of Bedrock agents with no guardrail.
+	guardrailMissing []string
+	egress           discoveryAWSEgressResult
 }
 
 // collectDiscoveryAWSAgentSource reads the AI services of every enabled
@@ -140,9 +144,42 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 		return nil, awsdiscovery.ErrDenied
 	}
 	roleActions := discoveryAWSRoleModelActions(roles)
+	now := time.Now().UTC()
+	if factory.Clock != nil {
+		now = factory.Clock().UTC()
+	}
+	// The audit log first: a role seen invoking a model is evidence for the
+	// function that runs as it.
+	roleSignals, invokerRegion, cloudTrail := map[string][]string{}, map[string]string{}, ""
+	if factory.CloudTrail != nil {
+		perRegion := make([]map[string][]string, len(regions))
+		statuses := make([]string, len(regions))
+		if err := discoveryAWSEach(ctx, len(regions), func(bounded context.Context, index int) error {
+			api, err := factory.CloudTrail(regions[index], credentials)
+			if err != nil || nilDiscoveryClientDependency(api) {
+				return awsdiscovery.ErrDenied
+			}
+			perRegion[index], statuses[index], err = collectDiscoveryAWSInvokers(bounded, api, accountID, now)
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		for index := range regions {
+			cloudTrail = accountDiscoveryAWSAgentStatus(cloudTrail, statuses[index])
+			for role, signals := range perRegion[index] {
+				var merged agentsignals.Evidence
+				merged.AddSignals(roleSignals[role]...)
+				merged.AddSignals(signals...)
+				roleSignals[role] = merged.Signals()
+				if prior, seen := invokerRegion[role]; !seen || regions[index] < prior {
+					invokerRegion[role] = regions[index]
+				}
+			}
+		}
+	}
 	regional := make([]discoveryAWSRegionAgents, len(regions))
 	if err := discoveryAWSEach(ctx, len(regions), func(bounded context.Context, index int) error {
-		found, err := collectDiscoveryAWSRegionAgents(bounded, factory, credentials, accountID, regions[index], roleActions)
+		found, err := collectDiscoveryAWSRegionAgents(bounded, factory, credentials, accountID, regions[index], roleActions, roleSignals, now)
 		regional[index] = found
 		return err
 	}); err != nil {
@@ -150,7 +187,16 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	}
 	source := awsdiscovery.AgentInventorySource{AccountID: accountID, BedrockAgents: []awsdiscovery.AgentInventoryBedrockAgent{}, Gateways: []awsdiscovery.AgentInventoryGateway{}, LambdaFunctions: []awsdiscovery.AgentInventoryLambdaFunction{}, Runtimes: []awsdiscovery.AgentInventoryRuntime{}}
 	bedrock, agentCore, functions, scanned := "", "", "", 0
-	for _, found := range regional {
+	resolverLogs, flowLogs := "", ""
+	var guardrailMissing []string
+	for index, found := range regional {
+		guardrailMissing = append(guardrailMissing, found.guardrailMissing...)
+		if found.egress.resolver != "" {
+			resolverLogs, flowLogs = accountDiscoveryAWSAgentStatus(resolverLogs, found.egress.resolver), accountDiscoveryAWSAgentStatus(flowLogs, found.egress.flow)
+		}
+		for instance, signals := range found.egress.instances {
+			source.InferredWorkloads = append(source.InferredWorkloads, awsdiscovery.AgentInventoryWorkload{ARN: "arn:aws:ec2:" + regions[index] + ":" + accountID + ":instance/" + instance, Name: instance, Region: regions[index], ResourceType: "ec2_instance", Signals: signals})
+		}
 		bedrock, agentCore, functions = accountDiscoveryAWSAgentStatus(bedrock, found.bedrock), accountDiscoveryAWSAgentStatus(agentCore, found.agentCore), accountDiscoveryAWSAgentStatus(functions, found.lambda)
 		scanned += found.scannedFunctions
 		source.BedrockAgents = append(source.BedrockAgents, found.agents...)
@@ -167,6 +213,34 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	sort.Slice(source.Gateways, func(i, j int) bool { return source.Gateways[i].ARN < source.Gateways[j].ARN })
 	sort.Slice(source.LambdaFunctions, func(i, j int) bool { return source.LambdaFunctions[i].ARN < source.LambdaFunctions[j].ARN })
 	source.Services = []awsdiscovery.AgentInventoryService{{Service: awsdiscovery.AgentServiceBedrockAgents, Status: bedrock}, {Service: awsdiscovery.AgentServiceAgentCore, Status: agentCore}, {Service: awsdiscovery.AgentServiceLambda, Status: functions}}
+	if cloudTrail != "" {
+		source.Services = append(source.Services, awsdiscovery.AgentInventoryService{Service: awsdiscovery.AgentServiceCloudTrail, Status: cloudTrail})
+	}
+	if resolverLogs != "" {
+		source.Services = append(source.Services, awsdiscovery.AgentInventoryService{Service: awsdiscovery.AgentServiceResolverLogs, Status: resolverLogs}, awsdiscovery.AgentInventoryService{Service: awsdiscovery.AgentServiceFlowLogs, Status: flowLogs})
+	}
+	// A role seen invoking a model that is not the role of an agent already
+	// listed is itself listed: something runs as it and calls a model.
+	agentRoles := map[string]bool{}
+	for _, agent := range source.BedrockAgents {
+		agentRoles[agent.RoleARN] = true
+	}
+	for _, runtime := range source.Runtimes {
+		agentRoles[runtime.RoleARN] = true
+	}
+	for _, function := range source.LambdaFunctions {
+		agentRoles[function.RoleARN] = true
+	}
+	for role, signals := range roleSignals {
+		if !agentRoles[role] && len(signals) > 0 {
+			source.InferredWorkloads = append(source.InferredWorkloads, awsdiscovery.AgentInventoryWorkload{ARN: role, Name: role[strings.LastIndex(role, "/")+1:], Region: invokerRegion[role], ResourceType: "iam_role", RoleARN: role, Signals: signals})
+		}
+	}
+	sort.Slice(source.InferredWorkloads, func(i, j int) bool { return source.InferredWorkloads[i].ARN < source.InferredWorkloads[j].ARN })
+	if len(source.InferredWorkloads) > awsdiscovery.MaximumInventoryLambdaFunctions {
+		return nil, awsdiscovery.ErrDenied
+	}
+	source.Checks = discoveryAWSAgentChecks(ctx, factory, credentials, regions[0], source, roles, guardrailMissing, now)
 	encoded, ok := awsdiscovery.EncodeAgentInventorySource(source)
 	if !ok || len(encoded) > 16<<20 {
 		return nil, awsdiscovery.ErrDenied
@@ -174,13 +248,13 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	return encoded, nil
 }
 
-func collectDiscoveryAWSRegionAgents(ctx context.Context, factory discoveryAWSInventoryFactory, credentials aws.Credentials, accountID, region string, roleActions map[string][]string) (discoveryAWSRegionAgents, error) {
+func collectDiscoveryAWSRegionAgents(ctx context.Context, factory discoveryAWSInventoryFactory, credentials aws.Credentials, accountID, region string, roleActions, roleSignals map[string][]string, now time.Time) (discoveryAWSRegionAgents, error) {
 	var found discoveryAWSRegionAgents
 	bedrockAPI, err := factory.BedrockAgent(region, credentials)
 	if err != nil || nilDiscoveryClientDependency(bedrockAPI) {
 		return found, awsdiscovery.ErrDenied
 	}
-	if found.agents, found.bedrock, err = collectDiscoveryAWSBedrockAgents(ctx, bedrockAPI, accountID, region); err != nil {
+	if found.agents, found.guardrailMissing, found.bedrock, err = collectDiscoveryAWSBedrockAgents(ctx, bedrockAPI, accountID, region); err != nil {
 		return found, err
 	}
 	agentCoreAPI, err := factory.AgentCore(region, credentials)
@@ -202,7 +276,18 @@ func collectDiscoveryAWSRegionAgents(ctx context.Context, factory discoveryAWSIn
 	if err != nil || nilDiscoveryClientDependency(lambdaAPI) {
 		return found, awsdiscovery.ErrDenied
 	}
-	found.functions, found.scannedFunctions, found.lambda, err = collectDiscoveryAWSLambdaAgents(ctx, lambdaAPI, accountID, region, roleActions)
+	if found.functions, found.scannedFunctions, found.lambda, err = collectDiscoveryAWSLambdaAgents(ctx, lambdaAPI, accountID, region, roleActions, roleSignals); err != nil {
+		return found, err
+	}
+	if factory.Resolver != nil && factory.FlowLogs != nil && factory.Logs != nil {
+		resolver, resolverErr := factory.Resolver(region, credentials)
+		flows, flowErr := factory.FlowLogs(region, credentials)
+		logs, logsErr := factory.Logs(region, credentials)
+		if resolverErr != nil || flowErr != nil || logsErr != nil || nilDiscoveryClientDependency(resolver) || nilDiscoveryClientDependency(flows) || nilDiscoveryClientDependency(logs) {
+			return found, awsdiscovery.ErrDenied
+		}
+		found.egress, err = collectDiscoveryAWSEgress(ctx, resolver, flows, logs, now)
+	}
 	return found, err
 }
 
@@ -211,41 +296,41 @@ func nextDiscoveryAWSAgentToken(previous, next *string) bool {
 	return next != previous && strings.TrimSpace(aws.ToString(next)) != "" && aws.ToString(next) != aws.ToString(previous)
 }
 
-func collectDiscoveryAWSBedrockAgents(ctx context.Context, api discoveryAWSBedrockAgentAPI, accountID, region string) ([]awsdiscovery.AgentInventoryBedrockAgent, string, error) {
+func collectDiscoveryAWSBedrockAgents(ctx context.Context, api discoveryAWSBedrockAgentAPI, accountID, region string) ([]awsdiscovery.AgentInventoryBedrockAgent, []string, string, error) {
 	status := awsdiscovery.AgentServiceCollected
 	listed := make(map[string]awsdiscovery.AgentInventoryBedrockAgent)
 	var token *string
 	for page := 0; ; page++ {
 		if page >= maximumAWSAgentListPages {
-			return nil, "", awsdiscovery.ErrDenied
+			return nil, nil, "", awsdiscovery.ErrDenied
 		}
 		output, err := api.ListAgents(ctx, &bedrockagent.ListAgentsInput{NextToken: token, MaxResults: aws.Int32(1000)}, func(options *bedrockagent.Options) { options.Retryer = aws.NopRetryer{} })
 		if err != nil {
 			classified, failure := classifyDiscoveryAWSAgentFailure(ctx, err)
 			if failure != nil {
-				return nil, "", failure
+				return nil, nil, "", failure
 			}
 			status = worseDiscoveryAWSAgentStatus(status, classified)
 			break
 		}
 		if output == nil || ctx.Err() != nil {
-			return nil, "", awsdiscovery.ErrDenied
+			return nil, nil, "", awsdiscovery.ErrDenied
 		}
 		for _, summary := range output.AgentSummaries {
 			id, name := aws.ToString(summary.AgentId), aws.ToString(summary.AgentName)
 			if id == "" || name == "" {
-				return nil, "", awsdiscovery.ErrDenied
+				return nil, nil, "", awsdiscovery.ErrDenied
 			}
 			listed[id] = awsdiscovery.AgentInventoryBedrockAgent{AgentID: id, ARN: "arn:aws:bedrock:" + region + ":" + accountID + ":agent/" + id, Name: name, Region: region, Status: discoveryAWSAgentState(string(summary.AgentStatus))}
 			if len(listed) > awsdiscovery.MaximumInventoryBedrockAgents {
-				return nil, "", awsdiscovery.ErrDenied
+				return nil, nil, "", awsdiscovery.ErrDenied
 			}
 		}
 		if output.NextToken == nil {
 			break
 		}
 		if !nextDiscoveryAWSAgentToken(token, output.NextToken) {
-			return nil, "", awsdiscovery.ErrDenied
+			return nil, nil, "", awsdiscovery.ErrDenied
 		}
 		token = output.NextToken
 	}
@@ -256,6 +341,7 @@ func collectDiscoveryAWSBedrockAgents(ctx context.Context, api discoveryAWSBedro
 	sort.Slice(agents, func(i, j int) bool { return agents[i].ARN < agents[j].ARN })
 	// The list names the agent; its role and model are in its description.
 	// An agent whose description may not be read is still an agent.
+	unguarded := make([]bool, len(agents))
 	described, detailStatus, err := describeDiscoveryAWSAgents(ctx, len(agents), func(bounded context.Context, index int) (bool, error) {
 		output, err := api.GetAgent(bounded, &bedrockagent.GetAgentInput{AgentId: aws.String(agents[index].AgentID)}, func(options *bedrockagent.Options) { options.Retryer = aws.NopRetryer{} })
 		if err != nil {
@@ -267,21 +353,26 @@ func collectDiscoveryAWSBedrockAgents(ctx context.Context, api discoveryAWSBedro
 		// Only these members are read. The agent's instruction is not.
 		agents[index].RoleARN = discoveryAWSAgentRole(aws.ToString(output.Agent.AgentResourceRoleArn))
 		agents[index].Model = discoveryAWSAgentText(aws.ToString(output.Agent.FoundationModel))
+		unguarded[index] = output.Agent.GuardrailConfiguration == nil || aws.ToString(output.Agent.GuardrailConfiguration.GuardrailIdentifier) == ""
 		if state := discoveryAWSAgentState(string(output.Agent.AgentStatus)); state != "" {
 			agents[index].Status = state
 		}
 		return true, nil
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	kept := agents[:0]
+	var guardrailMissing []string
 	for index, agent := range agents {
 		if described[index] {
 			kept = append(kept, agent)
+			if unguarded[index] {
+				guardrailMissing = append(guardrailMissing, agent.ARN)
+			}
 		}
 	}
-	return kept, worseDiscoveryAWSAgentStatus(status, detailStatus), nil
+	return kept, guardrailMissing, worseDiscoveryAWSAgentStatus(status, detailStatus), nil
 }
 
 func collectDiscoveryAWSAgentRuntimes(ctx context.Context, api discoveryAWSAgentCoreAPI, accountID, region string) ([]awsdiscovery.AgentInventoryRuntime, string, error) {
@@ -413,7 +504,7 @@ func collectDiscoveryAWSAgentGateways(ctx context.Context, api discoveryAWSAgent
 // function's environment variables and the model and agent invocations its
 // execution role's managed policies allow. An environment variable value is
 // never copied out of the provider's answer.
-func collectDiscoveryAWSLambdaAgents(ctx context.Context, api discoveryAWSLambdaAPI, accountID, region string, roleActions map[string][]string) ([]awsdiscovery.AgentInventoryLambdaFunction, int, string, error) {
+func collectDiscoveryAWSLambdaAgents(ctx context.Context, api discoveryAWSLambdaAPI, accountID, region string, roleActions, roleSignals map[string][]string) ([]awsdiscovery.AgentInventoryLambdaFunction, int, string, error) {
 	status := awsdiscovery.AgentServiceCollected
 	inferred := make(map[string]awsdiscovery.AgentInventoryLambdaFunction)
 	seen := make(map[string]bool)
@@ -454,6 +545,7 @@ func collectDiscoveryAWSLambdaAgents(ctx context.Context, api discoveryAWSLambda
 			}
 			role := discoveryAWSAgentRole(aws.ToString(function.Role))
 			evidence.IAMActions(roleActions[role]...)
+			evidence.AddSignals(roleSignals[role]...)
 			if !evidence.IsAgent() {
 				continue
 			}
@@ -602,4 +694,65 @@ func discoveryAWSAgentText(value string) string {
 		return ""
 	}
 	return value
+}
+
+// discoveryAWSAgentChecks returns the failed posture checks of the source's
+// agents, in the order the source requires.
+func discoveryAWSAgentChecks(ctx context.Context, factory discoveryAWSInventoryFactory, credentials aws.Credentials, region string, source awsdiscovery.AgentInventorySource, roles []discoveryAWSNativeRole, guardrailMissing []string, now time.Time) []awsdiscovery.AgentInventoryCheck {
+	agentRole := map[string]string{}
+	for _, agent := range source.BedrockAgents {
+		agentRole[agent.ARN] = agent.RoleARN
+	}
+	for _, runtime := range source.Runtimes {
+		agentRole[runtime.ARN] = runtime.RoleARN
+	}
+	for _, function := range source.LambdaFunctions {
+		agentRole[function.ARN] = function.RoleARN
+	}
+	for _, workload := range source.InferredWorkloads {
+		agentRole[workload.ARN] = workload.RoleARN
+	}
+	distinct := map[string]bool{}
+	for _, role := range agentRole {
+		if role != "" {
+			distinct[role] = true
+		}
+	}
+	roleARNs := make([]string, 0, len(distinct))
+	for role := range distinct {
+		roleARNs = append(roleARNs, role)
+	}
+	sort.Strings(roleARNs)
+	unused := map[string]bool{}
+	if factory.RoleUsage != nil && len(roleARNs) > 0 {
+		// IAM is global; any region's endpoint answers.
+		if api, err := factory.RoleUsage(region, credentials); err == nil && !nilDiscoveryClientDependency(api) {
+			unused = discoveryAWSUnusedRoles(ctx, api, roleARNs, now)
+		}
+	}
+	administrators := discoveryAWSAdministratorRoles(roles)
+	checks := []awsdiscovery.AgentInventoryCheck{}
+	for _, arn := range guardrailMissing {
+		if _, listed := agentRole[arn]; listed {
+			checks = append(checks, awsdiscovery.AgentInventoryCheck{ARN: arn, Check: awsdiscovery.AgentCheckGuardrailMissing})
+		}
+	}
+	for arn, role := range agentRole {
+		if administrators[role] {
+			checks = append(checks, awsdiscovery.AgentInventoryCheck{ARN: arn, Check: awsdiscovery.AgentCheckRoleAdministrator})
+		}
+		if unused[role] {
+			checks = append(checks, awsdiscovery.AgentInventoryCheck{ARN: arn, Check: awsdiscovery.AgentCheckRoleUnused})
+		}
+	}
+	sort.Slice(checks, func(i, j int) bool {
+		if checks[i].ARN != checks[j].ARN {
+			return checks[i].ARN < checks[j].ARN
+		}
+		return checks[i].Check < checks[j].Check
+	})
+	if len(checks) == 0 {
+		return nil
+	}
+	return checks
 }

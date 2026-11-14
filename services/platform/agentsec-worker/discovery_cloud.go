@@ -16,10 +16,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagent"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentcorecontrol"
+	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/route53resolver"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -174,6 +177,48 @@ func (authority *productionDiscoveryCloudAuthority) NewIAM(region string, creden
 		return nil, err
 	}
 	return iam.NewFromConfig(base), nil
+}
+
+// The readers of the agentless runtime signals use the customer's read role
+// like every other inventory client.
+func (authority *productionDiscoveryCloudAuthority) NewCloudTrail(region string, credentials aws.Credentials) (discoveryAWSCloudTrailAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return cloudtrail.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewRoleUsage(region string, credentials aws.Credentials) (discoveryAWSRoleUsageAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return iam.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewFlowLogs(region string, credentials aws.Credentials) (discoveryAWSFlowLogAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return ec2.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewResolver(region string, credentials aws.Credentials) (discoveryAWSResolverAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return route53resolver.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewLogs(region string, credentials aws.Credentials) (discoveryAWSLogsAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return cloudwatchlogs.NewFromConfig(base), nil
 }
 
 func (authority *productionDiscoveryCloudAuthority) NewEC2(region string, credentials aws.Credentials) (discoveryAWSEC2API, error) {

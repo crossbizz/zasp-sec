@@ -229,6 +229,7 @@ func discoveryAgentMixedAccount() map[string]*discoveryAgentRegionStub {
 
 const discoveryAgentMixedSource = `{"account_id":"123456789012",` +
 	`"bedrock_agents":[{"agent_id":"AGENT12345","arn":"arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345","model":"anthropic.claude-sonnet","name":"support","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/reader","status":"PREPARED"}],` +
+	`"checks":[{"arn":"arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345","check":"agent_guardrail_missing"}],` +
 	`"gateways":[{"arn":"arn:aws:bedrock-agentcore:us-west-2:123456789012:gateway/tools-abcdefghij","gateway_id":"tools-abcdefghij","name":"tools","region":"us-west-2","status":"READY"}],` +
 	`"lambda_functions":[{"arn":"arn:aws:lambda:us-east-1:123456789012:function:bot","name":"bot","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/plain","signals":["env:openai"],"state":"Active"},` +
 	`{"arn":"arn:aws:lambda:us-east-1:123456789012:function:invoker","name":"invoker","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/reader","signals":["iam:bedrock_invoke_model"],"state":"Active"}],` +
@@ -689,7 +690,7 @@ func TestAWSLambdaInferenceNeedsEnoughEvidence(t *testing.T) {
 		{name: "strong-prefix", role: discoveryAgentPlainRole, env: []string{"MCP_SERVER_URL"}},
 		{name: "no-environment", role: discoveryAgentPlainRole},
 	}}
-	functions, scanned, status, err := collectDiscoveryAWSLambdaAgents(context.Background(), stub, "123456789012", "us-east-1", actions)
+	functions, scanned, status, err := collectDiscoveryAWSLambdaAgents(context.Background(), stub, "123456789012", "us-east-1", actions, nil)
 	if err != nil || scanned != 5 || status != awsdiscovery.AgentServiceCollected || len(functions) != 2 {
 		t.Fatalf("functions = %#v, scanned %d, %s, %v", functions, scanned, status, err)
 	}

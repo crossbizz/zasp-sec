@@ -42,12 +42,17 @@ const (
 // signal tokens only: no environment variable name or value, no agent
 // instruction, no provider error text.
 type AgentInventorySource struct {
-	AccountID       string                         `json:"account_id"`
-	BedrockAgents   []AgentInventoryBedrockAgent   `json:"bedrock_agents"`
-	Gateways        []AgentInventoryGateway        `json:"gateways"`
-	LambdaFunctions []AgentInventoryLambdaFunction `json:"lambda_functions"`
-	Runtimes        []AgentInventoryRuntime        `json:"runtimes"`
-	Services        []AgentInventoryService        `json:"services"`
+	AccountID     string                       `json:"account_id"`
+	BedrockAgents []AgentInventoryBedrockAgent `json:"bedrock_agents"`
+	// Checks are the failed agent posture checks; absent when there are none.
+	Checks   []AgentInventoryCheck   `json:"checks,omitempty"`
+	Gateways []AgentInventoryGateway `json:"gateways"`
+	// Workloads are roles and instances inferred to be agents from the
+	// account's audit and network logs; absent when there are none.
+	InferredWorkloads []AgentInventoryWorkload       `json:"inferred_workloads,omitempty"`
+	LambdaFunctions   []AgentInventoryLambdaFunction `json:"lambda_functions"`
+	Runtimes          []AgentInventoryRuntime        `json:"runtimes"`
+	Services          []AgentInventoryService        `json:"services"`
 }
 
 // Model, RoleARN and Status are "" when the provider did not say.
@@ -59,6 +64,36 @@ type AgentInventoryBedrockAgent struct {
 	Region  string `json:"region"`
 	RoleARN string `json:"role_arn"`
 	Status  string `json:"status"`
+}
+
+// AgentInventoryCheck is one failed posture check on an agent of this
+// source, named by the agent's ARN.
+type AgentInventoryCheck struct {
+	ARN   string `json:"arn"`
+	Check string `json:"check"`
+}
+
+// Agent posture checks. Each is a finding rule the product explains.
+const (
+	// A Bedrock agent has no guardrail attached.
+	AgentCheckGuardrailMissing = "agent_guardrail_missing"
+	// The agent's execution role was not used in the last 90 days.
+	AgentCheckRoleUnused = "agent_role_unused_90_days"
+	// The agent's execution role allows every action on every resource.
+	AgentCheckRoleAdministrator = "agent_role_administrator_access"
+)
+
+// AgentInventoryWorkload is an IAM role or an EC2 instance the collector
+// concluded is an agent: the audit log shows the role invoking a model, or
+// the network logs show the instance resolving and reaching a model API.
+// ResourceType is iam_role or ec2_instance. Region is where it was seen.
+type AgentInventoryWorkload struct {
+	ARN          string   `json:"arn"`
+	Name         string   `json:"name"`
+	Region       string   `json:"region"`
+	ResourceType string   `json:"resource_type"`
+	RoleARN      string   `json:"role_arn"`
+	Signals      []string `json:"signals"`
 }
 
 type AgentInventoryGateway struct {
@@ -109,6 +144,42 @@ var agentInventoryServices = []struct{ service, name string }{
 	{AgentServiceLambda, "Lambda"},
 }
 
+// The log sources the runtime signal is read from. A source reports them
+// after the three AI services, in this order, and only the ones it tried.
+const (
+	AgentServiceCloudTrail   = "cloudtrail"
+	AgentServiceFlowLogs     = "vpc-flow-logs"
+	AgentServiceResolverLogs = "resolver-query-logs"
+)
+
+var agentInventoryLogServices = []struct{ service, name string }{
+	{AgentServiceCloudTrail, "CloudTrail model invocations"},
+	{AgentServiceResolverLogs, "Route 53 Resolver query logs"},
+	{AgentServiceFlowLogs, "VPC Flow Logs"},
+}
+
+// agentInventoryServiceName returns the display name of the service at a
+// position of a source's service list.
+func agentInventoryServiceName(service string) string {
+	for _, known := range agentInventoryServices {
+		if known.service == service {
+			return known.name
+		}
+	}
+	for _, known := range agentInventoryLogServices {
+		if known.service == service {
+			return known.name
+		}
+	}
+	return service
+}
+
+var (
+	agentInstanceARNPattern = regexp.MustCompile(`^arn:aws:ec2:([a-z]{2}(?:-gov)?-[a-z]+-[1-9]):([0-9]{12}):instance/(i-[0-9a-f]{8,17})$`)
+	agentRegionPattern      = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[1-9]$`)
+	agentChecks             = map[string]bool{AgentCheckGuardrailMissing: true, AgentCheckRoleUnused: true, AgentCheckRoleAdministrator: true}
+)
+
 // EncodeAgentInventorySource returns the canonical source for an account, or
 // false when the source is not one the agents phase accepts.
 func EncodeAgentInventorySource(source AgentInventorySource) (json.RawMessage, bool) {
@@ -138,14 +209,29 @@ func validAgentInventoryDocument(raw json.RawMessage, accountID string) bool {
 func validAgentInventorySource(source AgentInventorySource, accountID string) bool {
 	if !awsAccountIDPattern.MatchString(accountID) || source.AccountID != accountID || source.BedrockAgents == nil || source.Gateways == nil || source.LambdaFunctions == nil || source.Runtimes == nil ||
 		len(source.BedrockAgents) > MaximumInventoryBedrockAgents || len(source.Gateways) > MaximumInventoryAgentGateways || len(source.LambdaFunctions) > MaximumInventoryLambdaFunctions || len(source.Runtimes) > MaximumInventoryAgentRuntimes ||
-		len(source.Services) != len(agentInventoryServices) {
+		len(source.Services) < len(agentInventoryServices) || len(source.Services) > len(agentInventoryServices)+len(agentInventoryLogServices) {
 		return false
 	}
+	nextLog := 0
 	for index, service := range source.Services {
-		if service.Service != agentInventoryServices[index].service || service.Status != AgentServiceCollected && service.Status != AgentServiceUnavailable && service.Status != AgentServiceAccessDenied {
+		if service.Status != AgentServiceCollected && service.Status != AgentServiceUnavailable && service.Status != AgentServiceAccessDenied {
 			return false
 		}
+		if index < len(agentInventoryServices) {
+			if service.Service != agentInventoryServices[index].service {
+				return false
+			}
+			continue
+		}
+		for nextLog < len(agentInventoryLogServices) && agentInventoryLogServices[nextLog].service != service.Service {
+			nextLog++
+		}
+		if nextLog == len(agentInventoryLogServices) {
+			return false
+		}
+		nextLog++
 	}
+	agentARNs := map[string]bool{}
 	previous := ""
 	for _, agent := range source.BedrockAgents {
 		match := agentBedrockARNPattern.FindStringSubmatch(agent.ARN)
@@ -154,6 +240,7 @@ func validAgentInventorySource(source AgentInventorySource, accountID string) bo
 			return false
 		}
 		previous = agent.ARN
+		agentARNs[agent.ARN] = true
 	}
 	previous = ""
 	for _, gateway := range source.Gateways {
@@ -171,6 +258,7 @@ func validAgentInventorySource(source AgentInventorySource, accountID string) bo
 			return false
 		}
 		previous = function.ARN
+		agentARNs[function.ARN] = true
 		prior := ""
 		for _, signal := range function.Signals {
 			if !agentSignalPattern.MatchString(signal) || signal <= prior {
@@ -186,8 +274,59 @@ func validAgentInventorySource(source AgentInventorySource, accountID string) bo
 			return false
 		}
 		previous = runtime.ARN
+		agentARNs[runtime.ARN] = true
+	}
+	previous = ""
+	for _, workload := range source.InferredWorkloads {
+		switch workload.ResourceType {
+		case "iam_role":
+			match := securityRoleARNPattern.FindStringSubmatch(workload.ARN)
+			if len(match) != 3 || match[1] != accountID || workload.RoleARN != workload.ARN {
+				return false
+			}
+		case "ec2_instance":
+			match := agentInstanceARNPattern.FindStringSubmatch(workload.ARN)
+			if len(match) != 4 || match[1] != workload.Region || match[2] != accountID || !validAgentInventoryRole(workload.RoleARN) {
+				return false
+			}
+		default:
+			return false
+		}
+		if workload.ARN <= previous || agentARNs[workload.ARN] || !validAgentInventoryText(workload.Name, 256) || !agentRegionPattern.MatchString(workload.Region) || len(workload.Signals) < 1 || len(workload.Signals) > agentsignals.MaximumSignals {
+			return false
+		}
+		previous = workload.ARN
+		agentARNs[workload.ARN] = true
+		prior := ""
+		for _, signal := range workload.Signals {
+			if !agentSignalPattern.MatchString(signal) || signal <= prior {
+				return false
+			}
+			prior = signal
+		}
+	}
+	// A check names an agent of this source and a known rule, once.
+	previous = ""
+	for _, check := range source.Checks {
+		key := check.ARN + "\x1f" + check.Check
+		if !agentARNs[check.ARN] || !agentChecks[check.Check] || key <= previous {
+			return false
+		}
+		previous = key
 	}
 	return true
+}
+
+// agentInventoryKind returns the inventory kind of an agent of the source
+// by the form of its ARN.
+func agentInventoryKind(arn string) string {
+	switch {
+	case agentBedrockARNPattern.MatchString(arn):
+		return "aws_bedrock_agent"
+	case agentRuntimeARNPattern.MatchString(arn):
+		return "aws_agentcore_runtime"
+	}
+	return "aws_inferred_agent"
 }
 
 func validAgentInventoryText(value string, maximum int) bool {
@@ -247,7 +386,7 @@ func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inve
 	}
 	scope, subject := api.authority.Scope, request.Subject
 	accountID := deterministicAWSInventoryID(scope, subject, "aws_account", subject.ID)
-	count := len(source.Services) + len(source.BedrockAgents) + len(source.Runtimes) + len(source.Gateways) + len(source.LambdaFunctions)
+	count := len(source.Services) + len(source.BedrockAgents) + len(source.Runtimes) + len(source.Gateways) + len(source.LambdaFunctions) + len(source.InferredWorkloads)
 	entities := make([]json.RawMessage, 0, count)
 	relationships := make([]json.RawMessage, 0, count*2)
 	add := func(kind, arn, display, roleARN string, stable, attributes map[string]any) {
@@ -266,10 +405,10 @@ func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inve
 		}
 		return attributes
 	}
-	for index, service := range source.Services {
+	for _, service := range source.Services {
 		native := "aws:" + service.Service
 		id := deterministicAWSInventoryID(scope, subject, "aws_service", native)
-		name := agentInventoryServices[index].name
+		name := agentInventoryServiceName(service.Service)
 		entities = append(entities, marshalInventoryEntity(id, "aws_service", native, name, map[string]any{"account_id": subject.ID, "name": name, "service": service.Service}, map[string]any{"status": service.Status}))
 		relationships = append(relationships, marshalInventoryRelationship(scope, subject, "contains", subject.ID+"|contains|"+native, accountID, id))
 	}
@@ -294,6 +433,10 @@ func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inve
 	for _, function := range source.LambdaFunctions {
 		add("aws_inferred_agent", function.ARN, function.Name, function.RoleARN, map[string]any{"account_id": subject.ID, "arn": function.ARN, "name": function.Name, "region": function.Region, "resource_type": "lambda_function"},
 			agentAttributes(function.RoleARN, "state", function.State, agentsignals.NewDiscovery(agentsignals.MethodInferred, "lambda_function", function.Signals)))
+	}
+	for _, workload := range source.InferredWorkloads {
+		add("aws_inferred_agent", workload.ARN, workload.Name, workload.RoleARN, map[string]any{"account_id": subject.ID, "arn": workload.ARN, "name": workload.Name, "region": workload.Region, "resource_type": workload.ResourceType},
+			agentAttributes(workload.RoleARN, "state", "", agentsignals.NewDiscovery(agentsignals.MethodInferred, workload.ResourceType, workload.Signals)))
 	}
 	sortRawInventory(entities)
 	sortRawInventory(relationships)

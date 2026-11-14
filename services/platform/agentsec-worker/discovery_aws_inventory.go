@@ -45,6 +45,15 @@ type discoveryAWSInventoryFactory struct {
 	BedrockAgent func(string, aws.Credentials) (discoveryAWSBedrockAgentAPI, error)
 	AgentCore    func(string, aws.Credentials) (discoveryAWSAgentCoreAPI, error)
 	Lambda       func(string, aws.Credentials) (discoveryAWSLambdaAPI, error)
+	// The agentless runtime signals (discovery_aws_signals.go). Each is
+	// optional: a nil reader is not asked and not reported.
+	CloudTrail func(string, aws.Credentials) (discoveryAWSCloudTrailAPI, error)
+	RoleUsage  func(string, aws.Credentials) (discoveryAWSRoleUsageAPI, error)
+	FlowLogs   func(string, aws.Credentials) (discoveryAWSFlowLogAPI, error)
+	Resolver   func(string, aws.Credentials) (discoveryAWSResolverAPI, error)
+	Logs       func(string, aws.Credentials) (discoveryAWSLogsAPI, error)
+	// Clock is the time the log windows end at; time.Now when nil.
+	Clock func() time.Time
 	// LocalEmulator is true only when the process talks to a local cloud
 	// emulator (localcloud, development and test environments). AWS lists
 	// only the enabled regions of the account's own partition when asked

@@ -2,6 +2,7 @@ package agentsignals
 
 import (
 	"encoding/json"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -76,5 +77,42 @@ func TestEgressObservationsRoundTripAndRefusals(t *testing.T) {
 		if _, ok := ParseEgressObservations(bad); ok {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+func TestEgressHostPrefilterCoversTheCatalog(t *testing.T) {
+	pattern := regexp.MustCompile(EgressHostPrefilter)
+	names := []string{"bedrock-runtime.us-east-1.amazonaws.com", "bedrock-agentcore.us-west-2.amazonaws.com", "mcp.linear.app"}
+	for _, host := range egressHosts {
+		name := host.match
+		if name[0] == '.' || name[0] == '-' {
+			name = "tenant" + name
+		}
+		names = append(names, name)
+	}
+	for _, name := range names {
+		if _, ok := EgressHost(name); !ok {
+			t.Fatalf("%s is not in the catalog", name)
+		}
+		if !pattern.MatchString(name) {
+			t.Errorf("the prefilter misses the catalog host %s", name)
+		}
+	}
+}
+
+func TestInvokedAndAddSignals(t *testing.T) {
+	var evidence Evidence
+	evidence.Invoked("ListFoundationModels")
+	if evidence.IsAgent() {
+		t.Fatal("an event outside the catalog made an agent")
+	}
+	evidence.Invoked("Converse", "InvokeModel")
+	if got := evidence.Signals(); !evidence.IsAgent() || len(got) != 1 || got[0] != "invoke:bedrock_model" {
+		t.Fatalf("signals = %v", got)
+	}
+	var merged Evidence
+	merged.AddSignals("invoke:bedrock_model", "egress:openai", "egress:made_up", "env:openai", "broken")
+	if got := merged.Signals(); len(got) != 2 || got[0] != "egress:openai" || got[1] != "invoke:bedrock_model" {
+		t.Fatalf("merged = %v", got)
 	}
 }
