@@ -54,6 +54,12 @@ func (handler *redTeamPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, r
 		handler.createDefinition(writer, request)
 	case "getTest":
 		handler.getDefinition(writer, request, routed.PathParameters["id"])
+	case "getTestProbeCatalog":
+		handler.getProbeCatalog(writer, request)
+	case "getTestSchedule":
+		handler.getSchedule(writer, request, routed.PathParameters["id"])
+	case "putTestSchedule":
+		handler.putSchedule(writer, request, routed.PathParameters["id"])
 	case "updateTest":
 		handler.updateDefinition(writer, request, routed.PathParameters["id"])
 	case "runTest":
@@ -508,7 +514,7 @@ func (surface *redTeamWorkflowSurface) ServeHTTP(writer http.ResponseWriter, req
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if stringIn(routed.OperationID, "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun", "preflightAttackLabRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun") {
+	if stringIn(routed.OperationID, "listTests", "createTest", "getTest", "updateTest", "runTest", "getTestProbeCatalog", "getTestSchedule", "putTestSchedule", "listTestRuns", "getTestRun", "cancelTestRun", "preflightAttackLabRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun") {
 		surface.redTeam.ServeHTTP(writer, request)
 		return
 	}

@@ -19,6 +19,8 @@ type authorizationStatementRule struct {
 // Closed application contracts, not a SQL parser or another permission engine.
 // Unknown queries refuse until their product boundary has been implemented.
 var authorizationStatementRules = []authorizationStatementRule{
+	{postgresRedTeamGetScheduleSQL, []string{"getTestSchedule"}, 4, 0, 4, "test"},
+	{postgresRedTeamPutScheduleSQL, []string{"putTestSchedule"}, 9, 4, 5, "test"},
 	{currentPATPageSQL, []string{"listAPITokens"}, 5, 0, 3, "environment"},
 	{currentRevealPageSQL, []string{"listAPITokenRevealGrants"}, 6, 4, 3, "environment"},
 	{currentRevealPATSQL, []string{"revealAPIToken"}, 5, 4, 3, "environment"},
