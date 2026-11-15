@@ -37,9 +37,15 @@ const (
 	// of their default scope, else of any scope.
 	memberPermissionsSQL = `SELECT permissions FROM public.zasp_authorized_scopes WHERE principal_id = $1 AND organization_id = $2 ORDER BY is_default DESC, workspace_id, environment_id LIMIT 1`
 	insertScopeSQL       = `INSERT INTO public.zasp_authorized_scopes(principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES($1, $2, $3, $4, $5, $6::jsonb, false) ON CONFLICT (principal_id, organization_id, workspace_id, environment_id) DO NOTHING`
-	// Integrations of the Environment that do not carry the demo marker. A
-	// deleted integration is history, not data.
-	foreignIntegrationsSQL = `SELECT count(*) FROM public.zasp_integrations WHERE (organization_id, workspace_id, environment_id) = ($1, $2, $3) AND state <> 'deleted' AND COALESCE(configuration->>'` + demodata.Marker + `', '') <> '` + datasetName + `'`
+	// Integrations of the Environment that are not demo integrations: a
+	// discovery record without the demo marker, or a product record (what
+	// the Integrations page lists, including one that was created and not
+	// yet authorized) that belongs to no demo integration. A deleted
+	// integration is history, not data.
+	foreignIntegrationsSQL = `SELECT
+ (SELECT count(*) FROM public.zasp_integrations WHERE (organization_id, workspace_id, environment_id) = ($1, $2, $3) AND state <> 'deleted' AND COALESCE(configuration->>'` + demodata.Marker + `', '') <> '` + datasetName + `')
+ + (SELECT count(*) FROM public.zasp_workflow_records record WHERE (record.organization_id, record.workspace_id, record.environment_id, record.kind) = ($1, $2, $3, 'integration') AND record.deleted_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM public.zasp_integrations demo WHERE (demo.organization_id, demo.workspace_id, demo.environment_id, demo.id) = ($1, $2, $3, record.id) AND demo.configuration->>'` + demodata.Marker + `' = '` + datasetName + `'))`
 )
 
 func parseScope(organization, workspace, environment string) (domain.Scope, error) {
@@ -116,23 +122,116 @@ func (seeder *Seeder) resolve(ctx context.Context, request Request) (target, err
 	return seeder.resolveDedicated(ctx, request)
 }
 
-// resolveDedicated provisions the dedicated Organization with the bootstrap
-// provisioner: the provider Organization is resolved or created, the person
-// is resolved or invited, and the Organization, its Workspace, its
-// Environment, the membership and the scope are written in one transaction.
+const (
+	organizationsOfReferenceSQL = `SELECT DISTINCT organization_id FROM public.zasp_identity_memberships WHERE organization_reference = $1`
+	// The Environments of an Organization other than the demo Environment.
+	otherEnvironmentCountSQL = `SELECT count(*) FROM public.zasp_environments e JOIN public.zasp_workspaces w ON (w.organization_id, w.id) = (e.organization_id, e.workspace_id) WHERE e.organization_id = $1 AND NOT (w.name = $2 AND e.name = $3)`
+)
+
+// ensureEnvironment finds or creates the demo Workspace and Environment of
+// an Organization, inside the caller's transaction. An Environment of that
+// name that holds anything but demo integrations, or that is a production
+// Environment, is refused.
+func ensureEnvironment(ctx context.Context, tx pgx.Tx, organization, workspaceName, environmentName string) (workspace, environment string, err error) {
+	if _, err := tx.Exec(ctx, scopeLockSQL, organization); err != nil {
+		return "", "", err
+	}
+	switch err := tx.QueryRow(ctx, workspaceByNameSQL, organization, workspaceName).Scan(&workspace); {
+	case errors.Is(err, pgx.ErrNoRows):
+		if workspace, err = newID(); err != nil {
+			return "", "", err
+		}
+		if _, err := tx.Exec(ctx, insertWorkspaceSQL, workspace, organization, workspaceName); err != nil {
+			return "", "", fmt.Errorf("create the demo workspace: %w", err)
+		}
+	case err != nil:
+		return "", "", err
+	}
+	var class string
+	switch err := tx.QueryRow(ctx, environmentByNameSQL, organization, workspace, environmentName).Scan(&environment, &class); {
+	case errors.Is(err, pgx.ErrNoRows):
+		if environment, err = newID(); err != nil {
+			return "", "", err
+		}
+		class = environmentClass
+		if _, err := tx.Exec(ctx, insertEnvironmentSQL, environment, organization, workspace, environmentName, class); err != nil {
+			return "", "", fmt.Errorf("create the demo environment: %w", err)
+		}
+	case err != nil:
+		return "", "", err
+	}
+	// The Environment may be one a person created with this name. It is the
+	// demo Environment only if it holds nothing but demo integrations.
+	var foreign int
+	if err := tx.QueryRow(ctx, foreignIntegrationsSQL, organization, workspace, environment).Scan(&foreign); err != nil {
+		return "", "", err
+	}
+	if foreign > 0 || class == "production" {
+		return "", "", fmt.Errorf("%w: environment %q of workspace %q", ErrNotDemo, environmentName, workspaceName)
+	}
+	if _, err := tx.Exec(ctx, insertDataControlsSQL, organization, workspace, environment, class); err != nil {
+		return "", "", fmt.Errorf("create the demo environment's data controls: %w", err)
+	}
+	return workspace, environment, nil
+}
+
+// resolveDedicated provisions the dedicated Organization the way the
+// bootstrap command provisions the first one: the provider Organization is
+// resolved or created, the person is resolved or invited, and the
+// Organization, its Workspace, its Environment, the administrator
+// membership and the scope are written by the bootstrap store.
+//
+// An Organization that a removal left empty (the database keeps the record
+// where the permission projection refers to it) receives its Workspace and
+// Environment again first. An Organization that has any other Environment
+// is not a demo Organization and is refused: provisioning would make the
+// person an administrator of it.
 func (seeder *Seeder) resolveDedicated(ctx context.Context, request Request) (target, error) {
-	store, err := bootstrap.NewPostgresStoreWithLayout(seeder.database, request.Workspace, []bootstrap.DefaultEnvironment{{Name: request.Environment, Class: environmentClass}})
+	environmentName := request.Environment
+	if environmentName == "" {
+		environmentName = DefaultName
+	}
+	store, err := bootstrap.NewPostgresStoreWithLayout(seeder.database, request.Workspace, []bootstrap.DefaultEnvironment{{Name: environmentName, Class: environmentClass}})
 	if err != nil {
 		return target{}, ErrInvalid
 	}
-	provisioner, err := bootstrap.NewProvisioner(seeder.directory, store)
+	organization, err := seeder.directory.EnsureOrganization(ctx, request.Organization, request.Domain)
 	if err != nil {
-		return target{}, ErrInvalid
+		return target{}, fmt.Errorf("%w (an organization for %s may exist under another name)", ErrProvider, request.Domain)
 	}
-	result, err := provisioner.Provision(ctx, bootstrap.Request{Name: request.Organization, Domain: request.Domain, AdminEmail: request.Email})
+	invitation, err := seeder.directory.InviteAdmin(ctx, organization.Reference, request.Email)
+	if err != nil || invitation.OrganizationReference() != organization.Reference || invitation.MemberReference() == "" {
+		return target{}, fmt.Errorf("%w (the invitation could not be sent)", ErrProvider)
+	}
+	rows, err := seeder.database.Query(ctx, organizationsOfReferenceSQL, organization.Reference)
+	if err != nil {
+		return target{}, err
+	}
+	existing, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return target{}, err
+	}
+	switch len(existing) {
+	case 0:
+	case 1:
+		var others int
+		if err := seeder.database.QueryRow(ctx, otherEnvironmentCountSQL, existing[0], request.Workspace, environmentName).Scan(&others); err != nil {
+			return target{}, err
+		}
+		if others > 0 {
+			return target{}, fmt.Errorf("%w: the organization for %s has environments of its own and is not a demo organization; use --into-existing-organization %s", ErrConflict, request.Domain, existing[0])
+		}
+		if err := seeder.inTransaction(ctx, func(tx pgx.Tx) error {
+			_, _, err := ensureEnvironment(ctx, tx, existing[0], request.Workspace, environmentName)
+			return err
+		}); err != nil {
+			return target{}, err
+		}
+	default:
+		return target{}, fmt.Errorf("%w: the provider organization for %s is linked to more than one organization", ErrConflict, request.Domain)
+	}
+	result, err := store.Provision(ctx, bootstrap.Records{Name: organization.Name, Domain: organization.Domain, OrganizationReference: organization.Reference, MemberReference: invitation.MemberReference()})
 	switch {
-	case errors.Is(err, bootstrap.ErrProvider):
-		return target{}, fmt.Errorf("%w (an organization for %s may exist under another name, or the invitation could not be sent)", ErrProvider, request.Domain)
 	case errors.Is(err, bootstrap.ErrConflict):
 		return target{}, fmt.Errorf("%w: the membership or the organization for %s exists in another form", ErrConflict, request.Domain)
 	case errors.Is(err, bootstrap.ErrInvalid):
@@ -140,15 +239,12 @@ func (seeder *Seeder) resolveDedicated(ctx context.Context, request Request) (ta
 	case err != nil:
 		return target{}, fmt.Errorf("provision the demo organization: %w", err)
 	}
-	// An Organization that existed before is the demo Organization only if
-	// it has the demo Workspace and Environment; the provisioner created
-	// neither for it.
 	var workspace, environment, class string
 	if err := seeder.database.QueryRow(ctx, workspaceByNameSQL, result.OrganizationID, request.Workspace).Scan(&workspace); err != nil {
 		return target{}, fmt.Errorf("%w: organization %s has no workspace named %q", ErrConflict, result.OrganizationID, request.Workspace)
 	}
-	if err := seeder.database.QueryRow(ctx, environmentByNameSQL, result.OrganizationID, workspace, request.Environment).Scan(&environment, &class); err != nil {
-		return target{}, fmt.Errorf("%w: organization %s has no environment named %q", ErrConflict, result.OrganizationID, request.Environment)
+	if err := seeder.database.QueryRow(ctx, environmentByNameSQL, result.OrganizationID, workspace, environmentName).Scan(&environment, &class); err != nil {
+		return target{}, fmt.Errorf("%w: organization %s has no environment named %q", ErrConflict, result.OrganizationID, environmentName)
 	}
 	scope, err := parseScope(result.OrganizationID, workspace, environment)
 	if err != nil {
@@ -159,7 +255,7 @@ func (seeder *Seeder) resolveDedicated(ctx context.Context, request Request) (ta
 			return target{}, fmt.Errorf("bind the permission projection of the demo organization: %w", err)
 		}
 	}
-	return target{scope: scope, organizationName: request.Organization, environmentName: request.Environment, principal: result.PrincipalID,
+	return target{scope: scope, organizationName: request.Organization, environmentName: environmentName, principal: result.PrincipalID,
 		organizationCreated: result.OrganizationCreated, memberCreated: result.AdminCreated, dedicated: true}, nil
 }
 
@@ -169,6 +265,10 @@ func (seeder *Seeder) resolveDedicated(ctx context.Context, request Request) (ta
 // invitation.
 func (seeder *Seeder) resolveExisting(ctx context.Context, request Request) (target, error) {
 	organization := request.ExistingOrganizationID
+	environmentName := request.Environment
+	if environmentName == "" {
+		environmentName = DefaultExistingEnvironment
+	}
 	var name string
 	if err := seeder.database.QueryRow(ctx, organizationNameSQL, organization).Scan(&name); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -204,61 +304,22 @@ func (seeder *Seeder) resolveExisting(ctx context.Context, request Request) (tar
 	if json.Unmarshal(permissions, &listed) != nil || len(listed) == 0 {
 		return target{}, fmt.Errorf("%w: the member has no permission in %s", ErrNotMember, organization)
 	}
-
-	tx, err := seeder.database.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-	if err != nil {
-		return target{}, err
-	}
-	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	if _, err := tx.Exec(ctx, scopeLockSQL, organization); err != nil {
-		return target{}, err
-	}
-	var workspace string
-	switch err := tx.QueryRow(ctx, workspaceByNameSQL, organization, request.Workspace).Scan(&workspace); {
-	case errors.Is(err, pgx.ErrNoRows):
-		if workspace, err = newID(); err != nil {
-			return target{}, err
+	var workspace, environment string
+	if err := seeder.inTransaction(ctx, func(tx pgx.Tx) error {
+		var err error
+		if workspace, environment, err = ensureEnvironment(ctx, tx, organization, request.Workspace, environmentName); err != nil {
+			return err
 		}
-		if _, err := tx.Exec(ctx, insertWorkspaceSQL, workspace, organization, request.Workspace); err != nil {
-			return target{}, fmt.Errorf("create the demo workspace: %w", err)
+		if _, err := tx.Exec(ctx, insertScopeSQL, principal, organization, workspace, environment, environmentName, string(permissions)); err != nil {
+			return fmt.Errorf("authorize the member for the demo environment: %w", err)
 		}
-	case err != nil:
-		return target{}, err
-	}
-	var environment, class string
-	switch err := tx.QueryRow(ctx, environmentByNameSQL, organization, workspace, request.Environment).Scan(&environment, &class); {
-	case errors.Is(err, pgx.ErrNoRows):
-		if environment, err = newID(); err != nil {
-			return target{}, err
-		}
-		class = environmentClass
-		if _, err := tx.Exec(ctx, insertEnvironmentSQL, environment, organization, workspace, request.Environment, class); err != nil {
-			return target{}, fmt.Errorf("create the demo environment: %w", err)
-		}
-	case err != nil:
-		return target{}, err
-	}
-	// The Environment may be one a person created with this name. It is the
-	// demo Environment only if it holds nothing but demo integrations.
-	var foreign int
-	if err := tx.QueryRow(ctx, foreignIntegrationsSQL, organization, workspace, environment).Scan(&foreign); err != nil {
-		return target{}, err
-	}
-	if foreign > 0 || class == "production" {
-		return target{}, fmt.Errorf("%w: environment %q of workspace %q", ErrNotDemo, request.Environment, request.Workspace)
-	}
-	if _, err := tx.Exec(ctx, insertDataControlsSQL, organization, workspace, environment, class); err != nil {
-		return target{}, fmt.Errorf("create the demo environment's data controls: %w", err)
-	}
-	if _, err := tx.Exec(ctx, insertScopeSQL, principal, organization, workspace, environment, request.Environment, string(permissions)); err != nil {
-		return target{}, fmt.Errorf("authorize the member for the demo environment: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
+		return nil
+	}); err != nil {
 		return target{}, err
 	}
 	scope, err := parseScope(organization, workspace, environment)
 	if err != nil {
 		return target{}, err
 	}
-	return target{scope: scope, organizationName: name, environmentName: request.Environment, principal: principal}, nil
+	return target{scope: scope, organizationName: name, environmentName: environmentName, principal: principal}, nil
 }

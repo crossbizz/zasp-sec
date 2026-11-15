@@ -5,8 +5,9 @@
   "subject": "openai_project/proj_NwRobotics0001",
   "description": "Assistants and agents of an OpenAI API project, among them one that runs code and one that uses a shell and a remote MCP server.",
   "configuration": {
+    "connection_reference": "ref:nango/connection/de300000-0000-4000-8000-000000000004",
     "platform": "openai_project",
-    "tenant": "proj_NwRobotics0001"
+    "tenant_id": "proj_NwRobotics0001"
   },
   "http": {
     "platform": "openai_project",

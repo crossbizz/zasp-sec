@@ -5,8 +5,9 @@
   "subject": "servicenow/northwindrobotics",
   "description": "Now Assist AI agents of a ServiceNow instance, one of them inactive, and the AI applications installed on it.",
   "configuration": {
+    "connection_reference": "ref:nango/connection/de300000-0000-4000-8000-000000000003",
     "platform": "servicenow",
-    "tenant": "northwindrobotics"
+    "tenant_id": "northwindrobotics"
   },
   "http": {
     "platform": "servicenow",

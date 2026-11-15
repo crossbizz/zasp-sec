@@ -5,8 +5,9 @@
   "subject": "databricks/adb-4200000000000042.7.azuredatabricks.net",
   "description": "Model serving endpoints of a Databricks workspace: served agents, an external model endpoint and a classic model that is not an agent.",
   "configuration": {
+    "connection_reference": "ref:nango/connection/de300000-0000-4000-8000-000000000001",
     "platform": "databricks",
-    "tenant": "adb-4200000000000042.7.azuredatabricks.net"
+    "tenant_id": "adb-4200000000000042.7.azuredatabricks.net"
   },
   "http": {
     "platform": "databricks",

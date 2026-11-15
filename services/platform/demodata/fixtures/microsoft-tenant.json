@@ -5,8 +5,10 @@
   "subject": "8b2f1c0e-5d4a-4b7c-9e61-0a3f7d2c4e15",
   "description": "Copilot Studio agents, one of them with the lowest content moderation and one open to unauthenticated users, Entra agent identities, and Azure AI Foundry agents with their model deployments and content filters.",
   "configuration": {
-    "tenant_id": "8b2f1c0e-5d4a-4b7c-9e61-0a3f7d2c4e15",
-    "dataverse_url": "https://northwindrobotics.crm.dynamics.com"
+    "client_id": "5e5e5e5e-0000-4000-8000-000000000401",
+    "client_secret_reference": "ref:microsoft/client-secret/demo-northwind-robotics",
+    "dataverse_url": "https://northwindrobotics.crm.dynamics.com",
+    "tenant_id": "8b2f1c0e-5d4a-4b7c-9e61-0a3f7d2c4e15"
   },
   "http": {
     "endpoint": "https://northwindrobotics.crm.dynamics.com",

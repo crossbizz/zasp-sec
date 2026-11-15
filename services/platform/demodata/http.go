@@ -160,7 +160,10 @@ func collectSalesforce(ctx context.Context, integration Integration, target Targ
 
 func collectGCP(ctx context.Context, integration Integration, target Target) (Snapshot, error) {
 	transport := newReplay(integration.HTTP, target)
-	api, err := gcpdiscovery.NewGCPCollectionAPI(gcpdiscovery.CollectionAPIConfig{Transport: transport, Timeout: providerTimeout})
+	api, err := gcpdiscovery.NewGCPCollectionAPI(gcpdiscovery.CollectionAPIConfig{Transport: transport, Timeout: providerTimeout,
+		// The collector stamps its findings with this clock, and the pipeline
+		// requires a finding to carry the collection time.
+		Clock: func() time.Time { return target.ObservedAt }})
 	if err != nil {
 		return failed(integration, err)
 	}

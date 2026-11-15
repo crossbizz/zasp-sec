@@ -5,8 +5,7 @@
   "subject": "k8s-prod.northwind-robotics.example.com/prod-us-east",
   "description": "Labelled agents, agents inferred from images, environment names and runtime egress, MCP server workloads linked to the agents that use them, a shared service account, a privileged shell agent and an agent that was removed since the last collection.",
   "configuration": {
-    "cluster_name": "prod-us-east",
-    "endpoint": "https://k8s-prod.northwind-robotics.example.com"
+    "connection_reference": "ref:kubernetes/demo/northwind-prod-us-east"
   },
   "http": {
     "endpoint": "https://k8s-prod.northwind-robotics.example.com",

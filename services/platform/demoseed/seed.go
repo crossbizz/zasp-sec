@@ -124,6 +124,9 @@ func (seeder *Seeder) seedIntegration(ctx context.Context, resolved target, inte
 		}
 		err := seeder.inTransaction(ctx, func(tx pgx.Tx) error {
 			id, created, err := ensureIntegration(ctx, tx, scope, integration)
+			if err == nil {
+				err = ensureProductRecord(ctx, tx, scope, id, resolved.principal, integration, observed)
+			}
 			if err != nil {
 				return err
 			}

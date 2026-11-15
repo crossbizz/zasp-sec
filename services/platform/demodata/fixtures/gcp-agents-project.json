@@ -5,8 +5,8 @@
   "subject": "projects/northwind-agents-prod",
   "description": "A Vertex AI Agent Engine agent, a Conversational Agent with tools, Cloud Run services inferred to be agents, a Cloud Run MCP server, a service account with the Owner role and a project where Model Armor screens nothing.",
   "configuration": {
-    "scope": "projects/northwind-agents-prod",
-    "service_account": "zasp-reader@northwind-agents-prod.iam.gserviceaccount.com"
+    "identity_reference": "ref:gcp/service-account-key/demo-northwind-agents-prod",
+    "scope": "projects/northwind-agents-prod"
   },
   "http": {
     "routes": [

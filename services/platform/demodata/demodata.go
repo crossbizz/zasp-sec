@@ -64,7 +64,7 @@ type Integration struct {
 	Subject string `json:"subject"`
 	// Configuration is the integration's reference-only configuration, as a
 	// person would have entered it. The seeder adds the Marker member.
-	Configuration map[string]any `json:"configuration"`
+	Configuration map[string]string `json:"configuration"`
 	// Description says what the integration shows, for the status output.
 	Description string `json:"description"`
 

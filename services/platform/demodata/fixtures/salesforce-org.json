@@ -5,8 +5,10 @@
   "subject": "00D8a000001NwRbEAK",
   "description": "Agentforce agents with their topics and actions, one of which runs as a user who may view all data, and a legacy bot with no active version.",
   "configuration": {
+    "client_id": "demo-northwind-robotics-connected-app",
+    "client_secret_reference": "ref:salesforce/client-secret/demo-northwind-robotics",
     "instance_url": "https://northwind-robotics.my.salesforce.com",
-    "org_id": "00D8a000001NwRbEAK"
+    "organization_id": "00D8a000001NwRbEAK"
   },
   "http": {
     "endpoint": "https://northwind-robotics.my.salesforce.com",

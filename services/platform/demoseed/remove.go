@@ -93,6 +93,9 @@ func (seeder *Seeder) Status(ctx context.Context, organization string) ([]ScopeS
 		if err := seeder.database.QueryRow(ctx, scopeMembersSQL, status.OrganizationID, status.WorkspaceID, status.EnvironmentID).Scan(&status.Members); err != nil {
 			return nil, err
 		}
+		if err := seeder.database.QueryRow(ctx, foreignIntegrationsSQL, status.OrganizationID, status.WorkspaceID, status.EnvironmentID).Scan(&status.ForeignIntegrations); err != nil {
+			return nil, err
+		}
 	}
 	return scopes, nil
 }

@@ -5,8 +5,7 @@
   "subject": "71000042",
   "description": "Repositories that are agent projects: MCP server configuration with an unpinned stdio package and a remote server without authentication, tools the agent may call without asking, skills with scripts and skills no code owner reviews.",
   "configuration": {
-    "installation_id": "71000042",
-    "organization": "northwind-robotics"
+    "authorization_mode": "github_app"
   },
   "http": {
     "routes": [

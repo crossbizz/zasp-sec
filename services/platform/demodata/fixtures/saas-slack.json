@@ -5,8 +5,9 @@
   "subject": "slack/T0NWROBOT01",
   "description": "AI apps approved in a Slack workspace, among them one that may read channel history.",
   "configuration": {
+    "connection_reference": "ref:nango/connection/de300000-0000-4000-8000-000000000002",
     "platform": "slack",
-    "tenant": "T0NWROBOT01"
+    "tenant_id": "T0NWROBOT01"
   },
   "http": {
     "platform": "slack",
