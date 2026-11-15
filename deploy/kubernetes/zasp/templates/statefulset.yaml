@@ -30,6 +30,11 @@ spec:
       # The product never calls the Kubernetes API. The only token mounted is
       # the workload identity token the AWS clients present to the emulator.
       automountServiceAccountToken: false
+      # No step needs root: the data volume is made writable for the pod's
+      # group, which every container belongs to.
+      securityContext:
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+        fsGroupChangePolicy: OnRootMismatch
       terminationGracePeriodSeconds: 60
       {{- with $images.pullSecrets }}
       imagePullSecrets: {{ toJson . }}
@@ -41,7 +46,10 @@ spec:
       tolerations: {{ toJson . }}
       {{- end }}
       initContainers:
-        # 1. Directories on the data volume, owned by the users that write them.
+        {{- if .Values.volumePermissions.enabled }}
+        # 1. Optional, and the only step that runs as root: for storage that
+        # ignores fsGroup. Gives the directories on the data volume to the
+        # users that write them.
         - name: volume-permissions
           image: {{ $images.postgres | quote }}
           imagePullPolicy: {{ $images.pullPolicy }}
@@ -49,11 +57,13 @@ spec:
           args:
             - |
               mkdir -p /data/postgres /data/temporal /data/state
+              chown {{ .Values.securityContext.postgresUser }}:{{ .Values.securityContext.postgresUser }} /data/postgres
               chown 1000:1000 /data/temporal
               chown 65532:65532 /data/state
           securityContext: { runAsUser: 0 }
           volumeMounts:
             - { name: data, mountPath: /data }
+        {{- end }}
         # 2. PostgreSQL, on loopback only. A restartable init container: it
         # keeps running while the following steps and the product use it.
         - name: postgres
@@ -61,6 +71,14 @@ spec:
           imagePullPolicy: {{ $images.pullPolicy }}
           restartPolicy: Always
           args: ["-c", "listen_addresses=127.0.0.1", "-c", "max_connections=300"]
+          # The image's own unprivileged user, set here so the server never
+          # starts as root.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: {{ .Values.securityContext.postgresUser }}
+            runAsGroup: {{ .Values.securityContext.postgresUser }}
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
           env:
             - { name: POSTGRES_USER, value: postgres }
             - { name: POSTGRES_DB, value: postgres }
@@ -83,6 +101,12 @@ spec:
         - name: database-init
           image: {{ $images.postgres | quote }}
           imagePullPolicy: {{ $images.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: {{ .Values.securityContext.postgresUser }}
+            runAsGroup: {{ .Values.securityContext.postgresUser }}
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
           command: ["/bin/sh", "-ec"]
           args:
             - |

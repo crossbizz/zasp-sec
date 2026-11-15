@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"reflect"
 	"strings"
 	"time"
@@ -8,7 +9,7 @@ import (
 
 func validAttackLabReconcilerAuthority(c workerRuntimeConfig) bool {
 	role := discoveryAWSRolePattern.FindStringSubmatch(c.AttackLabReconcilerRoleARN)
-	if len(role) != 2 || role[1] != c.EvidenceOwner || !workerRegionPattern.MatchString(c.AWSRegion) || !workerAccountPattern.MatchString(c.EvidenceOwner) || !workerBucketPattern.MatchString(c.EvidenceBucket) || !workerKMSPattern.MatchString(c.EvidenceKMSKeyARN) || !strings.HasPrefix(c.EvidenceKMSKeyARN, "arn:aws:kms:"+c.AWSRegion+":"+c.EvidenceOwner+":key/") || c.AttackLabReconcilerTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || c.LeaseDuration != time.Minute || c.BatchSize != 1 {
+	if len(role) != 2 || role[1] != c.EvidenceOwner || !workerRegionPattern.MatchString(c.AWSRegion) || !workerAccountPattern.MatchString(c.EvidenceOwner) || !workerBucketPattern.MatchString(c.EvidenceBucket) || !workerKMSPattern.MatchString(c.EvidenceKMSKeyARN) || !strings.HasPrefix(c.EvidenceKMSKeyARN, "arn:aws:kms:"+c.AWSRegion+":"+c.EvidenceOwner+":key/") || c.AttackLabReconcilerTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || c.LeaseDuration != time.Minute || c.BatchSize != 1 {
 		return false
 	}
 	allowed := workerRuntimeConfig{Mode: c.Mode, PostgresDSN: c.PostgresDSN, DatabaseAuthority: c.DatabaseAuthority, WorkerID: c.WorkerID, PollInterval: c.PollInterval, LeaseDuration: c.LeaseDuration, BatchSize: c.BatchSize, ShutdownTimeout: c.ShutdownTimeout, AWSRegion: c.AWSRegion, EvidenceBucket: c.EvidenceBucket, EvidenceOwner: c.EvidenceOwner, EvidenceKMSKeyARN: c.EvidenceKMSKeyARN, AttackLabReconcilerRoleARN: c.AttackLabReconcilerRoleARN, AttackLabReconcilerTokenFile: c.AttackLabReconcilerTokenFile}
