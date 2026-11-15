@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,15 +35,20 @@ func cloudTrailEvent(identityType, issuerType, arn string) cloudtrailtypes.Event
 	return cloudtrailtypes.Event{CloudTrailEvent: aws.String(string(body))}
 }
 
+// The collector reads regions concurrently, so a stub shared between regions
+// guards the state its calls change.
 type cloudTrailStub struct {
 	events map[string][]cloudtrailtypes.Event
 	err    error
+	mu     sync.Mutex
 	calls  []string
 }
 
 func (stub *cloudTrailStub) LookupEvents(_ context.Context, input *cloudtrail.LookupEventsInput, _ ...func(*cloudtrail.Options)) (*cloudtrail.LookupEventsOutput, error) {
 	name := aws.ToString(input.LookupAttributes[0].AttributeValue)
+	stub.mu.Lock()
 	stub.calls = append(stub.calls, name)
+	stub.mu.Unlock()
 	if stub.err != nil {
 		return nil, stub.err
 	}
@@ -95,6 +101,7 @@ type networkLogStub struct {
 	resolverErr       error
 	// rows answers a query by a fragment of its text.
 	resolverRows, flowRows [][]logstypes.ResultField
+	mu                     sync.Mutex
 	queries                []string
 	running                int
 }
@@ -115,7 +122,9 @@ func (stub *networkLogStub) DescribeFlowLogs(context.Context, *ec2.DescribeFlowL
 }
 
 func (stub *networkLogStub) StartQuery(_ context.Context, input *cloudwatchlogs.StartQueryInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.StartQueryOutput, error) {
+	stub.mu.Lock()
 	stub.queries = append(stub.queries, aws.ToString(input.QueryString))
+	stub.mu.Unlock()
 	if input.EndTime == nil || input.StartTime == nil || *input.EndTime-*input.StartTime != int64(discoveryAWSLogWindow/time.Second) || aws.ToInt32(input.Limit) != maximumAWSLogRows {
 		return nil, errors.New("unbounded query")
 	}
@@ -126,8 +135,13 @@ func (stub *networkLogStub) StartQuery(_ context.Context, input *cloudwatchlogs.
 }
 
 func (stub *networkLogStub) GetQueryResults(_ context.Context, input *cloudwatchlogs.GetQueryResultsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.GetQueryResultsOutput, error) {
-	if stub.running > 0 {
+	stub.mu.Lock()
+	running := stub.running > 0
+	if running {
 		stub.running--
+	}
+	stub.mu.Unlock()
+	if running {
 		return &cloudwatchlogs.GetQueryResultsOutput{Status: logstypes.QueryStatusRunning}, nil
 	}
 	if aws.ToString(input.QueryId) == "resolver" {

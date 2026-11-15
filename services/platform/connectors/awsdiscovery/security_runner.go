@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"io"
 	"os"
 	"os/exec"
@@ -27,14 +28,12 @@ const (
 	SecurityModeCartographyAWS SecurityMode = "cartography-aws-v1"
 	SecurityModeProwlerAWS     SecurityMode = "prowler-aws-v1"
 
-	cartographySecurityExecutable = "/opt/zasp/security/cartography/bin/security-worker"
-	prowlerSecurityExecutable     = "/opt/zasp/security/prowler/bin/security-worker"
-	maximumSecurityFrameBytes     = 16 * 1024 * 1024
-	maximumSecurityStderrBytes    = 8 * 1024
-	securityExitRetryable         = 10
-	securityExitRateLimited       = 11
-	securityExitDenied            = 12
-	securityExitMalformed         = 13
+	maximumSecurityFrameBytes  = 16 * 1024 * 1024
+	maximumSecurityStderrBytes = 8 * 1024
+	securityExitRetryable      = 10
+	securityExitRateLimited    = 11
+	securityExitDenied         = 12
+	securityExitMalformed      = 13
 )
 
 var (
@@ -428,10 +427,10 @@ func securityInput(request CollectionSecurityRequest, authority securityAuthorit
 	var encoded []byte
 	var quotedCredential []byte
 	if request.Mode == SecurityModeCartographyAWS {
-		executable = cartographySecurityExecutable
+		executable = cartographySecurityExecutable()
 		document = cartographySecurityEnvelope{Authority: authority, ProtocolVersion: 1, Source: request.Source}
 	} else {
-		executable = prowlerSecurityExecutable
+		executable = prowlerSecurityExecutable()
 		encoded = make([]byte, base64.RawURLEncoding.EncodedLen(len(credential)))
 		base64.RawURLEncoding.Encode(encoded, credential)
 		quotedCredential = make([]byte, len(encoded)+2)
@@ -488,7 +487,7 @@ func (runner *SecurityRunner) CheckCollectionReadiness(ctx context.Context) erro
 	if runner == nil || nilSecurityProcess(runner.process) || runner.clock == nil || ctx == nil || ctx.Err() != nil {
 		return ErrDenied
 	}
-	for _, executable := range []string{cartographySecurityExecutable, prowlerSecurityExecutable} {
+	for _, executable := range []string{cartographySecurityExecutable(), prowlerSecurityExecutable()} {
 		info, err := os.Stat(executable)
 		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 			return ErrDenied
@@ -596,4 +595,14 @@ func (*execSecurityProcess) Run(ctx context.Context, spec securityProcessSpec, i
 		return nil, &securityProcessError{ExitCode: securityExitMalformed}
 	}
 	return bytes.Clone(stdout.buffer.Bytes()), nil
+}
+
+// The analyzer programs live at fixed paths; a local stack keeps the same
+// paths beneath its own runtime root.
+func cartographySecurityExecutable() string {
+	return runtimepath.Fixed("/opt/zasp/security/cartography/bin/security-worker")
+}
+
+func prowlerSecurityExecutable() string {
+	return runtimepath.Fixed("/opt/zasp/security/prowler/bin/security-worker")
 }

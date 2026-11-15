@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,7 +27,7 @@ func validRemediationWorkerConfig(config workerRuntimeConfig) bool {
 	if config.RemediationRoleARN == "" && config.RemediationTokenFile == "" && config.RemediationSecretPrefix == "" {
 		return true
 	}
-	return discoveryCloudRolePattern.MatchString(config.RemediationRoleARN) && config.RemediationTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" &&
+	return discoveryCloudRolePattern.MatchString(config.RemediationRoleARN) && config.RemediationTokenFile == runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") &&
 		validDiscoverySecretRoot(config.RemediationSecretPrefix) && discoveryRegionPattern.MatchString(config.AWSRegion)
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/auditexportconfig"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
@@ -64,7 +65,7 @@ func validAuditExportRuntimeConfig(config *auditExportRuntimeConfig, connectorRo
 	if config == nil {
 		return true
 	}
-	if !connectorRolePattern.MatchString(config.ReaderRoleARN) || config.ReaderRoleARN == connectorRole || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || len(config.CursorSigningKey) != 32 || len(config.Policies) == 0 || len(config.Policies) > 64 {
+	if !connectorRolePattern.MatchString(config.ReaderRoleARN) || config.ReaderRoleARN == connectorRole || config.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || len(config.CursorSigningKey) != 32 || len(config.Policies) == 0 || len(config.Policies) > 64 {
 		return false
 	}
 	var nonzero byte

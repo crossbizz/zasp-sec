@@ -11,6 +11,12 @@ export ZASP_REAL_STACK_STATE="$LOCAL_STATE" ZASP_REAL_STACK_ORIGIN="$LOCAL_ORIGI
 [ -z "${ZASP_OAUTH_PROVIDER:-}" ] || export ZASP_REAL_STACK_OAUTH_PROVIDER="$ZASP_OAUTH_PROVIDER"
 [ -z "${ZASP_POSTGRES_BIN:-}" ] || export ZASP_REAL_STACK_PG_BIN="$ZASP_POSTGRES_BIN"
 [ -z "${ZASP_POSTGRES_DATA:-}" ] || export ZASP_REAL_STACK_PG_DATA="$ZASP_POSTGRES_DATA"
+# Where the fixed paths the programs read start from: a private directory in
+# the state directory unless ZASP_RUNTIME_DIR names another, or 'system' for
+# /var/run and /opt themselves (creating those takes root once).
+LOCAL_RUNTIME="${ZASP_RUNTIME_DIR:-${ZASP_REAL_STACK_RUNTIME_ROOT:-$LOCAL_STATE/runtime}}"
+export ZASP_REAL_STACK_RUNTIME_ROOT="$LOCAL_RUNTIME"
+case "$LOCAL_RUNTIME" in system) LOCAL_RUNTIME_PREFIX="" ;; *) LOCAL_RUNTIME_PREFIX="${LOCAL_RUNTIME%/}" ;; esac
 
 LOCAL_ORIGIN_AUTHORITY="${LOCAL_ORIGIN#https://}"
 LOCAL_ORIGIN_HOST="${LOCAL_ORIGIN_AUTHORITY%%:*}"
@@ -18,7 +24,7 @@ case "$LOCAL_ORIGIN_AUTHORITY" in
   *:*) LOCAL_ORIGIN_PORT="${LOCAL_ORIGIN_AUTHORITY##*:}" ;;
   *) LOCAL_ORIGIN_PORT=443 ;;
 esac
-LOCAL_TOKEN_DIRECTORY=/var/run/secrets/eks.amazonaws.com/serviceaccount
+LOCAL_TOKEN_DIRECTORY="$LOCAL_RUNTIME_PREFIX/var/run/secrets/eks.amazonaws.com/serviceaccount"
 
 local_stack() { "$LOCAL_STACK" "$@"; }
 local_native() { [ "$LOCAL_DEPENDENCIES" = native ]; }
@@ -86,18 +92,30 @@ local_doctor() {
   fi
 
   # Fixed paths the API and workers read, as in a Kubernetes pod.
-  if local_directory_usable "$LOCAL_TOKEN_DIRECTORY"; then
-    doctor_ok "$LOCAL_TOKEN_DIRECTORY is writable (workload identity token)"
+  if [ -n "$LOCAL_RUNTIME_PREFIX" ]; then
+    case "$LOCAL_RUNTIME_PREFIX" in
+      /*)
+        if local_directory_usable "$LOCAL_RUNTIME_PREFIX"; then
+          doctor_ok "$LOCAL_RUNTIME_PREFIX is writable (key files and analyzers; no root needed)"
+        else
+          doctor_missing "$LOCAL_RUNTIME_PREFIX cannot be written by this user" "set ZASP_RUNTIME_DIR to a directory you own"
+        fi ;;
+      *) doctor_missing "ZASP_RUNTIME_DIR must be an absolute directory or 'system'" "remove the setting to use the state directory" ;;
+    esac
   else
-    doctor_missing "$LOCAL_TOKEN_DIRECTORY cannot be written by this user" "run: sudo mkdir -p $LOCAL_TOKEN_DIRECTORY && sudo chown \"\$USER\" $LOCAL_TOKEN_DIRECTORY"
-  fi
-  for directory in /var/run/secrets/zasp-security-agent /var/run/secrets/zasp-security-agent-action /var/run/zasp-policy-verifier; do
-    if local_directory_usable "$directory"; then
-      doctor_ok "$directory is writable (Security Agent key files)"
+    if local_directory_usable "$LOCAL_TOKEN_DIRECTORY"; then
+      doctor_ok "$LOCAL_TOKEN_DIRECTORY is writable (workload identity token)"
     else
-      doctor_missing "$directory cannot be written by this user" "run: sudo mkdir -p $directory && sudo chown \"\$USER\" $directory"
+      doctor_missing "$LOCAL_TOKEN_DIRECTORY cannot be written by this user" "run: sudo mkdir -p $LOCAL_TOKEN_DIRECTORY && sudo chown \"\$USER\" $LOCAL_TOKEN_DIRECTORY; or remove ZASP_RUNTIME_DIR=system"
     fi
-  done
+    for directory in /var/run/secrets/zasp-security-agent /var/run/secrets/zasp-security-agent-action /var/run/zasp-policy-verifier; do
+      if local_directory_usable "$directory"; then
+        doctor_ok "$directory is writable (Security Agent key files)"
+      else
+        doctor_missing "$directory cannot be written by this user" "run: sudo mkdir -p $directory && sudo chown \"\$USER\" $directory; or remove ZASP_RUNTIME_DIR=system"
+      fi
+    done
+  fi
 
   # Identity provider: the one dependency that cannot run on this machine.
   doctor_setting STYTCH_PROJECT_ID "identity provider project" "create a B2B project at https://stytch.com/ and copy the project ID from its API keys page"
@@ -112,8 +130,8 @@ local_doctor() {
   fi
   if ! local_native; then
     doctor_optional_setting OPENROUTER_API_KEY "model provider key for the Security Agent planner" "optional: without it Security Agent runs stay queued. Create a key at https://openrouter.ai/"
-    if [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; then
-      doctor_ok "security analyzers are installed (/opt/zasp/security)"
+    if [ -x "$LOCAL_RUNTIME_PREFIX/opt/zasp/security/cartography/bin/security-worker" ] && [ -x "$LOCAL_RUNTIME_PREFIX/opt/zasp/security/prowler/bin/security-worker" ]; then
+      doctor_ok "security analyzers are installed ($LOCAL_RUNTIME_PREFIX/opt/zasp/security)"
     else
       doctor_warn "security analyzers are not installed" "optional: an AWS sync fails without them. Run: ./zasp install --with-analyzers (Python 3.13, about 4 GB)"
     fi

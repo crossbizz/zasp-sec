@@ -38,8 +38,8 @@ test("the saas discovery provider is disabled by default and alone gives the dis
 
   const nango = await read("./product/templates/nango.yaml");
   // The worker may reach Nango, and Nango admits it, only under the gate.
-  assert.match(nango, /\{\{- if \.Values\.discovery\.saasCollectorVersion \}\}\n---\n[^\n]*\napiVersion: networking\.k8s\.io\/v1\nkind: NetworkPolicy\nmetadata:\n  name: discovery-worker-to-nango\n[\s\S]*?podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-discovery-worker \} \}\n  policyTypes: \[Egress\]\n  egress:\n    - to: \[\{ podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: nango \} \} \}\]\n      ports: \[\{ protocol: TCP, port: 3003 \}\]\n\{\{- end \}\}/);
-  assert.match(nango, /\{\{- if \.Values\.discovery\.saasCollectorVersion \}\}\n    - from: \[\{ podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-discovery-worker \} \} \}\]\n      ports: \[\{ protocol: TCP, port: 3003 \}\]\n    \{\{- end \}\}/);
+  assert.match(nango, /\{\{- if \.Values\.discovery\.saasCollectorVersion \}\}\n---\n[^\n]*\napiVersion: networking\.k8s\.io\/v1\nkind: NetworkPolicy\nmetadata:\n {2}name: discovery-worker-to-nango\n[\s\S]*?podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-discovery-worker \} \}\n {2}policyTypes: \[Egress\]\n {2}egress:\n {4}- to: \[\{ podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: nango \} \} \}\]\n {6}ports: \[\{ protocol: TCP, port: 3003 \}\]\n\{\{- end \}\}/);
+  assert.match(nango, /\{\{- if \.Values\.discovery\.saasCollectorVersion \}\}\n {4}- from: \[\{ podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-discovery-worker \} \} \}\]\n {6}ports: \[\{ protocol: TCP, port: 3003 \}\]\n {4}\{\{- end \}\}/);
   assert.equal(nango.split("agentsec-discovery-worker").length - 1, 3);
   // The worker gets no route to a SaaS provider: Nango reaches them.
   const network = await read("./product/templates/resilience.yaml");

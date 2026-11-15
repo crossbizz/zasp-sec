@@ -72,7 +72,7 @@ Deeper references: [production deployment](../operations/production-deployment.m
 | Node.js 22.23.1 and npm | Builds and serves the web application. |
 | `curl`, `openssl` | Used by every step. |
 | A Stytch B2B project | Sign-in. See [Stytch settings](#stytch-settings). |
-| Permission to add one line to `/etc/hosts` and to create four directories under `/var/run` | The browser must reach the stack under a real host name, and the programs read key files from the fixed paths they use in a pod. `./zasp doctor` prints the exact commands. |
+| Permission to add one line to `/etc/hosts` | The browser must reach the stack under a real host name. `./zasp doctor` prints the exact command. This is the only step that needs root; see [Running without root](#running-without-root). |
 | Python 3.13, optional | The AWS collector runs two analyzers (Cartography and Prowler). Without them an AWS sync fails. `./zasp install --with-analyzers` installs them (about 4 GB). |
 
 ### Profile `kubernetes`
@@ -171,6 +171,22 @@ Set `ZASP_DEPENDENCIES=native` in `zasp.env`. PostgreSQL, OpenFGA, the Temporal 
 
 It is enough to see the product start, sign in, and look around. As root, PostgreSQL runs as the system user `postgres`; set `ZASP_POSTGRES_DATA` to a directory that user can reach.
 
+### Running without root
+
+No program in the `local` profile runs as root, and nothing it installs needs root.
+
+- **Key files and analyzers.** In a pod the programs read their key files from fixed paths under `/var/run`, and the analyzers from `/opt/zasp/security`. Locally the same paths start from a private directory inside the state directory, `<state directory>/runtime`, which `./zasp` creates for you.
+- **PostgreSQL.** The server runs as the user who runs `./zasp`. PostgreSQL refuses to run as root, so when `./zasp` itself is run by root the server runs as the system user `postgres`.
+- **The host name.** Adding a line to `/etc/hosts` is the one step that needs root. A name that already resolves to `127.0.0.1` avoids it: set `ZASP_ORIGIN` to that name.
+
+| Setting | Meaning |
+| --- | --- |
+| `ZASP_RUNTIME_DIR` unset | `<state directory>/runtime`. No root. |
+| `ZASP_RUNTIME_DIR=/some/directory` | A directory you own, used instead. |
+| `ZASP_RUNTIME_DIR=system` | `/var/run` and `/opt/zasp` themselves, as in a pod. Creating those directories takes root once; `./zasp doctor` prints the commands. |
+
+The programs accept the moved paths only outside Kubernetes, and only when the directory is owned by the user running them and closed to other users. In a cluster the setting is ignored and the paths are exactly the ones Kubernetes mounts.
+
 ## Install on Kubernetes
 
 The chart is `deploy/kubernetes/zasp`. It is an evaluation chart: one StatefulSet with one pod that holds the product and every dependency, the cluster form of the local stack. It does not scale out and AWS is emulated inside the pod. Its header in [`values.yaml`](../../deploy/kubernetes/zasp/values.yaml) explains why.
@@ -225,6 +241,8 @@ To expose it properly, set `service.type: LoadBalancer`, or `ingress.enabled: tr
 | Nango | No | Production chart only. |
 
 This table is the honest answer to "can each dependency be an external managed service": for the product database, yes. For the others the product's own rules tie plaintext dependencies to the loopback interface, so the choice is between this pod and the production topology.
+
+**Users in the pod.** No step runs as root by default. The data volume is made writable through the pod's `fsGroup` (`securityContext.fsGroup`), and PostgreSQL runs as the image's unprivileged user (`securityContext.postgresUser`, 999). The product runs as 65532 and Temporal as 1000. LocalStack and Neo4j keep the users their images define. For storage that ignores `fsGroup`, such as some hostPath and NFS volumes, `volumePermissions.enabled=true` adds one init container that runs as root and hands the data directories to those users.
 
 ## Install on AWS (production)
 
@@ -606,5 +624,6 @@ Written on 2026-11-14, in an environment with Go, Node.js and PostgreSQL 18, and
 | Local profile with Docker, through `./zasp` | **Not run.** The commands `./zasp` issues are the ones `deploy/local/real-stack/README.md` records as run on 2026-11-13 and 2026-11-14. The additions in this change (starting the planner worker with the stack, `dump`, `load`) were not run with Docker. |
 | The evaluation chart | Rendered and linted with Helm 3.16.4; structure, required values and switches checked by tests. **Never installed on a cluster.** One image assumption is marked `UNVERIFIED` in `values.yaml`. |
 | The chart's start script (`files/entrypoint.sh`) | Run once outside a cluster, on a machine laid out like the pod (the same paths, the Secret's keys as files from the rendered chart, PostgreSQL on port 5432, OpenFGA, the Temporal development server, moto and the identity stand-in on loopback). Its steps `prepare`, `fga-model`, `schema` (which installed the schema and created the first organization), `api`, three worker modes, `projector`, `front`, `status`, `verify` and `bootstrap` ran; the front answered `/sign-in` with `200` and `/api/v1/session/bootstrap` with `401`. That exercises the script, not Kubernetes: the init container order, probes, volumes, image contents, LocalStack's provisioning hook, OpenSearch and Neo4j were not exercised. |
+| Running without root | Automated: the worker accepts a key path beneath the local runtime directory, and refuses it inside Kubernetes or when the directory is open to other users (`services/platform/runtimepath`, `agentsec-worker/local_runtime_root_test.go`); `./zasp doctor` asks for no root-owned directory; the rendered chart has no container running as user 0 unless `volumePermissions.enabled=true`. **Not run:** the local stack end to end with the moved paths, and the chart's `fsGroup` ownership on a real volume. |
 | The `aws` profile | **Not run.** Checked against stand-ins only. The runbook it wraps has itself never been applied to an account. |
 | Shell scripts | `./zasp`, `deploy/zasp/lib/*.sh` and the chart's two scripts pass ShellCheck 0.11.0 with no findings. |

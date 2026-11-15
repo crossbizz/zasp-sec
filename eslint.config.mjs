@@ -88,6 +88,8 @@ const eslintConfig = defineConfig([
       "services/platform/migrations/tools/build-worker-readiness-graph.mjs",
       "services/platform/migrations/tools/ordered-current-worker-higher-source-replay-v1.mjs",
       "services/platform/migrations/tools/worker-readiness-regions.mjs",
+      // Rejects control bytes in a probe input before it reaches a target.
+      "workers/redteam-node/runner.mjs",
     ],
     rules: { "no-control-regex": "off" },
   },

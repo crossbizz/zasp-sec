@@ -170,3 +170,18 @@ secrets:
   neo4jTlsCertificate: ""
   neo4jTlsKey: ""
   neo4jTlsCa: ""
+
+# Users and groups. Nothing in the pod needs root.
+securityContext:
+  # The group the data volume is made writable for. Every container is a
+  # member of it.
+  fsGroup: 65532
+  # The unprivileged user of the PostgreSQL image (999 in the Debian image
+  # pinned above, 70 in an Alpine one).
+  postgresUser: 999
+
+# For storage that ignores fsGroup (some hostPath and NFS volumes): one init
+# container that runs as root and gives the directories on the data volume to
+# the users that write them. Off by default.
+volumePermissions:
+  enabled: false

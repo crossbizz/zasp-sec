@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"net/url"
 	"regexp"
 	"strings"
@@ -25,7 +26,7 @@ func validComplianceExportConfiguration(c workerRuntimeConfig) bool {
 		return c.ComplianceExports == nil
 	}
 	p := c.ComplianceExports
-	if p == nil || c.AuditExports != nil || c.LeaseDuration != 60*time.Second || c.ProviderTimeout < time.Second || c.ProviderTimeout > 30*time.Second || c.BatchSize > 10 || !workerRegionPattern.MatchString(c.AWSRegion) || !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`).MatchString(p.Bucket) || !workerAccountPattern.MatchString(p.Owner) || !workerKMSPattern.MatchString(p.KMSKey) || !workerProjectionRolePattern.MatchString(p.RoleARN) || p.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
+	if p == nil || c.AuditExports != nil || c.LeaseDuration != 60*time.Second || c.ProviderTimeout < time.Second || c.ProviderTimeout > 30*time.Second || c.BatchSize > 10 || !workerRegionPattern.MatchString(c.AWSRegion) || !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`).MatchString(p.Bucket) || !workerAccountPattern.MatchString(p.Owner) || !workerKMSPattern.MatchString(p.KMSKey) || !workerProjectionRolePattern.MatchString(p.RoleARN) || p.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") {
 		return false
 	}
 	kms := strings.Split(p.KMSKey, ":")

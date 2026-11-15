@@ -54,12 +54,12 @@ test("only the action worker receives the remediation identity, and only inside 
 
 test("the action worker reaches AWS only while remediations are enabled", async () => {
   const network = await read("./product/templates/resilience.yaml");
-  const policy = /\{\{- if \.Values\.securityAgentRemediation\.enabled \}\}\n---\n(?:#[^\n]*\n)+apiVersion: networking\.k8s\.io\/v1\nkind: NetworkPolicy\nmetadata:\n  name: security-agent-action-remediation\n([\s\S]*?)\{\{- end \}\}\n---\n/.exec(network)?.[1] ?? "";
-  assert.match(policy, /podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-security-agent-action \} \}\n  policyTypes: \[Egress\]\n  egress:\n    - to:\n      \{\{- range \$cidr := required "network\.connectorEgressCIDRs\.aws is required" \.Values\.network\.connectorEgressCIDRs\.aws \}\}\n        - ipBlock: \{ cidr: \{\{ \$cidr \| quote \}\} \}\n      \{\{- end \}\}\n      ports: \[\{ protocol: TCP, port: 443 \}\]\n$/);
+  const policy = /\{\{- if \.Values\.securityAgentRemediation\.enabled \}\}\n---\n(?:#[^\n]*\n)+apiVersion: networking\.k8s\.io\/v1\nkind: NetworkPolicy\nmetadata:\n {2}name: security-agent-action-remediation\n([\s\S]*?)\{\{- end \}\}\n---\n/.exec(network)?.[1] ?? "";
+  assert.match(policy, /podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-security-agent-action \} \}\n {2}policyTypes: \[Egress\]\n {2}egress:\n {4}- to:\n {6}\{\{- range \$cidr := required "network\.connectorEgressCIDRs\.aws is required" \.Values\.network\.connectorEgressCIDRs\.aws \}\}\n {8}- ipBlock: \{ cidr: \{\{ \$cidr \| quote \}\} \}\n {6}\{\{- end \}\}\n {6}ports: \[\{ protocol: TCP, port: 443 \}\]\n$/);
   assert.equal(count(network, "securityAgentRemediation"), 1);
   assert.equal(count(network, "name: security-agent-action-remediation"), 1);
   // The policy the worker always has still admits the database and nothing else.
-  assert.match(network, /metadata: \{ name: security-agent-action-database, labels: \{ app\.kubernetes\.io\/part-of: zasp \} \}\nspec:\n  podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-security-agent-action \} \}\n  policyTypes: \[Egress\]\n  egress:\n    - to: \[\{ ipBlock: \{ cidr: \{\{ required "network\.postgresCIDR is required" \.Values\.network\.postgresCIDR \| quote \}\} \} \}\]\n      ports: \[\{ protocol: TCP, port: 5432 \}\]\n\{\{- if/);
+  assert.match(network, /metadata: \{ name: security-agent-action-database, labels: \{ app\.kubernetes\.io\/part-of: zasp \} \}\nspec:\n {2}podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-security-agent-action \} \}\n {2}policyTypes: \[Egress\]\n {2}egress:\n {4}- to: \[\{ ipBlock: \{ cidr: \{\{ required "network\.postgresCIDR is required" \.Values\.network\.postgresCIDR \| quote \}\} \} \}\]\n {6}ports: \[\{ protocol: TCP, port: 5432 \}\]\n\{\{- if/);
 });
 
 test("Terraform creates the remediation identity only when asked, for exact customer roles", async () => {

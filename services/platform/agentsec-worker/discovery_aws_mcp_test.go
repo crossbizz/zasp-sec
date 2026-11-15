@@ -83,9 +83,11 @@ type mcpNetworkStub struct {
 }
 
 func (stub *mcpNetworkStub) DescribeNetworkInterfaces(_ context.Context, input *ec2.DescribeNetworkInterfacesInput, _ ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
+	stub.mu.Lock()
 	for _, filter := range input.Filters {
 		stub.asked = append(stub.asked, filter.Values...)
 	}
+	stub.mu.Unlock()
 	return &ec2.DescribeNetworkInterfacesOutput{NetworkInterfaces: stub.interfaces}, nil
 }
 
