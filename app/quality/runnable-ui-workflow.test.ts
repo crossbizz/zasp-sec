@@ -339,7 +339,9 @@ const platformMetadataName = "Prime platform full-MVS metadata for offline relea
 
 const verifyDiagnosticRun = "task_verify_log=$(mktemp \"${RUNNER_TEMP}/zasp-npm-verify.XXXXXX\")\nset +e\nnpm run verify 2>&1 | tee \"$task_verify_log\"\ntask_verify_status=${PIPESTATUS[0]}\nset -e\nif [ \"$task_verify_status\" -ne 0 ]; then\n  node scripts/annotate-verify-failure.mjs \"$task_verify_log\" || printf '%s\\n' '::error title=npm verify failed::Verification failed; phase unavailable.'\nfi\nrm -f -- \"$task_verify_log\" || true\nexit \"$task_verify_status\"";
 
-describe("runnable UI GitHub Actions gate", () => {
+// Each source-derived case re-reads the audit sources (about 1.5 s alone);
+// under the full parallel suite one exceeded the 5 s default.
+describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
   it.each(iamUnionCommands.flatMap(command => ["omitted", "reordered", "bypassed"].map(condition => [command, condition] as const)))("rejects IAM union command %s when %s", async (command, condition) => {
     const workflow = validWorkflow();
     const manifest = await readPackageManifest();
