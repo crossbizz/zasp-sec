@@ -159,7 +159,7 @@ ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" go tes
 
 async function readWorkflow(): Promise<Workflow> {
   const source = await readFile(
-    resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"),
+    resolve(repositoryRoot, ".github/workflows/runnable-ui-acceptance.yml"),
     "utf8",
   );
 
@@ -187,10 +187,9 @@ function assertRunnableUiWorkflow(
     .split("&&")
     .map((command) => command.trim());
 
-  expect(workflow.on).toHaveProperty("push");
-  expect(workflow.on).toHaveProperty("pull_request");
-  expect(isUnrestrictedEvent(workflow.on?.push)).toBe(true);
-  expect(isUnrestrictedEvent(workflow.on?.pull_request)).toBe(true);
+  // The acceptance suite is run by hand; runnable-ui.yml holds the checks
+  // that run on every push and pull request.
+  expect(workflow.on).toEqual({ workflow_dispatch: null });
   expect(workflow.permissions).toEqual({ contents: "read" });
   expect(workflow.env).toBeUndefined();
   expect(workflow.defaults).toBeUndefined();
@@ -295,7 +294,7 @@ function assertRunnableUiWorkflow(
 
 function validWorkflow(): Workflow {
   return {
-    on: { push: null, pull_request: null },
+    on: { workflow_dispatch: null },
     permissions: { contents: "read" },
     jobs: {
       verify: {
@@ -598,7 +597,7 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
     expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
   });
   it("runs the precise browser checkpoint tests in CI and the combined acceptance command", async () => {
-    const workflow = await readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8");
+    const workflow = await readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui-acceptance.yml"), "utf8");
     const manifest = await readPackageManifest();
     expect(workflow).toContain("scripts/runtime-precision-browser-proof.test.mjs");
     expect(manifest.scripts?.["production:combined-e2e:test"]).toContain("scripts/runtime-precision-browser-proof.test.mjs");
@@ -749,6 +748,15 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
     ]);
 
     assertRunnableUiWorkflow(workflow, packageManifest);
+  });
+
+  it("keeps the verification, the secret scanner and the Go packages on every push and pull request", async () => {
+    const text = await readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8");
+    expect(text).toMatch(/^"on":\n  push:\n  pull_request:\n/m);
+    expect(text).not.toMatch(/continue-on-error|paths:|branches:/);
+    for (const required of ["fetch-depth: 0", "go install github.com/zricethezav/gitleaks/v8@v8.30.1", "npm run verify", "platform-go:", "Verify the apiserver feature tests"]) expect(text).toContain(required);
+    // The long acceptance steps are not here.
+    for (const moved of ["Verify current compliance browser acceptance", "npm run production:release:gate", "Verify bounded Attack Lab network enforcement"]) expect(text).not.toContain(moved);
   });
 
   it("selects the registered precision PostgreSQL tests in required CI", async () => {
