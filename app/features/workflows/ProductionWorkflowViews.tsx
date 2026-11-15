@@ -13,6 +13,7 @@ import { IntegrationRemediationRole } from "./IntegrationRemediationRole";
 import { createIntegrationsAPI, createPoliciesAPI, IntegrationDiscoveryConflict, IntegrationRevocationPending, ReferenceAuthorizationConflict, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 import { Time } from "../../components/time";
+import { ConnectorCatalog } from "./ConnectorCatalog";
 
 type Feedback = { tone: "status" | "alert"; message: string } | null;
 type PolicyMutationIntent =
@@ -481,22 +482,8 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
         disabled={mutation.isUnresolved}
       />
       {canWrite && (
-        <Card title="Connector catalog">
-          <div className="connector-grid">
-            {catalog.data?.map((value) => (
-              <article key={value.key} className="connector-card">
-                <h3>{value.provider}</h3>
-                <p>{value.description}</p>
-                <Badge tone="info">{value.auth_mode}</Badge>
-                <Button
-                  disabled={busy || mutation.isUnresolved}
-                  onClick={() => choose(value)}
-                >
-                  Configure {value.provider}
-                </Button>
-              </article>
-            ))}
-          </div>
+        <Card title="Add a source">
+          <ConnectorCatalog manifests={catalog.data ?? []} disabled={busy || mutation.isUnresolved} onChoose={choose} />
         </Card>
       )}
       <Modal
