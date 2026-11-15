@@ -74,6 +74,10 @@ type InventorySummary struct {
 	// inactive), and "not_applicable" for every other kind.
 	LastActivityAt *string `json:"last_activity_at"`
 	ActivityState  string  `json:"activity_state"`
+	// Where the object lives, which integration found it and, for an agent,
+	// who created it and the owner and team that suggests. Derived on every
+	// read; Owner and Team above stay what a person assigned.
+	Attribution *InventoryAttribution `json:"attribution,omitempty"`
 }
 
 type InventoryDiscovery struct {
@@ -527,7 +531,7 @@ func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
 		}
 		prior = tag
 	}
-	if !validInventoryDiscovery(item, kind) || !validInventoryActivity(item, kind) {
+	if !validInventoryDiscovery(item, kind) || !validInventoryActivity(item, kind) || !validInventoryAttribution(item, kind) {
 		return false
 	}
 	first, okFirst := parseInventoryTime(item.FirstSeen)

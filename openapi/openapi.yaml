@@ -7501,6 +7501,7 @@ components:
           format: date-time
           description: For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind.
         activity_state: { $ref: '#/components/schemas/InventoryActivityState' }
+        attribution: { $ref: '#/components/schemas/InventoryAttribution' }
         owner: { type: string, maxLength: 128 }
         team: { type: string, maxLength: 128 }
         tags:
@@ -7516,6 +7517,68 @@ components:
         fresh_until: { type: string, format: date-time }
         freshness_state: { $ref: '#/components/schemas/InventoryFreshnessState' }
         version: { type: integer, minimum: 1 }
+    InventoryAttribution:
+      type: object
+      description: Where the object lives, which integration found it and, for an agent, who created it and the owner and team that suggests. It is derived on every read from what the collectors recorded without anything installed. A member is null where the provider says nothing; nothing is guessed. The owner and team a person assigned are the summary's own owner and team and are never replaced by a suggestion.
+      additionalProperties: false
+      required: [location, integration, creator, suggested_owner, suggested_team]
+      properties:
+        location:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              description: The account, project, subscription, tenant, organization, repository, cluster or namespace the object was found in.
+              additionalProperties: false
+              required: [kind, id, label]
+              properties:
+                kind: { type: string, enum: [aws_account, gcp_project, gcp_scope, github_repository, github_organization, kubernetes_namespace, kubernetes_cluster, microsoft_subscription, power_platform_environment, microsoft_tenant, okta_tenant, salesforce_org, saas_workspace] }
+                id: { type: string, minLength: 1, maxLength: 512, description: 'The identifier the provider uses, for example an AWS account id, a project id, owner/repository or cluster/namespace.' }
+                label: { type: string, minLength: 1, maxLength: 256, description: 'What to show. The provider''s name for a Microsoft tenant, a Salesforce org or a SaaS workspace; the identifier everywhere else.' }
+        integration:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              description: The integration whose observation of the object is the winning one.
+              additionalProperties: false
+              required: [id, name]
+              properties:
+                id: { $ref: '#/components/schemas/ProductID' }
+                name: { type: string, minLength: 1, maxLength: 128 }
+        creator:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              description: For an agent, the identity the provider says created it (source cloudtrail, audit_log or provider_record), or the owner the object's own metadata names (source codeowners, label or annotation). Null for every other kind and where the provider does not say.
+              additionalProperties: false
+              required: [identity, created_at, source]
+              properties:
+                identity: { type: string, pattern: '^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$', description: 'An email address, a user name, a login, a team handle or a role name, as the provider records it.' }
+                created_at: { type: [string, 'null'], format: date-time }
+                source: { $ref: '#/components/schemas/InventoryCreatorSource' }
+        suggested_owner:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              description: For an agent no person has given an owner, the creator. Null once an owner is assigned, and for a creator an audit log names only by an opaque account id.
+              additionalProperties: false
+              required: [value, source]
+              properties:
+                value: { type: string, minLength: 1, maxLength: 128 }
+                source: { $ref: '#/components/schemas/InventoryCreatorSource' }
+        suggested_team:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              description: For an agent no person has given a team, the team a label or annotation of the object names (label), otherwise the department of the Okta user of this Environment whose email address is the creator's (okta). Null once a team is assigned.
+              additionalProperties: false
+              required: [value, source]
+              properties:
+                value: { type: string, minLength: 1, maxLength: 128 }
+                source: { type: string, enum: [label, okta] }
+    InventoryCreatorSource:
+      type: string
+      description: How the creator is known. cloudtrail is an AWS CloudTrail create event; audit_log the audit log of another provider; provider_record a creator or owner field of the provider's own record of the object; codeowners the repository's CODEOWNERS file; label and annotation a label or annotation the object carries.
+      enum: [annotation, audit_log, cloudtrail, codeowners, label, provider_record]
     InventoryProvider:
       type: string
       description: The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery. gcp is Google Cloud, read as the projects of one organization, folder or project.

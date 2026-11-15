@@ -37,6 +37,13 @@
     ],
     "agents": {
       "account_id": "111122223333",
+      "creators": [
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/ORDSUP7K2M", "created_at": "2026-09-18T14:05:12Z", "created_by": "marcus.oyelaran@example.com"},
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/WHPLAN4T9Q", "created_at": "2026-10-02T09:41:30Z", "created_by": "priya.raman@example.com"},
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/FINCLS2H6D", "created_at": "2026-10-21T16:20:44Z", "created_by": "elena.sokolova@example.com"},
+        {"arn": "arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/fleet_telemetry_analyst-Qm4Xz81LpA", "created_at": "2026-10-27T11:02:09Z", "created_by": "ci-deployer/release-2291"},
+        {"arn": "arn:aws:lambda:us-east-1:111122223333:function:invoice-summarizer", "created_at": "2026-11-03T08:15:00Z", "created_by": "legacy-deploy"}
+      ],
       "bedrock_agents": [
         {"agent_id": "ORDSUP7K2M", "arn": "arn:aws:bedrock:us-east-1:111122223333:agent/ORDSUP7K2M", "model": "anthropic.claude-sonnet-4-20250514-v1:0", "name": "order-support-assistant", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/bedrock-order-support", "status": "PREPARED"},
         {"agent_id": "WHPLAN4T9Q", "arn": "arn:aws:bedrock:us-east-1:111122223333:agent/WHPLAN4T9Q", "model": "anthropic.claude-sonnet-4-20250514-v1:0", "name": "warehouse-routing-planner", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/bedrock-warehouse-planner", "status": "PREPARED"},

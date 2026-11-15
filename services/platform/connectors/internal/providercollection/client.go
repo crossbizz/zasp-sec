@@ -725,7 +725,7 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "kubernetes_resource", "kubernetes_service_account":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: namespaced}, true
 		case "kubernetes_agent":
-			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "red_team": kubernetesRedTeamInventoryField(false)})}, true
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, attributionAttributes(), inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "red_team": kubernetesRedTeamInventoryField(false)})}, true
 		case "kubernetes_workload":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
 		case "kubernetes_inferred_agent":
@@ -782,7 +782,12 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		switch kind {
 		case "okta_tenant":
 			return providerEntityDefinition{stable: requiredStringFields("name", "tenant"), attributes: inventoryObjectSchema{}}, true
-		case "okta_user", "okta_group", "okta_application", "okta_service_principal":
+		case "okta_user":
+			// email and department are the user's profile attributes of
+			// those names, present when the profile states them. They let an
+			// agent's creator be matched to a person and that person's team.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}, optionalStringFields("department", "email"))}, true
+		case "okta_group", "okta_application", "okta_service_principal":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}}, true
 		case "okta_role":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "role", "scope", "tenant"), attributes: state}, true
@@ -1068,6 +1073,17 @@ func validInventoryFieldText(name, value string) bool {
 		// RFC 3339, UTC, to the hour.
 		at, err := time.Parse(time.RFC3339, value)
 		return err == nil && at.Format("2006-01-02T15:00:00Z") == value
+	case "created_by":
+		// An identity the provider names as the creator: an email address, a
+		// user name, a login, a team handle or a principal ARN. Never free text.
+		return len(value) <= 254 && attributionIdentityPattern.MatchString(value)
+	case "created_at":
+		_, err := time.Parse(time.RFC3339, value)
+		return err == nil
+	case "owning_team", "department":
+		return len(value) <= 128
+	case "email":
+		return len(value) <= 254 && attributionEmailPattern.MatchString(value)
 	default:
 		return true
 	}
@@ -1151,10 +1167,32 @@ func agentInvocationAttribute() inventoryObjectSchema {
 
 // discoveredAgentAttributes are the two attributes every agent kind found
 // without a zasp.ai/entity-kind declaration carries: the posture facts every
-// agent has, and how the agent was found.
+// agent has, and how the agent was found. An agent may also carry who
+// created it (attributionAttributes).
 func discoveredAgentAttributes() inventoryObjectSchema {
-	return inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "discovery": inventoryFieldRule{kind: "agent_discovery", required: true}}
+	return mergeInventorySchemas(inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "discovery": inventoryFieldRule{kind: "agent_discovery", required: true}}, attributionAttributes())
 }
+
+// AttributionSources are the ways a collector may know who created an
+// object: the provider's audit log (cloudtrail for AWS, audit_log for every
+// other provider), a creator or owner field of the provider's own record, the
+// repository's CODEOWNERS file, or a label or annotation its owner set.
+var AttributionSources = []string{"annotation", "audit_log", "cloudtrail", "codeowners", "label", "provider_record"}
+
+// attributionAttributes are the optional attributes that say who created an
+// object and which team it belongs to, where the provider says so without
+// anything installed: created_by (an identity, never free text), created_at
+// (RFC 3339), created_by_source (how the collector knows) and owning_team (a
+// team a label or annotation names). They are identity metadata; no value
+// here is a credential, a payload or file content.
+func attributionAttributes() inventoryObjectSchema {
+	return mergeInventorySchemas(optionalStringFields("created_by", "created_at", "owning_team"), inventoryObjectSchema{"created_by_source": enumInventoryField(false, AttributionSources...)})
+}
+
+var (
+	attributionIdentityPattern = regexp.MustCompile(`^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$`)
+	attributionEmailPattern    = regexp.MustCompile(`^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189}$`)
+)
 
 // awsAgentUsageAttributes compare the model actions the policies of an AWS
 // agent's role grant with the ones the audit log shows it used: comma-

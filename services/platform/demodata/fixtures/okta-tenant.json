@@ -11,9 +11,9 @@
     "endpoint": "https://northwind-robotics.okta.com",
     "routes": [
       {"host": "northwind-robotics.okta.com", "path": "/api/v1/users", "paging": "okta", "items": [
-        {"id": "00u9demo0000000NW001", "status": "ACTIVE", "profile": {"login": "priya.raman@example.com", "displayName": "Priya Raman"}},
-        {"id": "00u9demo0000000NW002", "status": "ACTIVE", "profile": {"login": "marcus.oyelaran@example.com", "displayName": "Marcus Oyelaran"}},
-        {"id": "00u9demo0000000NW003", "status": "ACTIVE", "profile": {"login": "elena.sokolova@example.com", "displayName": "Elena Sokolova"}}
+        {"id": "00u9demo0000000NW001", "status": "ACTIVE", "profile": {"login": "priya.raman@example.com", "displayName": "Priya Raman", "email": "priya.raman@example.com", "department": "Platform Engineering"}},
+        {"id": "00u9demo0000000NW002", "status": "ACTIVE", "profile": {"login": "marcus.oyelaran@example.com", "displayName": "Marcus Oyelaran", "email": "marcus.oyelaran@example.com", "department": "Customer Support Engineering"}},
+        {"id": "00u9demo0000000NW003", "status": "ACTIVE", "profile": {"login": "elena.sokolova@example.com", "displayName": "Elena Sokolova", "email": "elena.sokolova@example.com", "department": "Finance Systems"}}
       ]},
       {"host": "northwind-robotics.okta.com", "path": "/api/v1/users/00u9demo0000000NW001/roles", "body": [{"id": "ra19demo000000NW001", "label": "Super administrator", "type": "SUPER_ADMIN", "status": "ACTIVE", "assignmentType": "USER"}]},
       {"host": "northwind-robotics.okta.com", "path": "/api/v1/users/00u9demo0000000NW002/roles", "body": []},

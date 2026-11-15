@@ -243,8 +243,58 @@ func TestDemoSeedOnInstalledBaselinePostgres(t *testing.T) {
 			t.Fatalf("integration without the demo prefix: %v", integration)
 		}
 	}
+	// Where every agent lives, which integration found it and, where the
+	// provider says so, who created it. Nobody has assigned an owner in the
+	// demo, so the creator is the suggested owner, and the team is the one a
+	// label names or the creator's department in the demo's Okta tenant.
+	attributed := map[string]InventoryAttribution{}
+	creators := 0
+	for _, agent := range list(inventory, person, "listAgents", "/api/v1/agents") {
+		raw, _ := json.Marshal(agent["attribution"])
+		var attribution InventoryAttribution
+		if err := decodeStrictInventory(raw, &attribution); err != nil {
+			t.Fatalf("agent %v: attribution %s: %v", agent["name"], raw, err)
+		}
+		if attribution.Location == nil || attribution.Integration == nil || !strings.HasPrefix(attribution.Integration.Name, "Demo: ") {
+			t.Fatalf("agent %v has no location or integration: %s", agent["name"], raw)
+		}
+		if agent["owner"] != "" || (attribution.Creator == nil) != (attribution.SuggestedOwner == nil) {
+			t.Fatalf("agent %v: owner %v, attribution %s", agent["name"], agent["owner"], raw)
+		}
+		if attribution.Creator != nil {
+			creators++
+		}
+		attributed[agent["name"].(string)] = attribution
+	}
+	if creators < 8 {
+		t.Fatalf("%d demo agents have a creator", creators)
+	}
+	created := "2026-10-02T09:41:30Z"
+	planner := attributed["warehouse-routing-planner"]
+	if planner.Location == nil || *planner.Location != (InventoryLocation{Kind: "aws_account", ID: "111122223333", Label: "111122223333"}) || planner.Integration.Name != "Demo: AWS production account" ||
+		planner.Creator == nil || planner.Creator.Identity != "priya.raman@example.com" || planner.Creator.Source != "cloudtrail" || planner.Creator.CreatedAt == nil || *planner.Creator.CreatedAt != created ||
+		*planner.SuggestedOwner != (InventorySuggestion{Value: "priya.raman@example.com", Source: "cloudtrail"}) || planner.SuggestedTeam == nil || *planner.SuggestedTeam != (InventorySuggestion{Value: "Platform Engineering", Source: "okta"}) {
+		t.Fatalf("warehouse-routing-planner: %+v", planner)
+	}
+	if checkout := attributed["prod/checkout-assistant"]; checkout.Location == nil || checkout.Location.Kind != "kubernetes_namespace" || !strings.HasSuffix(checkout.Location.ID, "/prod") || checkout.Creator == nil || checkout.Creator.Source != "annotation" ||
+		checkout.SuggestedTeam == nil || *checkout.SuggestedTeam != (InventorySuggestion{Value: "checkout", Source: "label"}) {
+		t.Fatalf("prod/checkout-assistant: %+v", checkout)
+	}
+	if service := attributed["Customer service agent"]; service.Location == nil || *service.Location != (InventoryLocation{Kind: "salesforce_org", ID: "00D8a000001NwRbEAK", Label: "Northwind Robotics"}) || service.Creator == nil || service.Creator.Source != "provider_record" ||
+		service.SuggestedTeam == nil || service.SuggestedTeam.Value != "Customer Support Engineering" {
+		t.Fatalf("Customer service agent: %+v", service)
+	}
+	if copilot := attributed["northwind-robotics/warehouse-copilot"]; copilot.Location == nil || *copilot.Location != (InventoryLocation{Kind: "github_repository", ID: "northwind-robotics/warehouse-copilot", Label: "northwind-robotics/warehouse-copilot"}) ||
+		copilot.Creator == nil || copilot.Creator.Source != "codeowners" || copilot.Creator.CreatedAt != nil || copilot.SuggestedTeam != nil {
+		t.Fatalf("warehouse-copilot: %+v", copilot)
+	}
+	// An agent whose provider says nothing has a location and no creator.
+	if legacy := attributed["legacy-pricing-bot"]; legacy.Location == nil || legacy.Creator != nil || legacy.SuggestedOwner != nil || legacy.SuggestedTeam != nil {
+		t.Fatalf("legacy-pricing-bot: %+v", legacy)
+	}
 	// Every rule of the compliance mapping a collector can produce fires,
-	// and no rule fires that the mapping does not know.
+	// and no rule fires that the mapping does not know. ownerless_agent is
+	// among them: a suggested owner is not an assigned one.
 	fired := map[string]bool{}
 	for _, finding := range list(risk, person, "listFindings", "/api/v1/findings") {
 		rule, _ := finding["rule"].(string)
@@ -260,6 +310,9 @@ func TestDemoSeedOnInstalledBaselinePostgres(t *testing.T) {
 		}
 	}
 	sort.Strings(missing)
+	if !fired["ownerless_agent"] {
+		t.Fatal("ownerless_agent does not fire in a demo where no owner is assigned")
+	}
 	if len(missing) != 0 || len(unexpected) != 0 {
 		t.Fatalf("rules that do not fire: %v; rules listed as unreachable that fire: %v", missing, unexpected)
 	}

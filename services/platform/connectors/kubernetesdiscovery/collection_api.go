@@ -227,6 +227,8 @@ type kubernetesCollectionItem struct {
 		Name        string            `json:"name"`
 		Labels      map[string]string `json:"labels,omitempty"`
 		Annotations map[string]string `json:"annotations,omitempty"`
+		// CreationTimestamp is when the API server created the object.
+		CreationTimestamp string `json:"creationTimestamp,omitempty"`
 	} `json:"metadata"`
 	RoleRef struct {
 		APIGroup string `json:"apiGroup"`
@@ -790,18 +792,28 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 	if entityKind == "kubernetes_agent" {
 		posture := deriveKubernetesAgentPosture(subject, item.Metadata.Namespace, serviceAccount, item.Metadata.Labels, podSpec)
 		redTeam := deriveKubernetesRedTeamBinding(item.Metadata.Annotations)
+		attribution := deriveKubernetesAttribution(item.Metadata.Labels, item.Metadata.Annotations, item.Metadata.CreationTimestamp)
 		attributes, _ = json.Marshal(struct {
-			Namespaced bool                      `json:"namespaced"`
-			Posture    kubernetesAgentPosture    `json:"posture"`
-			RedTeam    *kubernetesRedTeamBinding `json:"red_team,omitempty"`
-		}{true, posture, redTeam})
+			CreatedAt       string                    `json:"created_at,omitempty"`
+			CreatedBy       string                    `json:"created_by,omitempty"`
+			CreatedBySource string                    `json:"created_by_source,omitempty"`
+			Namespaced      bool                      `json:"namespaced"`
+			OwningTeam      string                    `json:"owning_team,omitempty"`
+			Posture         kubernetesAgentPosture    `json:"posture"`
+			RedTeam         *kubernetesRedTeamBinding `json:"red_team,omitempty"`
+		}{attribution.CreatedAt, attribution.CreatedBy, attribution.CreatedBySource, true, attribution.OwningTeam, posture, redTeam})
 	} else if entityKind == "kubernetes_inferred_agent" {
 		posture := deriveKubernetesAgentPosture(subject, item.Metadata.Namespace, serviceAccount, item.Metadata.Labels, podSpec)
+		attribution := deriveKubernetesAttribution(item.Metadata.Labels, item.Metadata.Annotations, item.Metadata.CreationTimestamp)
 		attributes, _ = json.Marshal(struct {
-			Namespaced bool                   `json:"namespaced"`
-			Posture    kubernetesAgentPosture `json:"posture"`
-			Discovery  agentsignals.Discovery `json:"discovery"`
-		}{true, posture, agentsignals.NewDiscovery(agentsignals.MethodInferred, "kubernetes_workload", evidence.Signals())})
+			CreatedAt       string                 `json:"created_at,omitempty"`
+			CreatedBy       string                 `json:"created_by,omitempty"`
+			CreatedBySource string                 `json:"created_by_source,omitempty"`
+			Discovery       agentsignals.Discovery `json:"discovery"`
+			Namespaced      bool                   `json:"namespaced"`
+			OwningTeam      string                 `json:"owning_team,omitempty"`
+			Posture         kubernetesAgentPosture `json:"posture"`
+		}{attribution.CreatedAt, attribution.CreatedBy, attribution.CreatedBySource, agentsignals.NewDiscovery(agentsignals.MethodInferred, "kubernetes_workload", evidence.Signals()), true, attribution.OwningTeam, posture})
 	}
 	entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:"+strings.ToLower(definition[1])+":"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, attributes)
 	if err != nil {
@@ -818,6 +830,57 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	return entity, []json.RawMessage{attached, usesIdentity}, true
+}
+
+// kubernetesAttribution is who a workload's own metadata names as its owner
+// and team.
+type kubernetesAttribution struct {
+	CreatedAt, CreatedBy, CreatedBySource, OwningTeam string
+}
+
+var (
+	kubernetesOwnerPattern = regexp.MustCompile(`^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$`)
+	// The keys a workload's owner and team are read from, in order. An
+	// annotation is read before a label of the same key: a label value
+	// cannot hold an email address.
+	kubernetesOwnerKeys = []string{"zasp.ai/owner", "owner"}
+	kubernetesTeamKeys  = []string{"zasp.ai/team", "team"}
+)
+
+// deriveKubernetesAttribution reads the owner and the team a workload's
+// annotations or labels name, and when the workload was created. Kubernetes
+// does not record who created an object without audit logging, which the
+// collector does not read, so the owner annotation or label is the only
+// creator claim; app.kubernetes.io/managed-by names a tool (Helm, Argo CD),
+// not a person, and is not read. A value that is not an identity (free text,
+// a URL) is dropped, never shortened.
+//
+// DOCUMENTED: https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/
+// (creationTimestamp, labels, annotations). The owner and team keys are a
+// convention, not a Kubernetes standard.
+func deriveKubernetesAttribution(labels, annotations map[string]string, created string) kubernetesAttribution {
+	var attribution kubernetesAttribution
+	find := func(keys []string, valid func(string) bool) (string, string) {
+		for _, key := range keys {
+			if value, present := annotations[key]; present && valid(value) {
+				return value, "annotation"
+			}
+			if value, present := labels[key]; present && valid(value) {
+				return value, "label"
+			}
+		}
+		return "", ""
+	}
+	attribution.CreatedBy, attribution.CreatedBySource = find(kubernetesOwnerKeys, kubernetesOwnerPattern.MatchString)
+	if attribution.CreatedBy != "" {
+		if at, err := time.Parse(time.RFC3339, created); err == nil {
+			attribution.CreatedAt = at.UTC().Format(time.RFC3339)
+		}
+	}
+	attribution.OwningTeam, _ = find(kubernetesTeamKeys, func(value string) bool {
+		return len(value) <= 128 && utf8.ValidString(value) && strings.TrimSpace(value) == value && value != "" && strings.IndexFunc(value, unicode.IsControl) == -1
+	})
+	return attribution
 }
 
 // kubernetesAgentEvidence matches the pod template against the agent signal

@@ -54,6 +54,56 @@ Relationships are also what an [attack path](/concepts/findings-and-frameworks#a
 
 Dismissing needs an owner and a team, so that the decision has a name on it. A dismissed agent leaves the agent list and can still be found under the **Dismissed** filter.
 
+## Location, creator and suggested owner
+
+Every inventory object carries an `attribution` member. It is derived on each
+read from what the collectors recorded. Nothing is installed in your
+environment.
+
+| Member | Meaning |
+| --- | --- |
+| `location` | Where the object was found: `kind` (for example `aws_account`, `gcp_project`, `github_repository`, `kubernetes_namespace`, `salesforce_org`, `microsoft_tenant`, `saas_workspace`), `id` (the provider's identifier) and `label` (what to show) |
+| `integration` | The `id` and `name` of the integration that found it |
+| `creator` | For an agent: `identity`, `created_at` and `source` |
+| `suggested_owner` | For an agent with no assigned owner: the creator, with the same `source` |
+| `suggested_team` | For an agent with no assigned team: a team and its `source` (`label` or `okta`) |
+
+A member is `null` where the provider does not say. Zasp does not guess.
+
+`creator.source` says how the creator is known:
+
+| Source | Meaning |
+| --- | --- |
+| `cloudtrail` | The caller of the AWS CloudTrail create event |
+| `provider_record` | A creator field of the provider's own record (Salesforce, Cloud Run, Databricks, ServiceNow) |
+| `audit_log` | The audit log of another provider (Atlassian) |
+| `codeowners` | The default owner in the repository's CODEOWNERS file |
+| `label`, `annotation` | An owner label or annotation on a Kubernetes workload |
+
+| Source | Location | Creator or named owner | How Zasp knows |
+| --- | --- | --- | --- |
+| AWS | The account | Who called the create API of a Bedrock agent, an AgentCore runtime or a Lambda function | The CloudTrail create event, for 90 days after creation. An IAM user is shown by user name. A role session named after an email address is shown as that address, any other session as role and session name |
+| Google Cloud | The project | The creator of a Cloud Run service | The service's own record |
+| GitHub | The repository | The default owner in the repository's CODEOWNERS file (the last `*` rule) | The CODEOWNERS file. GitHub does not say who created a repository |
+| Kubernetes | The cluster and namespace | The value of the `zasp.ai/owner` or `owner` annotation or label | The annotation or label. Kubernetes does not record who created a workload |
+| Salesforce | The org, by name | The user name of the user who created the agent record | The record's audit fields |
+| SaaS platforms | The workspace or tenant, by name | Databricks: the creator of the serving endpoint. ServiceNow: the user who created the agent record. Atlassian: the account id in the audit log | The platform's record or audit log |
+| Microsoft | The subscription, the Power Platform environment or the tenant | Not collected | |
+| Okta | The tenant | Not collected | |
+
+`owner` and `team` on the object are what a person assigned. A suggestion never
+replaces them, and the `ownerless_agent` finding stays open until a person
+assigns an owner. To accept a suggestion, send it as the `owner` and `team` of
+the agent update.
+
+The suggested team is a team label on the object, or the department of the Okta
+user in the same Environment whose email address is the creator's.
+
+Not available: the maker of a Copilot Studio agent, the owners of an Entra
+application, a team from Entra, an AWS creator older than 90 days, the creator
+of a Vertex AI, Conversational Agents or Gemini Enterprise agent, and the
+person who created a GitHub repository.
+
 ## Freshness
 
 A record is **fresh** while the latest sync of its integration saw it, and **stale** afterwards. A stale record is not deleted at once: the last good inventory stays visible when a provider throttles or fails a sync.

@@ -125,9 +125,10 @@ export function decodeInventoryPage(value: unknown): InventoryPage {
 
 export function decodeInventorySummary(value: unknown): InventorySummary {
   const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version", "provider", "source_kind", "discovery", "management_state", "last_activity_at", "activity_state"];
-  const record = exactRecord(value, required);
+  const record = exactRecord(value, required, ["attribution"]);
   decodeInventoryDiscovery(record);
   decodeInventoryActivity(record);
+  if ("attribution" in record) decodeInventoryAttribution(record);
   productID(record.id); boundedString(record.name, 1, 256); enumValue(record.kind, ["asset", "agent", "tool", "identity", "runtime"]);
   boundedString(record.owner, 0, 128); boundedString(record.team, 0, 128); stringArray(record.tags, 32, 64); productID(record.evidence_id); boundedInteger(record.confidence_basis_points, 1, 10000); positiveInteger(record.version);
   for (const key of ["first_seen", "last_seen", "observed_at", "fresh_until"] as const) dateTime(record[key]);
@@ -135,6 +136,36 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
   enumValue(record.freshness_state, ["fresh", "stale"]);
   const tags = record.tags as readonly string[]; for (let index = 1; index < tags.length; index += 1) if (tags[index] <= tags[index - 1]) fail();
   return value as InventorySummary;
+}
+
+const INVENTORY_LOCATION_KINDS = ["aws_account", "gcp_project", "gcp_scope", "github_repository", "github_organization", "kubernetes_namespace", "kubernetes_cluster", "microsoft_subscription", "power_platform_environment", "microsoft_tenant", "okta_tenant", "salesforce_org", "saas_workspace"];
+const INVENTORY_CREATOR_SOURCES = ["annotation", "audit_log", "cloudtrail", "codeowners", "label", "provider_record"];
+
+// Where the object lives, which integration found it and, for an agent, who
+// created it. Only an agent has a creator or a suggestion; a suggestion is
+// absent once a person assigned the owner, or the team, and a suggested owner
+// is always the creator.
+function decodeInventoryAttribution(record: Record<string, unknown>): void {
+  const attribution = exactRecord(record.attribution, ["location", "integration", "creator", "suggested_owner", "suggested_team"]);
+  if (attribution.location !== null) { const location = exactRecord(attribution.location, ["kind", "id", "label"]); enumValue(location.kind, INVENTORY_LOCATION_KINDS); printableString(location.id, 1, 512); printableString(location.label, 1, 256); }
+  if (attribution.integration !== null) { const integration = exactRecord(attribution.integration, ["id", "name"]); productID(integration.id); printableString(integration.name, 1, 128); }
+  if (record.kind !== "agent") { if (attribution.creator !== null || attribution.suggested_owner !== null || attribution.suggested_team !== null) fail(); return; }
+  let creator: Record<string, unknown> | null = null;
+  if (attribution.creator !== null) {
+    creator = exactRecord(attribution.creator, ["identity", "created_at", "source"]);
+    if (typeof creator.identity !== "string" || !/^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$/.test(creator.identity)) fail();
+    nullableDateTime(creator.created_at); enumValue(creator.source, INVENTORY_CREATOR_SOURCES);
+  }
+  if (attribution.suggested_owner !== null) {
+    const owner = exactRecord(attribution.suggested_owner, ["value", "source"]);
+    printableString(owner.value, 1, 128);
+    if (record.owner !== "" || creator === null || owner.value !== creator.identity || owner.source !== creator.source) fail();
+  }
+  if (attribution.suggested_team !== null) {
+    const team = exactRecord(attribution.suggested_team, ["value", "source"]);
+    printableString(team.value, 1, 128); enumValue(team.source, ["label", "okta"]);
+    if (record.team !== "") fail();
+  }
 }
 
 // Whether an agent is still in use. Only an agent has an activity state:

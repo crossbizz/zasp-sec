@@ -59,6 +59,8 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 	var evidence agentsignals.Evidence
 	var servers []repositoryMCPServer
 	var skills []agentsignals.Skill
+	// codeowner is the default owner the repository's CODEOWNERS file names.
+	codeowner := ""
 	// 404: the default branch has no commit. 409: the repository is empty.
 	if status != http.StatusNotFound && status != http.StatusConflict {
 		var tree repositoryTreeResponse
@@ -126,22 +128,33 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 			return CollectionPage{}, err
 		}
 		skills = agentsignals.SkillPaths(paths...)
-		if len(skills) > 0 {
-			// What the tree says about the skills, and whether the
-			// repository's CODEOWNERS patterns name an owner for them.
-			agentsignals.MarkSkillScripts(skills, files, !tree.Truncated)
-			if err = api.markSkillOwnership(ctx, credential, repositoryURL, state.DefaultBranch, candidateFiles(*tree.Tree), tree.Truncated, skills); err != nil {
-				if err == errMalformedAgentProjectFile {
+		// The CODEOWNERS file is read once, for a repository that has skills
+		// or is an agent project: it says whether the skills have an owner
+		// and who owns the repository by default. Only path patterns and
+		// that one owner are kept.
+		if len(skills) > 0 || evidence.IsAgent() {
+			codeowners, located, readErr := api.readCodeowners(ctx, credential, repositoryURL, state.DefaultBranch, candidateFiles(*tree.Tree))
+			if readErr != nil {
+				if readErr == errMalformedAgentProjectFile {
 					return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 				}
-				return CollectionPage{}, err
+				return CollectionPage{}, readErr
+			}
+			if len(skills) > 0 {
+				// What the tree says about the skills, and whether the
+				// repository's CODEOWNERS patterns name an owner for them.
+				agentsignals.MarkSkillScripts(skills, files, !tree.Truncated)
+				markSkillOwnership(codeowners, located, tree.Truncated, skills)
+			}
+			if codeowners != nil {
+				codeowner = agentsignals.CodeownersDefaultOwner(codeowners)
 			}
 		}
 	}
 	var entities, relationships []json.RawMessage
 	if evidence.IsAgent() {
 		var normalized bool
-		if entities, relationships, normalized = normalizeAgentProject(request.Subject, state, evidence.Signals()); !normalized {
+		if entities, relationships, normalized = normalizeAgentProject(request.Subject, state, evidence.Signals(), codeowner); !normalized {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
 	}
@@ -209,7 +222,10 @@ func (api *InstallationCollectionAPI) getAgentProjectResource(ctx context.Contex
 	return http.StatusOK, body, nil
 }
 
-func normalizeAgentProject(subject collection.SubjectBinding, state githubPageState, signals []string) ([]json.RawMessage, []json.RawMessage, bool) {
+// codeowner is the default owner the repository's CODEOWNERS file names, or
+// "". GitHub's API does not say who created a repository, so that owner is
+// the only claim recorded about whose the agent project is.
+func normalizeAgentProject(subject collection.SubjectBinding, state githubPageState, signals []string, codeowner string) ([]json.RawMessage, []json.RawMessage, bool) {
 	installationID, err := strconv.ParseInt(subject.ID, 10, 64)
 	if err != nil || installationID < 1 || installationID > 1<<53 {
 		return nil, nil, false
@@ -224,10 +240,16 @@ func normalizeAgentProject(subject collection.SubjectBinding, state githubPageSt
 		Owner          string `json:"owner"`
 		Repository     string `json:"repository"`
 	}{installationID, fullName, state.Owner, state.Repository})
+	codeownerSource := ""
+	if codeowner != "" {
+		codeownerSource = "codeowners"
+	}
 	attributes, _ := json.Marshal(struct {
-		Posture   agentsignals.Posture   `json:"posture"`
-		Discovery agentsignals.Discovery `json:"discovery"`
-	}{agentsignals.Posture{}, agentsignals.NewDiscovery(agentsignals.MethodInferred, "github_repository", signals)})
+		Posture         agentsignals.Posture   `json:"posture"`
+		Discovery       agentsignals.Discovery `json:"discovery"`
+		CreatedBy       string                 `json:"created_by,omitempty"`
+		CreatedBySource string                 `json:"created_by_source,omitempty"`
+	}{agentsignals.Posture{}, agentsignals.NewDiscovery(agentsignals.MethodInferred, "github_repository", signals), codeowner, codeownerSource})
 	entity, err := marshalGitHubEntity(projectEntityID, "github_agent_project", "github:repository:"+nativeID+":agent_project", fullName, stable, attributes)
 	if err != nil {
 		return nil, nil, false

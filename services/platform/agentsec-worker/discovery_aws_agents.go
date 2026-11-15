@@ -156,7 +156,9 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	roleSignals, invokerRegion, cloudTrail := map[string][]string{}, map[string]string{}, ""
 	usedActions, auditComplete := map[string]map[string]bool{}, true
 	roleInvoked := map[string]time.Time{}
+	created := map[string]awsdiscovery.AgentInventoryCreator{}
 	if factory.CloudTrail != nil {
+		perRegionCreated := make([]map[string]awsdiscovery.AgentInventoryCreator, len(regions))
 		perRegion := make([]map[string][]string, len(regions))
 		perRegionInvoked := make([]map[string]time.Time, len(regions))
 		invocations := make([]discoveryAWSInvocations, len(regions))
@@ -168,6 +170,14 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 			}
 			invocations[index], statuses[index], err = collectDiscoveryAWSInvocations(bounded, api, accountID, now)
 			perRegion[index], perRegionInvoked[index] = invocations[index].signals, invocations[index].latest
+			if err != nil {
+				return err
+			}
+			// Who created what, from the same log. A log that refused the
+			// invocation lookup is not asked again.
+			if statuses[index] == awsdiscovery.AgentServiceCollected {
+				perRegionCreated[index], err = collectDiscoveryAWSCreators(bounded, api, accountID, now)
+			}
 			return err
 		}); err != nil {
 			return nil, err
@@ -183,6 +193,9 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 				}
 			}
 			cloudTrail = accountDiscoveryAWSAgentStatus(cloudTrail, statuses[index])
+			for arn, creator := range perRegionCreated[index] {
+				created[arn] = creator
+			}
 			for role, invoked := range perRegionInvoked[index] {
 				if invoked.After(roleInvoked[role]) {
 					roleInvoked[role] = invoked
@@ -313,6 +326,24 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 		source.Invocations = append(source.Invocations, awsdiscovery.AgentInventoryInvocation{LastInvokedAt: invoked.UTC().Truncate(time.Hour).Format(time.RFC3339), RoleARN: role})
 	}
 	sort.Slice(source.Invocations, func(i, j int) bool { return source.Invocations[i].RoleARN < source.Invocations[j].RoleARN })
+	// Who created each listed agent, where the audit log still holds its
+	// create event. A create event of anything else is not kept.
+	for _, agent := range source.BedrockAgents {
+		if creator, known := created[agent.ARN]; known {
+			source.Creators = append(source.Creators, creator)
+		}
+	}
+	for _, runtime := range source.Runtimes {
+		if creator, known := created[runtime.ARN]; known {
+			source.Creators = append(source.Creators, creator)
+		}
+	}
+	for _, function := range source.LambdaFunctions {
+		if creator, known := created[function.ARN]; known {
+			source.Creators = append(source.Creators, creator)
+		}
+	}
+	sort.Slice(source.Creators, func(i, j int) bool { return source.Creators[i].ARN < source.Creators[j].ARN })
 	if len(source.InferredWorkloads) > awsdiscovery.MaximumInventoryLambdaFunctions {
 		return nil, awsdiscovery.ErrDenied
 	}

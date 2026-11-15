@@ -733,7 +733,7 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 			if mapped.Model != "" {
 				attributes["model"] = mapped.Model
 			}
-			for name, value := range map[string]string{"created_by": mapped.CreatedBy, "created_at": mapped.CreatedAt, "updated_at": mapped.UpdatedAt, "deleted_at": mapped.DeletedAt} {
+			for name, value := range map[string]string{"created_by": mapped.CreatedBy, "created_by_source": mapped.CreatedBySource, "created_at": mapped.CreatedAt, "updated_at": mapped.UpdatedAt, "deleted_at": mapped.DeletedAt} {
 				if value != "" {
 					attributes[name] = value
 				}
@@ -770,7 +770,8 @@ func validEntity(entity Entity) bool {
 		entity.EndpointHost != "" && (!hostPattern.MatchString(entity.EndpointHost) || entity.Kind != KindMCPServer) ||
 		entity.Auth != "" && (entity.Kind != KindMCPServer || entity.Auth != agentsignals.MCPAuthDeclared && entity.Auth != agentsignals.MCPAuthNone) ||
 		entity.Transport != "" && (entity.Kind != KindMCPServer || entity.Transport != agentsignals.MCPTransportHTTP && entity.Transport != agentsignals.MCPTransportSSE && entity.Transport != agentsignals.MCPTransportStdio) ||
-		entity.CreatedBy != "" && (entity.Kind == KindMCPServer || !validDisplayText(entity.CreatedBy, 128)) ||
+		entity.CreatedBy != "" && (entity.Kind == KindMCPServer || CreatorIdentity(entity.CreatedBy) == "" || entity.CreatedBySource != CreatedBySourceAuditLog && entity.CreatedBySource != CreatedBySourceRecord) ||
+		entity.CreatedBy == "" && entity.CreatedBySource != "" ||
 		!validEventTime(entity.CreatedAt, entity.Kind) || !validEventTime(entity.UpdatedAt, entity.Kind) || !validEventTime(entity.DeletedAt, entity.Kind) ||
 		len(entity.Signals) > agentsignals.MaximumSignals || entity.Kind == KindAIApplication && len(entity.Signals) == 0 || entity.Kind == KindMCPServer && len(entity.Signals) != 0 {
 		return false

@@ -15,7 +15,7 @@ const (
 	databricksHost      = "adb-1234567890123456.7.azuredatabricks.net"
 	databricksTenant    = `{"metastore_id":"11111111-2222-3333-4444-555555555555","workspace_id":1234567890123456,"default_catalog_name":"main"}`
 	databricksEndpoints = `{"endpoints":[
- {"name":"support-agent","id":"0a1b2c3d4e5f","creator":"owner@example.com","state":{"ready":"READY","config_update":"NOT_UPDATING"},"task":"agent/v1/responses",
+ {"name":"support-agent","id":"0a1b2c3d4e5f","creator":"owner@example.com","creation_timestamp":1756720800000,"state":{"ready":"READY","config_update":"NOT_UPDATING"},"task":"agent/v1/responses",
   "config":{"served_entities":[{"name":"support-agent-1","entity_name":"main.agents.support_agent","entity_version":"3"}]}},
  {"name":"gpt-4o-proxy","id":"1b2c3d4e5f60","state":{"ready":"READY"},"task":"llm/v1/chat",
   "config":{"served_entities":[{"name":"gpt-4o","external_model":{"provider":"openai","name":"gpt-4o","task":"llm/v1/chat","openai_config":{"openai_api_key":"{{secrets/llm/openai}}"}}}]}},
@@ -48,7 +48,14 @@ func TestDatabricksWorkspaceIsCollectedToATypedSnapshot(t *testing.T) {
 		agent.Attributes["posture"].(map[string]any)["credential_active"] != true || !reflect.DeepEqual(agent.Attributes["discovery"], map[string]any{"method": "provider_api", "platform": "databricks", "signals": []any{}}) {
 		t.Fatalf("agent = %+v", agent)
 	}
+	// Who created the endpoint, from the endpoint's own record.
+	if agent.Attributes["created_by"] != "owner@example.com" || agent.Attributes["created_by_source"] != "provider_record" || agent.Attributes["created_at"] != "2025-09-01T10:00:00Z" {
+		t.Fatalf("creator = %+v", agent.Attributes)
+	}
 	external := snapshot.Named(t, "saas_ai_application", "gpt-4o-proxy")
+	if external.Attributes["created_by"] != nil || external.Attributes["created_by_source"] != nil || external.Attributes["created_at"] != nil {
+		t.Fatalf("an endpoint without a creator was attributed: %+v", external.Attributes)
+	}
 	if external.Attributes["model"] != "gpt-4o" || !reflect.DeepEqual(external.Attributes["discovery"], map[string]any{"method": "inferred", "platform": "databricks", "signals": []any{"model:openai", "surface:model_serving"}}) {
 		t.Fatalf("external model endpoint = %+v", external)
 	}

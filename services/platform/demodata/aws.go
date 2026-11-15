@@ -97,6 +97,7 @@ func canonicalAgentSource(source awsdiscovery.AgentInventorySource) awsdiscovery
 	sort.Slice(source.Runtimes, func(l, r int) bool { return source.Runtimes[l].ARN < source.Runtimes[r].ARN })
 	sort.Slice(source.InferredWorkloads, func(l, r int) bool { return source.InferredWorkloads[l].ARN < source.InferredWorkloads[r].ARN })
 	sort.Slice(source.Invocations, func(l, r int) bool { return source.Invocations[l].RoleARN < source.Invocations[r].RoleARN })
+	sort.Slice(source.Creators, func(l, r int) bool { return source.Creators[l].ARN < source.Creators[r].ARN })
 	sort.Slice(source.Checks, func(l, r int) bool {
 		return source.Checks[l].ARN+"\x1f"+source.Checks[l].Check < source.Checks[r].ARN+"\x1f"+source.Checks[r].Check
 	})
