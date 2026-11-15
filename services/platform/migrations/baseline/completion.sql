@@ -8624,3 +8624,119 @@ END $gateway_maintain$;
 ALTER FUNCTION public.zasp_gateway_maintain(integer,integer) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_gateway_maintain(integer,integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.zasp_gateway_maintain(integer,integer) TO zasp_discovery_scheduler;
+
+-- ---------------------------------------------------------------------------
+-- WS11. Ownership and location of every inventory object (workstream WS11:
+-- automatic attribution).
+--
+-- The inventory summary said which platform an object is on and, for an
+-- agent, the owner a person typed. It did not say where the object lives,
+-- which integration found it, who created it, or whom to ask when nobody
+-- has taken ownership. The summary (the lists, the detail and the agent
+-- update all read the summary zasp_inventory_detail builds; the historical
+-- page builds the same summary) gains one member, attribution:
+--   location         {kind,id,label}: the account, project, subscription,
+--                    tenant, organization, repository, cluster or namespace
+--                    the object was found in, read from the stable fields of
+--                    the winning observation. id is the provider's own
+--                    identifier; label is the name the provider gives a
+--                    tenant whose identifier is opaque (a Microsoft tenant,
+--                    a Salesforce org, a SaaS workspace), and the identifier
+--                    everywhere else. Null when the observation names none.
+--   integration      {id,name} of the integration whose observation won.
+--   creator          {identity,created_at,source} for an agent whose
+--                    provider says who created it: the attributes
+--                    created_by, created_at and created_by_source a
+--                    collector recorded. source says how it is known
+--                    (cloudtrail, audit_log, provider_record, codeowners,
+--                    label, annotation). Null where the provider says
+--                    nothing; nothing is guessed.
+--   suggested_owner  {value,source}, only for an agent no person has given
+--                    an owner: the creator. A creator an audit log names by
+--                    an opaque account id is not a suggestion.
+--   suggested_team   {value,source}, only for an agent no person has given
+--                    a team: the team a label or annotation of the object
+--                    names (source label), otherwise the department of the
+--                    Okta user of this Environment whose email address is
+--                    the creator's (source okta).
+-- The owner and team a person assigned stay the only owner and team: the
+-- suggestions are separate members, zasp_inventory_refresh_posture_findings
+-- still reads the annotation alone, and ownerless_agent keeps firing until a
+-- person assigns an owner.
+--
+-- Two partial indexes serve the two lookups of a page: the tenant record of
+-- an integration, and an Okta user by email address.
+CREATE INDEX IF NOT EXISTS zasp_inventory_observations_tenant_ws11_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source_kind) WHERE source_state='present' AND source_kind IN('microsoft_tenant','salesforce_org','saas_tenant');
+CREATE INDEX IF NOT EXISTS zasp_inventory_observations_person_ws11_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,lower(attributes->>'email')) WHERE source_state='present' AND source_kind='okta_user';
+
+DO $inventory_attribution$
+DECLARE target record;d text;
+BEGIN
+ CREATE OR REPLACE FUNCTION public.zasp_inventory_attribution(organization_value text,workspace_value text,environment_value text,id_value text,kind_value text,integration_value text,source_value text,attributes_value jsonb,annotation_value jsonb) RETURNS jsonb
+ LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $attribution$
+  WITH observed AS (
+   SELECT observation.provider,COALESCE(observation.stable_fields,'{}'::jsonb) fields
+   FROM public.zasp_inventory_source_observations observation
+   WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(organization_value,workspace_value,environment_value,integration_value,source_value,id_value)
+  ),placed AS (
+   SELECT observed.provider,place.kind,place.id FROM observed CROSS JOIN LATERAL (SELECT * FROM (VALUES
+    (1,'aws_account',CASE WHEN observed.provider='aws' THEN observed.fields->>'account_id' END),
+    (2,'gcp_project',CASE WHEN observed.provider='gcp' THEN observed.fields->>'project' END),
+    (3,'gcp_scope',CASE WHEN observed.provider='gcp' THEN observed.fields->>'scope' END),
+    (4,'github_repository',CASE WHEN observed.provider='github' THEN (observed.fields->>'owner')||'/'||(observed.fields->>'repository') END),
+    (5,'github_organization',CASE WHEN observed.provider='github' THEN observed.fields->>'owner' END),
+    (6,'kubernetes_namespace',CASE WHEN observed.provider='kubernetes' AND observed.fields->>'namespace'<>'' THEN (observed.fields->>'cluster')||'/'||(observed.fields->>'namespace') END),
+    (7,'kubernetes_cluster',CASE WHEN observed.provider='kubernetes' THEN observed.fields->>'cluster' END),
+    (8,'azure_subscription',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'subscription' END),
+    (9,'power_platform_environment',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'environment' END),
+    (10,'microsoft_tenant',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'tenant' END),
+    (11,'okta_tenant',CASE WHEN observed.provider='okta' THEN observed.fields->>'tenant' END),
+    (12,'salesforce_org',CASE WHEN observed.provider='salesforce' THEN observed.fields->>'org' END),
+    (13,'saas_workspace',CASE WHEN observed.provider='saas' THEN observed.fields->>'tenant' END)
+   ) candidate(position,kind,id) WHERE length(candidate.id) BETWEEN 1 AND 512 ORDER BY candidate.position LIMIT 1) place
+  ),creator AS (
+   SELECT attributes_value->>'created_by' identity,attributes_value->>'created_by_source' source,
+    CASE WHEN attributes_value->>'created_at' ~ '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{1,9})?Z$' THEN attributes_value->>'created_at' END created_at
+   WHERE kind_value='agent' AND attributes_value->>'created_by' ~ '^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$'
+    AND attributes_value->>'created_by_source' IN('annotation','audit_log','cloudtrail','codeowners','label','provider_record')
+  ),team AS (
+   SELECT listed.value,listed.source FROM (
+    SELECT 1 position,attributes_value->>'owning_team' value,'label' source WHERE kind_value='agent' AND length(attributes_value->>'owning_team') BETWEEN 1 AND 128
+    UNION ALL
+    (SELECT 2,person.attributes->>'department','okta'
+     FROM creator JOIN public.zasp_inventory_source_observations person
+      ON (person.organization_id,person.workspace_id,person.environment_id)=(organization_value,workspace_value,environment_value)
+      AND person.source_state='present' AND person.source_kind='okta_user' AND lower(person.attributes->>'email')=lower(creator.identity)
+     WHERE position('@' in creator.identity)>1 AND length(person.attributes->>'department') BETWEEN 1 AND 128
+     ORDER BY person.integration_id,person.entity_id LIMIT 1)
+   ) listed ORDER BY listed.position LIMIT 1
+  )
+  SELECT jsonb_build_object('attribution',jsonb_build_object(
+   'location',(SELECT jsonb_build_object('kind',placed.kind,'id',placed.id,'label',left(COALESCE(
+     CASE WHEN placed.kind IN('microsoft_tenant','salesforce_org','saas_workspace') THEN (SELECT tenant.display_name FROM public.zasp_inventory_source_observations tenant
+      WHERE (tenant.organization_id,tenant.workspace_id,tenant.environment_id,tenant.integration_id)=(organization_value,workspace_value,environment_value,integration_value)
+       AND tenant.source_state='present' AND tenant.source_kind IN('microsoft_tenant','salesforce_org','saas_tenant') AND length(tenant.display_name)>0
+      ORDER BY tenant.source_kind LIMIT 1) END,placed.id),256)) FROM placed),
+   'integration',(SELECT jsonb_build_object('id',integration.id,'name',integration.display_name) FROM public.zasp_integrations integration
+    WHERE (integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(organization_value,workspace_value,environment_value,integration_value)),
+   'creator',(SELECT jsonb_build_object('identity',creator.identity,'created_at',creator.created_at,'source',creator.source) FROM creator),
+   'suggested_owner',(SELECT jsonb_build_object('value',creator.identity,'source',creator.source) FROM creator
+    WHERE COALESCE(annotation_value->>'owner','')='' AND length(creator.identity)<=128 AND (creator.source<>'audit_log' OR position('@' in creator.identity)>1)),
+   'suggested_team',(SELECT jsonb_build_object('value',team.value,'source',team.source) FROM team WHERE COALESCE(annotation_value->>'team','')='')))
+ $attribution$;
+ ALTER FUNCTION public.zasp_inventory_attribution(text,text,text,text,text,text,text,jsonb,jsonb) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION public.zasp_inventory_attribution(text,text,text,text,text,text,text,jsonb,jsonb) FROM PUBLIC;
+ -- Re-run: a function that already calls the helper is left alone; any other
+ -- shape than the one section WS3-A6 leaves is refused.
+ FOR target IN SELECT * FROM (VALUES
+  ('public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure,$a$result_value:=jsonb_build_object('summary',summary_value,$a$,
+   $b$summary_value:=summary_value||public.zasp_inventory_attribution(organization_value,workspace_value,environment_value,entity_record.id,entity_record.product_kind,entity_record.winning_integration_id,entity_record.winning_source,entity_record.winning_attributes,annotation_value);result_value:=jsonb_build_object('summary',summary_value,$b$,'inventory detail attribution predecessor changed'),
+  ('public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure,$a$ ORDER BY id)$a$,
+   $b$||public.zasp_inventory_attribution(organization_value,workspace_value,environment_value,visible.id,visible.product_kind,visible.winning_integration_id,visible.winning_source,visible.winning_attributes,visible.annotation_value) ORDER BY id)$b$,'inventory page attribution predecessor changed')
+ ) listed(signature,anchor,patched,refusal) LOOP
+  d:=pg_get_functiondef(target.signature);
+  IF position('zasp_inventory_attribution(' in d)>0 THEN CONTINUE;END IF;
+  IF position('zasp_inventory_agent_activity(' in d)=0 OR length(d)-length(replace(d,target.anchor,''))<>length(target.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=target.refusal;END IF;
+  EXECUTE replace(d,target.anchor,target.patched);
+ END LOOP;
+END $inventory_attribution$;

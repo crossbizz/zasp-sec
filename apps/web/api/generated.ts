@@ -4278,6 +4278,42 @@ export type components = {
          * @enum {string}
          */
         readonly InventoryActivityState: "active" | "inactive" | "unknown" | "not_applicable";
+        /** @description Where the object lives, which integration found it and, for an agent, who created it and the owner and team that suggests. It is derived on every read from what the collectors recorded without anything installed. A member is null where the provider says nothing; nothing is guessed. The owner and team a person assigned are the summary's own owner and team and are never replaced by a suggestion. */
+        readonly InventoryAttribution: {
+            readonly creator: null | {
+                /** Format: date-time */
+                readonly created_at: string | null;
+                /** @description An email address, a user name, a login, a team handle or a role name, as the provider records it. */
+                readonly identity: string;
+                readonly source: components["schemas"]["InventoryCreatorSource"];
+            };
+            readonly integration: null | {
+                readonly id: components["schemas"]["ProductID"];
+                readonly name: string;
+            };
+            readonly location: null | {
+                /** @description The identifier the provider uses, for example an AWS account id, a project id, owner/repository or cluster/namespace. */
+                readonly id: string;
+                /** @enum {string} */
+                readonly kind: "aws_account" | "gcp_project" | "gcp_scope" | "github_repository" | "github_organization" | "kubernetes_namespace" | "kubernetes_cluster" | "azure_subscription" | "power_platform_environment" | "microsoft_tenant" | "okta_tenant" | "salesforce_org" | "saas_workspace";
+                /** @description What to show. The provider's name for a Microsoft tenant, a Salesforce org or a SaaS workspace; the identifier everywhere else. */
+                readonly label: string;
+            };
+            readonly suggested_owner: null | {
+                readonly source: components["schemas"]["InventoryCreatorSource"];
+                readonly value: string;
+            };
+            readonly suggested_team: null | {
+                /** @enum {string} */
+                readonly source: "label" | "okta";
+                readonly value: string;
+            };
+        };
+        /**
+         * @description How the creator is known. cloudtrail is an AWS CloudTrail create event; audit_log the audit log of another provider; provider_record a creator or owner field of the provider's own record of the object; codeowners the repository's CODEOWNERS file; label and annotation a label or annotation the object carries.
+         * @enum {string}
+         */
+        readonly InventoryCreatorSource: "annotation" | "audit_log" | "cloudtrail" | "codeowners" | "label" | "provider_record";
         readonly InventoryDetail: {
             readonly evidence: readonly components["schemas"]["InventoryEvidenceReference"][];
             readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
@@ -4339,6 +4375,7 @@ export type components = {
         };
         readonly InventorySummary: {
             readonly activity_state: components["schemas"]["InventoryActivityState"];
+            readonly attribution?: components["schemas"]["InventoryAttribution"];
             readonly confidence_basis_points: number;
             readonly discovery: components["schemas"]["InventoryDiscovery"];
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -6416,6 +6453,8 @@ export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncT
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type IntegrationWebhookTestStatus = components['schemas']['IntegrationWebhookTestStatus'];
 export type InventoryActivityState = components['schemas']['InventoryActivityState'];
+export type InventoryAttribution = components['schemas']['InventoryAttribution'];
+export type InventoryCreatorSource = components['schemas']['InventoryCreatorSource'];
 export type InventoryDetail = components['schemas']['InventoryDetail'];
 export type InventoryDiscovery = components['schemas']['InventoryDiscovery'];
 export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];
