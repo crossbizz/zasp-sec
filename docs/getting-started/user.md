@@ -519,6 +519,7 @@ Open **Agents**. Every row is one agent.
 | --- | --- |
 | **Name** | The agent's name at its provider |
 | **Source** | The provider and kind, for example "AWS · Bedrock agent" or "SaaS · Databricks" |
+| **Location** | The account, project, repository, tenant or cluster and namespace it was found in |
 | **Found by** | How Zasp learned of it (see below) |
 | **Status** | Managed, unmanaged or dismissed |
 | **Activity** | Active, inactive or unknown |
@@ -560,10 +561,67 @@ The filter above the table has **All agents**, **Unmanaged** and **Inactive**.
   owner and team, so the decision has a name on it. Dismissed agents move to a
   **Dismissed** filter.
 
+### Where an agent lives and who created it
+
+Open an agent and read **Location and creator**. The same rows appear under
+**Affected agent** when you open a finding.
+
+| Row | Meaning |
+| --- | --- |
+| **Location** | The account, project, subscription, tenant, repository or cluster and namespace the agent was found in |
+| **Found by integration** | The name of the integration whose sync found it |
+| **Created by** | The identity the provider says created the agent, when, and how Zasp knows |
+| **Named owner** | Shown instead of **Created by** when the claim is an owner named by a CODEOWNERS file, a label or an annotation |
+| **Suggested owner** | The creator or named owner, while nobody has assigned an owner |
+| **Suggested team** | A team to go with it, while nobody has assigned a team |
+
+Zasp reads these from the provider with the read access the integration already
+has. Nothing is installed. Where a provider does not say who created an agent,
+the row reads "Not reported by the provider". Zasp does not guess.
+
+| Source | Location | Creator or named owner | How Zasp knows |
+| --- | --- | --- | --- |
+| AWS | The account | Who called the create API of a Bedrock agent, an AgentCore runtime or a Lambda function | The CloudTrail create event, for 90 days after creation. An IAM user is shown by user name. A role session named after an email address is shown as that address, any other session as role and session name |
+| Google Cloud | The project | The creator of a Cloud Run service | The service's own record |
+| GitHub | The repository | The default owner in the repository's CODEOWNERS file (the last `*` rule) | The CODEOWNERS file. GitHub does not say who created a repository |
+| Kubernetes | The cluster and namespace | The value of the `zasp.ai/owner` or `owner` annotation or label | The annotation or label. Kubernetes does not record who created a workload |
+| Salesforce | The org, by name | The user name of the user who created the agent record | The record's audit fields |
+| SaaS platforms | The workspace or tenant, by name | Databricks: the creator of the serving endpoint. ServiceNow: the user who created the agent record. Atlassian: the account id in the audit log | The platform's record or audit log |
+| Microsoft | The subscription, the Power Platform environment or the tenant | Not collected | |
+| Okta | The tenant | Not collected | |
+
+The suggested team comes from one of two places:
+
+- A `zasp.ai/team` or `team` annotation or label on a Kubernetes workload.
+- The department of the Okta user whose email address is the creator's. This
+  needs an Okta integration in the same Environment, and a creator that is an
+  email address.
+
+A suggestion is not an assignment. The **Owner** column stays empty and the
+finding for an agent without an owner stays open until a person assigns one. To
+accept the suggestion, choose **Assign suggested owner**. It fills **Owner**
+and, when a team is suggested, **Team**. Then choose **Save ownership**.
+
+What is not available:
+
+- Microsoft: the maker of a Copilot Studio agent and the owners of an Entra
+  application are not read. A team is not read from Entra.
+- AWS: a creator older than 90 days, and the creator of an agent inferred from
+  an IAM role, an EC2 instance, an ECS service or an EKS cluster.
+- Google Cloud: the creator of a Vertex AI Agent Engine, a Conversational
+  Agents agent, a Gemini Enterprise agent or a Cloud Function.
+- GitHub: the person who created a repository, and commit authors.
+- Kubernetes: `app.kubernetes.io/managed-by` names a tool, not a person, and
+  is not used.
+- OpenAI, Anthropic, Slack, GitLab and Google Workspace: no creator.
+- Atlassian: the audit log gives an account id, not a name. It is shown as the
+  creator and is not suggested as an owner.
+
 ### What the agent detail shows
 
 | Section | What it tells you |
 | --- | --- |
+| **Location and creator** | Where the agent lives, which integration found it, who created it, and the suggested owner and team |
 | **How it was found** | The discovery signals |
 | **Identities and credentials** | The identities the agent uses, by name, kind and provider |
 | **Access** | The MCP servers it uses, the data stores its role reaches, its model permissions used against granted, and its skills and instruction files |

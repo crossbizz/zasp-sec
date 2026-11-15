@@ -378,7 +378,8 @@ created, updated or deleted. The definition:
    deletions first, then creations, then updates, and reports each agent at
    its first event. So a deleted agent is listed with the status `deleted`
    and `deleted_at`; an agent created within the log is listed `active` with
-   `created_by` (the account id, never a name or an address) and
+   `created_by` (the account id, never a name or an address),
+   `created_by_source` `audit_log` and
    `created_at`; an agent older than the log that was changed since is
    listed `active` with `updated_at`.
 
