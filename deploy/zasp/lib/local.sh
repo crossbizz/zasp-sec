@@ -237,6 +237,16 @@ local_bootstrap_admin() {
   note "The identity provider sent $email an invitation; a second run sends no second one."
 }
 
+# Seeds, shows or removes the demo data. The arguments are those of
+# zasp-demo (services/platform/cmd/zasp-demo). With --dry-run a seeding
+# prints what it would seed and a removal what it would remove.
+local_demo() {
+  local arguments=("$@")
+  if [ "${ZASP_DRY_RUN:-0}" = "1" ] && { [ "$1" = seed ] || [ "$1" = remove ]; }; then arguments+=(--dry-run); fi
+  [ -f "$LOCAL_STATE/up.done" ] || [ "$1" = help ] || { [ "$1" = seed ] && [ "${ZASP_DRY_RUN:-0}" = "1" ]; } || die "nothing is installed yet; run ./zasp up"
+  local_stack demo "${arguments[@]}" || die "the demo command did not finish (see the message above)"
+}
+
 local_up() {
   [ "$#" -eq 0 ] || die "usage: zasp up"
   local_install

@@ -386,6 +386,100 @@ Every step is safe to repeat. A second run with the same values changes nothing 
 
 A sign-in could not be completed in the authoring environment, which has no Stytch project. What was observed there: the sign-in page loads, and sign-in start answers with a redirect to the identity provider.
 
+## Demo data
+
+A new installation has nothing to show until a source is connected. `./zasp demo` fills one environment with sample data, so that a person can look at agents, findings, MCP servers and attack paths before any source exists. The person signs in with their own account, the normal way. No session is created for them and no setting of the deployment is changed.
+
+The sample company is fictional ("Northwind Robotics"): about 60 agents in an AWS account, a Google Cloud project, a Kubernetes cluster, a GitHub organization, an Okta tenant, a Microsoft tenant, a Salesforce org, and Databricks, OpenAI, ServiceNow and Slack tenants. It holds no credential and reaches no provider.
+
+### Seed
+
+See what would be seeded. This connects to nothing:
+
+```bash
+./zasp --dry-run demo seed --email person@example.com
+```
+
+Seed it:
+
+```bash
+./zasp demo seed --email person@example.com
+```
+
+Run the same command again to refresh the data. Nothing is duplicated.
+
+Where the data goes depends on who the person is:
+
+| The person | Where the demo goes | How they open it |
+| --- | --- | --- |
+| Is already a member of the organization this deployment signs people in to | A workspace of its own, `Zasp Demo`, with one environment, `Demo`, inside that organization. Only this person is given access to it. | They sign in as usual and choose the environment `Demo`. |
+| Is not a member | An organization of its own, `Zasp Demo`, with one workspace and one environment of that name. The identity provider sends the person an invitation to it. | They open the invitation, as in [First sign-in](#first-sign-in). |
+
+You can decide yourself:
+
+```bash
+./zasp demo seed --email person@example.com --into-existing-organization <organization id>
+```
+
+```bash
+./zasp demo seed --email person@example.com --dedicated-organization
+```
+
+`--into-existing-organization` never creates a membership and never sends an invitation: an address that is not an active member of that organization is refused. `--organization`, `--workspace`, `--environment` and `--domain` change the names; `--providers aws,kubernetes` seeds only some providers; `./zasp demo help` lists every option.
+
+A dedicated organization has a limit you should know. Sign-in from the sign-in page is bound to one organization per deployment (see [first organization bootstrap](../operations/first-organization-bootstrap.md), "Known limits"). A person in the dedicated demo organization enters through the invitation link. For a person who already signs in to this deployment, the workspace inside their organization is the better place, and it is what the command chooses.
+
+### What it creates
+
+- Eleven integrations whose names start with `Demo:`. They have no credential, no connection and no schedule, so no worker ever collects them.
+- The inventory, relationships, findings, MCP servers and attack paths of those integrations. They are not written by hand: the product's own collectors run over bundled provider answers, and the result is applied with the same database functions the discovery worker uses.
+- Four decisions in the approved-servers registry (three approved, one blocked).
+
+What it does not create: red team runs, guardrail decisions, gateway activity, runtime sessions and Security Agent runs. Evidence files of demo entities are not stored, so an evidence download answers that the object is missing. Demo data is not in the search index or the graph database.
+
+Audit records in the demo environment name the person the demo was seeded for as the actor.
+
+### Status and removal
+
+```bash
+./zasp demo status
+```
+
+```bash
+./zasp demo remove --yes
+```
+
+Without `--yes`, `remove` lists what it would delete and stops.
+
+`remove` deletes the rows of the demo environment, then the environment and its workspace. The product has no operation that deletes an environment, so this is done directly in the database by the operator role, and only for an environment in which every integration is a demo integration. Three things stay:
+
+- The retired inventory rows of the deleted environment (about 200). The operator role is not allowed to delete them. They belong to an environment that no longer exists and cannot be reached.
+- The record of a dedicated demo organization, empty, where the permission service refers to it. A later `seed` uses it again.
+- The organization and the member in the identity provider. Delete them in the Stytch dashboard if you want them gone.
+
+### Safety on a production deployment
+
+The command is confined to its own environment:
+
+- It refuses to seed into, or remove, an environment that holds any integration that is not a demo integration, and it refuses a production environment.
+- Every statement it runs names the demo environment's organization, workspace and environment.
+- It queues no discovery job, so the workers never contact a provider for a demo integration.
+- It turns no provider on and changes no deployment setting.
+
+It needs what `bootstrap-admin` needs: the `zasp_operator` database role and, for `seed`, the identity provider settings. On Kubernetes it runs in the toolbox container of the release. On AWS it runs as a one-off container of the API image on your machine:
+
+```bash
+./zasp --profile kubernetes demo seed --email person@example.com
+```
+
+```bash
+./zasp --profile aws demo seed --email person@example.com
+```
+
+Both are not run in the authoring environment. With `--dry-run` they print the command they would run; that was run.
+
+What was run in the authoring environment: the dry run above; and `seed` (twice), `status` and `remove --yes` of the same program against an installed schema, as the non-superuser `zasp_operator` role, with the identity provider stand-in of the test suite. `./zasp demo seed` against a running local stack was not run there, because the stack's native dependencies are not installed there.
+
 ## Day-2 operations
 
 All of the commands in this section were run in the authoring environment for the `local` profile with native dependencies. For `kubernetes` and `aws` they are not run in the authoring environment.

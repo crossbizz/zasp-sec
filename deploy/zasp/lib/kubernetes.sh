@@ -263,6 +263,12 @@ kubernetes_bootstrap_admin() {
   note "organization '$1' exists and $3 is its administrator. The identity provider sent the invitation."
 }
 
+# Seeds, shows or removes the demo data, in the toolbox container (the API
+# image), as the migration operator.
+kubernetes_demo() {
+  run "${KUBECTL[@]}" exec "$KUBE_POD" -c toolbox -- /bin/sh /zasp/config/entrypoint.sh demo "$@" || die "the demo command did not finish (see the message above)"
+}
+
 kubernetes_start() {
   [ "$#" -eq 0 ] || die "usage: zasp start"
   run "${KUBECTL[@]}" scale "statefulset/$KUBE_RELEASE" --replicas=1
