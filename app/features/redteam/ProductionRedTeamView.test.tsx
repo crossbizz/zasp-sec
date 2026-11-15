@@ -94,6 +94,7 @@ describe("production red team view", () => {
     const onNavigate = vi.fn();
     const value = api({ listRuns: async () => [protectedRun, pending, failed, errorRun], getRun: async id => ({ ...([failed, protectedRun, errorRun].find(item => item.id === id) ?? pending), attempts: [] }) });
     view(value, true, scopeKey, onNavigate); const user = userEvent.setup();
+    await user.click(await screen.findByRole("tab", { name: /^Runs/ })); 
     const unsafe = await screen.findByRole("region", { name: "Unsafe behavior observed" });
     expect(within(unsafe).getByRole("button", { name: `Open run ${failed.id}` })).toBeVisible();
     expect(within(screen.getByRole("region", { name: "Curated checks passed" })).getByRole("button", { name: `Open run ${protectedRun.id}` })).toBeVisible();
@@ -113,6 +114,7 @@ describe("production red team view", () => {
     const detail = { ...run, status: "complete" as const, verdict: "pass" as const, attempts: [{ ...legacyAttempt, input_artifact: input }] };
     const getRun = vi.fn().mockResolvedValueOnce(detail).mockResolvedValueOnce({ ...detail, attempts: [legacyAttempt] });
     view(api({ getRun })); const user = userEvent.setup();
+    await user.click(await screen.findByRole("tab", { name: /^Runs/ })); 
     await user.click(await screen.findByRole("button", { name: `Open run ${runID}` }));
     expect(await screen.findByText(input.reference)).toBeVisible();
     expect(screen.getByText(input.version_id)).toBeVisible(); expect(screen.getByText(input.sha256)).toBeVisible();
@@ -255,6 +257,8 @@ describe("production red team view", () => {
 		view(api({ listDefinitions })); const user = userEvent.setup();
 		await user.click(await screen.findByRole("button", { name: "Run Staging agent safety" }));
 		expect(await screen.findByText("Showing stale Red Team data. Reload before making changes.")).toBeVisible();
+		// The run started, so the page moved to the Runs tab.
+		await user.click(screen.getByRole("tab", { name: /^Tests/ }));
 		expect(screen.getByRole("button", { name: "Run Staging agent safety" })).toBeDisabled();
 		expect(screen.getByRole("button", { name: "Create test" })).toBeDisabled();
 	});
@@ -263,6 +267,7 @@ describe("production red team view", () => {
     view(api(), false);
     expect(await screen.findByRole("button", { name: "Staging agent safety" })).toBeVisible();
     expect(screen.getByText("customer-agent")).toBeVisible();
+    await userEvent.setup().click(screen.getByRole("tab", { name: /^Runs/ }));
     expect(screen.getByText("queued")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Create test" })).not.toBeInTheDocument();
   });
@@ -279,6 +284,7 @@ describe("production red team view", () => {
     const runDefinition = vi.fn(api().runDefinition); const getRun = vi.fn(api().getRun); const cancelRun = vi.fn(api().cancelRun); view(api({ runDefinition, getRun, cancelRun })); const user = userEvent.setup();
     await screen.findByRole("button", { name: "Staging agent safety" }); await user.click(screen.getByRole("button", { name: "Run Staging agent safety" }));
     expect(runDefinition).toHaveBeenCalledWith(definitionID, 2, expect.stringMatching(/^pid_/), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^redteam_/) }), expect.any(AbortSignal));
+    await user.click(await screen.findByRole("tab", { name: /^Runs/ })); 
     await user.click(screen.getByRole("button", { name: `Open run ${runID}` })); expect(await screen.findByRole("dialog", { name: "Red team run" })).toBeVisible(); expect(getRun).toHaveBeenCalledWith(runID, expect.any(AbortSignal));
     await user.click(screen.getByRole("button", { name: "Cancel run" })); expect(cancelRun).toHaveBeenCalledWith(runID, 1, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^redteam_/) }), expect.any(AbortSignal));
   });

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { TestAttempt, TestDefinition, TestProbeCatalog, TestSchedule } from "../../../apps/web/api/generated";
 import { Badge, Button, Card, Select } from "../../components/ui";
 import type { ProductionRedTeamAPI } from "./api";
+import { Time } from "../../components/time";
 
 type CatalogState = Readonly<{ status: "loading" | "ready" | "unavailable"; catalog?: TestProbeCatalog }>;
 
@@ -92,8 +93,8 @@ export function ScheduleControl({ api, definition, canWrite, locked }: { api: Pr
     {status === "loading" && <p role="status">Loading the schedule…</p>}
     {status === "unavailable" && <p role="alert">The schedule is unavailable.</p>}
     {schedule && <>
-      <p><Badge tone={schedule.enabled ? "success" : "neutral"}>{schedule.enabled ? "scheduled" : "not scheduled"}</Badge>{schedule.next_run_at && <> · next run {schedule.next_run_at}</>}</p>
-      {schedule.last_fired_at && <p>Last scheduled occurrence {schedule.last_fired_at}: {schedule.last_trigger === "target_change" ? "the target changed" : "cadence"}, {schedule.last_outcome === "queued" ? "run queued" : schedule.last_outcome === "rejected" ? "not run: the test is disabled or no longer passes the safety rule" : "skipped: a run was still active"}.</p>}
+      <p><Badge tone={schedule.enabled ? "success" : "neutral"}>{schedule.enabled ? "scheduled" : "not scheduled"}</Badge>{schedule.next_run_at && <> · next run <Time value={schedule.next_run_at} /></>}</p>
+      {schedule.last_fired_at && <p>Last scheduled occurrence <Time value={schedule.last_fired_at} />: {schedule.last_trigger === "target_change" ? "the target changed" : "cadence"}, {schedule.last_outcome === "queued" ? "run queued" : schedule.last_outcome === "rejected" ? "not run: the test is disabled or no longer passes the safety rule" : "skipped: a run was still active"}.</p>}
       {canWrite && <>
         <Select disabled={locked || status !== "ready"} label="Cadence" value={cadence} onChange={(event) => setCadence(event.target.value)}>
           {cadenceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}

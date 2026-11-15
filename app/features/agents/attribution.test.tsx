@@ -50,7 +50,7 @@ describe("inventory attribution", () => {
     const section = await screen.findByRole("region", { name: "Location and creator" });
     expect(within(section).getByText("Location").nextElementSibling).toHaveTextContent("AWS account 123456789012");
     expect(within(section).getByText("Found by integration").nextElementSibling).toHaveTextContent("Production account");
-    expect(within(section).getByText("Created by").nextElementSibling).toHaveTextContent("dana.reyes@example.com on 2026-10-01T09:30:15Z, from the AWS CloudTrail create event");
+    expect(within(section).getByText("Created by").nextElementSibling).toHaveTextContent("dana.reyes@example.com on 1 Oct 2026, 09:30 UTC, from the AWS CloudTrail create event");
     expect(within(section).getByText("Suggested owner").nextElementSibling).toHaveTextContent("dana.reyes@example.com, from the AWS CloudTrail create event. Not assigned yet.");
     expect(within(section).getByText("Suggested team").nextElementSibling).toHaveTextContent("Customer Platform, from the creator's department in Okta. Not assigned yet.");
     // A reader sees the suggestion and cannot assign it.

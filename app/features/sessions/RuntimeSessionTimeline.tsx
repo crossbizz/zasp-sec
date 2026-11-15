@@ -9,6 +9,7 @@ import { RuntimeSessionEventRow } from "./RuntimeSessionEventRow";
 import { RuntimeSessionEvidence, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 import type { ActivityScope } from "../../domain/activity-links";
 import { SecurityAgentActivityPanel } from "../securityagents/SecurityAgentActivityPanel";
+import { Time } from "../../components/time";
 
 export type RuntimeSessionActivity = { scope: ActivityScope; canReadRuns: boolean; onNavigate(path: string): void };
 
@@ -71,7 +72,7 @@ export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity }: { id:
     <Card title={id === "unattributed" ? "Unattributed evidence timeline" : "Runtime session timeline"}>
       {id === "unattributed" && <p>Unrelated observations may share this collection. They are not inferred to belong to one agent session.</p>}
       <p>Agent: {summary.agent_id ?? "Unknown or multiple agents"} · Principal: {summary.principal_id ?? "Unknown"}</p>
-      <p>{summary.event_count.toLocaleString("en-US")} canonical events · Summary projected <time dateTime={summary.projected_at}>{summary.projected_at}</time></p>
+      <p>{summary.event_count.toLocaleString("en-US")} canonical events · Summary projected <time dateTime={summary.projected_at}><Time value={summary.projected_at} /></time></p>
       <p>Events are ordered by canonical event time, then event ID. Pages and the summary are not a snapshot; restart at the first page to include newly projected earlier events.</p>
     </Card>
     <ol aria-label="Runtime evidence timeline">

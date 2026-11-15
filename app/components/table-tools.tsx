@@ -53,3 +53,14 @@ export function TablePagination<T>({ paged, label }: { paged: PagedRows<T>; labe
     </span>
   </nav>;
 }
+
+// A whole table with its filter box and pages: head is the header row, row
+// renders one item.
+export function PagedTable<T>({ items, text, label, placeholder, head, row }: { items: readonly T[]; text: (item: T) => string; label: string; placeholder: string; head: React.ReactNode; row: (item: T) => React.ReactNode }) {
+  const paged = usePagedRows(items, text);
+  return <>
+    <TableFilter paged={paged} label={`Filter ${label}`} placeholder={placeholder} />
+    <div className="table-scroll"><table className="data-table"><thead>{head}</thead><tbody>{paged.rows.map(row)}</tbody></table></div>
+    <TablePagination paged={paged} label={label} />
+  </>;
+}

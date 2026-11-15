@@ -1,4 +1,5 @@
 import type { InventorySummary } from "../../../apps/web/api/generated";
+import { Time } from "../../components/time";
 import { Button } from "../../components/ui";
 
 type Attribution = NonNullable<InventorySummary["attribution"]>;
@@ -38,7 +39,7 @@ export function AttributionFacts({ item }: { item: InventorySummary }) {
   return <>
     <div><dt>Location</dt><dd>{location ? <>{locationKindLabels[location.kind]} {location.label}{location.label !== location.id && <> (<code>{location.id}</code>)</>}</> : "Not reported by the provider"}</dd></div>
     <div><dt>Found by integration</dt><dd>{integration ? integration.name : "Unknown"}</dd></div>
-    {item.kind === "agent" && <div><dt>{creator && namedOwnerSources.includes(creator.source) ? "Named owner" : "Created by"}</dt><dd>{creator ? <>{creator.identity}{creator.created_at ? ` on ${creator.created_at}` : ""}, {creatorSourceLabels[creator.source]}</> : "Not reported by the provider"}</dd></div>}
+    {item.kind === "agent" && <div><dt>{creator && namedOwnerSources.includes(creator.source) ? "Named owner" : "Created by"}</dt><dd>{creator ? <>{creator.identity}{creator.created_at && <> on <Time value={creator.created_at} /></>}, {creatorSourceLabels[creator.source]}</> : "Not reported by the provider"}</dd></div>}
     {owner && <div><dt>Suggested owner</dt><dd>{owner.value}, {creatorSourceLabels[owner.source]}. Not assigned yet.</dd></div>}
     {team && <div><dt>Suggested team</dt><dd>{team.value}, {teamSourceLabels[team.source]}. Not assigned yet.</dd></div>}
   </>;

@@ -6,6 +6,7 @@ import type { RuntimeSessionEvent } from "../../../apps/web/api/generated";
 import { decodeRuntimeSessionEvent } from "../../../apps/web/api/runtime-session-decoders";
 import { Button, LoadingState } from "../../components/ui";
 import { RuntimeConfidence } from "./RuntimeConfidence";
+import { Time } from "../../components/time";
 
 export type RuntimeEvidenceTarget = { investigationID: string; eventID: string; evidenceID: string };
 export interface RuntimeSessionEvidenceAPI {
@@ -63,7 +64,7 @@ export function RuntimeSessionEvidence({ target, api }: { target: RuntimeEvidenc
       <dt>Sandbox</dt><dd>{event.sandbox_id ?? "Unknown (not recorded)"}</dd>
       {event.sandbox_source_sensor_id && <><dt>Sandbox source sensor</dt><dd>{event.sandbox_source_sensor_id}</dd></>}
       <dt>Canonical event time</dt><dd><time dateTime={event.at}>{event.at}</time></dd>
-      <dt>Projection time</dt><dd><time dateTime={event.projected_at}>{event.projected_at}</time></dd>
+      <dt>Projection time</dt><dd><time dateTime={event.projected_at}><Time value={event.projected_at} /></time></dd>
     </dl>
     <p>Raw archive content is not included in this view.</p>
     {(event.class === "credential" || event.class === "policy") && <p>This is a source observation, not proof of credential ownership or policy enforcement.</p>}

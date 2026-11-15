@@ -9,6 +9,7 @@ import { Badge, Button, Card, Drawer, EmptyState, Field, LoadingState, PageHeade
 import { SessionsComplianceView } from "./SessionsComplianceView";
 import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI, type RuntimeSessionActivity } from "./RuntimeSessionTimeline";
 import { createRuntimeSessionEvidenceAPI, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
+import { Time } from "../../components/time";
 
 const textSelectors = [
   ["agent_id", "Agent ID", 40], ["principal_id", "Principal ID", 40],
@@ -129,8 +130,8 @@ function SearchCheckpoint({ status }: { status: RuntimeSessionSearchStatus }) {
   return <Card title="Search indexing status">
     <p><Badge tone={status.state === "blocked" || status.state === "catching_up" ? "warning" : "neutral"}>{label}</Badge></p>
     <p>{count(status.pending_batches, status.pending_batches_capped)} pending batches · {count(status.quarantined_batches, status.quarantined_batches_capped)} quarantined batches</p>
-    <p>Checked <time dateTime={status.checked_at}>{status.checked_at}</time>{status.last_indexed_at && <> · Last indexed <time dateTime={status.last_indexed_at}>{status.last_indexed_at}</time></>}</p>
-    {status.oldest_pending_at && <p>Oldest pending batch: <time dateTime={status.oldest_pending_at}>{status.oldest_pending_at}</time></p>}
+    <p>Checked <time dateTime={status.checked_at}><Time value={status.checked_at} /></time>{status.last_indexed_at && <> · Last indexed <time dateTime={status.last_indexed_at}><Time value={status.last_indexed_at} /></time></>}</p>
+    {status.oldest_pending_at && <p>Oldest pending batch: <time dateTime={status.oldest_pending_at}><Time value={status.oldest_pending_at} /></time></p>}
     <p>Observed metadata only. Checkpoints do not establish complete collection, complete selector coverage, or current provider health.</p>
   </Card>;
 }
@@ -141,8 +142,8 @@ function RuntimeSessionSummary({ item, onSelect }: { item: RuntimeSession; onSel
     <p>{item.agent_id ?? "Unknown or multiple agents"} · Principal: {item.principal_id ?? "Unknown"}</p>
     <p>{item.event_count.toLocaleString("en-US")} canonical events</p>
     <p>{(["exact", "strong", "probable", "unattributed"] as const).map(confidence => <Badge key={confidence} tone={confidence === "exact" ? "success" : confidence === "strong" ? "info" : confidence === "probable" ? "warning" : "neutral"}>{confidence}: {item.confidence_counts[confidence].toLocaleString("en-US")}</Badge>)}</p>
-    <p>First event <time dateTime={item.first_event_at}>{item.first_event_at}</time> · Last event <time dateTime={item.last_event_at}>{item.last_event_at}</time></p>
-    <p>Summary projected <time dateTime={item.projected_at}>{item.projected_at}</time></p>
+    <p>First event <time dateTime={item.first_event_at}><Time value={item.first_event_at} /></time> · Last event <time dateTime={item.last_event_at}><Time value={item.last_event_at} /></time></p>
+    <p>Summary projected <time dateTime={item.projected_at}><Time value={item.projected_at} /></time></p>
   </Card>;
 }
 

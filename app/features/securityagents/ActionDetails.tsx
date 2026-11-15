@@ -2,6 +2,7 @@ import type { SecurityAgentActionDetail } from "../../../apps/web/api/generated"
 import { ExistingTestEvidence } from "./ExistingTestEvidence";
 import { AttackLabEvidence } from "./AttackLabEvidence";
 import type { ActivityScope } from "../../domain/activity-links";
+import { formatTime } from "../../components/time";
 
 export function ActionDetails({ value, stepID, activityScope, canReadTests = false, onNavigate }: { value?: SecurityAgentActionDetail; stepID: string; activityScope?: ActivityScope; canReadTests?: boolean; onNavigate?: (path: string) => void }) {
   if (!value) return <p>Action details unavailable from this server.</p>;
@@ -34,7 +35,7 @@ export function ActionDetails({ value, stepID, activityScope, canReadTests = fal
       {value.result.result_digest && <p>Result digest: {value.result.result_digest}</p>}
     </div> : <p>No effect result recorded.</p>}
     <p>{value.ttl_seconds === null ? "TTL unavailable or not applicable." : `TTL: ${value.ttl_seconds} seconds`}</p>
-    <p>{value.control_expires_at === null ? "Control expiry unavailable." : `Control expires: ${value.control_expires_at}`}</p>
+    <p>{value.control_expires_at === null ? "Control expiry unavailable." : `Control expires: ${formatTime(value.control_expires_at)}`}</p>
     <p>{{ automatic: "Automatic cleanup", manual: "Manual restoration only", not_supported: "No rollback support" }[value.rollback.support]}</p>
     <p>Rollback: {value.rollback.state}</p>
     <p>Cleanup verification {value.rollback.verification.state}</p>

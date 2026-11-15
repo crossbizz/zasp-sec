@@ -5,6 +5,7 @@ import { normalizeAuditFilters, type AuditFilters, type AuditLogAPI } from "../.
 import { APIProductError } from "../../../apps/web/api/client";
 import type { AuditEventPage } from "../../../apps/web/api/generated";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, Select } from "../../components/ui";
+import { Time } from "../../components/time";
 
 export type AuditReadBoundary = {
   identityKey: string | null;
@@ -93,7 +94,7 @@ function AuditLogBrowser({ api, boundary }: { api: AuditLogAPI | null; boundary:
       <p role="status">Showing {page.items.length} matching audit events</p>
       {page.items.length === 0 ? <EmptyState title="No matching audit events" /> : page.items.map(event => <Card key={event.id} id={`audit-event-${event.id}`} title={event.action}>
         <p>Actor {event.actor_id} · Target {event.target_id}</p>
-        <p><Badge tone={event.outcome === "succeeded" ? "success" : "warning"}>{event.outcome}</Badge> · {event.occurred_at}</p>
+        <p><Badge tone={event.outcome === "succeeded" ? "success" : "warning"}>{event.outcome}</Badge> · <Time value={event.occurred_at} /></p>
         <Button onClick={() => change("action", event.action)}>Use this action</Button>
         <Button onClick={() => change("actor_id", event.actor_id)}>Use this actor</Button>
       </Card>)}

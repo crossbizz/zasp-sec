@@ -12,6 +12,7 @@ import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader
 import { IntegrationRemediationRole } from "./IntegrationRemediationRole";
 import { createIntegrationsAPI, createPoliciesAPI, IntegrationDiscoveryConflict, IntegrationRevocationPending, ReferenceAuthorizationConflict, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
+import { Time } from "../../components/time";
 
 type Feedback = { tone: "status" | "alert"; message: string } | null;
 type PolicyMutationIntent =
@@ -746,8 +747,8 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                 <p>Delivery status: {webhookStatus.value.delivery_status}</p>
                 <p>{webhookStatus.value.signature_status === "signed" ? "Signed by Zasp; endpoint accepted the test." : "Signature and acceptance are unconfirmed."}</p>
                 <p>Delivery ID: {webhookStatus.value.delivery_id}</p>
-                <p>Attempted: {webhookStatus.value.attempted_at}</p>
-                {webhookStatus.value.completed_at && <p>Completed: {webhookStatus.value.completed_at}</p>}
+                <p>Attempted: <Time value={webhookStatus.value.attempted_at} /></p>
+                {webhookStatus.value.completed_at && <p>Completed: <Time value={webhookStatus.value.completed_at} /></p>}
                 {webhookStatus.value.error_code && <p role="alert">Delivery failed. Check the endpoint allowlist, signing secret, and empty HTTP 204 response before testing again.</p>}
               </div>}
               <div className="button-row">

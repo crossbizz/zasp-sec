@@ -64,7 +64,7 @@ describe("findings show where the affected agent lives and who created it", () =
     expect(within(block).getByText("Where it runs").nextElementSibling).toHaveTextContent("AWS · AgentCore runtime");
     expect(within(block).getByText("Location").nextElementSibling).toHaveTextContent("AWS account 123456789012");
     expect(within(block).getByText("Found by integration").nextElementSibling).toHaveTextContent("Production account");
-    expect(within(block).getByText("Created by").nextElementSibling).toHaveTextContent("dana.reyes@example.com on 2026-10-01T09:30:15Z, from the AWS CloudTrail create event");
+    expect(within(block).getByText("Created by").nextElementSibling).toHaveTextContent("dana.reyes@example.com on 1 Oct 2026, 09:30 UTC, from the AWS CloudTrail create event");
     expect(within(block).getByText("Suggested owner").nextElementSibling).toHaveTextContent("dana.reyes@example.com, from the AWS CloudTrail create event. Not assigned yet.");
     expect(within(block).getByText("Suggested team").nextElementSibling).toHaveTextContent("Customer Platform, from the creator's department in Okta. Not assigned yet.");
   });

@@ -711,18 +711,19 @@ button:disabled { cursor: default; }
 .nav-section .nav-group-label { padding-bottom: 4px; }
 
 .drawer__body { padding-bottom: 36px; }
-.drawer__body > :where(section:not([class]), p:not([class]), h3:not([class]), div:not([class]), .card, .button) { margin-left: 20px; margin-right: 20px; }
+.drawer__body > :is(section:not([class]), p, h2, h3, h4, ul, ol, dl, pre, div:not([class]), .card, .button, .table-scroll, .button-row, .field) { margin-left: 20px; margin-right: 20px; }
+.drawer__body > :first-child:not(.detail-content, .detail-hero, .violation-hero, .tabs) { margin-top: 20px; }
 .drawer__body > .card { margin-top: 20px; }
-.drawer__body h3:not([class]) { margin: 26px 0 10px; padding-top: 20px; border-top: 1px solid var(--border); color: #6b6f79; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.drawer__body h3:not([class]) { margin-top: 26px; margin-bottom: 10px; padding-top: 20px; border-top: 1px solid var(--border); color: #6b6f79; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .drawer__body .detail-content > h3:not([class]):first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .drawer__body .card h3:not([class]) { margin-top: 0; padding-top: 0; border-top: 0; }
-.drawer__body p:not([class]) { margin: 0 0 10px; color: #3f434b; line-height: 1.6; }
-.drawer__body ul:not([class]) { margin: 0 0 10px; padding-left: 18px; color: #3f434b; line-height: 1.75; }
-.drawer__body dl:not([class]) { display: grid; gap: 8px; margin: 0 0 10px; }
+.drawer__body p:not([class]) { margin-top: 0; margin-bottom: 10px; color: #3f434b; line-height: 1.6; }
+.drawer__body :is(ul, ol):not([class]) { margin-top: 0; margin-bottom: 10px; padding-left: 18px; color: #3f434b; line-height: 1.75; }
+.drawer__body dl:not([class]) { display: grid; gap: 8px; margin-top: 0; margin-bottom: 10px; }
 .drawer__body dl:not([class]) dt { font-weight: 620; }
 .drawer__body dl:not([class]) dd { margin: 2px 0 0; color: #3f434b; }
 .drawer__body code { padding: 1px 6px; border-radius: 5px; background: #f4f3f8; color: #3b3550; font-family: var(--font-geist-mono); font-size: 12px; overflow-wrap: anywhere; }
-.drawer__body .field { margin: 0 0 14px; }
+.drawer__body .field { margin-top: 0; margin-bottom: 14px; }
 .drawer__body .checkbox-field { margin: 0 0 14px; }
 .drawer__body .checkbox-field small { display: block; margin-top: 4px; color: var(--muted-2); line-height: 1.5; }
 .drawer__body [role="alert"]:not([class]) { color: var(--critical); }
@@ -779,3 +780,27 @@ button:disabled { cursor: default; }
 .drawer__body .card > :where(:not(.card__header, table, .table-scroll, .data-table)) { margin-left: 16px; margin-right: 16px; }
 .drawer__body .card > .card__header + * { margin-top: 14px; }
 .drawer__body .card > :last-child:not(.card__header, table, .table-scroll) { margin-bottom: 16px; }
+
+/* Type hierarchy: what a row is about in bold, labels small and quiet,
+   times in even digits. */
+.data-table th { font-size: 10.5px; font-weight: 680; letter-spacing: .06em; text-transform: uppercase; }
+.data-table td:first-child, .data-table td:first-child .row-title { color: var(--ink); font-weight: 640; }
+.row-title:hover { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.data-table time, .drawer__body time { color: #5b5f68; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.production-app .card__title, .production-app .card__title :where(h2, h3) { margin: 0; color: var(--ink); font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+.production-app .page-header p { max-width: 86ch; }
+.production-app .card strong, .drawer__body strong { color: var(--ink); font-weight: 700; }
+.production-app .card > p:not([class]) > code, .production-app .page > p:not([class]) > code { padding: 1px 6px; border-radius: 5px; background: #f4f3f8; color: #3b3550; font-family: var(--font-geist-mono); font-size: 12px; }
+.drawer__body .detail-content > h2:not([class]) { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
+
+/* Lists inside an inset block keep their own indent; a label inside a
+   sentence reads as a label. */
+.drawer__body > :is(ul, ol):not([class]) { padding-left: 18px; margin-left: 20px; }
+.label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-right: 4px; }
+.path-ids { margin-top: 0; margin-bottom: 10px; color: #3b3550; font-family: var(--font-geist-mono); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+/* A control that cannot be used looks like it. */
+.icon-button:disabled, .button:disabled { opacity: .45; cursor: not-allowed; }
+/* A button that follows a form keeps its distance from the last field. */
+.production-app .card > :is(.form-grid, .field, p, div, ul, table, .table-scroll) + .button, .drawer__body :is(.form-grid, .field) + .button { margin-top: 14px; }
+.production-app .card > .button:last-child { margin-bottom: 16px; }
+.production-app .card > .form-grid .field, .production-app .card :is(form, .form-grid) > .field { display: flex; width: auto; margin: 0; }

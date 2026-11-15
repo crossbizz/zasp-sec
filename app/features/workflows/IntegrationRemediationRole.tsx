@@ -7,6 +7,7 @@ import { decodeIntegrationRemediationRole, type IntegrationRemediationRole as Re
 import { useAPI } from "../../api/APIProvider";
 import { Button, Field } from "../../components/ui";
 import { createWorkflowMutationAttempt } from "./api";
+import { Time } from "../../components/time";
 
 // The remediation role of an AWS integration:
 //   GET /api/v1/integrations/{id}/remediation-role  getIntegrationRemediationRole (view)
@@ -117,7 +118,7 @@ export function IntegrationRemediationRole({ integrationID, canWrite, api: provi
     {load.status === "error" && <p>The remediation role is unavailable. <Button onClick={() => { setLoad({ status: "loading" }); void reload(); }}>Retry</Button></p>}
     {role && !role.supported && <p>This provider has no remediation actions.</p>}
     {role && role.supported && <>
-      <p>{role.configured ? <>Remediations use <code>{role.role_arn}</code> (set {role.updated_at}).</> : "No remediation role is set."}</p>
+      <p>{role.configured ? <>Remediations use <code>{role.role_arn}</code> (set <Time value={role.updated_at} />).</> : "No remediation role is set."}</p>
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {canWrite ? <>
