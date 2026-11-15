@@ -8666,12 +8666,11 @@ GRANT EXECUTE ON FUNCTION public.zasp_gateway_maintain(integer,integer) TO zasp_
 --
 -- Two partial indexes serve the two lookups of a page: the tenant record of
 -- an integration, and an Okta user by email address.
-CREATE INDEX IF NOT EXISTS zasp_inventory_observations_tenant_ws11_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source_kind) WHERE source_state='present' AND source_kind IN('microsoft_tenant','salesforce_org','saas_tenant');
-CREATE INDEX IF NOT EXISTS zasp_inventory_observations_person_ws11_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,lower(attributes->>'email')) WHERE source_state='present' AND source_kind='okta_user';
-
 DO $inventory_attribution$
 DECLARE target record;d text;
 BEGIN
+ CREATE INDEX IF NOT EXISTS zasp_inventory_observations_tenant_ws11_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source_kind) WHERE source_state='present' AND source_kind IN('microsoft_tenant','salesforce_org','saas_tenant');
+ CREATE INDEX IF NOT EXISTS zasp_inventory_observations_person_ws11_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,lower(attributes->>'email')) WHERE source_state='present' AND source_kind='okta_user';
  CREATE OR REPLACE FUNCTION public.zasp_inventory_attribution(organization_value text,workspace_value text,environment_value text,id_value text,kind_value text,integration_value text,source_value text,attributes_value jsonb,annotation_value jsonb) RETURNS jsonb
  LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $attribution$
   WITH observed AS (

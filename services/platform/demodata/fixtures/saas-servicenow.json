@@ -14,8 +14,8 @@
     "routes": [
       {"path": "/api/now/table/sys_properties", "body": {"result": [{"name": "instance_name", "value": "northwindrobotics"}]}},
       {"path": "/api/now/table/sn_aia_agent", "body": {"result": [
-        {"sys_id": "5a5a5a5a000040008000000000000501", "name": "Incident triage agent", "active": "true"},
-        {"sys_id": "5a5a5a5a000040008000000000000502", "name": "Change risk agent", "active": "true"},
+        {"sys_id": "5a5a5a5a000040008000000000000501", "name": "Incident triage agent", "active": "true", "sys_created_by": "priya.raman", "sys_created_on": "2026-07-21 09:12:44"},
+        {"sys_id": "5a5a5a5a000040008000000000000502", "name": "Change risk agent", "active": "true", "sys_created_by": "itsm.integration", "sys_created_on": "2026-08-30 17:40:02"},
         {"sys_id": "5a5a5a5a000040008000000000000503", "name": "Asset reconciliation agent", "active": "false"}
       ]}},
       {"path": "/api/now/table/sys_store_app", "body": {"result": [

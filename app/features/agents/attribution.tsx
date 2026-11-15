@@ -16,6 +16,9 @@ const creatorSourceLabels: Readonly<Record<CreatorSource, string>> = {
   cloudtrail: "from the AWS CloudTrail create event", audit_log: "from the provider's audit log", provider_record: "from the provider's record of the agent",
   codeowners: "from the repository's CODEOWNERS file", label: "from a label on the object", annotation: "from an annotation on the object",
 };
+// An audit log or the provider's record says who created the agent. A
+// CODEOWNERS file, a label or an annotation names an owner, not a creator.
+const namedOwnerSources: readonly CreatorSource[] = ["codeowners", "label", "annotation"];
 const teamSourceLabels = { label: "from a label or annotation on the object", okta: "from the creator's department in Okta" } as const;
 
 // "AWS account 123456789012", "GitHub repository org/repo". Empty when the
@@ -35,7 +38,7 @@ export function AttributionFacts({ item }: { item: InventorySummary }) {
   return <>
     <div><dt>Location</dt><dd>{location ? <>{locationKindLabels[location.kind]} {location.label}{location.label !== location.id && <> (<code>{location.id}</code>)</>}</> : "Not reported by the provider"}</dd></div>
     <div><dt>Found by integration</dt><dd>{integration ? integration.name : "Unknown"}</dd></div>
-    {item.kind === "agent" && <div><dt>Created by</dt><dd>{creator ? <>{creator.identity}{creator.created_at ? ` on ${creator.created_at}` : ""}, {creatorSourceLabels[creator.source]}</> : "Not reported by the provider"}</dd></div>}
+    {item.kind === "agent" && <div><dt>{creator && namedOwnerSources.includes(creator.source) ? "Named owner" : "Created by"}</dt><dd>{creator ? <>{creator.identity}{creator.created_at ? ` on ${creator.created_at}` : ""}, {creatorSourceLabels[creator.source]}</> : "Not reported by the provider"}</dd></div>}
     {owner && <div><dt>Suggested owner</dt><dd>{owner.value}, {creatorSourceLabels[owner.source]}. Not assigned yet.</dd></div>}
     {team && <div><dt>Suggested team</dt><dd>{team.value}, {teamSourceLabels[team.source]}. Not assigned yet.</dd></div>}
   </>;
