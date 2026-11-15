@@ -4,6 +4,7 @@ import { APIProductError } from "../../../apps/web/api/client";
 import type { ComplianceDownloadFormat, SecurityAgentExportStatus } from "../../../apps/web/api/generated";
 import { Button } from "../../components/ui";
 import type { createSecurityAgentExportAPI } from "./export-api";
+import { Time } from "../../components/time";
 export type AgentExportAPI = ReturnType<typeof createSecurityAgentExportAPI>;
 type Props = { api: AgentExportAPI; runID: string; stepID: string; disabled?: boolean };
 function message(error: unknown) {
@@ -68,7 +69,7 @@ function ExportContent({ api, runID, stepID, disabled = false }: Props) {
     <Button disabled={disabled || busy} onClick={() => setRevision(v => v + 1)}>Refresh export status</Button>
     {job && !disabled && <>
       <p>{expired ? "Export expired" : job.state === "pending" ? `Export ${job.phase}` : job.state === "failed" ? `Export failed: ${job.failure_code ?? "unavailable"}` : "Export completed"}</p>
-      <p>Retrieval expires: {job.retrieval_expires_at}</p><p>Cleanup: {job.cleanup_state}</p>
+      <p>Retrieval expires: <Time value={job.retrieval_expires_at} /></p><p>Cleanup: {job.cleanup_state}</p>
       <ul>{job.selection.map(s => <li key={`${s.source_kind}/${s.source_id}`}>{s.source_kind} · {s.source_id} · version {s.source_version}</li>)}</ul>
       {job.artifact && <p>Artifact SHA-256: {job.artifact.sha256} · {job.artifact.size} bytes</p>}
       {job.state === "completed" && job.cleanup_state === "retained" && !expired && <>

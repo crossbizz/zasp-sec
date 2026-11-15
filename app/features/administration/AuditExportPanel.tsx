@@ -6,6 +6,7 @@ import { Button, Card } from "../../components/ui";
 import { AuditExportController, exportSaveNotice, type AuditExportAuthority } from "./audit-export-controller";
 import { exportIdentityKey } from "./audit-export-resume";
 import { directoryPicker } from "./audit-export-save";
+import { Time } from "../../components/time";
 
 export type AuditExportPanelProps = { api: AuditExportsAPI; authority: AuditExportAuthority; retrySession(): Promise<void>; reauthenticate(): void };
 export function AuditExportPanel(props: AuditExportPanelProps) {
@@ -43,10 +44,10 @@ function ActiveAuditExportPanel({ api, authority, retrySession, reauthenticate }
     {state.resume?.exportID && !saving && <Button disabled={state.busy} onClick={() => void controller.check()}>Check status</Button>}
     {state.phase === "creating" && <p role="status">Creating export...</p>}
     {state.phase === "checking" && <p role="status">Checking export status...</p>}
-    {descriptor && <p>Export: {descriptor.id}<br />Requested: {descriptor.created_at}</p>}
+    {descriptor && <p>Export: {descriptor.id}<br />Requested: <Time value={descriptor.created_at} /></p>}
     {descriptor && ["queued", "processing"].includes(descriptor.status) && <p role="status">{descriptor.status === "queued" ? "Queued" : "Processing"}. Snapshot time and totals are available when ready.</p>}
     {descriptor?.status === "ready" && <>
-      <p>Captured: {descriptor.captured_at}<br />{descriptor.event_count} events; {descriptor.chunk_count} chunks; {descriptor.chunk_bytes} chunk bytes.</p>
+      <p>Captured: <Time value={descriptor.captured_at} /><br />{descriptor.event_count} events; {descriptor.chunk_count} chunks; {descriptor.chunk_bytes} chunk bytes.</p>
       <Button disabled={state.busy || !picker} onClick={() => {
         // Invoke the real picker within this trusted click, before any await.
         if (picker) void controller.save(picker());

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { GATEWAY_TOOL_RISKS, type GatewayDecision, type GatewayPolicy, type MCPGatewayServer, type MCPToolRiskClass } from "../../../apps/web/api/gateway-decoders";
 import { Badge, Button, Card, Field, LoadingState, Select } from "../../components/ui";
 import { GatewayConflict, newGatewayServerID, type GatewayActivityFilter, type GatewayAPI } from "./gateway-api";
+import { Time } from "../../components/time";
 
 // The hosted gateway in the product: its policy and its activity on the
 // Guardrails page, and the MCP servers registered behind it on the MCP
@@ -185,7 +186,7 @@ export function GatewayActivityCard({ api }: { api: GatewayAPI }) {
     {status === "ready" && (items.length === 0 ? <p>No decision was recorded{filter.surface || filter.decision ? " for this filter" : ""}. Decisions appear here once an agent sends traffic through the gateway.</p> :
       <div className="table-scroll"><table className="data-table" aria-label="Gateway activity"><thead><tr><th scope="col">Time</th><th scope="col">Traffic</th><th scope="col">Server or provider</th><th scope="col">Operation</th><th scope="col">Direction</th><th scope="col">Decision</th><th scope="col">Reason</th><th scope="col">Rules</th><th scope="col">Agent</th><th scope="col">Size</th></tr></thead><tbody>
         {items.map((decision) => <tr key={decision.id}>
-          <td>{decision.created_at}</td>
+          <td><Time value={decision.created_at} /></td>
           <td>{decision.surface === "mcp" ? "MCP" : "Model"}</td>
           <td>{subject(decision)}</td>
           <td><code>{decision.operation}</code></td>

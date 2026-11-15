@@ -779,3 +779,15 @@ button:disabled { cursor: default; }
 .drawer__body .card > :where(:not(.card__header, table, .table-scroll, .data-table)) { margin-left: 16px; margin-right: 16px; }
 .drawer__body .card > .card__header + * { margin-top: 14px; }
 .drawer__body .card > :last-child:not(.card__header, table, .table-scroll) { margin-bottom: 16px; }
+
+/* Type hierarchy: what a row is about in bold, labels small and quiet,
+   times in even digits. */
+.data-table th { font-size: 10.5px; font-weight: 680; letter-spacing: .06em; text-transform: uppercase; }
+.data-table td:first-child, .data-table td:first-child .row-title { color: var(--ink); font-weight: 640; }
+.row-title:hover { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.data-table time, .drawer__body time { color: #5b5f68; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.production-app .card__title, .production-app .card__title :where(h2, h3) { margin: 0; color: var(--ink); font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+.production-app .page-header p { max-width: 86ch; }
+.production-app .card strong, .drawer__body strong { color: var(--ink); font-weight: 700; }
+.production-app .card > p:not([class]) > code, .production-app .page > p:not([class]) > code { padding: 1px 6px; border-radius: 5px; background: #f4f3f8; color: #3b3550; font-family: var(--font-geist-mono); font-size: 12px; }
+.drawer__body .detail-content > h2:not([class]) { margin: 0 0 8px; font-size: 17px; font-weight: 700; }

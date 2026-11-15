@@ -1,4 +1,5 @@
 import type { SecurityAgentApproval } from "../../../apps/web/api/generated";
+import { Time } from "../../components/time";
 
 export function ApprovalContextFields({ value, id }: { value: SecurityAgentApproval; id?: string }) {
   const context = value.approval_context;
@@ -9,7 +10,7 @@ export function ApprovalContextFields({ value, id }: { value: SecurityAgentAppro
     <span>Requester: {context?.requester.state === "available" ? context.requester.id : context ? "withheld" : "unavailable"}</span>
     <span>Run: {value.run_id}</span>
     {value.manual_trigger && <span>Manual intent: {value.manual_trigger.intent_digest} · version {value.manual_trigger.version}</span>}
-    <span>Expires: {value.expires_at}</span>
+    <span>Expires: <Time value={value.expires_at} /></span>
   </span>;
 }
 
@@ -40,7 +41,7 @@ export function ApprovalContext({ value }: { value: SecurityAgentApproval }) {
       <p>Sandbox target: {value.attack_lab.target_id} · {value.attack_lab.target_kind}</p>
       <p>Environment: {value.attack_lab.environment} · credential class: {value.attack_lab.credential_class}</p>
       <p>Approved destination: {value.attack_lab.destination}</p>
-      <p>Preflight expires: {value.attack_lab.decision_expires_at}</p>
+      <p>Preflight expires: <Time value={value.attack_lab.decision_expires_at} /></p>
       <ul>{value.attack_lab.expected_side_effects.map((effect, index) => <li key={index}>{effect}</li>)}</ul>
       <p>{value.attack_lab.limits.cpu} CPU · {value.attack_lab.limits.memory} memory · {value.attack_lab.limits.ephemeral_storage} ephemeral storage · {value.attack_lab.limits.timeout_seconds} seconds</p>
       <p>Distinct operator approval is required in both autonomy modes. Sandbox cleanup is mandatory; this action never marks a finding remediated.</p>

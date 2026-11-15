@@ -72,6 +72,8 @@ describe("production scoped activity navigation", () => {
       });
       const view = render(<ZaspProductionApp />);
       if (mode === "click") {
+        // Tools & MCP shows its tool list on its own tab.
+        if (name === "Support tool") await userEvent.click(await screen.findByRole("tab", { name: /^Tools/ }));
         await userEvent.click(await screen.findByRole("button", { name: `Open ${name}` }));
         expect(await screen.findByRole("heading", { name: "Canonical record" })).toBeVisible();
         expect(window.location.pathname + window.location.search).toBe(location);
@@ -126,7 +128,7 @@ describe("production scoped activity navigation", () => {
       throw new Error(`Unexpected permission fixture request ${path}`);
     });
     render(<ZaspProductionApp />);
-    if (mode === "normal") await userEvent.click(await screen.findByRole("button", { name: `Open run ${principal}` }));
+    if (mode === "normal") { await userEvent.click(await screen.findByRole("tab", { name: /^Runs/ })); await userEvent.click(await screen.findByRole("button", { name: `Open run ${principal}` })); }
     await screen.findByRole("region", { name: "Recorded test evidence" });
     if (permitted) expect(screen.getByRole("link", { name: "Open linked test run" })).toHaveAttribute("href", `/red-team/results?entity_id=${otherPrincipal}&${query}`);
     else expect(screen.queryByRole("link", { name: "Open linked test run" })).not.toBeInTheDocument();

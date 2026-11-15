@@ -55,8 +55,8 @@ describe("inactive agents", () => {
   it("shows each agent's activity and filters the inactive ones", async () => {
     const user = userEvent.setup();
     view(api());
-    expect(await screen.findByRole("row", { name: /Active agent.*Active · last activity 2026-11-09T00:00:00Z/ })).toBeVisible();
-    expect(screen.getByRole("row", { name: /Quiet agent.*Inactive · last activity 2026-09-01T00:00:00Z/ })).toBeVisible();
+    expect(await screen.findByRole("row", { name: /Active agent.*Active · last activity 9 Nov 2026, 00:00 UTC/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /Quiet agent.*Inactive · last activity 1 Sep 2026, 00:00 UTC/ })).toBeVisible();
     // The provider reports the role unused: inactive without a time.
     expect(within(screen.getByRole("row", { name: /Unused role agent/ })).getByText("Inactive")).toBeVisible();
     // No activity source is unknown, not inactive.

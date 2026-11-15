@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { SecurityAgentRunCloseReason, SecurityAgentRunClosure, SecurityAgentRunDetail } from "../../../apps/web/api/generated";
 import { Badge, Button, Select } from "../../components/ui";
+import { Time } from "../../components/time";
 
 // Plain-language text for the stop codes the product records on a run. The API
 // returns a code, never provider text; an unknown code is shown as recorded.
@@ -55,7 +56,7 @@ export function RunClosure({ value }: { value: SecurityAgentRunClosure }) {
     <p>This run was reviewed and closed. It keeps the state needs_human and its recorded stop reason; it no longer holds its agent&apos;s capacity.</p>
     <dl>
       <div><dt>Reason</dt><dd>{closeReasonText[value.reason]}</dd></div>
-      <div><dt>Closed at</dt><dd><time dateTime={value.closed_at}>{value.closed_at}</time></dd></div>
+      <div><dt>Closed at</dt><dd><time dateTime={value.closed_at}><Time value={value.closed_at} /></time></dd></div>
       <div><dt>Closed by</dt><dd><code>{value.closed_by}</code></dd></div>
       {value.note && <div><dt>Note</dt><dd>{value.note}</dd></div>}
     </dl>

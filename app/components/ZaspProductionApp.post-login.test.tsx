@@ -58,7 +58,7 @@ it.each([false,true])("uses scoped execution-control capability, not organizatio
   });
   render(<ZaspProductionApp/>);
   await screen.findByRole("heading",{name:"Security agents"});
-  if(scoped)expect(await screen.findByText("Execution controls")).toBeVisible();
+  if(scoped)expect(await screen.findByRole("tab",{name:"Execution controls"})).toBeVisible();
   else await waitFor(()=>expect(screen.queryByText("Loading Security Agents…")).not.toBeInTheDocument());
   expect(controlReads).toBe(scoped?1:0);
   if(!scoped)expect(screen.queryByText("Execution controls")).not.toBeInTheDocument();

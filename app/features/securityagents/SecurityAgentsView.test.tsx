@@ -7,6 +7,7 @@ import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSec
 import { createSecurityAgentsAPI, SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
 import { APIProductError, APITransportError, createAPIClient } from "../../../apps/web/api/client";
 import { APIProvider } from "../../api/APIProvider";
+import { formatTime } from "../../components/time";
 
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 const agentID = "pid_40000001-0000-4000-8000-000000000001";
@@ -733,7 +734,7 @@ it("shows persisted approval context in pending/history lists and separates reas
     expect(within(row).getByText(`Agent: ${agentID}`)).toBeInTheDocument();
     expect(within(row).getByText(`Target: ${evidenceID}`)).toBeInTheDocument();
     expect(within(row).getByText(`Requester: ${agentID}`)).toBeInTheDocument();
-    expect(within(row).getByText(`Expires: ${expiresAt}`)).toBeInTheDocument();
+    expect(within(row).getByText(formatTime(expiresAt))).toBeInTheDocument();
     expect(row).toHaveAccessibleDescription(expect.stringContaining(`Agent: ${agentID}`));
   }
   await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
@@ -895,7 +896,7 @@ it.each(["cleaned", "unknown_outcome"] as const)("renders recorded %s without in
     expect(within(region).getByText(`Recorded outcome: ${agentID}`)).toBeInTheDocument();
     expect(within(region).getByText(`Result digest: sha256:${"c".repeat(64)}`)).toBeInTheDocument();
     expect(within(region).getByText("TTL: 120 seconds")).toBeInTheDocument();
-    expect(within(region).getByText("Control expires: 2026-09-16T12:05:00Z")).toBeInTheDocument();
+    expect(within(region).getByText("Control expires: 16 Sep 2026, 12:05 UTC")).toBeInTheDocument();
   } else {
     expect(within(region).queryByText(/Recorded outcome:/)).not.toBeInTheDocument();
     expect(within(region).getByText("No rollback support")).toBeInTheDocument();
@@ -1119,7 +1120,7 @@ describe("Security Agent definition surface", () => {
     expect(within(displayed).getByText("Simulation only. This does not execute the proposed steps.")).toBeInTheDocument();
     expect(within(displayed).getByRole("heading", { name: "Simulation summary" })).toBeInTheDocument();
     expect(displayed).toHaveTextContent(result.plan_hash);
-    expect(displayed).toHaveTextContent(expiresAt);
+    expect(displayed).toHaveTextContent(formatTime(expiresAt));
     expect(within(within(displayed).getByRole("list", { name: "Matched evidence" })).getAllByRole("listitem").map((item) => item.textContent)).toEqual([evidenceID, "pid_40000009-0000-4000-8000-000000000009"]);
     const proposed = within(displayed).getByRole("list", { name: "Proposed steps" });
     expect(proposed.tagName).toBe("OL");

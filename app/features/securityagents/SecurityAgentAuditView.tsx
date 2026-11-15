@@ -8,6 +8,7 @@ import { useAPIQuery } from "../../api/query";
 import { Button, Card, LoadingState, PageHeader } from "../../components/ui";
 import { activityLink, type ActivityScope } from "../../domain/activity-links";
 import { SecurityAgentActivityPanel } from "./SecurityAgentActivityPanel";
+import { Time } from "../../components/time";
 
 export function SecurityAgentAuditView({ auditID, scope, permitted, canReadRuns, onNavigate }: { auditID: string; scope: ActivityScope; permitted: boolean; canReadRuns: boolean; onNavigate(path: string): void }) {
   const { client, queryScopeKey } = useAPI();
@@ -24,7 +25,7 @@ export function SecurityAgentAuditView({ auditID, scope, permitted, canReadRuns,
         <dl className="detail-list">
           <dt>Audit record ID</dt><dd>{value.id}</dd>
           <dt>Actor reference</dt><dd>{value.actor_reference}</dd>
-          <dt>Recorded at</dt><dd><time dateTime={value.occurred_at}>{value.occurred_at}</time></dd>
+          <dt>Recorded at</dt><dd><time dateTime={value.occurred_at}><Time value={value.occurred_at} /></time></dd>
           <dt>Correlation ID</dt><dd>{value.correlation_id}</dd>
           <dt>Security Agent run</dt><dd>{value.run_id}</dd>
           <dt>Organization</dt><dd>{value.organization_id}</dd>
