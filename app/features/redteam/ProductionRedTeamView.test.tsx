@@ -257,6 +257,8 @@ describe("production red team view", () => {
 		view(api({ listDefinitions })); const user = userEvent.setup();
 		await user.click(await screen.findByRole("button", { name: "Run Staging agent safety" }));
 		expect(await screen.findByText("Showing stale Red Team data. Reload before making changes.")).toBeVisible();
+		// The run started, so the page moved to the Runs tab.
+		await user.click(screen.getByRole("tab", { name: /^Tests/ }));
 		expect(screen.getByRole("button", { name: "Run Staging agent safety" })).toBeDisabled();
 		expect(screen.getByRole("button", { name: "Create test" })).toBeDisabled();
 	});
