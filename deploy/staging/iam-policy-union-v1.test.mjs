@@ -44,7 +44,7 @@ test('unsupported variable expansion and malformed action/resources refuse', () 
 });
 import fs from 'node:fs';
 test('existing CI IAM predecessor filters and pinned readonly initialization remain, and actual mock-plan feeds the verifier', () => {
- const workflow = fs.readFileSync(new URL('../../.github/workflows/runnable-ui.yml', import.meta.url), 'utf8');
+ const workflow = fs.readFileSync(new URL('../../.github/workflows/runnable-ui-acceptance.yml', import.meta.url), 'utf8');
  assert.match(workflow, /init -backend=false -input=false -lockfile=readonly/);
  assert.match(workflow, /test -filter=tests\/session_search_iam\.tftest\.hcl -filter=tests\/test_reconciler_iam\.tftest\.hcl -var-file=release\.tfvars -no-color/);
  assert.match(workflow, /node --test deploy\/staging\/iam-policy-union-v1\.test\.mjs/);

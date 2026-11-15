@@ -85,7 +85,7 @@ describe("M1-02 dependency lock contract", () => {
   it("wires the dependency validator into the existing CI verification path", async () => {
     const [packageText, workflow] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8"),
+      readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui-acceptance.yml"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
 

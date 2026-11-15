@@ -152,7 +152,7 @@ test("compatibility staging explicitly pins48 without activating routing", async
 });
 
 test("production CI runs sensor lineage and authenticated replay regressions", async () => {
-  const workflow = load(await readFile(new URL("../../.github/workflows/runnable-ui.yml", import.meta.url), "utf8"));
+  const workflow = load(await readFile(new URL("../../.github/workflows/runnable-ui-acceptance.yml", import.meta.url), "utf8"));
   const step = workflow.jobs.verify.steps.find(({ name }) => name === "Verify sensor lineage and authenticated replay");
   assert.ok(step, "sensor runtime and acceptance tests must run at every push");
   assert.ok(step.run.includes("go test -C services/sensor-agent -race -count=1 ./..."));

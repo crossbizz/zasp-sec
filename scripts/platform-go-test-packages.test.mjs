@@ -16,7 +16,7 @@ import {
 } from "./platform-go-test-packages.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
-const workflowPath = resolve(repositoryRoot, ".github/workflows/runnable-ui.yml");
+const workflowPath = resolve(repositoryRoot, ".github/workflows/runnable-ui-acceptance.yml");
 const apiserverDirectory = resolve(repositoryRoot, "services/platform/apiserver");
 
 test("finds only platform go test commands, split at shell operators", () => {
@@ -110,7 +110,7 @@ test("the CLI prints the feature slice", () => {
 test("the workflow runs the listed packages and the apiserver feature tests", () => {
   const source = readFileSync(workflowPath, "utf8");
   const start = source.indexOf("\n  platform-go:\n");
-  assert.ok(start >= 0, "runnable-ui.yml has no platform-go job");
+  assert.ok(start >= 0, "runnable-ui-acceptance.yml has no platform-go job");
   const rest = source.slice(start + 1);
   const next = rest.slice(1).search(/\n {2}[A-Za-z0-9_-]+:\n/);
   const job = next < 0 ? rest : rest.slice(0, next + 1);

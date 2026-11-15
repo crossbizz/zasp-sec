@@ -129,7 +129,7 @@ export async function verifyReleaseSources() {
   ]) if (!monitoring.includes(contract)) throw new Error("worker monitoring gate rejected");
 
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
-  const workflow = await source(".github/workflows/runnable-ui.yml");
+  const workflow = await source(".github/workflows/runnable-ui-acceptance.yml");
   if (!workflow.includes("fetch-depth: 0") || !workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
 
   const definitions = await Promise.all(["web", "api", "worker", "attack-lab-runner", "redteam-worker", "event-ingest", "gateway-control", "runtime-gateway", "sensor-agent"].map((name) => source(`deploy/production/${name}.Dockerfile`)));

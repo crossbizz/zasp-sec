@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {load} from 'js-yaml';
-const workflowFile=new URL('../.github/workflows/runnable-ui.yml',import.meta.url);
+const workflowFile=new URL('../.github/workflows/runnable-ui-acceptance.yml',import.meta.url);
 const packageFile=new URL('../package.json',import.meta.url);
 const parsedVerifyRun=()=>load(fs.readFileSync(workflowFile,'utf8')).jobs.verify.steps.find(step=>step.name==='Verify runnable UI').run;
 import {verifyFailureAnnotation} from './annotate-verify-failure.mjs';

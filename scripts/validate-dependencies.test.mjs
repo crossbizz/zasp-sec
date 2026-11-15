@@ -583,7 +583,7 @@ test("developer and CI npm installs consume nested configuration, including the 
   const copy = "COPY package.json package-lock.json .npmrc ./";
   assert.ok(dockerfile.includes(copy));
   assert.ok(dockerfile.indexOf(copy) < dockerfile.indexOf("RUN npm ci --ignore-scripts"));
-  const workflow = readFileSync(new URL("../.github/workflows/runnable-ui.yml", import.meta.url), "utf8");
+  const workflow = readFileSync(new URL("../.github/workflows/runnable-ui-acceptance.yml", import.meta.url), "utf8");
   assert.match(workflow, /run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci\s*\n/);
   assert.doesNotMatch(workflow + dockerfile, /--install-strategy[= ]hoisted|NPM_CONFIG_INSTALL_STRATEGY|npm_config_install_strategy/);
 });
