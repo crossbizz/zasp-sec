@@ -3,7 +3,9 @@ package platforms
 import (
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/nango"
@@ -105,6 +107,16 @@ func databricksServingEndpoint(item saasdiscovery.Item) (saasdiscovery.Entity, b
 		NativeID: nativeID, DisplayName: name, ObjectType: "serving_endpoint", Status: status, AgentType: task,
 		// The one posture fact the API states: the endpoint is live.
 		Posture: agentsignals.Posture{CredentialActive: status == "READY"},
+	}
+	// Who created the endpoint and when, from the endpoint's own record.
+	// UNVERIFIED (remembered from the serving-endpoints API reference, not
+	// run against a workspace): creator is the creating user's email address
+	// and creation_timestamp the creation time in epoch milliseconds.
+	if creator := saasdiscovery.CreatorIdentity(item.Text("creator")); creator != "" {
+		entity.CreatedBy, entity.CreatedBySource = creator, saasdiscovery.CreatedBySourceRecord
+		if millis, err := strconv.ParseInt(item.Text("creation_timestamp"), 10, 64); err == nil && millis > 0 && millis < 1<<43 {
+			entity.CreatedAt = time.UnixMilli(millis).UTC().Format(time.RFC3339)
+		}
 	}
 	var evidence agentsignals.Evidence
 	evidence.Surface("model_serving")

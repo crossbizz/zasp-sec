@@ -181,7 +181,7 @@ func atlassianStudioAgentEvent(label string, event saasdiscovery.Item) (saasdisc
 		entity.CreatedAt = at
 		// The account id is an opaque id, not a name or an address.
 		if actor := attributes.Text("actor", "id"); atlassianAccountIDPattern.MatchString(actor) {
-			entity.CreatedBy = actor
+			entity.CreatedBy, entity.CreatedBySource = actor, saasdiscovery.CreatedBySourceAuditLog
 		}
 		entity.Posture = agentsignals.Posture{CredentialActive: true}
 	case "updated":

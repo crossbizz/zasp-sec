@@ -64,11 +64,43 @@ const salesforceActiveVersionSubquery = "(SELECT Id,DeveloperName FROM BotVersio
 
 // BotUserId, the user the agent runs as, is selected with the Agentforce
 // fields Type and AgentType: an org that knows those knows it.
+//
+// CreatedDate and CreatedBy.Username say when the agent was created and by
+// whom: the two audit fields every Salesforce object carries, and the user
+// name of the creating user (an address-shaped login). A creator the
+// connection may not read comes back null and attributes nothing.
+// UNVERIFIED (not run against an org): that BotDefinition exposes the audit
+// fields to SOQL like every standard object, and the CreatedDate text form
+// (2026-05-01T10:00:00.000+0000).
 var salesforceAgentQueryVariants = [...]salesforceAgentQueryVariant{
-	{"SELECT Id,DeveloperName,MasterLabel,Type,AgentType,BotUserId," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, true},
-	{"SELECT Id,DeveloperName,MasterLabel," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, false},
-	{"SELECT Id,DeveloperName,MasterLabel,Type,AgentType,BotUserId FROM BotDefinition ORDER BY Id", false, true},
-	{"SELECT Id,DeveloperName,MasterLabel FROM BotDefinition ORDER BY Id", false, false},
+	{"SELECT Id,DeveloperName,MasterLabel,CreatedDate,CreatedBy.Username,Type,AgentType,BotUserId," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, true},
+	{"SELECT Id,DeveloperName,MasterLabel,CreatedDate,CreatedBy.Username," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, false},
+	{"SELECT Id,DeveloperName,MasterLabel,CreatedDate,CreatedBy.Username,Type,AgentType,BotUserId FROM BotDefinition ORDER BY Id", false, true},
+	{"SELECT Id,DeveloperName,MasterLabel,CreatedDate,CreatedBy.Username FROM BotDefinition ORDER BY Id", false, false},
+}
+
+var salesforceCreatorPattern = regexp.MustCompile(`^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$`)
+
+// salesforceCreator reads the creator of a record from its CreatedBy
+// relationship and its CreatedDate. Either may be absent; a creator that is
+// not a user name is dropped.
+func salesforceCreator(createdBy json.RawMessage, createdDate *string) (string, string) {
+	var user struct {
+		Username string `json:"Username"`
+	}
+	if len(createdBy) == 0 || json.Unmarshal(createdBy, &user) != nil || !salesforceCreatorPattern.MatchString(user.Username) {
+		return "", ""
+	}
+	at := ""
+	if createdDate != nil {
+		for _, layout := range []string{"2006-01-02T15:04:05.000-0700", time.RFC3339} {
+			if parsed, err := time.Parse(layout, *createdDate); err == nil {
+				at = parsed.UTC().Format(time.RFC3339)
+				break
+			}
+		}
+	}
+	return user.Username, at
 }
 
 // salesforceFirstPlainVariant is the first variant without the subquery.
@@ -446,6 +478,8 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 			AgentType     *string         `json:"AgentType"`
 			BotUserID     *string         `json:"BotUserId"`
 			BotVersions   json.RawMessage `json:"BotVersions"`
+			CreatedDate   *string         `json:"CreatedDate"`
+			CreatedBy     json.RawMessage `json:"CreatedBy"`
 		}
 		if !decodeSalesforceCollectionResponse(raw, &bot) || !salesforceRecordIDPattern.MatchString(bot.ID) || !validSalesforceCollectionText(bot.DeveloperName, 256) {
 			return nil, nil, false
@@ -509,11 +543,21 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 				permissionSets = salesforcePermissionSetNames(facts.sets)
 			}
 		}
+		createdBy, createdAt := salesforceCreator(bot.CreatedBy, bot.CreatedDate)
+		createdBySource := ""
+		if createdBy != "" {
+			createdBySource = "provider_record"
+		}
 		attributes, _ := json.Marshal(struct {
 			Status    string                 `json:"status"`
 			AgentType string                 `json:"agent_type,omitempty"`
 			Posture   agentsignals.Posture   `json:"posture"`
 			Discovery agentsignals.Discovery `json:"discovery"`
+			// Who created the agent and when, from the record's own audit
+			// fields.
+			CreatedBy       string `json:"created_by,omitempty"`
+			CreatedAt       string `json:"created_at,omitempty"`
+			CreatedBySource string `json:"created_by_source,omitempty"`
 			// RunAsUser is the id of the user the agent runs as and
 			// PermissionSets the names of that user's permission sets.
 			RunAsUser      string `json:"run_as_user,omitempty"`
@@ -523,7 +567,7 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 			// ContentModeration is the org's guardrail level from the Trust
 			// Layer switches, when they could be read.
 			ContentModeration string `json:"content_moderation,omitempty"`
-		}{status, agentType, posture, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "agentforce", nil), runAsUser, permissionSets, enrichment.toolsRead[bot.ID], enrichment.moderation})
+		}{status, agentType, posture, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "agentforce", nil), createdBy, createdAt, createdBySource, runAsUser, permissionSets, enrichment.toolsRead[bot.ID], enrichment.moderation})
 		entity, err := marshalSalesforceEntity(entityID, "salesforce_agent", "salesforce:bot_definition:"+bot.ID, name, stable, attributes)
 		if err != nil {
 			return nil, nil, false

@@ -106,11 +106,11 @@ func mcpConfigCandidates(entries []candidateFile) (configs []string, settings st
 	return shallowFirst(configs, githubMaximumMCPConfigs), settings, shallowFirst(extensions, githubMaximumDXTManifests)
 }
 
-// markSkillOwnership sets the skills' ownership from the repository's
-// CODEOWNERS file: the first of GitHub's three locations the tree holds. A
-// tree that was cut short may hide the file, and a file that cannot be read
-// decides nothing: ownership is then left unset.
-func (api *InstallationCollectionAPI) markSkillOwnership(ctx context.Context, credential []byte, repositoryURL, branch string, entries []candidateFile, truncated bool, skills []agentsignals.Skill) error {
+// readCodeowners reads the repository's CODEOWNERS file: the first of
+// GitHub's three locations the tree holds. located is false when the tree
+// holds none. content is nil for a file that is empty, too large or cannot
+// be read: such a file decides nothing.
+func (api *InstallationCollectionAPI) readCodeowners(ctx context.Context, credential []byte, repositoryURL, branch string, entries []candidateFile) (content []byte, located bool, err error) {
 	present := map[string]int64{}
 	for _, entry := range entries {
 		present[entry.Path] = entry.Size
@@ -121,19 +121,24 @@ func (api *InstallationCollectionAPI) markSkillOwnership(ctx context.Context, cr
 			continue
 		}
 		if size < 1 || size > githubMaximumAgentManifestBytes {
-			return nil
+			return nil, true, nil
 		}
-		content, err := api.readAgentProjectFile(ctx, credential, repositoryURL, branch, location)
-		if err != nil || content == nil {
-			return err
-		}
-		agentsignals.MarkSkillOwnership(skills, agentsignals.ParseCodeowners(content))
-		return nil
+		content, err = api.readAgentProjectFile(ctx, credential, repositoryURL, branch, location)
+		return content, true, err
 	}
-	if !truncated {
+	return nil, false, nil
+}
+
+// markSkillOwnership sets the skills' ownership from the repository's
+// CODEOWNERS file. A tree that was cut short may hide the file, and a file
+// that cannot be read decides nothing: ownership is then left unset.
+func markSkillOwnership(content []byte, located, truncated bool, skills []agentsignals.Skill) {
+	switch {
+	case located && content != nil:
+		agentsignals.MarkSkillOwnership(skills, agentsignals.ParseCodeowners(content))
+	case !located && !truncated:
 		agentsignals.MarkSkillOwnership(skills, nil)
 	}
-	return nil
 }
 
 // readAgentProjectFile reads one file of the default branch. It returns nil

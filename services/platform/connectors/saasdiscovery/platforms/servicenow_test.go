@@ -38,21 +38,21 @@ func serviceNowRoutes() map[string]saastest.Route {
 			return saastest.Response{Body: serviceNowInstance}
 		},
 		"/api/now/table/sn_aia_agent": func(query url.Values, _ int) saastest.Response {
-			if query.Get("sysparm_limit") != "100" || query.Get("sysparm_fields") != "sys_id,name,active" {
+			if query.Get("sysparm_limit") != "100" || query.Get("sysparm_fields") != "sys_id,name,active,sys_created_by,sys_created_on" {
 				return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
 			}
 			switch query.Get("sysparm_offset") {
 			case "0":
 				// A full page of one hundred agents, then a short one.
 				var body bytes.Buffer
-				body.WriteString(`{"result":[{"sys_id":"0a1b2c3d4e5f60718293a4b5c6d7e8f9","name":"Incident triage agent","active":"true","instructions":"You triage incidents."}`)
+				body.WriteString(`{"result":[{"sys_id":"0a1b2c3d4e5f60718293a4b5c6d7e8f9","name":"Incident triage agent","active":"true","instructions":"You triage incidents.","sys_created_by":"dana.reyes","sys_created_on":"2026-05-01 10:00:00"}`)
 				for index := 1; index < 100; index++ {
 					body.WriteString(`,{"sys_id":"filler` + string(rune('a'+index/26)) + string(rune('a'+index%26)) + `","name":"Filler agent ` + string(rune('a'+index/26)) + string(rune('a'+index%26)) + `","active":"false"}`)
 				}
 				body.WriteString(`]}`)
 				return saastest.Response{Body: body.String()}
 			case "100":
-				return saastest.Response{Body: `{"result":[{"sys_id":"1b2c3d4e5f60718293a4b5c6d7e8f90a","name":"Change risk agent","active":"false"}]}`}
+				return saastest.Response{Body: `{"result":[{"sys_id":"1b2c3d4e5f60718293a4b5c6d7e8f90a","name":"Change risk agent","active":"false","sys_created_by":"System Administrator","sys_created_on":"2026-05-02 10:00:00"}]}`}
 			}
 			return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
 		},
@@ -82,6 +82,14 @@ func TestServiceNowInstanceIsCollectedToATypedSnapshot(t *testing.T) {
 	agent := snapshot.Named(t, "saas_agent", "Incident triage agent")
 	if agent.SourceNativeID != "saas:servicenow:ai_agent:0a1b2c3d4e5f60718293a4b5c6d7e8f9" || agent.Attributes["status"] != "active" || agent.Attributes["posture"].(map[string]any)["credential_active"] != true {
 		t.Fatalf("agent = %+v", agent)
+	}
+	// Who created the record, from its system fields; a creator that is not
+	// a user name is left out.
+	if agent.Attributes["created_by"] != "dana.reyes" || agent.Attributes["created_by_source"] != "provider_record" || agent.Attributes["created_at"] != "2026-05-01T10:00:00Z" {
+		t.Fatalf("creator = %+v", agent.Attributes)
+	}
+	if paused := snapshot.Named(t, "saas_agent", "Change risk agent"); paused.Attributes["created_by"] != nil || paused.Attributes["created_at"] != nil {
+		t.Fatalf("free text was kept as a creator: %+v", paused.Attributes)
 	}
 	if paused := snapshot.Named(t, "saas_agent", "Change risk agent"); paused.Attributes["status"] != "inactive" || paused.Attributes["posture"].(map[string]any)["credential_active"] != false {
 		t.Fatalf("inactive agent = %+v", paused)

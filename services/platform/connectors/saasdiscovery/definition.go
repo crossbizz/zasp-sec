@@ -255,14 +255,18 @@ type Entity struct {
 	Auth      string
 	Transport string
 	// CreatedBy, CreatedAt, UpdatedAt and DeletedAt are optional facts of an
-	// agent or AI application that is read out of an audit log: the id of the
-	// account that created it (an opaque id, never a name or an address) and
-	// the times of the events, as RFC 3339 text. A time that does not parse
-	// is refused.
-	CreatedBy string
-	CreatedAt string
-	UpdatedAt string
-	DeletedAt string
+	// agent or AI application: who created it and the times of its events,
+	// as RFC 3339 text. A time that does not parse is refused. CreatedBy is
+	// an identity the platform states (an account id, a user name or an
+	// email address), never free text, and CreatedBySource says where it was
+	// read: CreatedBySourceAuditLog for an object read out of an audit log,
+	// CreatedBySourceRecord for a creator field of the platform's own record
+	// of the object. The two are set together.
+	CreatedBy       string
+	CreatedBySource string
+	CreatedAt       string
+	UpdatedAt       string
+	DeletedAt       string
 	// Posture holds only the facts the platform's API states. A fact the
 	// API does not state stays false and raises no finding. It is ignored
 	// for an MCP server.
@@ -558,6 +562,24 @@ func (platform Platform) TenantKey(tenantID string) string {
 
 func validPath(value string) bool {
 	return len(value) >= 2 && len(value) <= 1024 && value[0] == '/' && !strings.Contains(value, "//") && !strings.Contains(value, "..") && !strings.ContainsAny(value, "?#\\\r\n ")
+}
+
+// How a platform definition knows who created an object.
+const (
+	CreatedBySourceAuditLog = "audit_log"
+	CreatedBySourceRecord   = "provider_record"
+)
+
+var creatorIdentityPattern = regexp.MustCompile(`^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,127}$`)
+
+// CreatorIdentity returns value when it is an identity a platform may state
+// as a creator (an id, a user name or an email address of at most 128
+// bytes), and "" for anything else, such as a display name with spaces.
+func CreatorIdentity(value string) string {
+	if creatorIdentityPattern.MatchString(value) {
+		return value
+	}
+	return ""
 }
 
 func validDisplayText(value string, maximum int) bool {

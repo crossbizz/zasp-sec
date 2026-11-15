@@ -164,10 +164,10 @@ func gcpTestOrganization(t *testing.T, now time.Time) *fakeGoogle {
 	fake.ok(gcpDiscoveryEngineHost, engine+"/workspace-app/assistants/default_assistant/agents", `{"agents":[{"name":"projects/111/locations/global/collections/default_collection/engines/workspace-app/assistants/default_assistant/agents/9001","displayName":"Expense helper","state":"ENABLED"}]}`)
 	fake.ok(gcpRunHost, "/v1/projects/alpha-prod/locations", `{"locations":[{"locationId":"us-central1"}]}`)
 	fake.ok(gcpRunHost, "/v2/projects/alpha-prod/locations/us-central1/services", `{"services":[
-		{"name":"projects/alpha-prod/locations/us-central1/services/support-bot","ingress":"INGRESS_TRAFFIC_ALL","invokerIamDisabled":true,"template":{"containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/support-bot:1","env":[{"name":"ANTHROPIC_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}},
+		{"name":"projects/alpha-prod/locations/us-central1/services/support-bot","creator":"Dana.Reyes@example.com","createTime":"2026-07-01T08:30:00.123456Z","ingress":"INGRESS_TRAFFIC_ALL","invokerIamDisabled":true,"template":{"containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/support-bot:1","env":[{"name":"ANTHROPIC_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}},
 		{"name":"projects/alpha-prod/locations/us-central1/services/docs-mcp","functionalType":"FUNCTIONAL_TYPE_MCP_SERVER","uri":"https://docs-mcp-abc123-uc.a.run.app","ingress":"INGRESS_TRAFFIC_ALL","invokerIamDisabled":true,"template":{"containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/docs:1"}]}},
 		{"name":"projects/alpha-prod/locations/us-central1/services/repo-tools","uri":"https://repo-tools-abc123-uc.a.run.app","template":{"containers":[{"image":"ghcr.io/github/github-mcp-server:1","args":["--token","`+gcpTestSecretValue+`"]}]}},
-		{"name":"projects/alpha-prod/locations/us-central1/services/cross-bot","template":{"serviceAccount":"`+shared+`","containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/cross:1","env":[{"name":"OPENAI_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}},
+		{"name":"projects/alpha-prod/locations/us-central1/services/cross-bot","creator":"not an address","createTime":"2026-07-02T08:30:00Z","template":{"serviceAccount":"`+shared+`","containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/cross:1","env":[{"name":"OPENAI_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}},
 		{"name":"projects/alpha-prod/locations/us-central1/services/plain-web","template":{"serviceAccount":"unused@alpha-prod.iam.gserviceaccount.com","containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/web:1","env":[{"name":"PORT","value":"8080"}]}]}},
 		{"name":"projects/alpha-prod/locations/us-central1/services/fn-backed","template":{"serviceAccount":"`+runner+`","containers":[{"image":"us-docker.pkg.dev/alpha-prod/gcf/fn:1","env":[{"name":"GEMINI_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}}]}`)
 	fake.ok(gcpFunctionsHost, "/v2/projects/alpha-prod/locations/-/functions", `{"functions":[{"name":"projects/alpha-prod/locations/us-central1/functions/summarizer","state":"ACTIVE","environment":"GEN_2",
@@ -375,6 +375,14 @@ func TestGCPCollectorNormalizesAgentsIdentitiesFindingsAndCoverage(t *testing.T)
 	if method, platform, signals := discovery(bot); bot.Kind != "gcp_inferred_agent" || method != "inferred" || platform != "cloud_run_service" || strings.Join(signals, " ") != "env:anthropic" ||
 		bot.Attributes["service_account"] != "111-compute@developer.gserviceaccount.com" || bot.StableFields["resource_type"] != "cloud_run_service" || bot.Attributes["posture"].(map[string]any)["untrusted_input"] != true {
 		t.Fatalf("Cloud Run agent = %#v", bot)
+	}
+	// Who created the service, from the service's own record; a creator that
+	// is not an address attributes nothing.
+	if bot.Attributes["created_by"] != "dana.reyes@example.com" || bot.Attributes["created_at"] != "2026-07-01T08:30:00Z" || bot.Attributes["created_by_source"] != "provider_record" {
+		t.Fatalf("Cloud Run creator = %#v", bot.Attributes)
+	}
+	if cross := entities["gcp:projects/alpha-prod/locations/us-central1/services/cross-bot"]; cross.Kind != "gcp_inferred_agent" || cross.Attributes["created_by"] != nil || cross.Attributes["created_at"] != nil || cross.Attributes["created_by_source"] != nil {
+		t.Fatalf("Cloud Run service without a readable creator = %#v", cross)
 	}
 	function := entities["gcp:projects/alpha-prod/locations/us-central1/functions/summarizer"]
 	if _, platform, signals := discovery(function); function.Kind != "gcp_inferred_agent" || platform != "cloud_function" || strings.Join(signals, " ") != "env:google iam:vertex_ai_user invoke:vertex_ai_agent invoke:vertex_ai_model" || function.Attributes["last_invoked_at"] != invokedAt {

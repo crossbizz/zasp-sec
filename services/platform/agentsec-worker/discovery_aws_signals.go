@@ -78,6 +78,134 @@ const (
 // from LookupEvents; agent invocations are data events and are not asked for.
 var discoveryAWSInvocationEvents = []string{"Converse", "ConverseStream", "InvokeModel", "InvokeModelWithResponseStream"}
 
+// The create events of the three kinds of agent the collector lists. They
+// are management events, so LookupEvents returns them for 90 days.
+//
+// DOCUMENTED: https://docs.aws.amazon.com/lambda/latest/dg/logging-using-cloudtrail.html
+// (CreateFunction is a management event named CreateFunction20150331; its
+// Environment and ZipFile parameters are not logged).
+// DOCUMENTED: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-user-identity.html
+// (userIdentity.type IAMUser carries userName; type AssumedRole carries arn
+// arn:aws:sts::<account>:assumed-role/<role>/<session>).
+// UNVERIFIED (from the API reference of the three services, not from a
+// recorded event): that responseElements mirror the API response, so that
+// CreateFunction20150331 carries responseElements.functionArn, the
+// CreateAgent event of bedrock.amazonaws.com responseElements.agent.agentArn
+// and the CreateAgentRuntime event of bedrock-agentcore.amazonaws.com
+// responseElements.agentRuntimeArn; and that an IAM Identity Center
+// permission-set session is named after the user's address. An event that
+// does not name an agent of the inventory this way attributes nothing.
+var discoveryAWSCreationEvents = []string{"CreateAgent", "CreateAgentRuntime", "CreateFunction20150331"}
+
+// CloudTrail keeps management events for 90 days.
+const discoveryAWSCreationWindow = 90 * 24 * time.Hour
+
+// collectDiscoveryAWSCreators returns, per ARN a create event names, who
+// made that call and when: the newest create event of the ARN inside the
+// lookup window. It is optional evidence: a refusal, throttling or an
+// unreadable event yields nothing and never fails the inventory. Only the
+// caller's identity, the event time and the created ARN are read; request
+// parameters are not.
+func collectDiscoveryAWSCreators(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (map[string]awsdiscovery.AgentInventoryCreator, error) {
+	start := now.Add(-discoveryAWSCreationWindow)
+	creators := map[string]awsdiscovery.AgentInventoryCreator{}
+	for _, name := range discoveryAWSCreationEvents {
+		var token *string
+		for page := 0; page < maximumAWSInvocationPages; page++ {
+			output, err := api.LookupEvents(ctx, &cloudtrail.LookupEventsInput{
+				LookupAttributes: []cloudtrailtypes.LookupAttribute{{AttributeKey: cloudtrailtypes.LookupAttributeKeyEventName, AttributeValue: aws.String(name)}},
+				StartTime:        aws.Time(start), EndTime: aws.Time(now), MaxResults: aws.Int32(50), NextToken: token,
+			}, func(options *cloudtrail.Options) { options.Retryer = aws.NopRetryer{} })
+			if err != nil {
+				if _, failure := classifyDiscoveryAWSSignalFailure(ctx, err); failure != nil {
+					return nil, failure
+				}
+				return creators, nil
+			}
+			if output == nil {
+				return creators, nil
+			}
+			for _, event := range output.Events {
+				if event.EventTime == nil || event.EventTime.Before(start) || event.EventTime.After(now) {
+					continue
+				}
+				arn, identity := discoveryAWSCreation(aws.ToString(event.CloudTrailEvent), accountID)
+				if arn == "" || identity == "" {
+					continue
+				}
+				at := event.EventTime.UTC().Truncate(time.Second).Format(time.RFC3339)
+				if known, seen := creators[arn]; !seen || at > known.CreatedAt {
+					creators[arn] = awsdiscovery.AgentInventoryCreator{ARN: arn, CreatedAt: at, CreatedBy: identity}
+				}
+			}
+			if !nextDiscoveryAWSAgentToken(token, output.NextToken) {
+				break
+			}
+			token = output.NextToken
+		}
+	}
+	return creators, nil
+}
+
+var discoveryAWSSessionEmailPattern = regexp.MustCompile(`^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189}$`)
+
+// discoveryAWSCreation reads the ARN a successful create event of this
+// account created and the identity that called it. An IAM user is its user
+// name; an assumed role whose session is named after an email address (the
+// form IAM Identity Center and most identity providers use) is that address;
+// any other assumed role is "role/session". The root user, AWS services and
+// failed calls attribute nothing.
+func discoveryAWSCreation(event, accountID string) (string, string) {
+	if len(event) == 0 || len(event) > 256<<10 {
+		return "", ""
+	}
+	var record struct {
+		ErrorCode    string `json:"errorCode"`
+		UserIdentity struct {
+			Type      string `json:"type"`
+			ARN       string `json:"arn"`
+			UserName  string `json:"userName"`
+			AccountID string `json:"accountId"`
+		} `json:"userIdentity"`
+		ResponseElements struct {
+			FunctionARN     string `json:"functionArn"`
+			AgentRuntimeARN string `json:"agentRuntimeArn"`
+			Agent           struct {
+				AgentARN string `json:"agentArn"`
+			} `json:"agent"`
+		} `json:"responseElements"`
+	}
+	if json.Unmarshal([]byte(event), &record) != nil || record.ErrorCode != "" {
+		return "", ""
+	}
+	arn := ""
+	for _, candidate := range []string{record.ResponseElements.Agent.AgentARN, record.ResponseElements.AgentRuntimeARN, record.ResponseElements.FunctionARN} {
+		if candidate != "" && strings.Contains(candidate, ":"+accountID+":") {
+			arn = candidate
+			break
+		}
+	}
+	identity := ""
+	switch record.UserIdentity.Type {
+	case "IAMUser":
+		identity = record.UserIdentity.UserName
+	case "AssumedRole":
+		// arn:aws:sts::<account>:assumed-role/<role>/<session>
+		_, session, found := strings.Cut(record.UserIdentity.ARN, ":assumed-role/")
+		if !found {
+			return "", ""
+		}
+		if index := strings.LastIndex(session, "/"); index >= 0 && discoveryAWSSessionEmailPattern.MatchString(session[index+1:]) {
+			session = session[index+1:]
+		}
+		identity = session
+	}
+	if arn == "" || !awsdiscovery.AgentCreatorIdentityPattern.MatchString(identity) {
+		return "", ""
+	}
+	return arn, identity
+}
+
 // classifyDiscoveryAWSSignalFailure never fails the inventory: a refusal is
 // access_denied and everything else, throttling included, is unavailable.
 // Only a cancelled read is an error.

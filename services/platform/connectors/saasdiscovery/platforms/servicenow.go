@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/nango"
@@ -68,7 +69,7 @@ func ServiceNow() saasdiscovery.Platform {
 				return saasdiscovery.Tenant{}, false
 			}},
 		Lists: []saasdiscovery.ListEndpoint{
-			{Name: "ai_agents", Path: "/api/now/table/sn_aia_agent", Query: map[string]string{"sysparm_fields": "sys_id,name,active"},
+			{Name: "ai_agents", Path: "/api/now/table/sn_aia_agent", Query: map[string]string{"sysparm_fields": "sys_id,name,active,sys_created_by,sys_created_on"},
 				ItemsPath: []string{"result"}, Paging: paging, Absent: notInstalled, Map: serviceNowAIAgent},
 			{Name: "ai_applications", Path: "/api/now/table/sys_store_app",
 				Query:     map[string]string{"sysparm_fields": "sys_id,name,scope,version,active", "sysparm_query": "scopeSTARTSWITHsn_now_assist^ORscopeSTARTSWITHsn_gen_ai^ORscopeSTARTSWITHsn_aia^ORnameLIKENow Assist^ORnameLIKEGenerative AI"},
@@ -94,11 +95,23 @@ func serviceNowAIAgent(item saasdiscovery.Item) (saasdiscovery.Entity, bool) {
 	if active {
 		status = "active"
 	}
-	return saasdiscovery.Entity{
+	entity := saasdiscovery.Entity{
 		Kind: saasdiscovery.KindAgent, NativeID: id, DisplayName: name, ObjectType: "ai_agent", Status: status, AgentType: "now_assist_ai_agent",
 		// The one posture fact the table states: the agent is switched on.
 		Posture: agentsignals.Posture{CredentialActive: active},
-	}, true
+	}
+	// Who created the record and when: the two system fields every
+	// ServiceNow table carries.
+	// UNVERIFIED (not run against an instance): sys_created_by is the
+	// creating user's user name and sys_created_on a UTC time written
+	// "2006-01-02 15:04:05" when display values are not asked for.
+	if creator := saasdiscovery.CreatorIdentity(item.Text("sys_created_by")); creator != "" {
+		entity.CreatedBy, entity.CreatedBySource = creator, saasdiscovery.CreatedBySourceRecord
+		if created, err := time.Parse("2006-01-02 15:04:05", item.Text("sys_created_on")); err == nil {
+			entity.CreatedAt = created.UTC().Format(time.RFC3339)
+		}
+	}
+	return entity, true
 }
 
 var serviceNowAIScopes = []string{"sn_now_assist", "sn_gen_ai", "sn_aia"}

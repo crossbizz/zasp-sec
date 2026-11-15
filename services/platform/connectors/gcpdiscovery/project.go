@@ -157,6 +157,10 @@ type gcpAgentAttributes struct {
 	ServiceAccount string                 `json:"service_account,omitempty"`
 	LastInvokedAt  string                 `json:"last_invoked_at,omitempty"`
 	ModelArmor     string                 `json:"model_armor,omitempty"`
+	// Who created the agent and when, where its own record says so.
+	CreatedBy       string `json:"created_by,omitempty"`
+	CreatedAt       string `json:"created_at,omitempty"`
+	CreatedBySource string `json:"created_by_source,omitempty"`
 }
 
 // gcpInvocations is what the audit log shows: per service account, the
@@ -194,7 +198,13 @@ type gcpWorkload struct {
 	mcpServer    bool
 	endpointHost string
 	openInvoker  bool
+	// creator is the address of the account that created a Cloud Run
+	// service and created when, both from the service's own record.
+	creator string
+	created string
 }
+
+var gcpCreatorPattern = regexp.MustCompile(`^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189}$`)
 
 // gcpAncestor is what one folder or organization above a project answered.
 type gcpAncestor struct {
@@ -539,6 +549,9 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 			status = "INACTIVE"
 		}
 		attributes := gcpAgentAttributes{Status: status, Posture: agentsignals.Posture{CredentialActive: workload.active, UntrustedInput: workload.untrustedInput}, Discovery: agentsignals.NewDiscovery(agentsignals.MethodInferred, workload.resourceType, workload.evidence.Signals())}
+		if workload.creator != "" {
+			attributes.CreatedBy, attributes.CreatedAt, attributes.CreatedBySource = workload.creator, workload.created, "provider_record"
+		}
 		if _, ok := agent("gcp_inferred_agent", "gcp:"+workload.resource.Name, workload.display, map[string]any{"location": workload.resource.Location, "name": workload.display, "object_type": workload.resourceType, "resource_type": workload.resourceType}, attributes, workload.serviceAccount); !ok {
 			return projectRead{}, refused()
 		}
@@ -1201,7 +1214,13 @@ func (api *GCPCollectionAPI) readRunServices(ctx context.Context, token []byte, 
 	err = fanOut(ctx, len(locations), func(ctx context.Context, index int) error {
 		outcome, err := api.list(ctx, token, gcpRunHost, "/v2/projects/"+project.ID+"/locations/"+locations[index]+"/services", url.Values{"pageSize": {"100"}}, "services", 10, func(raw json.RawMessage) {
 			var service struct {
-				Name               string `json:"name"`
+				Name string `json:"name"`
+				// UNVERIFIED (remembered from the Cloud Run v2 Service
+				// reference, not run against a project): creator is the
+				// email address of the authenticated creator and createTime
+				// the creation time, RFC 3339.
+				Creator            string `json:"creator"`
+				CreateTime         string `json:"createTime"`
 				FunctionalType     string `json:"functionalType"`
 				Ingress            string `json:"ingress"`
 				URI                string `json:"uri"`
@@ -1233,6 +1252,12 @@ func (api *GCPCollectionAPI) readRunServices(ctx context.Context, token []byte, 
 			// the command is one, the way a Kubernetes workload is recognised.
 			// The command and its arguments are matched and never kept.
 			workload.mcpServer = service.FunctionalType == "FUNCTIONAL_TYPE_MCP_SERVER"
+			if gcpCreatorPattern.MatchString(service.Creator) {
+				workload.creator = strings.ToLower(service.Creator)
+				if created, parseErr := time.Parse(time.RFC3339, service.CreateTime); parseErr == nil {
+					workload.created = created.UTC().Truncate(time.Second).Format(time.RFC3339)
+				}
+			}
 			workload.openInvoker = service.InvokerIAMDisabled
 			if parsed, parseErr := url.Parse(service.URI); parseErr == nil && parsed.Scheme == "https" && gcpHostPattern.MatchString(strings.ToLower(parsed.Hostname())) {
 				workload.endpointHost = strings.ToLower(parsed.Hostname())

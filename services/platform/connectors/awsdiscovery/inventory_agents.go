@@ -47,6 +47,9 @@ type AgentInventorySource struct {
 	BedrockAgents []AgentInventoryBedrockAgent `json:"bedrock_agents"`
 	// Checks are the failed agent posture checks; absent when there are none.
 	Checks []AgentInventoryCheck `json:"checks,omitempty"`
+	// Creators say who created an agent of this source and when, sorted by
+	// ARN; absent when the audit log names none.
+	Creators []AgentInventoryCreator `json:"creators,omitempty"`
 	// DataAccess is what the policies of the agents' roles allow on data
 	// services; absent when there is none.
 	DataAccess []AgentInventoryDataAccess `json:"data_access,omitempty"`
@@ -86,6 +89,21 @@ type AgentInventoryCheck struct {
 	ARN   string `json:"arn"`
 	Check string `json:"check"`
 }
+
+// AgentInventoryCreator is the identity CloudTrail records as the caller of
+// the create event of one agent of this source (a Bedrock agent, an
+// AgentCore runtime or a Lambda function), and the time of that event:
+// RFC 3339, UTC, to the second. CreatedBy is an IAM user name, the email
+// address a federated session is named after, or "role/session" of any other
+// assumed role. It is identity metadata; no request parameter is kept.
+type AgentInventoryCreator struct {
+	ARN       string `json:"arn"`
+	CreatedAt string `json:"created_at"`
+	CreatedBy string `json:"created_by"`
+}
+
+// AgentCreatorIdentityPattern is the form of a recorded creator.
+var AgentCreatorIdentityPattern = regexp.MustCompile(`^[A-Za-z0-9@][A-Za-z0-9._%+@:/=-]{0,253}$`)
 
 // Agent posture checks. Each is a finding rule the product explains.
 const (
@@ -360,6 +378,17 @@ func validAgentInventorySource(source AgentInventorySource, accountID string) bo
 			prior = signal
 		}
 	}
+	// A creator names a Bedrock agent, a runtime or a function of this
+	// source, once.
+	previous = ""
+	for _, creator := range source.Creators {
+		created, err := time.Parse(time.RFC3339, creator.CreatedAt)
+		if creator.ARN <= previous || !agentARNs[creator.ARN] || agentInventoryKind(creator.ARN) == "aws_inferred_agent" && !agentLambdaARNPattern.MatchString(creator.ARN) ||
+			!AgentCreatorIdentityPattern.MatchString(creator.CreatedBy) || err != nil || created.UTC().Format(time.RFC3339) != creator.CreatedAt {
+			return false
+		}
+		previous = creator.ARN
+	}
 	// A check names an agent (or a data store) of this source and a known
 	// rule, once; the MCP and access parts are checked with it.
 	return validAgentInventoryMCP(source, accountID, agentARNs, agentRoles)
@@ -442,10 +471,18 @@ func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inve
 	for _, entry := range source.RoleUsage {
 		usage[entry.RoleARN] = entry
 	}
+	creators := make(map[string]AgentInventoryCreator, len(source.Creators))
+	for _, creator := range source.Creators {
+		creators[creator.ARN] = creator
+	}
 	add := func(kind, arn, display, roleARN string, stable, attributes map[string]any) {
 		id := deterministicAWSInventoryID(scope, subject, kind, arn)
 		if kind != "aws_agentcore_gateway" {
 			agentIDs[arn] = id
+			// Who created the agent, from the CloudTrail create event.
+			if creator, known := creators[arn]; known {
+				attributes["created_by"], attributes["created_at"], attributes["created_by_source"] = creator.CreatedBy, creator.CreatedAt, "cloudtrail"
+			}
 			if entry, read := usage[roleARN]; read && roleARN != "" {
 				roleUsageAttributes(attributes, entry)
 			}

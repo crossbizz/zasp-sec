@@ -80,6 +80,34 @@ const (
 	maximumCodeownersPattern = 256
 )
 
+var codeownersOwnerPattern = regexp.MustCompile(`^(@[A-Za-z0-9][A-Za-z0-9-]{0,38}(/[A-Za-z0-9][A-Za-z0-9._-]{0,99})?|[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189})$`)
+
+// CodeownersDefaultOwner returns the first owner of the repository's default
+// rule: the last line whose pattern is "*", which owns every file no later
+// line claims. It is a user ("@login"), a team ("@org/team") or an email
+// address, as written in the file. "" when the file has no such line, when
+// the last one names no owner, or when its first owner is none of the three
+// forms. Nothing else of the file is kept.
+// UNVERIFIED: the syntax follows GitHub's documentation as remembered.
+func CodeownersDefaultOwner(content []byte) string {
+	owner := ""
+	for _, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if comment := strings.Index(line, "#"); comment >= 0 && (comment == 0 || line[comment-1] == ' ' || line[comment-1] == '\t') {
+			line = line[:comment]
+		}
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "*" {
+			continue
+		}
+		owner = ""
+		if len(fields) > 1 && codeownersOwnerPattern.MatchString(fields[1]) {
+			owner = fields[1]
+		}
+	}
+	return owner
+}
+
 // ParseCodeowners reads the path patterns of a CODEOWNERS file. A line is a
 // pattern followed by owners; "#" starts a comment; a pattern with no owner
 // leaves what it matches unowned. Negation ("!") and character ranges ("[")

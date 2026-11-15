@@ -205,6 +205,8 @@ func (api *OktaCollectionAPI) CheckCollectionReadiness(ctx context.Context) erro
 	return nil
 }
 
+var oktaEmailPattern = regexp.MustCompile(`^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189}$`)
+
 func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string, includeTenant bool, objects []json.RawMessage) ([]json.RawMessage, []json.RawMessage, bool) {
 	tenantEntityID := deterministicOktaInventoryID(subject, "okta_tenant", subject.ID)
 	entities := make([]json.RawMessage, 0, len(objects)+1)
@@ -222,7 +224,7 @@ func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string
 	}
 	seen := make(map[string]struct{}, len(objects))
 	for _, raw := range objects {
-		var id, name, status, kind, serviceClientID string
+		var id, name, status, kind, serviceClientID, email, department string
 		var aiEvidence agentsignals.Evidence
 		aiCategory := ""
 		switch phase {
@@ -233,12 +235,32 @@ func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string
 				Profile struct {
 					Login       string `json:"login"`
 					DisplayName string `json:"displayName"`
+					// The two base profile attributes that let the creator of
+					// an agent be matched to a person and a team. No other
+					// profile attribute is read.
+					// UNVERIFIED: email and department are base attributes of
+					// the Okta user profile as remembered from the Users API
+					// reference; not checked against a tenant.
+					Email      string `json:"email"`
+					Department string `json:"department"`
 				} `json:"profile"`
 			}
 			if !decodeOktaCollectionResponse(raw, &user) || !strings.HasPrefix(user.ID, "00u") || !validOktaCollectionText(user.Profile.Login, 256) || !validOktaUserStatus(user.Status) {
 				return nil, nil, false
 			}
 			id, name, status, kind = user.ID, user.Profile.DisplayName, user.Status, "okta_user"
+			// A value that is not an address, or not a plain name, is left
+			// out: the user is still listed.
+			// The login is an address in most tenants; it stands in for a
+			// profile that states no email.
+			for _, address := range []string{user.Profile.Email, user.Profile.Login} {
+				if email == "" && len(address) <= 254 && oktaEmailPattern.MatchString(address) {
+					email = strings.ToLower(address)
+				}
+			}
+			if validOktaCollectionText(user.Profile.Department, 128) {
+				department = user.Profile.Department
+			}
 			if name == "" {
 				name = user.Profile.Login
 			}
@@ -302,6 +324,13 @@ func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string
 			Status string `json:"status"`
 		}{status})
 		entityAttributes := json.RawMessage(attributes)
+		if kind == "okta_user" && (email != "" || department != "") {
+			entityAttributes, _ = json.Marshal(struct {
+				Department string `json:"department,omitempty"`
+				Email      string `json:"email,omitempty"`
+				Status     string `json:"status"`
+			}{department, email, status})
+		}
 		if kind == "okta_ai_application" {
 			entityAttributes, _ = json.Marshal(struct {
 				Status    string                 `json:"status"`
