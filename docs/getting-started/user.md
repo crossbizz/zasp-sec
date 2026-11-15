@@ -101,7 +101,7 @@ time.
 
 All integrations are on the **Integrations** page:
 
-- **Connector catalog** lists what this deployment can connect.
+- **Add a source** lists what this deployment can connect.
 - **Configured integrations** lists what is connected.
 
 ### Choose a source
@@ -117,7 +117,7 @@ All integrations are on the **Integrations** page:
 | [Salesforce](#salesforce-agentforce) | Agentforce agents, the users they run as, their topics and actions | A connected app with the client credentials flow | The connector enabled, and the consumer secret stored |
 | [SaaS platforms](#saas-platforms) | AI apps and agents of Slack, Google Workspace, ServiceNow, GitLab, Databricks, OpenAI, Anthropic and Atlassian | A sign-in, or an API key held by the connection service | The connector enabled; for key-based platforms, the connection created |
 
-If a connector is missing from **Connector catalog**, the deployment has not
+If a connector shows **Not enabled** in **Add a source**, the deployment has not
 enabled it: ask your administrator. Google Cloud, Microsoft, Salesforce and the
 SaaS platforms are off until an administrator turns them on.
 
@@ -295,7 +295,7 @@ of the AI services that were matched.
 
 **Step 3. Configure the integration.**
 
-1. Open **Integrations**. In **Connector catalog**, choose Amazon Web Services.
+1. Open **Integrations**. In **Add a source**, choose Amazon Web Services.
 2. Fill in the form:
 
    | Field | Value |
@@ -318,7 +318,7 @@ authorize button reads `Authorize AWS reference`. Success shows
 What you grant: an installation of the Zasp GitHub App on your organization,
 with the read permissions `actions`, `contents` and `metadata`.
 
-1. In **Connector catalog**, choose GitHub. Enter `github_app` in
+1. In **Add a source**, choose GitHub. Enter `github_app` in
    **Authorization mode**, the only value it accepts, and save.
 2. Open the integration and choose the authorize button. You continue on
    GitHub, choose the organization, and choose all repositories or selected
@@ -381,7 +381,7 @@ and `watch` on inventory resources. The built-in `view` ClusterRole is enough.
 1. Give the cluster's endpoint, CA and credential to your administrator, who
    stores them outside the browser and gives you a reference of the form
    `ref:kubernetes/connection/<name>`.
-2. In **Connector catalog**, choose Kubernetes. Enter the reference in
+2. In **Add a source**, choose Kubernetes. Enter the reference in
    **Cluster credential reference** and save.
 3. Open the integration, authorize it, and choose **Sync inventory now**.
 
@@ -416,7 +416,7 @@ What you grant, in your tenant:
    AI Foundry account whose agents should be listed.
 
 In the product, choose "Microsoft Entra and Copilot Studio" in
-**Connector catalog**:
+**Add a source**:
 
 | Field | Value |
 | --- | --- |
@@ -433,7 +433,7 @@ integration's detail.
 What you grant: a read-only OAuth authorization with the scopes
 `okta.apps.read`, `okta.groups.read` and `okta.users.read`.
 
-1. In **Connector catalog**, choose Okta. Enter your tenant's address in
+1. In **Add a source**, choose Okta. Enter your tenant's address in
    **Okta issuer**, in the form `https://<tenant>.okta.com`, and save.
 2. Open the integration and authorize. You continue on Okta and sign in with an
    account that may grant those scopes.
@@ -490,7 +490,7 @@ There are two ways to connect, depending on the platform.
 
 **Sign-in** (Slack, Google Workspace, ServiceNow, GitLab):
 
-1. In **Connector catalog**, choose the platform. Enter its tenant identifier
+1. In **Add a source**, choose the platform. Enter its tenant identifier
    and save.
 2. Open the integration and choose the button that starts with "Sign in to".
    You continue on the provider's site.
@@ -1191,8 +1191,8 @@ The messages below are the ones the product shows.
 
 | You see | What it means | What to do |
 | --- | --- | --- |
-| The connector is not in **Connector catalog** | The deployment has not enabled it | Ask your administrator |
-| **No integrations** | Nothing is connected yet | Choose an entry in **Connector catalog** |
+| The connector shows **Not enabled** in **Add a source** | The deployment has not enabled it | Ask your administrator |
+| **No integrations** | Nothing is connected yet | Choose an entry in **Add a source** |
 | "Authoritative provider scope is unavailable. Setup remains incomplete." | The provider could not be read after authorization | Check what you granted at the provider and the reference you entered, then authorize again. For AWS: the role, the external ID reference and the trust policy. |
 | "Kubernetes inventory access was denied. Grant the documented get, list, and watch permissions, then run Test connection again." | The cluster credential is too narrow | Bind the credential to the `view` ClusterRole |
 | "GitHub installation access is missing required organization or repository scope." | The App is not installed where you expect | Review the installation on GitHub, then authorize again |

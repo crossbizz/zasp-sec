@@ -24,7 +24,7 @@ Follow the invitation email, then choose **Sign in**. If the top bar shows a sco
 No source to connect yet? Ask your operator to seed demo data: `./zasp demo seed --email <your address>`. You get an Environment of its own with a fictional company's agents, findings, MCP servers and attack paths, which you open with your own sign-in. Its integrations are named `Demo: …`, and it can be removed again. The [Administrator guide](/administrator-guide#demo-data) has the details.
 </Note>
 
-Open **Integrations**. **Connector catalog** lists what this deployment can connect. If a source below is missing from it, the deployment has not enabled it: ask your operator.
+Open **Integrations**. **Add a source** lists what this deployment can connect. If a source below is missing from it, the deployment has not enabled it: ask your operator.
 
 The sources are in alphabetical order.
 
@@ -36,7 +36,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | The two principals of the deployment that may assume your role, an external ID, and its reference `ref:aws/external-id/<name>` | An IAM role in the account that trusts those principals with the external ID, with the [read policy](/integrations/aws#the-read-policy) |
 
-    In **Connector catalog**, choose Amazon Web Services and fill in:
+    In **Add a source**, choose Amazon Web Services and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -55,7 +55,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | A GitHub App configured in the deployment | An installation of that App on your organization, on all repositories or selected ones |
 
-    In **Connector catalog**, choose GitHub and fill in:
+    In **Add a source**, choose GitHub and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -74,7 +74,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | The connector enabled. For workload identity federation, the deployment's two roles. | A read-only service account with the [roles listed](/integrations/google-cloud#what-you-grant), and a workload identity provider that lets the deployment impersonate it |
 
-    In **Connector catalog**, choose Google Cloud and fill in:
+    In **Add a source**, choose Google Cloud and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -93,7 +93,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | The cluster credential stored outside the browser, and its reference `ref:kubernetes/connection/<name>` | A read-only credential for the cluster. The built-in `view` ClusterRole is enough. |
 
-    In **Connector catalog**, choose Kubernetes and fill in:
+    In **Add a source**, choose Kubernetes and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -110,7 +110,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | The connector enabled, and your client secret stored, with its reference `ref:microsoft/client-secret/<name>` | A single-tenant application in Microsoft Entra with the [read permissions listed](/integrations/microsoft#what-you-grant), and a client secret |
 
-    In **Connector catalog**, choose "Microsoft Entra and Copilot Studio" and fill in:
+    In **Add a source**, choose "Microsoft Entra and Copilot Studio" and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -130,7 +130,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | An Okta application configured in the deployment | A sign-in with an account that may grant the read scopes for applications, groups and users |
 
-    In **Connector catalog**, choose Okta and fill in:
+    In **Add a source**, choose Okta and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -147,7 +147,7 @@ The sources are in alphabetical order.
     | --- | --- |
     | The connector enabled, and your consumer secret stored, with its reference `ref:salesforce/client-secret/<name>` | A connected app with the client credentials flow and a run-as user, as [described](/integrations/salesforce#what-you-grant) |
 
-    In **Connector catalog**, choose "Salesforce Agentforce" and fill in:
+    In **Add a source**, choose "Salesforce Agentforce" and fill in:
 
     | Field | Paste |
     | --- | --- |
@@ -168,7 +168,7 @@ The sources are in alphabetical order.
     | GitLab, Google Workspace, ServiceNow, Slack | The connector enabled | A sign-in at the provider, with an account of the tenant |
     | Anthropic, Atlassian, Databricks, OpenAI | The connector enabled, and the connection created in Nango, with its reference `ref:nango/connection/<id>` | The platform's API key or token, handed to your operator |
 
-    In **Connector catalog**, choose the platform, enter its tenant identifier, and for a key-based platform the reference. Choose **Save integration**.
+    In **Add a source**, choose the platform, enter its tenant identifier, and for a key-based platform the reference. Choose **Save integration**.
 
     For a sign-in platform, open the integration and choose the button that starts with "Sign in to". When you return, the page says "Signed in. Authorize the integration to start collecting."
 
