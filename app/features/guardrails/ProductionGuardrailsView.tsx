@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { GuardrailMode, GuardrailPolicy, GuardrailPolicyRule } from "../../../apps/web/api/decoders";
 import { useAPI } from "../../api/APIProvider";
-import { Badge, Button, Card, LoadingState, PageHeader, Select } from "../../components/ui";
+import { Badge, Button, Card, LoadingState, PageHeader, Select, Tabs } from "../../components/ui";
 import { createGatewayAPI, type GatewayAPI } from "../gateway/gateway-api";
 import { GatewayActivityCard, GatewayPolicyCard, HostedGatewaySetupCard } from "../gateway/GatewayViews";
 import { createGuardrailPolicyAPI, GuardrailPolicyConflict, type GuardrailPolicyAPI } from "./guardrail-policy-api";
@@ -31,6 +31,8 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   // with the API a caller supplies.
   const gatewayAPI = useMemo(() => providedGatewayAPI ?? (providedAPI ? null : createGatewayAPI(client)), [providedGatewayAPI, providedAPI, client]);
   const [load, setLoad] = useState<Load>({ status: "loading" });
+  // One section at a time; the others stay loaded, so a draft is not lost.
+  const [section, setSection] = useState("rules");
   const [draft, setDraft] = useState<Record<string, GuardrailMode>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -80,6 +82,8 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
     <PageHeader title="Guardrails" eyebrow="Protect" description="Decide what the hosted gateway, or a gateway you already run, blocks, redacts or lets through. Detection is deterministic: patterns, phrase lists and checksums, with no model call." />
     {error && <div className="error-banner" role="alert">{error}</div>}
     {notice && <div className="success-banner" role="status">{notice}</div>}
+    <div className="page-tabs"><Tabs active={section} onChange={setSection} tabs={[{ id: "rules", label: "Rules" }, ...(gatewayAPI ? [{ id: "gateway", label: "Hosted gateway" }, { id: "activity", label: "Activity" }] : []), { id: "setup", label: "Set up" }]} /></div>
+    <div role="tabpanel" aria-label="Rules" hidden={section !== "rules"}>
     <Card title={<h2>Policy for this Environment</h2>} action={policy ? <Badge tone={policy.version === 0 ? "neutral" : "brand"}>{policy.version === 0 ? "Defaults" : `Version ${policy.version}`}</Badge> : undefined}>
       {load.status === "loading" && <LoadingState label="Loading guardrail policy…" />}
       {load.status === "error" && <p role="alert">The guardrail policy is unavailable. <Button onClick={() => { setLoad({ status: "loading" }); void reload(); }}>Retry</Button></p>}
@@ -101,11 +105,11 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
           : <p>You can view this policy. Changing it needs permission to manage workflows.</p>}
       </>}
     </Card>
-    {gatewayAPI && <>
-      <GatewayPolicyCard api={gatewayAPI} canWrite={canWrite} />
-      <HostedGatewaySetupCard origin={origin} onNavigate={onNavigate} />
-      <GatewayActivityCard api={gatewayAPI} />
-    </>}
+    </div>
+    {gatewayAPI && <div role="tabpanel" aria-label="Hosted gateway" hidden={section !== "gateway"}><GatewayPolicyCard api={gatewayAPI} canWrite={canWrite} /></div>}
+    {gatewayAPI && <div role="tabpanel" aria-label="Activity" hidden={section !== "activity"}><GatewayActivityCard api={gatewayAPI} /></div>}
+    <div role="tabpanel" aria-label="Set up" hidden={section !== "setup"}>
+    {gatewayAPI && <HostedGatewaySetupCard origin={origin} onNavigate={onNavigate} />}
     <Card title={<h2>Ask for a decision from your gateway</h2>}>
       <p>Nothing is installed in your runtime. A gateway you already run (for example a LiteLLM guardrail hook) sends the text going into a model or coming out of it, and acts on the answer: <code>allow</code>, <code>redact</code> (use the returned <code>redacted_text</code>) or <code>block</code>. The text is used for that request only; it is not stored. The audit record of a decision holds the decision, the matched rules, the size of the text and its SHA-256 digest.</p>
       <ol>
@@ -118,5 +122,6 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   -d '{"direction":"input","text":"<the prompt or the model answer>","agent_id":"support-agent"}'`}</pre>
       <p>The answer names the decision, the matched rule identifiers and the policy version. A request carries at most 32 KB of text. If a decision cannot be recorded the call fails and returns no decision; decide in the gateway whether that fails open or closed. The full request and response, the limits and a LiteLLM example are in <code>docs/operations/guardrail-decision-api.md</code>.</p>
     </Card>
+    </div>
   </div>;
 }

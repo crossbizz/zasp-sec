@@ -29,31 +29,34 @@ import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 import { parseActivityLink } from "../domain/activity-links";
 import { parseComplianceLink } from "../domain/compliance-links";
 
+// The sidebar follows the order a security team works in: see what exists,
+// see what is wrong with it, test it, protect it, investigate, then the
+// plumbing (sources and settings).
 const productionRoutes = [
-  { path: "/", label: "Overview", capability: "inventory.read" },
-  { path: "/discovery/assets", label: "Agents", capability: "inventory.read" },
-  { path: "/inventory/tools", label: "Tools & MCP", capability: "inventory.read" },
-  { path: "/identities", label: "Identities", capability: "inventory.read" },
-  { path: "/inventory/runtimes", label: "Runtimes", capability: "inventory.read" },
-  { path: "/violations", label: "Findings", capability: "findings.read" },
-  { path: "/exposure/attack-paths", label: "Attack Paths", capability: "attack-paths.read" },
-  { path: "/red-team/results", label: "Red Team", capability: "red-team.read" },
-  { path: "/test/attack-lab", label: "Attack Lab", capability: "red-team.read" },
-  { path: "/policies", label: "Policies", capability: "policies.read" },
-  { path: "/protect/guardrails", label: "Guardrails", capability: "policies.read" },
-  { path: "/connectors", label: "Integrations", capability: "integrations.read" },
-  { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
-  { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
-  { path: "/protect/approvals", label: "Approvals", capability: "security-agents.read" },
-  { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage" },
-  { path: "/administration/api-access", label: "API Access", capability: "api-access.manage" },
-  { path: "/investigate/sessions", label: "Sessions", capability: "sessions.read" },
-  { path: "/administration/audit-log", label: "Audit Log", capability: "audit.read" },
-  { path: "/compliance/evidence", label: "Compliance", capability: "compliance.read" },
-  { path: "/administration/data-retention", label: "Data & Retention", capability: "compliance.read" },
-  { path: "/administration/recovery", label: "Recovery", capability: "recovery.read" },
-  { path: "/administration/external-data-flows", label: "External Data Flows", capability: "system.read" },
-  { path: "/administration/system-health", label: "System Health", capability: "system.read" },
+  { path: "/", label: "Overview", capability: "inventory.read", group: "" },
+  { path: "/discovery/assets", label: "Agents", capability: "inventory.read", group: "Inventory" },
+  { path: "/inventory/tools", label: "Tools & MCP", capability: "inventory.read", group: "Inventory" },
+  { path: "/identities", label: "Identities", capability: "inventory.read", group: "Inventory" },
+  { path: "/inventory/runtimes", label: "Runtimes", capability: "inventory.read", group: "Inventory" },
+  { path: "/violations", label: "Findings", capability: "findings.read", group: "Risk" },
+  { path: "/exposure/attack-paths", label: "Attack Paths", capability: "attack-paths.read", group: "Risk" },
+  { path: "/compliance/evidence", label: "Compliance", capability: "compliance.read", group: "Risk" },
+  { path: "/red-team/results", label: "Red Team", capability: "red-team.read", group: "Test" },
+  { path: "/test/attack-lab", label: "Attack Lab", capability: "red-team.read", group: "Test" },
+  { path: "/policies", label: "Policies", capability: "policies.read", group: "Protect" },
+  { path: "/protect/guardrails", label: "Guardrails", capability: "policies.read", group: "Protect" },
+  { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read", group: "Protect" },
+  { path: "/protect/approvals", label: "Approvals", capability: "security-agents.read", group: "Protect" },
+  { path: "/investigate/sessions", label: "Sessions", capability: "sessions.read", group: "Investigate" },
+  { path: "/administration/audit-log", label: "Audit Log", capability: "audit.read", group: "Investigate" },
+  { path: "/connectors", label: "Integrations", capability: "integrations.read", group: "Sources" },
+  { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read", group: "Sources" },
+  { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage", group: "Settings" },
+  { path: "/administration/api-access", label: "API Access", capability: "api-access.manage", group: "Settings" },
+  { path: "/administration/data-retention", label: "Data & Retention", capability: "compliance.read", group: "Settings" },
+  { path: "/administration/recovery", label: "Recovery", capability: "recovery.read", group: "Settings" },
+  { path: "/administration/external-data-flows", label: "External Data Flows", capability: "system.read", group: "Settings" },
+  { path: "/administration/system-health", label: "System Health", capability: "system.read", group: "Settings" },
 ] as const;
 
 function ProductionRouteSurface({ path, location, navigate }: { path: string; location: string; navigate(path: string): void }) {
@@ -182,11 +185,12 @@ function ProductionAppContent() {
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
   if (routes.length === 0) return <main className="page auth-page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
+  const routeGroups = routes.reduce<{ label: string; routes: (typeof routes)[number][] }[]>((groups, route) => { const last = groups[groups.length - 1]; if (last && last.label === route.group) last.routes.push(route); else groups.push({ label: route.group, routes: [route] }); return groups; }, []);
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
   const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
-  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><ProductionSignOutControl /></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><ProductionSignOutControl /></header><aside className="sidebar"><nav aria-label="Main navigation">{routeGroups.map((group) => <div key={group.label || "home"} className="nav-section" role="group" aria-label={group.label || "Home"}>{group.label && <div className="nav-group-label" aria-hidden="true">{group.label}</div>}{group.routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</div>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
 }
 
 function hasProductionCapability(session: SessionContextValue, capability: string): boolean {

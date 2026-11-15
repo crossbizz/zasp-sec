@@ -703,3 +703,79 @@ button:disabled { cursor: default; }
 .security-agent-run-closure dd { margin: 0; }
 .security-agent-run-close { display: grid; gap: 10px; margin: 12px 0; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius); }
 .security-agent-run-close h3 { margin: 0; }
+
+/* Layout rhythm for detail drawers, long tables and the grouped sidebar.
+   These are defaults for plain elements; anything with its own class keeps
+   its own rules. */
+.nav-section + .nav-section { margin-top: 18px; }
+.nav-section .nav-group-label { padding-bottom: 4px; }
+
+.drawer__body { padding-bottom: 36px; }
+.drawer__body > :where(section:not([class]), p:not([class]), h3:not([class]), div:not([class]), .card, .button) { margin-left: 20px; margin-right: 20px; }
+.drawer__body > .card { margin-top: 20px; }
+.drawer__body h3:not([class]) { margin: 26px 0 10px; padding-top: 20px; border-top: 1px solid var(--border); color: #6b6f79; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.drawer__body .detail-content > h3:not([class]):first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.drawer__body .card h3:not([class]) { margin-top: 0; padding-top: 0; border-top: 0; }
+.drawer__body p:not([class]) { margin: 0 0 10px; color: #3f434b; line-height: 1.6; }
+.drawer__body ul:not([class]) { margin: 0 0 10px; padding-left: 18px; color: #3f434b; line-height: 1.75; }
+.drawer__body dl:not([class]) { display: grid; gap: 8px; margin: 0 0 10px; }
+.drawer__body dl:not([class]) dt { font-weight: 620; }
+.drawer__body dl:not([class]) dd { margin: 2px 0 0; color: #3f434b; }
+.drawer__body code { padding: 1px 6px; border-radius: 5px; background: #f4f3f8; color: #3b3550; font-family: var(--font-geist-mono); font-size: 12px; overflow-wrap: anywhere; }
+.drawer__body .field { margin: 0 0 14px; }
+.drawer__body .checkbox-field { margin: 0 0 14px; }
+.drawer__body .checkbox-field small { display: block; margin-top: 4px; color: var(--muted-2); line-height: 1.5; }
+.drawer__body [role="alert"]:not([class]) { color: var(--critical); }
+.drawer__body [role="status"]:not([class]) { color: var(--muted); }
+.drawer__body :where(p:not([class]), div:not([class]), section:not([class])) > .button, .production-app .page .card > :where(p:not([class]), div:not([class])) > .button { margin: 4px 8px 8px 0; }
+
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.button-row > .button { margin: 0 !important; }
+
+.detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); text-transform: capitalize; }
+.detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 0 0 14px; padding: 16px; border: 1px solid var(--border); border-radius: 9px; background: #fbfbfc; }
+.detail-facts > div { min-width: 0; }
+.detail-facts dt { margin-bottom: 3px; color: var(--muted); font-size: 11px; font-weight: 580; }
+.detail-facts dd { margin: 0; color: var(--ink); font-weight: 560; overflow-wrap: anywhere; }
+.muted { color: var(--muted-2); }
+
+.table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.table-filter { width: min(380px, 100%); min-height: 36px; padding: 7px 11px; border: 1px solid var(--border-strong); border-radius: 7px; outline: 0; background: white; color: var(--ink); }
+.table-filter:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(109,40,217,.1); }
+.table-count { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.table-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+.table-pagination__controls { display: flex; align-items: center; gap: 10px; }
+.table-pagination .button { min-height: 32px; padding: 5px 11px; }
+.table-pagination .button:disabled { opacity: .45; cursor: default; }
+.table-empty { margin: 0; padding: 20px 16px; color: var(--muted); }
+.production-app .card > .table-toolbar, .production-app .card > .table-pagination, .production-app .card > .table-empty { margin: 0; }
+@media (max-width: 720px) { .detail-facts { grid-template-columns: 1fr; } .table-toolbar { flex-direction: column; align-items: stretch; } }
+
+/* Page-level tabs: one section of a long page at a time. */
+.page-tabs { margin-bottom: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.page-tabs .tabs { border-bottom: 0; }
+.page-tabs .tabs button.active { color: var(--brand); background: #eeeafd; }
+[role="tabpanel"][hidden] { display: none; }
+.production-app [role="tabpanel"] > .card + .card { margin-top: 16px; }
+
+/* Product-wide rhythm for plain content in pages and cards: forms in two
+   columns, space between buttons, and room around text that sits between
+   cards. */
+.production-app .page > * + .card, .production-app .page > .card + * { margin-top: 16px; }
+.production-app .page > p:not([class]) { margin: 12px 2px 0; color: #4b4e56; line-height: 1.6; }
+.production-app .page > [role="alert"]:not([class]), .production-app .page > [role="status"]:not([class]) { margin: 12px 2px 0; }
+.production-app .page > .button, .production-app .page > button.button { margin-top: 12px; }
+.production-app .card > p:not([class]) { margin-top: 0; margin-bottom: 10px; color: #3f434b; line-height: 1.6; }
+.production-app .card > .card__header + p:not([class]) { margin-top: 14px; }
+.production-app .card > h3:not([class]) { margin-top: 18px; margin-bottom: 8px; font-size: 13px; }
+.production-app .card > ul:not([class]), .production-app .card > ol:not([class]) { padding-left: 18px; line-height: 1.75; }
+.production-app .card > pre { padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fafafc; font-size: 12px; line-height: 1.6; overflow-x: auto; }
+.production-app .card > .field { display: inline-flex; width: calc(50% - 24px); margin: 0 0 14px 16px; vertical-align: top; }
+.production-app .card > .field:has(textarea) { display: flex; width: auto; margin-right: 16px; }
+.production-app .card > .card__header + .field, .production-app .card > .card__header + .field + .field { margin-top: 16px; }
+.production-app .page .button + .button, .drawer__body .button + .button { margin-left: 8px; }
+.production-app .page :where(.row-actions, .button-row, .tabs, .table-pagination__controls, .page-header) > .button + .button, .drawer__body :where(.row-actions, .button-row) > .button + .button { margin-left: 0; }
+@media (max-width: 900px) { .production-app .card > .field { display: flex; width: auto; margin-right: 16px; } }
+.drawer__body .card > :where(:not(.card__header, table, .table-scroll, .data-table)) { margin-left: 16px; margin-right: 16px; }
+.drawer__body .card > .card__header + * { margin-top: 14px; }
+.drawer__body .card > :last-child:not(.card__header, table, .table-scroll) { margin-bottom: 16px; }

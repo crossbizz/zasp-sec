@@ -222,8 +222,12 @@ describe("Hosted gateway on the Guardrails page", () => {
     const onNavigate = vi.fn();
     const user = userEvent.setup();
     render(<APIProvider client={{} as APIClient}><ProductionGuardrailsView canWrite api={{ getPolicy: async () => guardrails, savePolicy: async () => guardrails }} gatewayAPI={fixtureAPI()} origin="https://zasp.example" onNavigate={onNavigate} /></APIProvider>);
+    // Each part of the page is a tab; only the open one is shown.
+    await user.click(await screen.findByRole("tab", { name: "Hosted gateway" }));
     expect(await screen.findByRole("heading", { name: "Hosted gateway policy" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Activity" }));
     expect(screen.getByRole("heading", { name: "Gateway activity" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Set up" }));
     expect(screen.getByRole("heading", { name: "Route an agent through the hosted gateway" })).toBeInTheDocument();
     // The setup names the two addresses and the headers, and nothing to install.
     expect(screen.getByLabelText("MCP configuration example")).toHaveTextContent("https://zasp.example/api/v1/gateway/mcp/<gateway server id>");

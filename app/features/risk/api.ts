@@ -1,7 +1,7 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
-import { decodeAttackPath, decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage, decodeInventoryDetail } from "../../../apps/web/api/decoders";
-import type { AttackPath, BreakOption, Finding, FindingTicket } from "../../../apps/web/api/generated";
+import { decodeAttackPath, decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage, decodeInventoryDetail, decodeInventoryPage } from "../../../apps/web/api/decoders";
+import type { AttackPath, BreakOption, Finding, FindingTicket, InventorySummary } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 
 const quotedVersion = /^"[1-9][0-9]*"$/;
@@ -26,6 +26,9 @@ export type ProductionRiskAPI = Readonly<{
   // The name and kind of the inventory objects on a path (agent, MCP server,
   // tool, identity, data store). A node the caller may not read is absent.
   describePathNodes?(ids: readonly string[], signal?: AbortSignal): Promise<Readonly<Record<string, PathNode>>>;
+  // The agents a finding can name, by id: who owns each and where it was
+  // found. An agent the caller may not read is absent.
+  listFindingAgents?(signal?: AbortSignal): Promise<Readonly<Record<string, InventorySummary>>>;
 }>;
 
 export type PathNode = Readonly<{ name: string; kind: "agent" | "tool" | "identity" | "runtime" | "asset"; sourceKind: string }>;
@@ -75,6 +78,10 @@ export function createProductionRiskAPI(client: APIClient, credentialKind: Crede
         }
       }));
       return nodes;
+    },
+    async listFindingAgents(signal) {
+      const loaded = await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents", { params: { query: { cursor, limit: 100 } }, signal }), decodeInventoryPage), { maximumItems: 10_000, maximumPages: 100 });
+      return Object.fromEntries(loaded.items.map((item) => [item.id, item]));
     },
   };
 }

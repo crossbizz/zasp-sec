@@ -103,6 +103,8 @@ describe("Guardrails page", () => {
     expect(example).toHaveTextContent('"direction":"input"');
     expect(screen.getByText(/Guardrail decisions only/)).toBeInTheDocument();
     expect(screen.getByText(/it is not stored/)).toBeInTheDocument();
+    // The setup is one tab of the page.
+    await user.click(screen.getByRole("tab", { name: "Set up" }));
     await user.click(screen.getByRole("button", { name: "API Access" }));
     expect(onNavigate).toHaveBeenCalledWith("/administration/api-access");
   });
