@@ -4,6 +4,7 @@
 #   ./zasp doctor                 check prerequisites and configuration
 #   ./zasp secrets init           generate keys; list what a person must supply
 #   ./zasp up                     install, create the first administrator, start
+#   ./zasp demo seed --email <address>   fill a demo environment with sample data
 #   ./zasp status | logs | stop | start | upgrade | backup | restore | uninstall
 #
 # The profile (local, kubernetes or aws) and every setting come from one
@@ -29,6 +30,12 @@ Getting started
   install                 Install dependencies and the database schema. Starts nothing a user reaches.
   bootstrap-admin         Create the first organization and invite its first administrator.
   up                      install, bootstrap-admin (when configured) and start, in one command.
+
+Evaluating
+  demo seed --email <address>   Fill an environment of its own with sample agents, findings and MCP servers
+                          for this person. Run it again to refresh. Options: zasp demo help.
+  demo status             List the scopes that hold demo data.
+  demo remove             Delete the demo data and the scopes created for it (needs --yes).
 
 Operating
   start                   Start the product.
@@ -97,6 +104,17 @@ export ZASP_PROFILE ZASP_DRY_RUN ZASP_YES
 case "$command_name" in
   doctor|install|up|start|stop|status|logs|upgrade|backup|restore|uninstall) ;;
   bootstrap-admin) command_name=bootstrap_admin ;;
+  demo)
+    [ "${#rest[@]}" -ge 1 ] || die "usage: zasp demo seed --email <address> | status | remove --yes | help"
+    case "${rest[0]}" in
+      seed|status|help) ;;
+      remove)
+        # --yes is an option of zasp itself; pass it on.
+        [ "$ZASP_YES" = "0" ] || rest+=(--yes)
+        ;;
+      *) die "usage: zasp demo seed --email <address> | status | remove --yes | help" ;;
+    esac
+    ;;
   secrets)
     [ "${rest[0]:-}" = init ] || die "usage: zasp secrets init"
     command_name=secrets_init

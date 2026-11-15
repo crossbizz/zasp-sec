@@ -64,6 +64,14 @@ The whole product runs on your machine: PostgreSQL, Temporal, OpenFGA, OpenSearc
 
 The same commands work in every profile: `doctor`, `secrets init`, `install`, `bootstrap-admin`, `up`, `start`, `stop`, `status`, `logs`, `upgrade`, `backup`, `restore`, `uninstall`.
 
+Nothing to connect yet? Fill an environment of its own with sample data for one person, who then signs in as usual:
+
+```bash
+./zasp demo seed --email person@example.com
+```
+
+`./zasp demo status` shows it and `./zasp demo remove --yes` deletes it. The sample company is fictional, and the command writes only to its own environment. See [Demo data](docs/getting-started/administrator.md#demo-data).
+
 Two things to know up front. The product needs AWS APIs (STS, Secrets Manager, KMS, S3, SQS); the two evaluation profiles emulate them and are not for real data. And sign-in goes through Stytch, a hosted identity provider, in every profile.
 
 ## Documentation

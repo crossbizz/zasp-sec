@@ -1,0 +1,74 @@
+{
+  "key": "kubernetes-production",
+  "provider": "kubernetes",
+  "name": "Demo: Kubernetes production cluster",
+  "subject": "k8s-prod.northwind-robotics.example.com/prod-us-east",
+  "description": "Labelled agents, agents inferred from images, environment names and runtime egress, MCP server workloads linked to the agents that use them, a shared service account, a privileged shell agent and an agent that was removed since the last collection.",
+  "configuration": {
+    "connection_reference": "ref:kubernetes/demo/northwind-prod-us-east"
+  },
+  "http": {
+    "endpoint": "https://k8s-prod.northwind-robotics.example.com",
+    "routes": [
+      {"path": "/version", "body": {"major": "1", "minor": "31", "gitVersion": "v1.31.4"}},
+      {"path": "/api/v1/namespaces", "paging": "kubernetes", "envelope": {"apiVersion": "v1", "kind": "NamespaceList"}, "items": [
+        {"apiVersion": "v1", "kind": "Namespace", "metadata": {"uid": "ns-prod", "name": "prod"}},
+        {"apiVersion": "v1", "kind": "Namespace", "metadata": {"uid": "ns-agents", "name": "agents"}},
+        {"apiVersion": "v1", "kind": "Namespace", "metadata": {"uid": "ns-tools", "name": "tools"}},
+        {"apiVersion": "v1", "kind": "Namespace", "metadata": {"uid": "ns-staging", "name": "staging"}}
+      ]},
+      {"path": "/api/v1/serviceaccounts", "paging": "kubernetes", "envelope": {"apiVersion": "v1", "kind": "ServiceAccountList"}, "items": [
+        {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"uid": "sa-prod-default", "name": "default", "namespace": "prod"}},
+        {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"uid": "sa-prod-checkout-agent", "name": "checkout-agent", "namespace": "prod"}},
+        {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"uid": "sa-agents-default", "name": "default", "namespace": "agents"}},
+        {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"uid": "sa-tools-default", "name": "default", "namespace": "tools"}},
+        {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"uid": "sa-staging-default", "name": "default", "namespace": "staging"}}
+      ]},
+      {"path": "/apis/rbac.authorization.k8s.io/v1/roles", "paging": "kubernetes", "envelope": {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "RoleList"}, "items": [
+        {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "Role", "metadata": {"uid": "role-prod-order-writer", "name": "order-writer", "namespace": "prod"}, "rules": [{"apiGroups": [""], "resources": ["configmaps"], "verbs": ["get", "list", "update"]}]}
+      ]},
+      {"path": "/apis/rbac.authorization.k8s.io/v1/clusterroles", "paging": "kubernetes", "envelope": {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRoleList"}, "items": [
+        {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"uid": "clusterrole-cluster-admin", "name": "cluster-admin"}, "rules": [{"apiGroups": ["*"], "resources": ["*"], "verbs": ["*"]}]}
+      ]},
+      {"path": "/apis/rbac.authorization.k8s.io/v1/rolebindings", "paging": "kubernetes", "envelope": {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "RoleBindingList"}, "items": [
+        {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "RoleBinding", "metadata": {"uid": "rb-prod-checkout-order-writer", "name": "checkout-order-writer", "namespace": "prod"}, "roleRef": {"apiGroup": "rbac.authorization.k8s.io", "kind": "Role", "name": "order-writer"}, "subjects": [{"kind": "ServiceAccount", "name": "checkout-agent", "namespace": "prod"}]}
+      ]},
+      {"path": "/apis/rbac.authorization.k8s.io/v1/clusterrolebindings", "paging": "kubernetes", "envelope": {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRoleBindingList"}, "items": [
+        {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRoleBinding", "metadata": {"uid": "crb-agents-cluster-admin", "name": "agents-cluster-admin"}, "roleRef": {"apiGroup": "rbac.authorization.k8s.io", "kind": "ClusterRole", "name": "cluster-admin"}, "subjects": [{"kind": "ServiceAccount", "name": "default", "namespace": "agents"}]}
+      ]},
+      {"path": "/apis/apps/v1/deployments", "paging": "kubernetes", "envelope": {"apiVersion": "apps/v1", "kind": "DeploymentList"},
+        "items": [
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-prod-checkout-assistant", "name": "checkout-assistant", "namespace": "prod", "labels": {"zasp.ai/entity-kind": "agent", "app": "checkout-assistant"}}, "spec": {"template": {"metadata": {"labels": {"app": "checkout-assistant"}}, "spec": {"serviceAccountName": "checkout-agent", "containers": [{"name": "agent", "image": "registry.example.com/northwind/checkout-assistant:2.4.1", "env": [{"name": "ANTHROPIC_API_KEY"}, {"name": "TICKETS_MCP_URL", "value": "http://tickets-mcp.tools.svc.cluster.local:8080/sse"}]}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-prod-refund-approver", "name": "refund-approver", "namespace": "prod", "labels": {"zasp.ai/entity-kind": "agent", "zasp.ai/runtime-policy": "supported", "app": "refund-approver"}}, "spec": {"template": {"metadata": {"labels": {"app": "refund-approver"}}, "spec": {"serviceAccountName": "checkout-agent", "containers": [{"name": "agent", "image": "registry.example.com/northwind/refund-approver:1.9.0", "env": [{"name": "OPENAI_API_KEY"}]}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-prod-ops-shell-runner", "name": "ops-shell-runner", "namespace": "prod", "labels": {"zasp.ai/entity-kind": "agent", "app": "ops-shell-runner"}}, "spec": {"template": {"metadata": {"labels": {"app": "ops-shell-runner"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "runner", "image": "registry.example.com/northwind/ops-shell-runner:0.7.3", "command": ["/bin/sh", "-c", "exec /opt/runner/start"], "securityContext": {"privileged": true}, "env": [{"name": "OPENAI_API_KEY"}]}], "volumes": [{"name": "host-logs", "hostPath": {"path": "/var/log"}}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-prod-web-storefront", "name": "web-storefront", "namespace": "prod", "labels": {"app": "web-storefront"}}, "spec": {"template": {"metadata": {"labels": {"app": "web-storefront"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "web", "image": "registry.example.com/northwind/web-storefront:5.12.0"}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-agents-returns-chat-agent", "name": "returns-chat-agent", "namespace": "agents", "labels": {"zasp.ai/entity-kind": "agent", "zasp.ai/runtime-policy": "supported", "app": "returns-chat-agent"}, "annotations": {"zasp.ai/red-team-enabled": "true", "zasp.ai/red-team-endpoint": "https://returns-chat.agents.northwind-robotics.example.com/v1/evaluate", "zasp.ai/red-team-credential-reference": "ref:red-team/demo_returns_chat", "zasp.ai/red-team-target-kinds": "agent_endpoint"}}, "spec": {"template": {"metadata": {"labels": {"app": "returns-chat-agent"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "agent", "image": "registry.example.com/northwind/returns-chat-agent:3.1.0", "env": [{"name": "ANTHROPIC_API_KEY"}]}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-agents-research-crew", "name": "research-crew", "namespace": "agents", "labels": {"app": "research-crew"}}, "spec": {"template": {"metadata": {"labels": {"app": "research-crew"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "crew", "image": "registry.example.com/northwind/crewai-research:0.80.0", "env": [{"name": "OPENAI_API_KEY"}, {"name": "TAVILY_API_KEY"}]}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-agents-support-triage-graph", "name": "support-triage-graph", "namespace": "agents", "labels": {"app": "support-triage-graph"}}, "spec": {"template": {"metadata": {"labels": {"app": "support-triage-graph"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "graph", "image": "langchain/langgraph-api:0.2.34", "env": [{"name": "LANGSMITH_TRACING"}, {"name": "TICKETS_MCP_URL", "value": "http://tickets-mcp.tools.svc:8080/sse"}, {"name": "FILES_MCP_URL", "value": "http://filesystem-mcp.tools.svc:8080/mcp"}]}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-agents-doc-search-helper", "name": "doc-search-helper", "namespace": "agents", "labels": {"app": "doc-search-helper"}}, "spec": {"template": {"metadata": {"labels": {"app": "doc-search-helper"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "helper", "image": "registry.example.com/northwind/doc-search-helper:1.2.0"}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-tools-tickets-mcp", "name": "tickets-mcp", "namespace": "tools", "labels": {"app": "tickets-mcp"}}, "spec": {"template": {"metadata": {"labels": {"app": "tickets-mcp"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "server", "image": "registry.example.com/northwind/tickets-mcp:1.4.2"}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-tools-filesystem-mcp", "name": "filesystem-mcp", "namespace": "tools", "labels": {"app": "filesystem-mcp"}}, "spec": {"template": {"metadata": {"labels": {"app": "filesystem-mcp"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "server", "image": "node:22-slim", "args": ["npx", "@modelcontextprotocol/server-filesystem", "/data"]}]}}}}
+        ],
+        "earlier_items": [
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-prod-checkout-assistant", "name": "checkout-assistant", "namespace": "prod", "labels": {"zasp.ai/entity-kind": "agent", "app": "checkout-assistant"}}, "spec": {"template": {"metadata": {"labels": {"app": "checkout-assistant"}}, "spec": {"serviceAccountName": "checkout-agent", "containers": [{"name": "agent", "image": "registry.example.com/northwind/checkout-assistant:2.4.0", "env": [{"name": "ANTHROPIC_API_KEY"}]}]}}}},
+          {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"uid": "d-staging-pricing-experiment-agent", "name": "pricing-experiment-agent", "namespace": "staging", "labels": {"zasp.ai/entity-kind": "agent", "app": "pricing-experiment-agent"}}, "spec": {"template": {"metadata": {"labels": {"app": "pricing-experiment-agent"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "agent", "image": "registry.example.com/northwind/pricing-experiment-agent:0.3.0", "env": [{"name": "OPENAI_API_KEY"}]}]}}}}
+        ]},
+      {"path": "/apis/apps/v1/statefulsets", "paging": "kubernetes", "envelope": {"apiVersion": "apps/v1", "kind": "StatefulSetList"}, "items": [
+        {"apiVersion": "apps/v1", "kind": "StatefulSet", "metadata": {"uid": "s-agents-memory-store-agent", "name": "memory-store-agent", "namespace": "agents", "labels": {"app": "memory-store-agent"}}, "spec": {"template": {"metadata": {"labels": {"app": "memory-store-agent"}}, "spec": {"serviceAccountName": "default", "containers": [{"name": "letta", "image": "letta/letta:0.6.7", "ports": [{"containerPort": 8283}]}]}}}}
+      ]},
+      {"path": "/apis/apps/v1/daemonsets", "paging": "kubernetes", "envelope": {"apiVersion": "apps/v1", "kind": "DaemonSetList"}, "items": []},
+      {"path": "/apis/batch/v1/jobs", "paging": "kubernetes", "envelope": {"apiVersion": "batch/v1", "kind": "JobList"}, "items": []},
+      {"path": "/apis/batch/v1/cronjobs", "paging": "kubernetes", "envelope": {"apiVersion": "batch/v1", "kind": "CronJobList"}, "items": [
+        {"apiVersion": "batch/v1", "kind": "CronJob", "metadata": {"uid": "c-agents-nightly-catalog-enricher", "name": "nightly-catalog-enricher", "namespace": "agents", "labels": {"app": "nightly-catalog-enricher"}}, "spec": {"jobTemplate": {"spec": {"template": {"spec": {"serviceAccountName": "default", "containers": [{"name": "enricher", "image": "registry.example.com/northwind/catalog-enricher:2.0.1", "env": [{"name": "GEMINI_API_KEY"}, {"name": "LANGCHAIN_PROJECT"}]}]}}}}}}
+      ]},
+      {"path": "/api/v1/services", "paging": "kubernetes", "envelope": {"apiVersion": "v1", "kind": "ServiceList"}, "items": [
+        {"metadata": {"name": "tickets-mcp", "namespace": "tools"}, "spec": {"selector": {"app": "tickets-mcp"}}},
+        {"metadata": {"name": "filesystem-mcp", "namespace": "tools"}, "spec": {"selector": {"app": "filesystem-mcp"}}},
+        {"metadata": {"name": "web-storefront", "namespace": "prod"}, "spec": {"selector": {"app": "web-storefront"}}}
+      ]},
+      {"path": "/api/v1/configmaps", "paging": "kubernetes", "envelope": {"apiVersion": "v1", "kind": "ConfigMapList"}, "items": [
+        {"metadata": {"name": "zasp-egress-node-a", "namespace": "zasp-edge"}, "data": {"observations.json": "{\"version\":\"egress-observations-v1\",\"node\":\"node-a\",\"generated_at\":\"{{hours_ago:1}}\",\"workloads\":[{\"namespace\":\"agents\",\"kind\":\"Deployment\",\"name\":\"doc-search-helper\",\"destinations\":[{\"token\":\"anthropic\",\"last_seen\":\"{{hours_ago:2}}\"}]},{\"namespace\":\"agents\",\"kind\":\"Deployment\",\"name\":\"research-crew\",\"destinations\":[{\"token\":\"openai\",\"last_seen\":\"{{hours_ago:1}}\"},{\"token\":\"tavily\",\"last_seen\":\"{{hours_ago:3}}\"}]}]}"}}
+      ]}
+    ]
+  }
+}

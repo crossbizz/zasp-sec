@@ -1,0 +1,45 @@
+{
+  "key": "okta-tenant",
+  "provider": "okta",
+  "name": "Demo: Okta tenant",
+  "subject": "northwind-robotics.okta.com",
+  "description": "AI applications people sign in to through the identity provider, with the users and groups assigned to them, one of them deactivated.",
+  "configuration": {
+    "issuer": "https://northwind-robotics.okta.com"
+  },
+  "http": {
+    "endpoint": "https://northwind-robotics.okta.com",
+    "routes": [
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/users", "paging": "okta", "items": [
+        {"id": "00u9demo0000000NW001", "status": "ACTIVE", "profile": {"login": "priya.raman@example.com", "displayName": "Priya Raman"}},
+        {"id": "00u9demo0000000NW002", "status": "ACTIVE", "profile": {"login": "marcus.oyelaran@example.com", "displayName": "Marcus Oyelaran"}},
+        {"id": "00u9demo0000000NW003", "status": "ACTIVE", "profile": {"login": "elena.sokolova@example.com", "displayName": "Elena Sokolova"}}
+      ]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/users/00u9demo0000000NW001/roles", "body": [{"id": "ra19demo000000NW001", "label": "Super administrator", "type": "SUPER_ADMIN", "status": "ACTIVE", "assignmentType": "USER"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/users/00u9demo0000000NW002/roles", "body": []},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/users/00u9demo0000000NW003/roles", "body": []},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/groups", "paging": "okta", "items": [
+        {"id": "00g9demo0000000NW001", "type": "OKTA_GROUP", "profile": {"name": "Engineering"}},
+        {"id": "00g9demo0000000NW002", "type": "OKTA_GROUP", "profile": {"name": "Customer Operations"}}
+      ]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/groups/00g9demo0000000NW001/users", "paging": "okta", "items": [{"id": "00u9demo0000000NW001"}, {"id": "00u9demo0000000NW002"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/groups/00g9demo0000000NW002/users", "paging": "okta", "items": [{"id": "00u9demo0000000NW003"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/groups/00g9demo0000000NW001/roles", "body": []},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/groups/00g9demo0000000NW002/roles", "body": []},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps", "paging": "okta", "items": [
+        {"id": "0oa9demo0000000NW001", "name": "chatgpt_saml", "label": "ChatGPT Enterprise", "status": "ACTIVE", "signOnMode": "SAML_2_0"},
+        {"id": "0oa9demo0000000NW002", "name": "cursor_saml", "label": "Cursor", "status": "ACTIVE", "signOnMode": "SAML_2_0"},
+        {"id": "0oa9demo0000000NW003", "name": "claude_saml", "label": "Claude", "status": "INACTIVE", "signOnMode": "SAML_2_0"},
+        {"id": "0oa9demo0000000NW004", "name": "workday", "label": "Workday", "status": "ACTIVE", "signOnMode": "SAML_2_0"}
+      ]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW001/users", "paging": "okta", "items": [{"id": "00u9demo0000000NW003", "scope": "USER"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW001/groups", "paging": "okta", "items": [{"id": "00g9demo0000000NW002"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW002/users", "paging": "okta", "items": [{"id": "00u9demo0000000NW001", "scope": "USER"}, {"id": "00u9demo0000000NW002", "scope": "USER"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW002/groups", "paging": "okta", "items": [{"id": "00g9demo0000000NW001"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW003/users", "paging": "okta", "items": []},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW003/groups", "paging": "okta", "items": []},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW004/users", "paging": "okta", "items": [{"id": "00u9demo0000000NW003", "scope": "USER"}]},
+      {"host": "northwind-robotics.okta.com", "path": "/api/v1/apps/0oa9demo0000000NW004/groups", "paging": "okta", "items": []}
+    ]
+  }
+}

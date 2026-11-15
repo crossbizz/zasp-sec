@@ -1,0 +1,22 @@
+[
+  {
+    "identity": "host:partner-tools-b3n8v5c2z6.gateway.bedrock-agentcore.us-east-1.amazonaws.com",
+    "status": "approved",
+    "note": "Reviewed by platform security: JWT authorizer, read-only supplier tools."
+  },
+  {
+    "identity": "workload:k8s-prod.northwind-robotics.example.com/prod-us-east/tools/tickets-mcp",
+    "status": "approved",
+    "note": "Internal ticketing server, owned by the support platform team."
+  },
+  {
+    "identity": "host:mcp.docs.northwind-robotics.example.com",
+    "status": "approved",
+    "note": "Company documentation search."
+  },
+  {
+    "identity": "host:mcp.unvetted-plugins.example.net",
+    "status": "blocked",
+    "note": "Unknown publisher. Blocked until a vendor review is complete."
+  }
+]

@@ -696,9 +696,78 @@ test("the front page and the administrator guide link only to files and headings
   }
 });
 
+// --- demo data ---------------------------------------------------------------------------
+
+test("local demo commands map to the stack script, pass their options on, and need an installed stack", () => {
+  const box = localBox();
+  try {
+    const early = box.run(["demo", "status"]);
+    assert.equal(early.status, 1);
+    assert.match(early.stderr, /nothing is installed yet; run \.\/zasp up/);
+    // The preview of a seeding needs no stack.
+    assert.equal(box.run(["--dry-run", "demo", "seed", "--email", "person@example.test"]).status, 0);
+    mkdirSync(box.state, { recursive: true });
+    writeFileSync(join(box.state, "up.done"), "");
+    assert.equal(box.run(["demo", "seed", "--email", "person@example.test", "--into-existing-organization", "pid_00000000-0000-4000-8000-000000000001"]).status, 0);
+    assert.equal(box.run(["demo", "status"]).status, 0);
+    assert.equal(box.run(["demo", "remove"]).status, 0);
+    assert.equal(box.run(["demo", "remove", "--yes"]).status, 0);
+    assert.equal(box.run(["--dry-run", "demo", "remove", "--yes"]).status, 0);
+    assert.deepEqual(box.stackCalls(), [
+      "stack demo seed --email person@example.test --dry-run",
+      "stack demo seed --email person@example.test --into-existing-organization pid_00000000-0000-4000-8000-000000000001",
+      "stack demo status",
+      // Without --yes the command itself lists what it would remove and refuses.
+      "stack demo remove",
+      "stack demo remove --yes",
+      "stack demo remove --yes --dry-run",
+    ]);
+    for (const wrong of [["demo"], ["demo", "reset"]]) {
+      const refused = box.run(wrong);
+      assert.equal(refused.status, 1);
+      assert.match(refused.stderr, /usage: zasp demo seed --email <address> \| status \| remove --yes \| help/);
+    }
+  } finally { box.done(); }
+});
+
+test("kubernetes and aws demo commands run the seeder of the API image as the operator", needsOpenssl, () => {
+  const kube = kubeBox({ helm: "", kubectl: kubectlStub });
+  try {
+    assert.equal(kube.run(["secrets", "init"]).status, 0);
+    const before = kube.calls().length;
+    assert.equal(kube.run(["demo", "seed", "--email", "person@example.test"]).status, 0);
+    assert.equal(kube.run(["demo", "remove", "--yes"]).status, 0);
+    const dry = kube.run(["--dry-run", "demo", "status"]);
+    assert.match(dry.stdout, /would run: kubectl -n zasp exec zasp-0 -c toolbox -- \/bin\/sh \/zasp\/config\/entrypoint\.sh demo status/);
+    assert.deepEqual(kube.calls().slice(before), [
+      "kubectl -n zasp exec zasp-0 -c toolbox -- /bin/sh /zasp/config/entrypoint.sh demo seed --email person@example.test",
+      "kubectl -n zasp exec zasp-0 -c toolbox -- /bin/sh /zasp/config/entrypoint.sh demo remove --yes",
+    ]);
+  } finally { kube.done(); }
+  const aws = awsBox({ docker: "" }, "ZASP_AWS_API_IMAGE=registry.example.test/zasp/api@sha256:" + "0".repeat(64) + "\n");
+  try {
+    const dry = aws.run(["--dry-run", "demo", "seed", "--email", "person@example.test"]);
+    assert.equal(dry.status, 0, output(dry));
+    assert.match(dry.stdout, /would run: docker run --rm --entrypoint \/app\/zasp-demo --env-file <private file> \S+ seed --email person@example\.test/);
+    // Without the operator's database access nothing is started.
+    const refused = aws.run(["demo", "status"]);
+    assert.equal(refused.status, 1);
+    assert.equal(aws.calls().some(line => line.startsWith("docker run")), false);
+  } finally { aws.done(); }
+});
+
+test("the API image carries the demo seeder next to the bootstrap command", () => {
+  const dockerfile = readFileSync(join(root, "deploy", "production", "api.Dockerfile"), "utf8");
+  assert.match(dockerfile, /-o \/out\/zasp-demo \.\/cmd\/zasp-demo/);
+  assert.match(dockerfile, /COPY --from=build .*\/out\/zasp-bootstrap \/out\/zasp-demo /);
+  for (const script of [stack, join(chart, "files", "entrypoint.sh")]) {
+    assert.match(readFileSync(script, "utf8"), /^ {2}demo\) shift; cmd_demo "\$@" ;;$/m, script);
+  }
+});
+
 test("the guides name only commands the entry point has", () => {
   const usage = spawnSync(bash, [zasp, "--help"], { encoding: "utf8" }).stdout;
-  const known = new Set(["doctor", "config", "secrets", "install", "bootstrap-admin", "up", "start", "stop", "status", "logs", "upgrade", "backup", "restore", "uninstall"]);
+  const known = new Set(["doctor", "config", "secrets", "install", "bootstrap-admin", "up", "demo", "start", "stop", "status", "logs", "upgrade", "backup", "restore", "uninstall"]);
   for (const command of known) assert.match(usage, new RegExp(`^  ${command}\\b`, "m"), command);
   for (const page of [join(root, "README.md"), join(root, "docs", "getting-started", "administrator.md")]) {
     for (const match of readFileSync(page, "utf8").matchAll(/\.\/zasp(?: --[a-z-]+(?: (?:local|kubernetes|aws))?)* ([a-z-]+)/g)) {

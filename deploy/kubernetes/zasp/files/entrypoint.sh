@@ -190,6 +190,14 @@ cmd_bootstrap() {
   echo "$result"
 }
 
+# Seeds, shows or removes the demo data. Runs in the API image, as the
+# migration operator, and writes only to an Environment of its own.
+cmd_demo() {
+  [ "$#" -ge 1 ] || fail "usage: entrypoint.sh demo seed --email <address> | status | remove --yes"
+  load_environment
+  ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" /app/zasp-demo "$@" || fail "the demo command was refused (see the message above)"
+}
+
 # Creates the authorization store and publishes the product's model, once.
 # Runs in the LocalStack image, which has curl.
 cmd_fga_model() {
@@ -419,6 +427,7 @@ case "${1:-}" in
   prepare) cmd_prepare ;;
   schema) cmd_schema ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
+  demo) shift; cmd_demo "$@" ;;
   fga-model) cmd_fga_model ;;
   graph-user) cmd_graph_user ;;
   search-init) cmd_search_init ;;

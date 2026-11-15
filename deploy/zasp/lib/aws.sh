@@ -322,6 +322,43 @@ aws_secrets_init() {
 # Creates the first organization (runbook step 10): runs zasp-bootstrap from
 # the API image, stores the provider's organization reference, and lets the
 # schema job register the identity verifiers.
+# Seeds, shows or removes the demo data: a one-off container of the API
+# image with the operator's database access, like bootstrap-admin. It reads
+# and writes the database and, for a seeding, the identity provider; it
+# changes no setting of the deployment and touches no cluster resource.
+aws_demo() {
+  local image staging status=0
+  image="$(aws_api_image)"
+  if [ "${ZASP_DRY_RUN:-0}" = "1" ]; then
+    printf 'would run: docker run --rm --entrypoint /app/zasp-demo --env-file <private file> %s' "${image:-<api image>}"
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+  aws_require_file ZASP_AWS_OPERATOR_DSN_FILE "the DSN of the zasp_operator role"
+  [ -n "${ZASP_AWS_HOST:-}" ] || die "set ZASP_AWS_HOST in $ZASP_CONFIG_FILE"
+  [ -n "$image" ] || die "the API image is unknown: run './zasp install images' or set ZASP_AWS_API_IMAGE"
+  require_tool docker
+  if [ "$1" = seed ]; then
+    [ -n "${STYTCH_PROJECT_ID:-}" ] && [ -n "${STYTCH_SECRET:-}" ] || die "set STYTCH_PROJECT_ID and STYTCH_SECRET in $ZASP_CONFIG_FILE"
+  fi
+  staging="$(mktemp -d)" || die "could not create a temporary directory"
+  chmod 700 "$staging"
+  (
+    umask 077
+    {
+      printf 'ZASP_POSTGRES_DSN=%s\n' "$(cat "$ZASP_AWS_OPERATOR_DSN_FILE")"
+      printf 'ZASP_PUBLIC_ORIGIN=https://%s\nZASP_DEPLOYMENT_MODE=saas\nZASP_ORGANIZATION_ID=\n' "$ZASP_AWS_HOST"
+      printf 'ZASP_STYTCH_BASE_URL=%s\nZASP_STYTCH_PROJECT_ID=%s\nZASP_STYTCH_SECRET=%s\n' "${ZASP_STYTCH_BASE_URL:-https://api.stytch.com}" "${STYTCH_PROJECT_ID:-}" "${STYTCH_SECRET:-}"
+      printf 'ZASP_STYTCH_ORGANIZATION_ID=%s\n' "${ZASP_STYTCH_ORGANIZATION_ID:-}"
+      printf 'ZASP_OPENFGA_STORE_ID=%s\nZASP_OPENFGA_MODEL_ID=%s\n' "${ZASP_AWS_OPENFGA_STORE_ID:-}" "${ZASP_AWS_OPENFGA_MODEL_ID:-}"
+    } > "$staging/env"
+  )
+  docker run --rm --entrypoint /app/zasp-demo --env-file "$staging/env" "$image" "$@" || status=$?
+  rm -rf "$staging"
+  [ "$status" -eq 0 ] || die "the demo command did not finish (see the message above)"
+}
+
 aws_bootstrap_admin() {
   [ "$#" -eq 3 ] || die "usage: zasp bootstrap-admin <organization name> <email domain> <administrator email>"
   aws_require_file ZASP_AWS_OPERATOR_DSN_FILE "the DSN of the zasp_operator role"

@@ -299,7 +299,7 @@ load_environment() {
 
 build_binaries() {
   mkdir -p "$BIN"
-  go build -C "$ROOT/services/platform" -o "$BIN/" ./agentsec-api ./agentsec-worker ./agentsec-migrate ./cmd/zasp-bootstrap ./cmd/zasp-authorization-reconcile
+  go build -C "$ROOT/services/platform" -o "$BIN/" ./agentsec-api ./agentsec-worker ./agentsec-migrate ./cmd/zasp-bootstrap ./cmd/zasp-demo ./cmd/zasp-authorization-reconcile
 }
 
 # Starts PostgreSQL from the installed programs, with the same settings the
@@ -648,6 +648,35 @@ cmd_bootstrap() {
   # One projector pass applies the new Organization's permissions.
   ZASP_POSTGRES_DSN="$(dsn zasp_svc_outbox)" "$BIN/zasp-authorization-reconcile" -mode reconcile -organization "$organization" -limit 1 -timeout 1m >/dev/null || fail "permission projection was not applied"
   echo "$result"
+}
+
+# Seeds, shows or removes the demo data (docs/getting-started/administrator.md,
+# "Demo data"). The command runs as the migration operator, like bootstrap,
+# and writes only to an Environment of its own.
+cmd_demo() {
+  [ "$#" -ge 1 ] || fail "usage: $0 demo seed --email <address> | status | remove --yes"
+  local output organization
+  # A stack built before the command existed gets it on first use.
+  mkdir -p "$BIN"
+  [ -x "$BIN/zasp-demo" ] || go build -C "$ROOT/services/platform" -o "$BIN/" ./cmd/zasp-demo || fail "zasp-demo was not built"
+  # The help text and the preview of a seeding need no stack.
+  case " $* " in
+    " help "|" seed "*" --dry-run "*) "$BIN/zasp-demo" "$@"; return ;;
+  esac
+  claim_machine
+  require_provider
+  load_environment
+  output="$(ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/zasp-demo" "$@")" || { [ -z "$output" ] || echo "$output"; fail "the demo command was refused (see the message above)"; }
+  echo "$output"
+  case "$1" in
+    seed|remove)
+      # One projector pass per Organization applies the changed permissions.
+      for organization in $(grep -oE 'organization "[^"]*" \(pid_[0-9a-f-]+\)' <<<"$output" | grep -oE 'pid_[0-9a-f-]+' | sort -u); do
+        ZASP_POSTGRES_DSN="$(dsn zasp_svc_outbox)" "$BIN/zasp-authorization-reconcile" -mode reconcile -organization "$organization" -limit 1 -timeout 1m >/dev/null ||
+          echo "real-stack: the permission projection of $organization was not applied yet; it is applied by the next projector pass" >&2
+      done
+      ;;
+  esac
 }
 
 cmd_api() {
@@ -1510,6 +1539,7 @@ case "${1:-}" in
   dump) shift; cmd_dump "$@" ;;
   load) shift; cmd_load "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
+  demo) shift; cmd_demo "$@" ;;
   api) shift; cmd_api "$@" ;;
   worker) shift; cmd_worker "$@" ;;
   security-workers) shift; cmd_security_workers "$@" ;;

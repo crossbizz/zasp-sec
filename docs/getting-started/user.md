@@ -91,6 +91,14 @@ Zasp has nothing to show until one integration has synced. Start with the
 source where your agents are. No source is required and none comes first: an
 Environment can hold one integration or many, of any mix of providers.
 
+No source to connect yet? Ask your operator to seed demo data
+(`./zasp demo seed --email <your address>`, see the
+[administrator guide](administrator.md#demo-data)). You then get an
+environment of its own with a fictional company's agents, findings, MCP
+servers and attack paths. Its integrations are named `Demo: …`. It is sample
+data: nothing in it comes from your accounts, and it can be removed at any
+time.
+
 All integrations are on the **Integrations** page:
 
 - **Connector catalog** lists what this deployment can connect.

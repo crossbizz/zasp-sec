@@ -813,3 +813,12 @@ func closeInstallationResponse(response *http.Response) {
 func rejectInstallationRedirect(*http.Request, []*http.Request) error {
 	return http.ErrUseLastResponse
 }
+
+// NewInstallationCollectionAPIWithTransport builds the collector over a
+// transport the caller supplies. The requests, the paging and the
+// normalization are the collector's own; only the network is the caller's.
+// It exists for callers that answer the collector in process (the demo
+// dataset): a deployment uses NewInstallationCollectionAPI.
+func NewInstallationCollectionAPIWithTransport(transport http.RoundTripper, timeout time.Duration) (*InstallationCollectionAPI, error) {
+	return newInstallationCollectionAPI(transport, timeout)
+}
