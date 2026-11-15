@@ -138,7 +138,7 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
   return value as InventorySummary;
 }
 
-const INVENTORY_LOCATION_KINDS = ["aws_account", "gcp_project", "gcp_scope", "github_repository", "github_organization", "kubernetes_namespace", "kubernetes_cluster", "azure_subscription", "power_platform_environment", "microsoft_tenant", "okta_tenant", "salesforce_org", "saas_workspace"];
+const INVENTORY_LOCATION_KINDS = ["aws_account", "gcp_project", "gcp_scope", "github_repository", "github_organization", "kubernetes_namespace", "kubernetes_cluster", "microsoft_subscription", "power_platform_environment", "microsoft_tenant", "okta_tenant", "salesforce_org", "saas_workspace"];
 const INVENTORY_CREATOR_SOURCES = ["annotation", "audit_log", "cloudtrail", "codeowners", "label", "provider_record"];
 
 // Where the object lives, which integration found it and, for an agent, who

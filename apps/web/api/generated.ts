@@ -4295,7 +4295,7 @@ export type components = {
                 /** @description The identifier the provider uses, for example an AWS account id, a project id, owner/repository or cluster/namespace. */
                 readonly id: string;
                 /** @enum {string} */
-                readonly kind: "aws_account" | "gcp_project" | "gcp_scope" | "github_repository" | "github_organization" | "kubernetes_namespace" | "kubernetes_cluster" | "azure_subscription" | "power_platform_environment" | "microsoft_tenant" | "okta_tenant" | "salesforce_org" | "saas_workspace";
+                readonly kind: "aws_account" | "gcp_project" | "gcp_scope" | "github_repository" | "github_organization" | "kubernetes_namespace" | "kubernetes_cluster" | "microsoft_subscription" | "power_platform_environment" | "microsoft_tenant" | "okta_tenant" | "salesforce_org" | "saas_workspace";
                 /** @description What to show. The provider's name for a Microsoft tenant, a Salesforce org or a SaaS workspace; the identifier everywhere else. */
                 readonly label: string;
             };

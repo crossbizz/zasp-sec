@@ -58,7 +58,7 @@ type InventorySuggestion struct {
 var (
 	inventoryLocationKinds = map[string]bool{
 		"aws_account": true, "gcp_project": true, "gcp_scope": true, "github_repository": true, "github_organization": true,
-		"kubernetes_namespace": true, "kubernetes_cluster": true, "azure_subscription": true, "power_platform_environment": true,
+		"kubernetes_namespace": true, "kubernetes_cluster": true, "microsoft_subscription": true, "power_platform_environment": true,
 		"microsoft_tenant": true, "okta_tenant": true, "salesforce_org": true, "saas_workspace": true,
 	}
 	inventoryCreatorSources  = map[string]bool{"annotation": true, "audit_log": true, "cloudtrail": true, "codeowners": true, "label": true, "provider_record": true}

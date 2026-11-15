@@ -7,7 +7,7 @@ type CreatorSource = NonNullable<Attribution["creator"]>["source"];
 
 const locationKindLabels: Readonly<Record<Location["kind"], string>> = {
   aws_account: "AWS account", gcp_project: "Google Cloud project", gcp_scope: "Google Cloud scope", github_repository: "GitHub repository", github_organization: "GitHub organization",
-  kubernetes_namespace: "Kubernetes namespace", kubernetes_cluster: "Kubernetes cluster", azure_subscription: "Azure subscription", power_platform_environment: "Power Platform environment",
+  kubernetes_namespace: "Kubernetes namespace", kubernetes_cluster: "Kubernetes cluster", microsoft_subscription: "Azure subscription", power_platform_environment: "Power Platform environment",
   microsoft_tenant: "Microsoft tenant", okta_tenant: "Okta tenant", salesforce_org: "Salesforce org", saas_workspace: "Workspace",
 };
 

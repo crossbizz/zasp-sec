@@ -8686,7 +8686,7 @@ BEGIN
     (5,'github_organization',CASE WHEN observed.provider='github' THEN observed.fields->>'owner' END),
     (6,'kubernetes_namespace',CASE WHEN observed.provider='kubernetes' AND observed.fields->>'namespace'<>'' THEN (observed.fields->>'cluster')||'/'||(observed.fields->>'namespace') END),
     (7,'kubernetes_cluster',CASE WHEN observed.provider='kubernetes' THEN observed.fields->>'cluster' END),
-    (8,'azure_subscription',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'subscription' END),
+    (8,'microsoft_subscription',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'subscription' END),
     (9,'power_platform_environment',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'environment' END),
     (10,'microsoft_tenant',CASE WHEN observed.provider='microsoft' THEN observed.fields->>'tenant' END),
     (11,'okta_tenant',CASE WHEN observed.provider='okta' THEN observed.fields->>'tenant' END),
