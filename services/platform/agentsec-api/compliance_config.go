@@ -8,6 +8,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/awsclient"
 	platformconfig "github.com/zasp-ai/zasp-sec/services/platform/config"
 	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"net"
 	"net/http"
 	"regexp"
@@ -47,7 +48,7 @@ func validComplianceAPIConfiguration(c RuntimeConfig) bool {
 	if p == nil {
 		return true
 	}
-	if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`).MatchString(p.Bucket) || !regexp.MustCompile(`^[0-9]{12}$`).MatchString(p.Owner) || !regexp.MustCompile(`^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(p.KMSKey) || !connectorRolePattern.MatchString(p.ReaderRoleARN) || p.ReaderRoleARN == c.ConnectorRoleARN || c.AuditExports != nil && p.ReaderRoleARN == c.AuditExports.ReaderRoleARN || p.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
+	if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`).MatchString(p.Bucket) || !regexp.MustCompile(`^[0-9]{12}$`).MatchString(p.Owner) || !regexp.MustCompile(`^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(p.KMSKey) || !connectorRolePattern.MatchString(p.ReaderRoleARN) || p.ReaderRoleARN == c.ConnectorRoleARN || c.AuditExports != nil && p.ReaderRoleARN == c.AuditExports.ReaderRoleARN || p.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") {
 		return false
 	}
 	kms := strings.Split(p.KMSKey, ":")

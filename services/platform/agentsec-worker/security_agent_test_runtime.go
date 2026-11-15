@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -141,7 +142,7 @@ func (r *existingTestProductionRuntime) Close() error {
 
 func validExistingTestRuntimeAuthority(c workerRuntimeConfig) bool {
 	role := discoveryAWSRolePattern.FindStringSubmatch(c.TestReconcilerRoleARN)
-	if len(role) != 2 || role[1] != c.EvidenceOwner || !workerRegionPattern.MatchString(c.AWSRegion) || !workerAccountPattern.MatchString(c.EvidenceOwner) || !workerBucketPattern.MatchString(c.EvidenceBucket) || !workerKMSPattern.MatchString(c.EvidenceKMSKeyARN) || !strings.HasPrefix(c.EvidenceKMSKeyARN, "arn:aws:kms:"+c.AWSRegion+":"+c.EvidenceOwner+":key/") || c.TestReconcilerTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || c.LeaseDuration != time.Minute || c.BatchSize != 1 {
+	if len(role) != 2 || role[1] != c.EvidenceOwner || !workerRegionPattern.MatchString(c.AWSRegion) || !workerAccountPattern.MatchString(c.EvidenceOwner) || !workerBucketPattern.MatchString(c.EvidenceBucket) || !workerKMSPattern.MatchString(c.EvidenceKMSKeyARN) || !strings.HasPrefix(c.EvidenceKMSKeyARN, "arn:aws:kms:"+c.AWSRegion+":"+c.EvidenceOwner+":key/") || c.TestReconcilerTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || c.LeaseDuration != time.Minute || c.BatchSize != 1 {
 		return false
 	}
 	// This mode has a closed configuration surface. New shared config fields

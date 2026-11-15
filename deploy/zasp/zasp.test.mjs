@@ -170,10 +170,17 @@ test("local doctor passes when the prerequisites are present, and never prints a
     writeFileSync(box.hosts, "127.0.0.1 localhost\n127.0.0.1   zasp.local-stack.test # zasp\n");
     const result = box.run(["doctor"]);
     assert.equal(output(result).includes(secret), false);
-    // The fixed /var/run paths are writable only as root or once created;
-    // they are the one thing a test cannot provide.
-    const missing = result.stdout.split("\n").filter(line => line.includes("MISSING") && !line.includes("/var/run/"));
+    // The key files live in the state directory: nothing needs root.
+    const missing = result.stdout.split("\n").filter(line => line.includes("MISSING"));
     assert.deepEqual(missing, [], result.stdout);
+    assert.match(result.stdout, /ok {7}.*\/state\/runtime is writable \(key files and analyzers; no root needed\)/);
+    assert.equal(result.stdout.includes("sudo mkdir"), false, result.stdout);
+    // 'system' asks for the paths a pod has; where those cannot be written,
+    // doctor says how to create them and how to go back.
+    const system = box.run(["doctor"], { ZASP_RUNTIME_DIR: "system" });
+    assert.equal(system.stdout.includes("/state/runtime"), false, system.stdout);
+    for (const line of system.stdout.split("\n").filter(line => line.includes("MISSING"))) assert.match(line, /\/var\/run\//);
+    assert.match(box.run(["doctor"], { ZASP_RUNTIME_DIR: "relative" }).stdout, /MISSING.*ZASP_RUNTIME_DIR must be an absolute directory or 'system'/);
     for (const expected of [/ok {7}docker \(/, /ok {7}the Docker daemon answers/, /ok {7}docker compose/, /ok {7}zasp\.local-stack\.test resolves to this machine/,
       /ok {7}STYTCH_SECRET is set/, /ok {7}public origin https:\/\/zasp\.local-stack\.test:8443/]) assert.match(result.stdout, expected);
   } finally { box.done(); }
@@ -222,14 +229,7 @@ function localBox(config = "") {
   const run = (args, extra = {}) => box.run(args, { ZASP_LOCAL_STACK_SCRIPT: join(box.bin, "stack"), ...extra });
   return { ...box, run, stackCalls: () => box.calls().filter(line => line.startsWith("stack ")) };
 }
-// 'install' runs doctor first, and doctor needs the fixed /var/run paths.
-const fixedPathsUsable = (() => {
-  const box = sandbox();
-  try { return !/MISSING.*\/var\/run\//.test(box.run(["doctor"]).stdout); } finally { box.done(); }
-})();
-const needsFixedPaths = fixedPathsUsable ? {} : { skip: "the fixed /var/run/secrets paths are not writable by this user (./zasp doctor explains how to create them)" };
-
-test("up installs, creates the first administrator from the configuration and starts, in that order", needsFixedPaths, () => {
+test("up installs, creates the first administrator from the configuration and starts, in that order", () => {
   const box = localBox("ZASP_ORGANIZATION_NAME=Example Security\nZASP_ORGANIZATION_DOMAIN=example.test\nZASP_ADMIN_EMAIL=admin@example.test\n");
   try {
     const result = box.run(["up"]);
@@ -243,7 +243,7 @@ test("up installs, creates the first administrator from the configuration and st
   } finally { box.done(); }
 });
 
-test("up without the first administrator's settings stops after the schema and says what to run", needsFixedPaths, () => {
+test("up without the first administrator's settings stops after the schema and says what to run", () => {
   const box = localBox();
   try {
     const result = box.run(["up"]);
@@ -497,12 +497,22 @@ test("the chart renders one pod with every dependency ordered before the product
     assert.equal(rendered.status, 0, rendered.stderr);
     assert.deepEqual(rendered.documents.map(document => document.kind).sort(), ["ConfigMap", "ConfigMap", "NetworkPolicy", "Secret", "Service", "StatefulSet"]);
     const spec = pod(rendered.documents);
-    assert.deepEqual(spec.initContainers.map(container => container.name), ["volume-permissions", "postgres", "database-init", "prepare", "openfga-migrate", "openfga",
+    assert.deepEqual(spec.initContainers.map(container => container.name), ["postgres", "database-init", "prepare", "openfga-migrate", "openfga",
       "temporal", "localstack", "opensearch", "neo4j", "fga-model", "graph-user", "schema", "search-init", "graph-init"]);
     assert.deepEqual(spec.initContainers.filter(container => container.restartPolicy === "Always").map(container => container.name),
       ["postgres", "openfga", "temporal", "localstack", "opensearch", "neo4j"]);
     assert.deepEqual(spec.containers.map(container => container.name), ["api", "worker-scheduler", "worker-discovery", "worker-outbox", "worker-projection-graph",
       "worker-projection-search", "worker-projection-risk", "worker-security-agent-action", "projector", "front", "toolbox"]);
+    // Nothing runs as root unless the root volume step is asked for.
+    const everyContainer = podSpec => [...podSpec.initContainers, ...podSpec.containers];
+    assert.deepEqual(everyContainer(spec).filter(container => container.securityContext?.runAsUser === 0).map(container => container.name), []);
+    assert.equal(spec.securityContext.fsGroup, 65532);
+    const database = spec.initContainers.find(container => container.name === "postgres");
+    assert.equal(database.securityContext.runAsNonRoot, true);
+    assert.equal(database.securityContext.runAsUser, 999);
+    const rooted = pod(render(box, ["--set", "volumePermissions.enabled=true"]).documents);
+    assert.equal(rooted.initContainers[0].name, "volume-permissions");
+    assert.deepEqual(everyContainer(rooted).filter(container => container.securityContext?.runAsUser === 0).map(container => container.name), ["volume-permissions"]);
     assert.equal(spec.automountServiceAccountToken, false);
     // Only the front is reachable from outside the pod.
     const policy = rendered.documents.find(document => document.kind === "NetworkPolicy");
@@ -551,7 +561,8 @@ test("the chart's switches: planner, maintenance mode, external database, no per
     assert.deepEqual(planner.initContainers.map(container => container.name).filter(name => name.startsWith("selector")), ["selector-count", "selector-configure"]);
 
     const maintenance = pod(render(box, ["--set", "product.enabled=false"]).documents);
-    assert.deepEqual(maintenance.initContainers.map(container => container.name), ["volume-permissions", "postgres", "database-init"]);
+    assert.deepEqual(maintenance.initContainers.map(container => container.name), ["postgres", "database-init"]);
+
     assert.deepEqual(maintenance.containers.map(container => container.name), ["toolbox"]);
 
     const external = render(box, ["--set", "database.external.enabled=true", "--set", "database.external.host=db.example.internal:5432",

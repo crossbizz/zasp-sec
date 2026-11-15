@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"net"
 	"net/http"
 	"net/url"
@@ -402,7 +403,7 @@ func validAuditExportWorkerConfiguration(config workerRuntimeConfig) bool {
 		return config.AuditExports == nil
 	}
 	exports := config.AuditExports
-	if exports == nil || config.LeaseDuration < 60*time.Second || config.LeaseDuration > 300*time.Second || config.BatchSize < 1 || config.BatchSize > 10 || config.ProviderTimeout < time.Second || config.ProviderTimeout > 30*time.Second || exports.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !workerRegionPattern.MatchString(config.AWSRegion) {
+	if exports == nil || config.LeaseDuration < 60*time.Second || config.LeaseDuration > 300*time.Second || config.BatchSize < 1 || config.BatchSize > 10 || config.ProviderTimeout < time.Second || config.ProviderTimeout > 30*time.Second || exports.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !workerRegionPattern.MatchString(config.AWSRegion) {
 		return false
 	}
 	// Registered LOGIN identity is deliberately distinct from the fixed NOLOGIN

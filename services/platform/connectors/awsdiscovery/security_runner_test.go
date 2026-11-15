@@ -64,7 +64,7 @@ func TestSecurityRunnerUsesExactProwlerProcessAuthorityAndClearsInput(t *testing
 	if result.Mode != SecurityModeProwlerAWS || result.SourceDigest != request.SourceDigest || string(result.Result) != `{"findings":[],"version":"5.39.1"}` {
 		t.Fatalf("result = %#v", result)
 	}
-	if len(process.specs) != 1 || process.specs[0].Executable != prowlerSecurityExecutable || len(process.specs[0].Arguments) != 1 || process.specs[0].Arguments[0] != "prowler-aws-v1" {
+	if len(process.specs) != 1 || process.specs[0].Executable != prowlerSecurityExecutable() || len(process.specs[0].Arguments) != 1 || process.specs[0].Arguments[0] != "prowler-aws-v1" {
 		t.Fatalf("process specs = %#v", process.specs)
 	}
 	if !bytes.Equal(credential, []byte(`{"access_key_id":"ASIAABCDEFGHIJKLMNOP","expires_at":"2026-08-20T00:15:00Z","secret_access_key":"ssssssssssssssssssssssssssssssssssssssss","session_token":"tttttttttttttttttttttttttttttttt"}`)) {
@@ -97,7 +97,7 @@ func TestSecurityRunnerUsesCredentialFreeCartographyProcess(t *testing.T) {
 	if err != nil || result.Mode != SecurityModeCartographyAWS {
 		t.Fatalf("Collect() = %#v, %v", result, err)
 	}
-	if len(process.specs) != 1 || process.specs[0].Executable != cartographySecurityExecutable || process.specs[0].Arguments[0] != "cartography-aws-v1" {
+	if len(process.specs) != 1 || process.specs[0].Executable != cartographySecurityExecutable() || process.specs[0].Arguments[0] != "cartography-aws-v1" {
 		t.Fatalf("process specs = %#v", process.specs)
 	}
 }

@@ -11,6 +11,24 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 STATE="${ZASP_REAL_STACK_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/zasp-real-stack}"
 BIN="$STATE/bin"
 SECRETS="$STATE/secrets"
+# Where the fixed paths the programs read (key files under /var/run, the
+# analyzers under /opt/zasp) start from. By default a private directory in the
+# state directory, so nothing here needs root. 'system' uses the paths as a
+# pod has them: those directories must then exist and be writable, which
+# takes root once.
+case "${ZASP_REAL_STACK_RUNTIME_ROOT:-$STATE/runtime}" in
+  system) RUNTIME_ROOT="" ;;
+  /*) RUNTIME_ROOT="${ZASP_REAL_STACK_RUNTIME_ROOT:-$STATE/runtime}"; RUNTIME_ROOT="${RUNTIME_ROOT%/}" ;;
+  *) echo "real-stack: ZASP_REAL_STACK_RUNTIME_ROOT must be an absolute directory or 'system'" >&2; exit 1 ;;
+esac
+unset ZASP_LOCAL_RUNTIME_ROOT
+[ -z "$RUNTIME_ROOT" ] || export ZASP_LOCAL_RUNTIME_ROOT="$RUNTIME_ROOT"
+# The programs accept the runtime directory only when it is closed to other
+# users.
+runtime_root_ready() {
+  [ -n "$RUNTIME_ROOT" ] || return 0
+  mkdir -p "$RUNTIME_ROOT" && chmod 0700 "$RUNTIME_ROOT" || { echo "real-stack: could not create $RUNTIME_ROOT" >&2; exit 1; }
+}
 COMPOSE="$ROOT/deploy/local/temporal-openfga.compose.yaml"
 # Background processes started by 'start': one pid file and one log each.
 RUN="$STATE/run"
@@ -53,7 +71,7 @@ NEO4J_WORKER_USER="zasp_graph_worker"
 # only satisfies the setting; see README.md.
 NEO4J_WORKER_ROLE="zasp_graph_writer"
 PROJECTION_SECRET_PREFIX="zasp-real-stack/projection"
-TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
+TOKEN_FILE="$RUNTIME_ROOT/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
 FGA_URL="http://127.0.0.1:8088"
 FGA_TOKEN="${ZASP_LOCAL_OPENFGA_TOKEN:-local-openfga-smoke-only}"
 # The public origin must be HTTPS and must not be localhost or an IP address:
@@ -460,8 +478,9 @@ start_local_cloud() {
 # The workload identity token is read from a fixed path and must look like a
 # token. LocalStack accepts any; this one is not a credential.
 write_identity_token() {
+  runtime_root_ready
   [ -s "$TOKEN_FILE" ] && [ "$(wc -c < "$TOKEN_FILE")" -ge 64 ] && return 0
-  mkdir -p "$(dirname "$TOKEN_FILE")" 2>/dev/null || fail "create $TOKEN_FILE (needs root) with at least 64 token characters"
+  mkdir -p "$(dirname "$TOKEN_FILE")" 2>/dev/null || fail "create $TOKEN_FILE with at least 64 token characters"
   printf '%s.%s.%s' "$(printf '{"alg":"none","typ":"JWT"}' | b64url)" \
     "$(printf '{"iss":"zasp-real-stack","sub":"system:serviceaccount:zasp:local","aud":"sts.amazonaws.com"}' | b64url)" \
     "bG9jYWwtZGV2ZWxvcG1lbnQtb25seQ" > "$TOKEN_FILE" || fail "write $TOKEN_FILE"
@@ -649,7 +668,7 @@ cmd_api() {
   export ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN="$(dsn zasp_svc_approval_maintenance)"
   export ZASP_STYTCH_AUTHORIZE_URL="$ZASP_STYTCH_BASE_URL/v1/b2b/public/oauth/${ZASP_REAL_STACK_OAUTH_PROVIDER:-google}/start"
   export ZASP_CONNECTOR_AWS_REGION=us-east-1 ZASP_CONNECTOR_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-api-connectors
-  export ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  export ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE="$RUNTIME_ROOT/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
   export ZASP_CONNECTOR_KMS_KEY_ARN=arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111
   export ZASP_CONNECTOR_SECRET_PREFIX=zasp-real-stack/connectors/oauth
   export ZASP_POLICY_HISTORY_ENDPOINT="$SEARCH_URL" ZASP_POLICY_HISTORY_INDEX=zasp-runtime-events-v1
@@ -839,7 +858,7 @@ cmd_worker() {
       ;;
     discovery)
       provision_local_cloud
-      [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ] ||
+      [ -x "$RUNTIME_ROOT/opt/zasp/security/cartography/bin/security-worker" ] && [ -x "$RUNTIME_ROOT/opt/zasp/security/prowler/bin/security-worker" ] ||
         echo "real-stack: the AWS collector needs the security analyzers; run '$0 security-workers' (an AWS discovery run fails without them)" >&2
       export ZASP_LOCAL_HEALTH_PORT=8082
       set -a; . "$STATE/cloud.env"; set +a
@@ -885,10 +904,10 @@ cmd_worker() {
       export ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN="$(dsn zasp_svc_temporal_executor)" ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN="$(dsn zasp_svc_temporal_compensation)"
       export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
       export ZASP_SECURITY_AGENT_PLANNER_ENDPOINT=https://openrouter.ai/api/v1/chat/completions ZASP_SECURITY_AGENT_PLANNER_MODEL=openai/gpt-5-mini
-      export ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE=/var/run/secrets/zasp-security-agent/openrouter-api-token
+      export ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE="$RUNTIME_ROOT/var/run/secrets/zasp-security-agent/openrouter-api-token"
       export ZASP_SECURITY_AGENT_PLANNER_TIMEOUT=20s ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS=2048 ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION=security-agent-planner-v1
-      export ZASP_GATEWAY_SIGNING_KEY_ID=real-stack-gateway ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE=/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key
-      export ZASP_GATEWAY_POLICY_KEYS_FILE=/var/run/zasp-policy-verifier/policy-keys.json
+      export ZASP_GATEWAY_SIGNING_KEY_ID=real-stack-gateway ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE="$RUNTIME_ROOT/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key"
+      export ZASP_GATEWAY_POLICY_KEYS_FILE="$RUNTIME_ROOT/var/run/zasp-policy-verifier/policy-keys.json"
       export ZASP_EVIDENCE_BUCKET=zasp-real-stack-evidence ZASP_EVIDENCE_BUCKET_OWNER=000000000000
       export ZASP_RED_TEAM_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-discovery ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE"
       # The existing-test runner (Node and promptfoo at fixed paths) and its
@@ -907,7 +926,7 @@ cmd_worker() {
       provision_security_agent_secrets
       export ZASP_LOCAL_HEALTH_PORT=8085
       export ZASP_POSTGRES_DSN="$(dsn zasp_svc_security_agent_action)" ZASP_DATABASE_AUTHORITY=zasp_security_agent_action_worker
-      export ZASP_GATEWAY_SIGNING_KEY_ID=real-stack-gateway ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE=/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key
+      export ZASP_GATEWAY_SIGNING_KEY_ID=real-stack-gateway ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE="$RUNTIME_ROOT/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key"
       ;;
     # The three projection workers turn a completed discovery snapshot into
     # the graph, the search index, and the findings and attack paths.
@@ -976,31 +995,33 @@ provision_security_agent_secrets() {
       mv "$SECRETS/red-team-adapter-ca.pem.partial" "$SECRETS/red-team-adapter-ca.pem" && mv "$SECRETS/red-team-adapter.token.partial" "$SECRETS/red-team-adapter.token"
     ) || fail "red-team adapter credentials were not generated"
   fi
-  install -d -m 0700 /var/run/secrets/zasp-security-agent /var/run/secrets/zasp-security-agent-action /var/run/zasp-policy-verifier ||
-    fail "create /var/run/secrets/zasp-security-agent, /var/run/secrets/zasp-security-agent-action and /var/run/zasp-policy-verifier (needs root)"
+  runtime_root_ready
+  install -d -m 0700 "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent" "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent-action" "$RUNTIME_ROOT/var/run/zasp-policy-verifier" ||
+    fail "create $RUNTIME_ROOT/var/run/secrets/zasp-security-agent, $RUNTIME_ROOT/var/run/secrets/zasp-security-agent-action and $RUNTIME_ROOT/var/run/zasp-policy-verifier"
   # Replace, never rewrite in place: the files are read-only.
   # The planner token is replaced only when a new one is given: the action
   # worker starts without it and must not remove the planner's.
-  rm -f /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key /var/run/zasp-policy-verifier/policy-keys.json
+  rm -f "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" "$RUNTIME_ROOT/var/run/zasp-policy-verifier/policy-keys.json"
   if [ -n "${OPENROUTER_API_KEY:-}" ]; then
-    rm -f /var/run/secrets/zasp-security-agent/openrouter-api-token
-    (umask 077; printf '%s' "$OPENROUTER_API_KEY" > /var/run/secrets/zasp-security-agent/openrouter-api-token) || fail "planner token was not written"
+    rm -f "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent/openrouter-api-token"
+    (umask 077; printf '%s' "$OPENROUTER_API_KEY" > "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent/openrouter-api-token") || fail "planner token was not written"
     # The worker requires the mode a Kubernetes secret mount has (0444); the
     # directory above keeps other users out.
-    chmod 0444 /var/run/secrets/zasp-security-agent/openrouter-api-token
+    chmod 0444 "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent/openrouter-api-token"
   fi
-  install -m 0400 "$key" /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key || fail "gateway signing key was not installed"
-  install -m 0400 "$SECRETS/gateway-policy-keys.json" /var/run/zasp-policy-verifier/policy-keys.json || fail "gateway policy keys were not installed"
+  install -m 0400 "$key" "$RUNTIME_ROOT/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" || fail "gateway signing key was not installed"
+  install -m 0400 "$SECRETS/gateway-policy-keys.json" "$RUNTIME_ROOT/var/run/zasp-policy-verifier/policy-keys.json" || fail "gateway policy keys were not installed"
 }
 
 # Installs the two Python analyzers the AWS collector runs as subprocesses,
 # at the fixed paths the worker executes, from the same hash-pinned lock files
 # the worker image is built from (deploy/production/worker.Dockerfile).
 cmd_security_workers() {
-  local source="$ROOT/workers/security-python" root=/opt/zasp/security python="${ZASP_REAL_STACK_PYTHON:-python3.13}" name
+  local source="$ROOT/workers/security-python" root="$RUNTIME_ROOT/opt/zasp/security" python="${ZASP_REAL_STACK_PYTHON:-python3.13}" name
   command -v "$python" >/dev/null || fail "Python 3.13 is required (set ZASP_REAL_STACK_PYTHON)"
   "$python" -c 'import sys; sys.exit(sys.version_info[:2] != (3, 13))' || fail "Python 3.13 is required (set ZASP_REAL_STACK_PYTHON)"
-  mkdir -p "$root" 2>/dev/null || fail "create $root (needs root) and make it writable by this user"
+  runtime_root_ready
+  mkdir -p "$root" 2>/dev/null || fail "create $root and make it writable by this user"
   for name in cartography prowler; do
     # The pinned third-party packages are installed once (about 2 GB each).
     # The analyzer itself is reinstalled every time, so it follows the source.
@@ -1259,7 +1280,7 @@ cmd_start() {
   build_web
   # A running web application still serves the build it started with.
   [ "$WEB_REBUILT" -eq 0 ] || stop_process ui
-  native || { [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; } ||
+  native || { [ -x "$RUNTIME_ROOT/opt/zasp/security/cartography/bin/security-worker" ] && [ -x "$RUNTIME_ROOT/opt/zasp/security/prowler/bin/security-worker" ]; } ||
     echo "real-stack: the security analyzers are not installed; an AWS sync will fail until '$0 security-workers' has run" >&2
   launch api api
   launch worker-scheduler worker scheduler
@@ -1331,7 +1352,7 @@ cmd_status() {
   done
   if hosts_mapped; then state="present"; else state="missing"; fi
   printf '%-26s %s\n' "hosts entry" "$state"
-  if [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; then state="installed"; else state="not installed"; fi
+  if [ -x "$RUNTIME_ROOT/opt/zasp/security/cartography/bin/security-worker" ] && [ -x "$RUNTIME_ROOT/opt/zasp/security/prowler/bin/security-worker" ]; then state="installed"; else state="not installed"; fi
   native || printf '%-26s %s\n' "security analyzers" "$state"
 }
 

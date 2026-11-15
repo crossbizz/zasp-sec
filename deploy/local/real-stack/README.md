@@ -59,12 +59,16 @@ The public origin defaults to `https://zasp.local-stack.test:8443`. It must be H
 echo '127.0.0.1 zasp.local-stack.test' | sudo tee -a /etc/hosts
 ```
 
-The API and workers read their workload identity token from a fixed path, `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`. `stack.sh up` writes a placeholder token there (LocalStack accepts any token; it is not a credential). The directory must be writable by the user running the script:
+The API and workers read their workload identity token, the Security Agent key files and the two analyzers from fixed paths (`/var/run/secrets/...`, `/var/run/zasp-policy-verifier` and `/opt/zasp/security`), the ones a pod has. Locally those paths start from a private directory the stack owns, `<state directory>/runtime`, so nothing needs root: the token is at `<state directory>/runtime/var/run/secrets/eks.amazonaws.com/serviceaccount/token`. `stack.sh up` writes a placeholder token there (LocalStack accepts any token; it is not a credential).
+
+`ZASP_REAL_STACK_RUNTIME_ROOT` moves that directory. Set it to `system` to use `/var/run` and `/opt/zasp` themselves; those directories must then exist and be writable by the user running the script, which takes root once:
 
 ```bash
 sudo mkdir -p /var/run/secrets/eks.amazonaws.com/serviceaccount
 sudo chown "$USER" /var/run/secrets/eks.amazonaws.com/serviceaccount
 ```
+
+The programs accept the moved paths only outside Kubernetes, and only when the directory is owned by the user running them and closed to everyone else.
 
 ## Everything at once
 
@@ -189,7 +193,7 @@ That returns `401 authentication_required`. `GET /api/v1/session/start?return_to
 deploy/local/real-stack/stack.sh security-workers
 ```
 
-Installs the two Python analyzers the AWS collector runs as subprocesses (Cartography 0.139.1 and Prowler 5.39.1) into `/opt/zasp/security`, the fixed path the worker executes, from the hash-pinned lock files the worker image is built from. It needs Python 3.13, a writable `/opt/zasp/security`, access to PyPI and about 4 GB of disk. Run it once, and again after changing `workers/security-python`. Without it the discovery worker starts, and every AWS discovery run fails at its second page.
+Installs the two Python analyzers the AWS collector runs as subprocesses (Cartography 0.139.1 and Prowler 5.39.1) into `opt/zasp/security` beneath the runtime directory, the fixed path the worker executes, from the hash-pinned lock files the worker image is built from. It needs Python 3.13, access to PyPI and about 4 GB of disk. Run it once, and again after changing `workers/security-python`. Without it the discovery worker starts, and every AWS discovery run fails at its second page.
 
 ```bash
 deploy/local/real-stack/stack.sh worker scheduler   # health on 127.0.0.1:8081
@@ -331,7 +335,7 @@ Removing only the product database and the state directory is not a reset. Tempo
 
 ## One stack per machine
 
-The containers (`zasp-real-stack-pg`, `zasp-real-stack-neo4j`, `zasp-real-stack-localstack`, `zasp-real-stack-opensearch`, Temporal and OpenFGA), their ports, the API and worker ports and the secret files under `/var/run` are fixed: every state directory uses the same ones. The secrets a stack puts into them are generated per state directory: the password of the Neo4j user, the graph and external-ID secrets in LocalStack and the trust policy of the customer role, the verification keys registered in the database, and the Security Agent key files. `stack.sh` has no setting that moves a port, a container name or the LocalStack account.
+The containers (`zasp-real-stack-pg`, `zasp-real-stack-neo4j`, `zasp-real-stack-localstack`, `zasp-real-stack-opensearch`, Temporal and OpenFGA), their ports, the API and worker ports and the secret file paths are fixed: every state directory uses the same ones. The secrets a stack puts into them are generated per state directory: the password of the Neo4j user, the graph and external-ID secrets in LocalStack and the trust policy of the customer role, the verification keys registered in the database, and the Security Agent key files. `stack.sh` has no setting that moves a port, a container name or the LocalStack account.
 
 A command run with a second `ZASP_REAL_STACK_STATE` would therefore replace the first stack's secrets and break it. `up`, `start`, `bootstrap`, `api`, `worker` and `project` first claim the machine for their state directory and refuse when another one holds it:
 

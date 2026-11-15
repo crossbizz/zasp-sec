@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"io"
 	"net"
 	"net/http"
@@ -65,7 +66,7 @@ type discoveryWebIdentityProvider struct {
 }
 
 func (provider *discoveryWebIdentityProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	if provider == nil || nilDiscoveryCloudDependency(provider.client) || ctx == nil || ctx.Err() != nil || !discoveryCloudRolePattern.MatchString(provider.roleARN) || provider.tokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || provider.timeout < time.Second || provider.timeout > 30*time.Second || provider.clock == nil {
+	if provider == nil || nilDiscoveryCloudDependency(provider.client) || ctx == nil || ctx.Err() != nil || !discoveryCloudRolePattern.MatchString(provider.roleARN) || provider.tokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || provider.timeout < time.Second || provider.timeout > 30*time.Second || provider.clock == nil {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	file, err := os.Open(provider.tokenFile)
@@ -276,7 +277,7 @@ func (authority *productionDiscoveryCloudAuthority) Close() error {
 }
 
 func validProductionDiscoveryCloudConfig(config productionDiscoveryCloudConfig) bool {
-	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" && config.Session != "zasp-attack-lab-controller" && config.Session != "zasp-recovery-worker" && config.Session != "zasp-test-reconciler" && config.Session != "zasp-attack-lab-reconciler" && config.Session != remediationCloudSession {
+	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" && config.Session != "zasp-attack-lab-controller" && config.Session != "zasp-recovery-worker" && config.Session != "zasp-test-reconciler" && config.Session != "zasp-attack-lab-reconciler" && config.Session != remediationCloudSession {
 		return false
 	}
 	now := config.Clock()
