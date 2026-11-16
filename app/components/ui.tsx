@@ -1,8 +1,8 @@
 "use client";
 
-import { X, Search, ChevronDown, Check, AlertTriangle, Inbox, LoaderCircle } from "lucide-react";
+import { X, Search, ChevronDown, Check, AlertTriangle, Inbox, LoaderCircle, Info, MoreHorizontal } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { Children, forwardRef, isValidElement, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Severity } from "../domain/types";
 
@@ -124,11 +124,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
 });
 
 export function Card({ children, className = "", id, title, action }: { children: ReactNode; className?: string; id?: string; title?: ReactNode; action?: ReactNode }) {
-  return <section id={id} className={`card ${className}`}>{title && <div className="card__header"><div className="card__title">{title}</div>{action}</div>}{children}</section>;
+  return <section id={id} className={`card ${className}`}>{title && <div className="card__header"><div className="card__title">{title}</div>{action}</div>}{Children.map(children, child => isValidElement(child) && child.type === "table" ? <div className="table-scroll">{child}</div> : child)}</section>;
 }
 
 export function PageHeader({ title, description, eyebrow, actions }: { title: string; description?: string; eyebrow?: string; actions?: ReactNode }) {
-  return <div className="page-header"><div>{eyebrow && <div className="eyebrow">{eyebrow}</div>}<div className="page-title-row"><h1>{title}</h1><span className="info-dot" aria-label="More information">i</span></div>{description && <p>{description}</p>}</div>{actions && <div className="page-actions">{actions}</div>}</div>;
+  return <div className="page-header"><div>{eyebrow && <div className="eyebrow">{eyebrow}</div>}<div className="page-title-row"><h1>{title}</h1>{description && <span className="page-info" title={description}><Info size={16} aria-hidden="true" /></span>}</div>{description && <p>{description}</p>}</div>{actions && <div className="page-actions">{actions}</div>}</div>;
 }
 
 export function MetricGrid({ metrics, columns = 4 }: { metrics: Array<{ label: string; value: ReactNode; note?: string; tone?: "danger" | "success" | "brand" | "warning"; onClick?: () => void }>; columns?: number }) {
@@ -140,7 +140,12 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
 }
 
 export function Tabs({ tabs, active, onChange }: { tabs: Array<{ id: string; label: string; count?: number }>; active: string; onChange: (id: string) => void }) {
-  return <div className="tabs" role="tablist">{tabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={active === tab.id} className={active === tab.id ? "active" : ""} onClick={() => onChange(tab.id)}>{tab.label}{typeof tab.count === "number" && <span>{tab.count}</span>}</button>)}</div>;
+  return <div className="tabs" role="tablist">{tabs.map((tab, index) => <button key={tab.id} type="button" role="tab" aria-selected={active === tab.id} tabIndex={active === tab.id ? 0 : -1} className={active === tab.id ? "active" : ""} onClick={() => onChange(tab.id)} onKeyDown={(event) => {
+    const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault(); onChange(tabs[next].id);
+    (event.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
+  }}>{tab.label}{typeof tab.count === "number" && <span>{tab.count}</span>}</button>)}</div>;
 }
 
 export function SearchBox({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
@@ -199,4 +204,4 @@ export function ProgressBar({ value }: { value: number }) {
   return <div className="progress"><div style={{ width: `${Math.min(100, Math.max(0, value))}%` }} /></div>;
 }
 
-export function Kebab() { return <button className="icon-button" aria-label="More actions">•••</button>; }
+export function Kebab() { return <button className="icon-button" aria-label="More actions"><MoreHorizontal aria-hidden="true" /></button>; }

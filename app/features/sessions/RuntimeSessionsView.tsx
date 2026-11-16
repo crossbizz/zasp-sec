@@ -42,7 +42,7 @@ export function ProductionSessionsView({ client, canRevokeConsole, selectedID, o
   const activity = activityScope && onNavigate ? { scope: activityScope, canReadRuns, onNavigate } : undefined;
   if (selectedID) return <div className="page"><PageHeader title="Runtime session detail" description="Exact activity record in the selected scope." /><p>Session <code>{selectedID}</code></p>{onNavigate && <Button onClick={() => onNavigate("/investigate/sessions")}>All sessions</Button>}<RuntimeSessionTimeline key={selectedID} id={selectedID} api={timelineAPI} evidenceAPI={evidenceAPI} activity={activity} /></div>;
   return <>
-    <div className="page" aria-label="Session types">
+    <div className="page session-types" aria-label="Session types">
       <Button aria-pressed={surface === "runtime"} onClick={() => setSurface("runtime")}>Agent runtime</Button>
       <Button aria-pressed={surface === "console"} onClick={() => setSurface("console")}>Console logins</Button>
     </div>
@@ -113,7 +113,7 @@ export function RuntimeSessionsView({ api, timelineAPI, evidenceAPI, activity }:
     {page && <>
       {page.search ? <SearchCheckpoint status={page.search} /> : <p role="alert">Indexing status is unavailable. Search completeness is unknown.</p>}
       {page.items.length === 0 ? <EmptyState title="No matching runtime sessions" description="No indexed events matched these filters. Check indexing status and collection coverage before drawing conclusions." /> : page.items.map(item => <RuntimeSessionSummary key={item.id} item={item} onSelect={timelineAPI ? () => setSelection({ id: item.id, query, api }) : undefined} />)}
-      <nav aria-label="Runtime session pages">
+      <nav className="table-pagination" aria-label="Runtime session pages">
         <Button disabled={loading || query.page === 1} onClick={() => setQuery({ ...query, cursor: null, page: 1 })}>First session page</Button>
         <span>Page {query.page}</span>
         <Button disabled={loading || !page.page_info.has_more} onClick={() => setQuery({ ...query, cursor: page.page_info.next_cursor, page: query.page + 1 })}>Next session page</Button>

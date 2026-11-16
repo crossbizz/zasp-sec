@@ -1,0 +1,24 @@
+{
+  "light": {
+    "source_archive": "Zasp Logo Design.zip",
+    "source_file": "4.png",
+    "source_sha256": "3eee468884644dafd5486f9cbbe6396f734e7488bb77cc703be7c1f890b9edfe",
+    "viewBox": [
+      497,
+      798,
+      1150,
+      503
+    ]
+  },
+  "dark": {
+    "source_archive": "Zasp Logo Design.zip",
+    "source_file": "3.png",
+    "source_sha256": "eaba14c6da7f471619641161036561fb4275e98b4fb36056499157ec0adb296c",
+    "viewBox": [
+      430,
+      750,
+      1130,
+      490
+    ]
+  }
+}

@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Menu } from "lucide-react";
+import { NavigationIcon } from "./NavigationIcon";
+import { BrandLogo } from "./BrandLogo";
 
 import type { APIClient } from "../../apps/web/api/client";
 import { APIProvider, useAPI } from "../api/APIProvider";
@@ -24,7 +27,7 @@ import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
-import { Button, LoadingState } from "./ui";
+import { Button, Drawer, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 import { parseActivityLink } from "../domain/activity-links";
 import { parseComplianceLink } from "../domain/compliance-links";
@@ -146,6 +149,14 @@ function ProductionSignOutControl() {
 }
 
 function ProductionAppContent() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const closeOnDesktop = () => { if (desktop.matches) setMobileOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
   const session = useSession();
   const { client } = useAPI();
   const [location, setLocation] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? `${candidate}${typeof window === "undefined" ? "" : window.location.search + window.location.hash}` : "/"; });
@@ -187,10 +198,28 @@ function ProductionAppContent() {
   if (routes.length === 0) return <main className="page auth-page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
   const routeGroups = routes.reduce<{ label: string; routes: (typeof routes)[number][] }[]>((groups, route) => { const last = groups[groups.length - 1]; if (last && last.label === route.group) last.routes.push(route); else groups.push({ label: route.group, routes: [route] }); return groups; }, []);
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
-  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); };
+  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); setMobileOpen(false); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
-  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><ProductionSignOutControl /></header><aside className="sidebar"><nav aria-label="Main navigation">{routeGroups.map((group) => <div key={group.label || "home"} className="nav-section" role="group" aria-label={group.label || "Home"}>{group.label && <div className="nav-group-label" aria-hidden="true">{group.label}</div>}{group.routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</div>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+  const navigation = <nav aria-label="Main navigation">{routeGroups.map((group) => <div key={group.label || "home"} className="nav-section" role="group" aria-label={group.label || "Home"}>
+    {group.label && <div className="nav-group-label" aria-hidden="true">{group.label}</div>}
+    {group.routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}><NavigationIcon path={route.path} /><span>{route.label}</span></a>)}
+  </div>)}</nav>;
+  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}>
+    <div className="app-shell production-app">
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      <header className="topbar">
+        <button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><Menu aria-hidden="true" /></button>
+        <button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview"><BrandLogo /></button>
+        <span className="shell-context">Agent Security</span>
+        <ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} />
+        <ProductionSignOutControl />
+      </header>
+      <aside className="sidebar"><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</aside>
+      <Drawer open={mobileOpen} title="Navigation" onClose={() => setMobileOpen(false)} width="medium"><div className="mobile-navigation"><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</div></Drawer>
+      <main className="main-content" id="main-content" tabIndex={-1}>{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
+    </div>
+  </ProductionWorkflowMutationProvider>;
 }
 
 function hasProductionCapability(session: SessionContextValue, capability: string): boolean {
