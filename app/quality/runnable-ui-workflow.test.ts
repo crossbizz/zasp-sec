@@ -171,14 +171,6 @@ async function readPackageManifest(): Promise<PackageManifest> {
   return JSON.parse(source) as PackageManifest;
 }
 
-function isUnrestrictedEvent(event: unknown): boolean {
-  return event === null || (
-    typeof event === "object" &&
-    event !== null &&
-    Object.keys(event).length === 0
-  );
-}
-
 function assertRunnableUiWorkflow(
   workflow: Workflow,
   packageManifest: PackageManifest,
@@ -752,7 +744,7 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
 
   it("keeps the verification, the secret scanner and the Go packages on every push and pull request", async () => {
     const text = await readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8");
-    expect(text).toMatch(/^"on":\n  push:\n  pull_request:\n/m);
+    expect(text).toMatch(/^"on":\n {2}push:\n {2}pull_request:\n/m);
     expect(text).not.toMatch(/continue-on-error|paths:|branches:/);
     for (const required of ["fetch-depth: 0", "go install github.com/zricethezav/gitleaks/v8@v8.30.1", "npm run verify", "platform-go:", "Verify the apiserver feature tests"]) expect(text).toContain(required);
     // The long acceptance steps are not here.

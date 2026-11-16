@@ -1,0 +1,107 @@
+@font-face { font-family: "Roboto"; src: url("/fonts/Roboto-400.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Roboto"; src: url("/fonts/Roboto-500.woff2") format("woff2"); font-style: normal; font-weight: 500; font-display: swap; }
+@font-face { font-family: "Roboto"; src: url("/fonts/Roboto-700.woff2") format("woff2"); font-style: normal; font-weight: 700; font-display: swap; }
+
+/* Reference tokens for the Aegis demo. Map into the existing app's token system. */
+:root {
+  color-scheme: light;
+  --font-ui: "Roboto", Arial, sans-serif;
+  --zasp-wordmark: url("/brand/zasp-wordmark-light.svg");
+  --blue: #0064ed;
+  --blue-hover: #0056d8;
+  --blue-soft: #eff4fe;
+  --blue-text: #366fae;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f6f6f8;
+  --text: #303030;
+  --muted: #686b73;
+  --icon: #50545c;
+  --icon-muted: #686c74;
+  --line: #dedee2;
+  --border-control: #d2d4db;
+  --hover: #f2f2f4;
+  --focus: #0064ed;
+  --brand-ink: #30353d;
+  --critical: #b53f57;
+  --critical-bg: #fff3f4;
+  --high: #966026;
+  --high-bg: #fff4e5;
+  --medium: #8b6d08;
+  --medium-bg: #fff9dc;
+  --green: #247454;
+  --green-bg: #edf9f3;
+  --purple: #5d69a3;
+  --purple-bg: #f2f3fc;
+  --primary-fg: #ffffff;
+  --sidebar-width: 276px;
+  --sidebar-collapsed-width: 68px;
+  --header-height: 64px;
+  --page-gutter: 20px;
+  --control-height: 36px;
+  --filter-height: 38px;
+  --row-height: 52px;
+  --radius-panel: 12px;
+  --radius-control: 5px;
+}
+
+[data-theme="dark"] {
+  --zasp-wordmark: url("/brand/zasp-wordmark-dark.svg");
+  color-scheme: dark;
+  --blue: #78a7ff;
+  --blue-hover: #91b8ff;
+  --blue-soft: #28354c;
+  --blue-text: #a5c3ff;
+  --bg: #1b1c21;
+  --surface: #1b1c21;
+  --surface2: #26272e;
+  --text: #ededf0;
+  --muted: #b1b2bd;
+  --icon: #c8cad3;
+  --icon-muted: #b0b3c0;
+  --line: #414149;
+  --border-control: #51535f;
+  --hover: #292a33;
+  --focus: #9dbdff;
+  --brand-ink: #f0f1f5;
+  --critical: #f392a4;
+  --critical-bg: #37272e;
+  --high: #efbd84;
+  --high-bg: #373026;
+  --medium: #e1cc76;
+  --medium-bg: #363222;
+  --green: #83caab;
+  --green-bg: #25352e;
+  --purple: #adb7e5;
+  --purple-bg: #2d3042;
+  --primary-fg: #07172e;
+}
+
+/* Compatibility names keep existing feature components on the shared system. */
+:root {
+  --brand: var(--blue);
+  --brand-950: var(--blue-text);
+  --brand-900: var(--blue-text);
+  --brand-800: var(--blue-text);
+  --brand-500: var(--blue);
+  --brand-100: var(--blue-soft);
+  --brand-50: var(--blue-soft);
+  --ink: var(--text);
+  --muted-2: var(--muted);
+  --canvas: var(--bg);
+  --surface-2: var(--surface2);
+  --border: var(--line);
+  --border-strong: var(--border-control);
+  --low: var(--muted);
+  --low-bg: var(--surface2);
+  --success: var(--green);
+  --success-bg: var(--green-bg);
+  --info: var(--blue-text);
+  --info-bg: var(--blue-soft);
+  --topbar: var(--header-height);
+  --sidebar: var(--sidebar-width);
+  --radius: var(--radius-panel);
+  --shadow: none;
+  --shadow-overlay: 0 12px 36px rgb(0 0 0 / 16%);
+  --font-geist-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+}

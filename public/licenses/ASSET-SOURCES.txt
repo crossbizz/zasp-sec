@@ -1,0 +1,11 @@
+Zasp UI asset sources
+
+Roboto-400/500/700.woff2: supplied Aegis design kit; Roboto-Apache-2.0.txt.
+Base AWS, Azure, GCP, GitHub, MCP, OpenAI, Anthropic SVGs: supplied kit; included Devicon/LobeHub license notices.
+Dark AWS, GitHub, MCP and OpenAI SVGs: explicit monochrome variants of the kit's currentColor paths.
+Kubernetes, Okta, Salesforce, Slack, GitLab SVGs: https://github.com/devicons/devicon/tree/master/icons ; devicon-MIT.txt.
+Atlassian and Databricks SVGs: https://github.com/gilbarbara/logos/tree/main/logos ; logos-CC0.txt.
+Zasp wordmarks: supplied Zasp Logo Design.zip; 4.png for light mode and 3.png for dark mode. SVG files frame the unmodified source PNGs; public/brand/SOURCES.json records their SHA-256 digests and viewports.
+UI SVG components: existing lucide-react dependency; lucide-ISC-and-MIT.txt.
+
+Vendor marks identify their respective products and remain owned by their owners.

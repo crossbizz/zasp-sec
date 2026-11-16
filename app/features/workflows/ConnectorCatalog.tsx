@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { ConnectorManifest } from "../../../apps/web/api/generated";
+import { ProviderLogo } from "../../components/ProviderLogo";
 import { Badge, Button } from "../../components/ui";
 
 // Every source the product can read. One the deployment does not serve is
@@ -53,10 +54,6 @@ function authLabel(mode: string): string {
   return authLabels[mode] ?? mode.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
-function initials(name: string): string {
-  const words = name.split(/\s+/).filter(Boolean);
-  return (words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[1][0]).toUpperCase();
-}
 
 type Entry = { key: string; name: string; category: string; description: string; manifest?: ConnectorManifest };
 
@@ -81,7 +78,7 @@ export function ConnectorCatalog({ manifests, disabled, onChoose }: { manifests:
       <div className="connector-grid">
         {group.entries.map((entry) => <article key={entry.key} className={`connector-card${entry.manifest ? "" : " connector-card--off"}`}>
           <div className="connector-card__head">
-            <span className="connector-mark" aria-hidden="true">{initials(entry.name)}</span>
+            <ProviderLogo provider={entry.key} />
             <div><h4>{entry.name}</h4>{entry.manifest ? <span className="connector-auth">{authLabel(entry.manifest.auth_mode)}</span> : <Badge tone="neutral">Not enabled</Badge>}</div>
           </div>
           <p>{entry.description}</p>
