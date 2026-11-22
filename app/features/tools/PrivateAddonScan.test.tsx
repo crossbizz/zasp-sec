@@ -15,7 +15,7 @@ const manifest = "sha256:" + "a".repeat(64);
 type Mode = "memory_only" | "encrypted_24h";
 function grant(outer: Mode, inner: Mode = outer) {
   const expires = Math.floor(Date.now() / 1000) + 240,
-    until = expires + 20 * 3600;
+    until = expires + 86_100;
   const cap = {
     version:
       inner === "memory_only"
@@ -220,9 +220,7 @@ describe("private ZIP scan", () => {
     await user.click(
       await screen.findByRole("button", { name: /Send ZIP to/ }),
     );
-    await screen.findByText(
-      /could not confirm this scan or its retention status/,
-    );
+    await screen.findByText(/encrypted ZIP may already be stored/);
     expect(
       screen.queryByRole("link", { name: "Open version review" }),
     ).toBeNull();

@@ -30,7 +30,7 @@ test("private upload grants and the ingress allow exactly the configured worker 
   const scope = [id,id,id].join("/");
   const cfg = {scope, origin: "https://worker.test.invalid:8443", resultCredentialID: id};
   assert.match(await render(cfg), /connect-src 'self' https:\/\/worker\.test\.invalid:8443;/);
-  for (const invalid of [{origin:"https://*.test.invalid"}, {origin:"https://worker.test.invalid/path"}, {origin:"https://worker.test.invalid:65536"}, {scope:""}, {resultCredentialID:"invalid"}]) {
+  for (const invalid of [{origin:"https://*.test.invalid"}, {origin:"https://worker.test.invalid/path"}, {origin:"https://worker.test.invalid:65536"}, {scope:""}, {resultCredentialID:"invalid"}, {retained:"false"}]) {
     await assert.rejects(render({...cfg,...invalid}), /privateAddonWorker/);
   }
   const workload = await source("templates/workloads.yaml");

@@ -31,3 +31,57 @@ zaspctl addons scan-archive --local --size "$ARCHIVE_BYTES" --sha256 "$ARCHIVE_D
 ```
 
 The JSON report contains coverage and rule-count identifiers only. It omits member names, script arguments and archive contents. The canonical bundle digest covers the sorted member paths and uncompressed bytes. The archive digest binds the exact transfer, including ZIP container metadata.
+
+## Retain an encrypted archive for 24 hours
+
+In **Tools & MCP → Add-ons → Private scan**, select the archive, choose encrypted retention and review the Environment, destination and deletion deadline before confirming the transfer. Each new file starts in memory-only mode. The retained grant binds the Environment, actor, exact ZIP SHA-256, byte length and expiration. The returned retention receipt identifies the grant and deadline after the storage process reads back the encrypted object. If a retained transfer is interrupted, give the operator its grant ID so they can check its state.
+
+Enable this mode independently on the API, scanner and storage process. The existing extended-collection and fresh data-control permissions apply. The API requires `ZASP_PRIVATE_ADDON_RETAINED_SCOPE` to equal its configured private worker scope. With the staging chart set `privateAddonWorker.retained: true` alongside its existing scope and origin. The scanner requires `ZASP_PRIVATE_ADDON_RETENTION_UPLOAD_SOCKET` pointing at the storage process's `uploads.sock`. A memory-only grant bypasses that socket. A retained grant uses a distinct signed version so an older scanner rejects it.
+
+### Install the storage process
+
+Build the Linux storage process from the repository root.
+
+```sh
+go build -C services/platform -o /tmp/agentsec-private-retention ./agentsec-private-retention
+```
+
+The storage process checks the original signed grant again. Give it the same `ZASP_PRIVATE_ADDON_WORKER_SCOPE`, `ZASP_PRIVATE_ADDON_WORKER_ORIGIN` and public `ZASP_PRIVATE_ADDON_VERIFY_KEY` as the scanner. The scanner runs static analysis in memory. The storage process accepts exact archive bytes over a local Unix socket and stores them in the configured backend.
+
+| Storage process variable | Value |
+| --- | --- |
+| `ZASP_PRIVATE_ADDON_RETENTION_JOURNAL_DIR` | Absolute path to a durable, owner-only directory with mode 0700. The receipt records the grant, digest, byte length, object version, deadline and cleanup state. |
+| `ZASP_PRIVATE_ADDON_RETENTION_SOCKET_DIR` | Absolute path to a local socket directory. Give the scanner's group traversal access and avoid group or other write permission. `uploads.sock` is group-accessible. `admin.sock` is owner-only. |
+| `ZASP_PRIVATE_ADDON_RETENTION_BACKEND` | `s3` for versioned, SSE-KMS protected S3 storage. `local_encrypted` is available in local/test deployments. |
+
+Run one storage process per journal. Restore its journal and backing store together. Startup checks the Environment and backend fingerprint before trusting earlier receipts.
+
+```sh
+/tmp/agentsec-private-retention serve
+```
+
+For a local staging rehearsal, set `ZASP_ENVIRONMENT=local`, use `local_encrypted`, and supply `ZASP_PRIVATE_ADDON_RETENTION_LOCAL_DIR` as a second durable owner-only directory and `ZASP_PRIVATE_ADDON_RETENTION_LOCAL_KEY_FILE` as an owner-only file containing 32 random bytes in unpadded Base64URL. Keep this key with the storage operator. The local store uses AES-256-GCM with the scoped object key as associated data. A key or volume change requires restoring the matching journal and storage identity.
+
+For S3, configure the following variables under the `ZASP_PRIVATE_ADDON_` prefix.
+
+| Suffix | Value |
+| --- | --- |
+| `RETENTION_S3_BUCKET`, `RETENTION_S3_OWNER` | Versioned bucket and its 12-digit AWS owner account. |
+| `RETENTION_AWS_REGION`, `RETENTION_KMS_KEY_ARN` | Bucket Region and a customer-managed KMS key ARN in that account and Region. |
+| `RETENTION_AWS_ROLE_ARN`, `RETENTION_IDENTITY_TOKEN_FILE` | Narrow workload role and absolute path to its projected web-identity token. |
+
+Scope the role's object permissions to `organizations/<org>/workspaces/<workspace>/environments/<environment>/private-addons/*`. Each key includes the grant ID, archive SHA-256 and size. Permit conditional `PutObject`, object and version reads, and `DeleteObjectVersion` on that prefix. Permit `GetBucketVersioning` and prefix-constrained `ListBucketVersions` on the bucket, and `kms:GenerateDataKey` and `kms:Decrypt` on the configured key. Require SSE-KMS with that exact key and TLS in the bucket policy. Configure the prefix's current and noncurrent version lifecycle as a backstop for loss of the journal or a prolonged worker outage. Include any replication or backup destination in the organization's retention policy.
+
+### Confirm storage and deletion
+
+As the storage-process owner, use the same `ZASP_PRIVATE_ADDON_RETENTION_SOCKET_DIR` and pass the Environment scope and grant ID explicitly.
+
+```sh
+/tmp/agentsec-private-retention status --scope "$SCOPE" --grant "$GRANT_ID"
+/tmp/agentsec-private-retention verify --scope "$SCOPE" --grant "$GRANT_ID"
+/tmp/agentsec-private-retention delete --scope "$SCOPE" --grant "$GRANT_ID"
+```
+
+`status` shows the durable journal. `verify` reads and checks the immutable stored bytes against the original binding while the retention grant is active. Both return metadata. `delete` requests immediate cleanup of the pinned version and returns its receipt. The service also sweeps once per minute and on startup. `cleanup_pending` covers failed, held or unconfirmed cleanup. An outage can delay deletion beyond the deadline. Restore access and keep the service running to retry. `deleted` includes the trigger, request time and confirmed deletion time. An S3 delete marker, an access denial or an ambiguous response leaves cleanup pending.
+
+Run `python3 scripts/smoke-private-addon-retention.py --help` for the local TLS rehearsal with both binaries. Before enabling a live AWS staging scope, exercise a harmless grant through the intended workload identity, verify the actual bucket owner and pinned KMS/version readback, and confirm deletion of the exact version plus an empty exact-key version listing. Temporarily denying delete permission on a staging test object should leave a pending receipt that clears after access is restored. Local ciphertext tests and AWS SDK contract tests exercise the application path; AWS authorization, KMS, bucket lifecycle, retention holds and provider behavior require that deployment-specific rehearsal.

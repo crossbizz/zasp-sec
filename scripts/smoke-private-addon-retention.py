@@ -13,17 +13,17 @@ import http.client
 import io
 import json
 import os
-from pathlib import Path
 import secrets
 import socket
 import ssl
 import subprocess
 import sys
-from contextlib import ExitStack
-from tempfile import TemporaryDirectory
 import time
-from uuid import uuid4
 import zipfile
+from contextlib import ExitStack
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 PREFIX = "ZASP_PRIVATE_ADDON_"
@@ -42,16 +42,19 @@ def pid():
     return "pid_" + str(uuid4())
 
 
-def command(args, **kwargs):
+def command(args, *, timeout=60, **kwargs):
     return subprocess.run(
-        args, capture_output=True, timeout=180, check=True, **kwargs
+        args, capture_output=True, timeout=timeout, check=True, **kwargs
     ).stdout
 
 
 def binary(override, module, package, output):
     if override:
         return Path(override).resolve(strict=True)
-    command(["go", "-C", str(REPOSITORY / module), "build", "-o", output, package])
+    command(
+        ["go", "-C", str(REPOSITORY / module), "build", "-o", output, package],
+        timeout=480,
+    )
     return output
 
 
@@ -249,6 +252,7 @@ def run(args):
         def operator(action, grant, requested_scope=scope, denied=False):
             proc = subprocess.run(
                 [retention, action, "--scope", requested_scope, "--grant", grant],
+                check=False,
                 env={PREFIX + "RETENTION_SOCKET_DIR": str(sockets)},
                 capture_output=True,
                 timeout=10,

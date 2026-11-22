@@ -23,7 +23,7 @@ work=$(mktemp -d)
 
 Two hook processes hold distinct sessions. The command pins the scenario and opens both inputs, then releases the allowed update first. Its write must reach the recorder before the second attempt. The recorder accepts either pinned action. It independently commits each actual write to a private journal, seals it after the declared window, and reads the durable receipts. The proof directory includes the three importable files, the matched device-signed source receipts and the recorder journal. An isolated run uses an ephemeral test identity and is labeled `isolated_linux_ticket_fixture`.
 
-For an **enrolled staging pilot**, queue the existing synthetic-ticket definition in Red Team. On the assigned test device, run the installed executable as the endpoint service owner. The current signed revision must be in Enforce mode with `internal` as its allowed destination. Use the queued run ID, the saved target ID, the device's enrolled cohort, and the Environment class from the definition.
+For an **enrolled staging pilot**, queue a Red Team definition whose target represents this supervised local ticket recorder. A target ID binds the evidence to that saved definition. On the assigned test device, run the installed executable as the endpoint service owner. The current signed revision must be in Enforce mode with `internal` as its allowed destination. Use the queued run ID, the saved target ID, the device's enrolled cohort, and the Environment class from the definition.
 
 ```sh
 /usr/local/libexec/zasp-endpoint prove-ticket \

@@ -15,6 +15,11 @@ import (
 
 func TestEndpointFleetOnInstalledBaselinePostgres(t *testing.T) {
 	b := startInstalledV2Baseline(t)
+	// This disposable tenant hosts the live Linux ticket fixture and its
+	// approved test-write run. Product test imports enforce its actual class.
+	b.seed(func() {
+		b.exec(`UPDATE zasp_environments SET environment_class='test' WHERE (organization_id,workspace_id,id)=($1,$2,$3)`, b.o, b.w, b.e)
+	})
 	admin := b.member("security_admin", "investigate_sessions", "manage_api_tokens", "manage_data_controls", "manage_findings", "manage_identity", "manage_workflows", "revoke_sessions", "run_tests", "view", "view_audit", "view_compliance")
 	if err := b.product.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)

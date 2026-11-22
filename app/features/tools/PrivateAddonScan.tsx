@@ -139,7 +139,8 @@ async function checkSignedGrant(
       !Number.isFinite(expiry) ||
       expiry < Date.parse(g.expires_at) ||
       expiry > Date.now() + 86_460_000 ||
-      cap.retain_until !== expiry / 1000
+      cap.retain_until !== expiry / 1000 ||
+      cap.retain_until !== Number(cap.expires) + 86_100
     )
       throw Error();
   }
@@ -334,7 +335,9 @@ export function PrivateAddonScan({
     } catch {
       if (!work.signal.aborted)
         setMessage(
-          `The worker could not confirm this scan or its retention status. Contact the Environment administrator with grant ${grant.id} before retrying.`,
+          grant.retention === "encrypted_24h"
+            ? `The worker could not confirm this scan. The encrypted ZIP may already be stored. Ask the Environment administrator to check storage and deletion with grant ${grant.id} before retrying.`
+            : `The worker could not confirm this scan. Contact the Environment administrator with grant ${grant.id} before retrying.`,
         );
     } finally {
       if (!work.signal.aborted) {
