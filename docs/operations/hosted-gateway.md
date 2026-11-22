@@ -271,3 +271,39 @@ The gateway reads the policy on every request, so a policy change, a registry de
 - The chart and Terraform: read as text. They were not rendered or applied.
 
 Not verified: a real model provider, a remote MCP server on the internet, an agent product's own MCP client (the SDK's client is what many are built on, not all), other languages' SDKs, and the gateway behind the ingress of a running cluster. The MCP client and the providers' SDKs were each run both against the gateway's engine served directly and through the API's authentication, authorization and database path on an installed baseline. In every test the authorization model's decision is a stand-in (the authorization service is not running in the tests), and the API's outer middleware (the edge checks, the request limiter) is not in the path.
+
+## Review MCP tool contracts after a supplier change
+
+Use the existing approved server and its normal authorized client session to collect a complete `tools/list` exchange. The hosted gateway filters results under the caller's policy. Its inventory keeps observed tool names and risk, while the local schema baseline records fingerprints from the selected view. An operator may also import equivalent request and response pairs they independently reviewed. The CLI uses no network connection or credentials.
+
+Save each matching request and response as a JSON object in a private local file. As an example, a complete one-page exchange can look like this.
+
+```json
+{"request":{"jsonrpc":"2.0","id":1,"method":"tools/list"},"response":{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"ticket.read","description":"Read an assigned ticket","inputSchema":{"type":"object","properties":{"id":{"type":"string"}}}}]}}}
+```
+
+For a paginated result, save the first request without a cursor and append each request/response pair until the final response has no `nextCursor`. An SSE client should export the decoded JSON-RPC message bodies. Keep HTTP headers, access tokens and session cookies out of the capture. Pick a stable view label for the same caller permissions and gateway policy, and use the Environment and gateway server IDs from the selected Environment and the registered server returned by `GET /api/v1/gateway/mcp-servers`.
+
+```sh
+zaspctl mcp snapshot --environment "$ENV_ID" --server "$SERVER_ID" --view employee-monitor \
+  --out reviewed-tools.json --json < first-capture.jsonl
+```
+
+Retain the returned `snapshot_sha256` through a channel you trust. The new baseline contains the selected scope, tool names and separate hashes of input schema, optional output schema and remaining tool metadata. Descriptions, schema contents, cursor values and RPC IDs stay in the original local capture. Use an access-controlled directory for the capture and baseline. The CLI creates new baseline files with mode 0600 on POSIX. Windows file access follows the directory ACL.
+
+```sh
+zaspctl mcp rescan --environment "$ENV_ID" --server "$SERVER_ID" --view employee-monitor \
+  --baseline reviewed-tools.json --baseline-sha256 "$REVIEWED_SHA256" \
+  --fail-on-change --json < later-capture.jsonl
+```
+
+| Result | Operator action |
+| --- | --- |
+| `unchanged` | All visible tool names and fingerprints match the reviewed baseline. |
+| `review_needed` | Inspect the indicated `input_schema`, `output_schema` or `metadata` in the original captures. For additions or removals, check the gateway's allow/deny rules, principal and upstream before attributing the change to the supplier. |
+| Incomplete or incompatible capture, exit 3 | Supply the matching terminal pages or select the correct baseline, Environment, server and view. A failed read produces no clean comparison. |
+| Invalid arguments or file access, exit 2 | Correct the command or choose a new writable baseline destination. |
+
+With `--fail-on-change`, a complete comparison requiring review exits 10. A completed comparison otherwise exits 0. To accept a reviewed change, create a new snapshot and retain its new digest. A rescan leaves the prior baseline in place.
+
+The importer admits at most 1 MiB, 32 pages and 256 tools. It checks JSON-RPC IDs, page continuity, duplicate object keys and duplicate tool names. It sorts object keys and tool names and keeps array order and numeric spelling, so equivalent schema rewrites may still require review. External schema references are fingerprinted as declared. The operator supplies the view binding, which is local evidence of the captured contract. Gateway approval, supplier provenance, actual invocation and effective downstream permissions require their own evidence.

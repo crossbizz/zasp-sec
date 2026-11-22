@@ -20,7 +20,7 @@ func TestWorkerBindsOneUploadAndExcludesContent(t *testing.T) {
 	const id = "pid_45d20ba8-ac12-4c2a-8bfa-72946ee3bc5c"
 	const origin = "https://worker.example.invalid"
 	key := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{11}, 32))
-	root, err := os.OpenRoot(t.TempDir())
+	root, err := os.OpenRoot(testSpool(t))
 	if err != nil {
 		t.Fatal(err)
 	}

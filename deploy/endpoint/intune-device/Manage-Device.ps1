@@ -28,13 +28,24 @@ if ($Action -eq 'Detect') {
  exit 1
 }
 if ($Action -eq 'Uninstall') {
+ $tasks=@('Zasp Inventory User Scan','Zasp Inventory Device Sync')
+ if (!(Test-Path -LiteralPath $exe)) {
+  foreach ($task in $tasks) { if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) { throw 'A scheduled task still needs controlled cleanup.' } }
+  return
+ }
  if (!(Valid-Release $exe)) { throw 'Installed release identity differs or is unavailable.' }
- foreach ($task in @('Zasp Inventory User Scan','Zasp Inventory Device Sync')) {
+ foreach ($task in $tasks) {
   if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) { Stop-ScheduledTask -TaskName $task; Unregister-ScheduledTask -Confirm:$false -TaskName $task }
  }
- # Keep encrypted identity/queued evidence for recovery and skip unrecognized files.
- Remove-Item -LiteralPath $exe
+ # Preserve the sealed queue for controlled recovery. Remove the employee's
+ # plaintext handoff and managed collector after stopping the task that writes it.
+ foreach ($known in @('Collect-Inventory.ps1','report.json')) {
+  $item=Join-Path $root $known
+  Assert-Plain $item
+  if (Test-Path -LiteralPath $item -PathType Leaf) { Remove-Item -LiteralPath $item }
+ }
  Remove-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Zasp Inventory Device' -Name 'EmployeeStatusV1' -ErrorAction SilentlyContinue
+ Remove-Item -LiteralPath $exe
  return
 }
 $existingConfig=Join-Path $root 'device.json'

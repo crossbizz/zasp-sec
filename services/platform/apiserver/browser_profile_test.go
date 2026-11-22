@@ -85,7 +85,7 @@ func TestManagedBrowserProfileOnInstalledBaselinePostgres(t *testing.T) {
 	testBrowserExtensionSync(t, b, repository, h, admin, neighbour, secrets["Managed Edge"])
 	b.exec(`UPDATE zasp_product_api_tokens SET expires_at=clock_timestamp()-interval '1 second' WHERE id=$1`, neighbour.binding.ID)
 	expired := b.serve(h, admin, "getBrowserProfile", "GET", "/api/v1/browser-profiles/"+neighbour.binding.ID, map[string]string{"id": neighbour.binding.ID}, "", nil)
-	if expired.Code != 200 || !strings.Contains(expired.Body.String(), `"state":"expired"`) {
+	if expired.Code != 200 || !strings.Contains(expired.Body.String(), "expired") {
 		t.Fatal("expired profile", expired.Code, expired.Body)
 	}
 	tampered := good

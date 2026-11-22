@@ -4,7 +4,7 @@ The endpoint broker evaluates a signed policy for Claude Code's named `mcp__pilo
 
 ## Run the local proof
 
-From the repository root run `go -C services/endpoint-agent test -race -count=1 ./...`. On Linux the executable test builds the program, starts the daemon, invokes the CLI hook with synthetic Claude Code events in two simultaneous sessions, reads back an independent local HTTP ticket recorder, verifies the signed receipt batch, and archives it. Unit tests on both platforms cover tampering, scope, revision rollback, expiry, conflict, archive and spool capacity.
+From the repository root run `go -C services/endpoint-agent test -race -count=1 ./...`. On Linux the executable test builds the program, starts the daemon, invokes the CLI hook with synthetic Claude Code events in two simultaneous sessions, reads back an independent local HTTP ticket recorder, verifies the signed receipt batch, and archives it. Unit tests on both platforms cover tampering, scope, revision rollback, expiry, conflict, archive and spool capacity. The disposable macOS CI gate runs the actual binary as root and as a separate employee UID, creates and reuses one throwaway System Keychain item, validates two signed hook decisions, and verifies deletion of the test item. This fixture exercises OS integration using a synthetic local policy.
 
 ## Package and configure a test Mac
 
@@ -54,3 +54,14 @@ Configure the job to surface the CLI's partial exit status as well as the broker
 For rotation provision a fresh device key and independently issued transport credential, then use the browser-authorized `/devices/{id}/credential-rotations` mutation with the prior version. After exchanging the new generation, publish a higher policy revision bound to that generation. Once the old identity has been retired or rotated its future uploads fail, including buffered historical observations. Archive any required local evidence before rotation. Retiring a device through the control plane preserves its audit history. MDM package removal requires a separate step.
 
 For Windows managed inventory, see [the LocalSystem and Intune deployment instructions](intune-device/README.md). Windows reports installation metadata and cannot acknowledge a ticket-hook policy.
+
+## Sign a ticket cohort rollout
+
+Review the target Environment, cohort, phase, rollout revision and each device generation before signing. All participating Macs in this pilot must already trust the same Ed25519 policy-issuer public key. Keep the corresponding private PKCS#8 PEM in an owner-only file on the operator machine. A plan contains 1–32 distinct devices in one tenant scope. Each entry carries the current device resource version, a complete device-bound policy JSON from the single-device workflow, and the same staging ticket destination. Use `monitor` policies in the `monitor` and `rollback` phases and `enforce` policies in the `canary` and `promote` phases. Rollback issues newer per-device revisions in monitor mode.
+
+```sh
+cd services/endpoint-agent
+go run ./cmd/endpoint-policy --cohort-plan ./reviewed-cohort.json --key ./issuer.pem > ./signed-cohort.json
+```
+
+The input object has `schema_version` set to `ticket-cohort-plan.v1`, plus `cohort`, `phase`, `expected_rollout_revision` and `items`. Each item has `expected_device_version` and `policy`. The signer emits a `ticket-cohort-bundle.v1` object with the same metadata and ordered `items`, replacing each policy with its signed `bundle`. Each signature binds the exact policy and device generation. The server independently authorizes the operator, checks cohort membership and revisions, and collects device acknowledgments. The signing command works offline.

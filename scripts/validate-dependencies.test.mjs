@@ -196,6 +196,8 @@ const securityRuntimeDependencies = [
 ];
 
 const dependencies = [
+  { ...platformDependencies.find(({ name }) => name === "golang.org/x/sys"), manifest: "cmd/zaspctl/go.mod" },
+  { ...platformDependencies.find(({ name }) => name === "gopkg.in/yaml.v3"), manifest: "cmd/zaspctl/go.mod" },
   { ...platformDependencies.find(({ name }) => name === "golang.org/x/sys"), manifest: "services/endpoint-agent/go.mod" },
   ...npmDependencies,
   ...eventIngestDependencies,
@@ -347,7 +349,7 @@ function filesFixture() {
       "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
       "",
     ].join("\n"),
-    "cmd/zaspctl/go.mod": "module example/zaspctl\n\ngo 1.26.0\n",
+    "cmd/zaspctl/go.mod": "module example/zaspctl\n\ngo 1.26.0\n\nrequire golang.org/x/sys v0.47.0\nrequire gopkg.in/yaml.v3 v3.0.1\n",
     "services/endpoint-agent/go.mod": [
       "module github.com/zasp-ai/zasp-sec/services/endpoint-agent",
       "go 1.26.0",
@@ -364,7 +366,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 15, dependencies: 36 });
+  assert.deepEqual(validate(), { manifests: 15, dependencies: 38 });
 });
 
 test("binds exact hash-locked isolated Cartography and Prowler runtimes", async (t) => {
@@ -431,7 +433,7 @@ test("rejects coherent unreviewed syscall versions and manifest-only drift", asy
 test("accepts the reviewed repository dependency inventory", async () => {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const result = await validateRepository(root);
-  assert.deepEqual(result, { manifests: 15, dependencies: 53 });
+  assert.deepEqual(result, { manifests: 15, dependencies: 55 });
 });
 
 test("binds the exact ten AWS SDK product dependencies", async (t) => {
@@ -578,7 +580,7 @@ test("accepts a package lock at four MiB and rejects one byte over its own bound
   const bound = 4 * 1024 * 1024;
   files["package-lock.json"] = content + " ".repeat(bound - Buffer.byteLength(content));
   assert.equal(Buffer.byteLength(files["package-lock.json"]), bound);
-  assert.deepEqual(validate(lockFixture(), files), { manifests: 15, dependencies: 36 });
+  assert.deepEqual(validate(lockFixture(), files), { manifests: 15, dependencies: 38 });
   files["package-lock.json"] += " ";
   assert.throws(() => validate(lockFixture(), files), /dependency lock invalid/);
 });
@@ -679,11 +681,11 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 15, dependencies: 38 });
+  assert.deepEqual(validate(lock, files), { manifests: 15, dependencies: 40 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 15, dependencies: 36 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 15, dependencies: 38 });
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

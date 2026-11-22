@@ -5,7 +5,7 @@ A repository maintainer can attach a protected CI job's Ed25519 signature to a c
 ## Register the repository signer
 
 1. In **API Access**, create a token with only `submit_addon_scans`. Record its product ID and the Organization, Workspace and Environment IDs. Use one credential per repository trust boundary.
-2. Generate an Ed25519 signing key in your protected CI environment. Only the protected signing job should have access to the private key. The PEM file must be an owner-only PKCS8 regular file. The following example prints the 32-byte **public** key as lowercase hexadecimal. Keep the private file outside the checkout and CI artifacts.
+2. Generate an Ed25519 signing key in your protected CI environment. Only the protected signing job should have access to the private key. The PEM file must be an owner-only PKCS8 regular file. The following example prints the 32-byte **public** key as lowercase hexadecimal. Keep the private file outside the checkout and CI artifacts. On Windows, create the key in an access-controlled NTFS directory. The key owner and effective allow entries must belong to the signing account, LocalSystem or local Administrators. The CLI checks the file handle and rejects shared grants, hard links and reparse points.
 
    ```sh
    umask 077

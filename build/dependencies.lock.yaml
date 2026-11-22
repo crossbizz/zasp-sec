@@ -48,6 +48,22 @@ manifests:
   - ecosystem: python
     path: workers/security-python/pyproject.toml
 dependencies:
+  - ecosystem: go
+    manifest: cmd/zaspctl/go.mod
+    name: golang.org/x/sys
+    version: v0.47.0
+    license: BSD-3-Clause
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: cmd/zaspctl/go.mod
+    name: gopkg.in/yaml.v3
+    version: v3.0.1
+    license: MIT
+    owner: platform-data
+    scope: runtime
+    review: approved
   - ecosystem: npm
     manifest: package.json
     name: drizzle-orm

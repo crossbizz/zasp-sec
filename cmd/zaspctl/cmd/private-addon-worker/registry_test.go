@@ -20,7 +20,7 @@ func TestWorkerRetriesAggregateReportAcrossRestart(t *testing.T) {
 	digest := "sha256:" + strings.Repeat("c", 64)
 	archive := "sha256:" + strings.Repeat("b", 64)
 	token := "local-test-token-" + strings.Repeat("a", 32)
-	secret := filepath.Join(t.TempDir(), "credential")
+	secret := filepath.Join(testSpool(t), "credential")
 	if err := os.WriteFile(secret, []byte(token), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -46,11 +46,12 @@ func TestWorkerRetriesAggregateReportAcrossRestart(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(receipt{ScanID: id, VersionID: ptr(version), ManifestDigest: ptr(digest), Completeness: "complete", Review: &path})
 	}))
 	defer server.Close()
-	dir := t.TempDir()
+	dir := testSpool(t)
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = root.Close() })
 	cfg := &reporter{origin: server.URL, credentialFile: secret, transport: server.Client().Transport}
 	w := &worker{scope: strings.Join([]string{id, id, id}, "/"), markers: root, reporter: cfg}
 	g := grant{ID: id, Expires: time.Now().Unix() + 270, SHA256: archive, Size: 80, Registry: true}

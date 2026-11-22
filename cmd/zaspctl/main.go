@@ -18,6 +18,8 @@ import (
 
 const usage = `zaspctl — local agent add-on inventory and static scans
 
+  zaspctl mcp snapshot --environment ID --server ID --view LABEL --out NEW_FILE [--json] < captured-pages.jsonl
+  zaspctl mcp rescan --environment ID --server ID --view LABEL --baseline FILE --baseline-sha256 sha256:DIGEST [--fail-on-change] [--json] < captured-pages.jsonl
   zaspctl evidence export --environment ID (--cohort LABEL | --device ID [--session REF]) [--no-open]
   zaspctl device status|doctor [--json]
   zaspctl auth login --environment ID [--no-open]
@@ -39,6 +41,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h" || args[0] == "help") {
 		fmt.Fprint(stdout, usage)
 		return 0
+	}
+	if len(args) >= 1 && args[0] == "mcp" {
+		return mcpSchema(args[1:], os.Stdin, stdout, stderr)
 	}
 	if len(args) >= 2 && args[0] == "evidence" && args[1] == "export" {
 		return evidenceLink(args[2:], stdout, stderr)

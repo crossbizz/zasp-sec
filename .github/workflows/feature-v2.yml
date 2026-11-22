@@ -42,6 +42,13 @@ jobs:
           go build -C services/endpoint-agent -o "$RUNNER_TEMP/zasp-endpoint" .
           plutil -lint deploy/endpoint/ai.zasp.endpoint.plist
           bash -n deploy/endpoint/package-macos.sh
+      - name: Exercise disposable System Keychain and unprivileged ticket hook
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          codesign --force --sign - "$RUNNER_TEMP/zasp-endpoint"
+          go test -C services/endpoint-agent -c -o "$RUNNER_TEMP/zasp-mac-e2e.test" .
+          sudo -n env ZASP_DISPOSABLE_MAC_E2E=1 ZASP_DISPOSABLE_MAC_BINARY="$RUNNER_TEMP/zasp-endpoint" "$RUNNER_TEMP/zasp-mac-e2e.test" -test.v -test.run '^TestDisposableMacKeychainTicketHook$'
   windows-inventory:
     runs-on: windows-2025
     timeout-minutes: 15
@@ -58,8 +65,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22.23.1
-      - name: Test native Windows CLI and local inventory
-        run: go test -C cmd/zaspctl -count=1 ./...
       - name: Test native Windows DPAPI, ACLs and signed inventory transport
         run: go test -C services/endpoint-agent -count=1 ./cmd/zasp-device-windows ./internal/windowsinventory
       - name: Test Intune staging
@@ -84,3 +89,5 @@ jobs:
           $rejected = $false
           try { & './deploy/endpoint/intune-device/Stage-Device.ps1' -SignedExecutable "$env:RUNNER_TEMP/device.exe" -AgentSHA256 $hash -SignerThumbprint ('0'*40) -NewOutput $target } catch { $rejected = $_.Exception.Message -eq 'Release verification failed.' }
           if (!$rejected -or (Test-Path $target)) { throw 'Unsigned device package should fail before producing output.' }
+      - name: Test native Windows CLI and local inventory
+        run: go test -C cmd/zaspctl -count=1 ./...

@@ -50,7 +50,7 @@ func newReporter() (*reporter, error) {
 	return &reporter{origin: origin, credentialFile: secret, transport: http.DefaultTransport}, nil
 }
 func (q *reporter) token() (string, error) {
-	f, err := os.Open(q.credentialFile)
+	f, err := openReportSecret(q.credentialFile)
 	if err != nil {
 		return "", errors.New("credential unavailable")
 	}
@@ -144,23 +144,7 @@ func (w *worker) publish(g grant, result addons.PrivateSummary) (*receipt, bool)
 		return nil, false
 	}
 	tmp := g.ID + ".writing"
-	f, err := w.markers.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, false
-	}
-	_, writeErr := f.Write(data)
-	syncErr := f.Sync()
-	closeErr := f.Close()
-	if writeErr != nil || syncErr != nil || closeErr != nil || w.markers.Rename(tmp, g.ID+".pending") != nil {
-		return nil, false
-	}
-	dir, err := w.markers.Open(".")
-	if err != nil {
-		return nil, false
-	}
-	err = dir.Sync()
-	dir.Close()
-	if err != nil {
+	if err := persistFile(w.markers, tmp, g.ID+".pending", data); err != nil {
 		return nil, false
 	}
 	ack, err := w.reporter.send(p)

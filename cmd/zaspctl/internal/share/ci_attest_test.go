@@ -51,7 +51,7 @@ func TestCLIOriginAttestsReceiptFromGitOverTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 	keyFile := filepath.Join(t.TempDir(), "signing.pem")
-	if err := os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: encoded}), 0600); err != nil {
+	if err := writeTestCIKey(keyFile, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: encoded})); err != nil {
 		t.Fatal(err)
 	}
 	h := sha256.Sum256(public)

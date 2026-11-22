@@ -121,23 +121,12 @@ func (w *worker) ServeHTTP(out http.ResponseWriter, r *http.Request) {
 	}
 	// O_EXCL on the operator-owned persistent volume serializes replay across
 	// restarts. The receipt's name contains only a random grant ID.
-	marker, err := w.markers.OpenFile(id, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	err := claimGrant(w.markers, id)
 	if errors.Is(err, os.ErrExist) {
 		http.Error(out, "Grant already used", 409)
 		return
 	}
 	if err != nil {
-		http.Error(out, "Grant tracking unavailable", 503)
-		return
-	}
-	syncErr := marker.Sync()
-	closeErr := marker.Close()
-	dir, dirErr := w.markers.Open(".")
-	if dirErr == nil {
-		dirErr = dir.Sync()
-		dir.Close()
-	}
-	if syncErr != nil || closeErr != nil || dirErr != nil {
 		http.Error(out, "Grant tracking unavailable", 503)
 		return
 	}
@@ -196,6 +185,8 @@ func (w *worker) expireMarkers(now time.Time) {
 			id, age := name, time.Hour
 			if stem, ok := strings.CutSuffix(name, ".pending"); ok {
 				id, age = stem, 65*time.Minute
+			} else if stem, ok := strings.CutSuffix(name, ".claiming"); ok {
+				id = stem
 			} else if stem, ok := strings.CutSuffix(name, ".writing"); ok {
 				id = stem
 			}
@@ -232,9 +223,8 @@ func run() error {
 		return errors.New("private marker volume unavailable")
 	}
 	defer markers.Close()
-	meta, err := markers.Stat(".")
-	if err != nil || meta.Mode().Perm()&0022 != 0 {
-		return errors.New("private marker volume must not be writable by a group or other users")
+	if !privateSpool(markers) {
+		return errors.New("private marker volume owner and access controls rejected")
 	}
 	ui := os.Getenv("ZASP_PRIVATE_ADDON_UI_ORIGIN")
 	if ui != "" {

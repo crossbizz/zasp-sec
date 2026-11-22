@@ -26,19 +26,11 @@ var ciCommitID = regexp.MustCompile(`^([a-f0-9]{40}|[a-f0-9]{64})$`)
 var ciRepoSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,38}/[a-z0-9][a-z0-9._-]{0,99}$`)
 
 func readCIKey(path string) (ed25519.PrivateKey, error) {
-	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > 4096 {
-		return nil, errReport
-	}
-	f, err := os.Open(path)
+	f, err := openCIKey(path)
 	if err != nil {
-		return nil, err
+		return nil, errReport
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil || !os.SameFile(st, info) || st.Mode().Perm()&0077 != 0 {
-		return nil, errReport
-	}
 	raw, err := io.ReadAll(io.LimitReader(f, 4097))
 	if err != nil || len(raw) > 4096 {
 		return nil, errReport
