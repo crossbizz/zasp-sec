@@ -47,7 +47,7 @@ Other authenticated staging adapters and recorders can provide the same three ex
 | `inconclusive` | 3 | Evidence is incomplete, mismatched or inconsistent. |
 | `unsupported` | 3 | The bound adapter reports that it cannot control this action. |
 
-A fixture verdict describes that fixture. Staging evidence has its own run, revision and source records. This local evaluator does not install a provider hook, schedule a regression, or publish a production verification badge.
+A fixture verdict describes that fixture. Staging evidence has its own run, revision and source records. For automatic, approved reruns when the signed endpoint policy, fixture binary or selected tool schema changes, configure the [managed ticket watcher](../../../../docs/operations/ticket-regression-watch.md).
 
 ### Attach evidence to a product run
 

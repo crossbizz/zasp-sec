@@ -67,3 +67,7 @@ go run ./cmd/endpoint-policy --cohort-plan ./reviewed-cohort.json --key ./issuer
 The input object has `schema_version` set to `ticket-cohort-plan.v1`, plus `cohort`, `phase`, `expected_rollout_revision` and `items`. Each item has `expected_device_version` and `policy`. The signer emits a `ticket-cohort-bundle.v1` object with the same metadata and ordered `items`, replacing each policy with its signed `bundle`. Each signature binds the exact policy and device generation. The server independently authorizes the operator, checks cohort membership and revisions, and collects device acknowledgments. The signing command works offline.
 
 Run `zasp-endpoint prove-ticket --help` to produce a scoped staging scenario, two real hook decisions and independent ticket readback in one command. The [staging proof guide](../../services/platform/cmd/verify-ticket/README.md) covers isolated runs, enrolled pilots and import into a queued product run.
+
+### Change-triggered ticket verification
+
+The optional [managed ticket watcher](../../docs/operations/ticket-regression-watch.md) uses an existing approved schedule and local device consent. Its separate [LaunchDaemon](ai.zasp.ticket-watch.plist) polls the enrolled policy and designated fixture sources every five minutes.

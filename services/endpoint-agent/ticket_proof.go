@@ -33,8 +33,10 @@ type proofDevice struct {
 }
 
 type proofOptions struct {
+	expectedBinding                                      *Binding
 	out, managedConfig, run, target, cohort, environment string
 	window                                               time.Duration
+	expectedRevision                                     uint64
 }
 
 func proveTicket(ctx context.Context, args []string, out, diag io.Writer) error {
@@ -86,6 +88,51 @@ func proveTicket(ctx context.Context, args []string, out, diag io.Writer) error 
 		o.environment = "test"
 		o.cohort = "isolated-ticket-fixture"
 	}
+	return executeTicketProof(ctx, o, out)
+}
+
+func (d proofDevice) command(ctx context.Context, operation string, args ...string) (*exec.Cmd, error) {
+	if operation != "status" && operation != "claude-pre-tool" {
+		return nil, errInvalid
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	// Match the enrolled caller when the supervisor runs as the service owner.
+	params := append([]string{operation, "--socket", d.cfg.Socket}, args...)
+	cmd := exec.CommandContext(ctx, exe, params...)
+	uid := *d.cfg.UID
+	if uid != os.Geteuid() {
+		if os.Geteuid() != 0 {
+			return nil, errors.New("run managed proof as the endpoint service owner")
+		}
+		account, err := user.LookupId(strconv.Itoa(uid))
+		if err != nil {
+			return nil, err
+		}
+		gid, err := strconv.ParseUint(account.Gid, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		cmd.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), Groups: []uint32{uint32(gid)}}}
+	}
+	return cmd, nil
+}
+func (d proofDevice) activeTicketRevision(ctx context.Context) (uint64, error) {
+	status, err := d.command(ctx, "status")
+	if err != nil {
+		return 0, err
+	}
+	raw, err := status.Output()
+	var reply response
+	if err != nil || strictJSON(raw, &reply) != nil || reply.Status == nil || reply.Status.PolicyStatus != "verified_cache" || reply.Status.Mode != "enforce" || reply.Status.Revision == 0 {
+		return 0, errors.New("assigned employee must have an active verified Enforce policy for the synthetic ticket hook")
+	}
+	return reply.Status.Revision, nil
+}
+
+func executeTicketProof(ctx context.Context, o proofOptions, out io.Writer) error {
 	ctx, cancel := context.WithTimeout(ctx, o.window+30*time.Second)
 	defer cancel()
 	device, closeDevice, err := openProofDevice(ctx, o.managedConfig)
@@ -93,40 +140,15 @@ func proveTicket(ctx context.Context, args []string, out, diag io.Writer) error 
 		return err
 	}
 	defer closeDevice()
-	exe, err := os.Executable()
+	if o.expectedBinding != nil && device.cfg.Binding != *o.expectedBinding {
+		return errors.New("the enrolled device binding changed before the scheduled verification")
+	}
+	revision, err := device.activeTicketRevision(ctx)
 	if err != nil {
 		return err
 	}
-	// Match the enrolled caller, even when this supervisor runs as the
-	// service owner to verify signed evidence.
-	makeCmd := func(operation string, args ...string) (*exec.Cmd, error) {
-		params := append([]string{operation, "--socket", device.cfg.Socket}, args...)
-		cmd := exec.CommandContext(ctx, exe, params...)
-		uid := *device.cfg.UID
-		if uid != os.Geteuid() {
-			if os.Geteuid() != 0 {
-				return nil, errors.New("run managed proof as the endpoint service owner")
-			}
-			account, err := user.LookupId(strconv.Itoa(uid))
-			if err != nil {
-				return nil, err
-			}
-			gid, err := strconv.ParseUint(account.Gid, 10, 32)
-			if err != nil {
-				return nil, err
-			}
-			cmd.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), Groups: []uint32{uint32(gid)}}}
-		}
-		return cmd, nil
-	}
-	status, err := makeCmd("status")
-	if err != nil {
-		return err
-	}
-	raw, err := status.Output()
-	var reply response
-	if err != nil || strictJSON(raw, &reply) != nil || reply.Status == nil || reply.Status.PolicyStatus != "verified_cache" || reply.Status.Mode != "enforce" || reply.Status.Revision == 0 {
-		return errors.New("assigned employee must have an active verified Enforce policy for the synthetic ticket hook")
+	if o.expectedRevision != 0 && revision != o.expectedRevision {
+		return errors.New("the acknowledged policy changed before the scheduled verification")
 	}
 	if err = os.Mkdir(o.out, 0700); err != nil {
 		return fmt.Errorf("create new proof directory: %w", err)
@@ -134,7 +156,7 @@ func proveTicket(ctx context.Context, args []string, out, diag io.Writer) error 
 	b := device.cfg.Binding
 	scope := redteam.TicketScope{OrganizationID: b.Organization, WorkspaceID: b.Workspace, EnvironmentID: b.Environment}
 	binding := redteam.TicketRunBinding{Scope: scope, RunID: o.run, TargetID: o.target, Operation: "synthetic_ticket_update"}
-	policy := redteam.TicketPolicyBinding{AdapterID: device.adapter, CohortID: o.cohort, PolicyRevision: strconv.FormatUint(reply.Status.Revision, 10)}
+	policy := redteam.TicketPolicyBinding{AdapterID: device.adapter, CohortID: o.cohort, PolicyRevision: strconv.FormatUint(revision, 10)}
 	for _, id := range []string{b.Organization, b.Workspace, b.Environment} {
 		if _, err := domain.ParseProductID(id); err != nil {
 			return errors.New("proof device requires product-scoped identifiers")
@@ -154,7 +176,7 @@ func proveTicket(ctx context.Context, args []string, out, diag io.Writer) error 
 		if err != nil {
 			return err
 		}
-		cmd, err := makeCmd("claude-pre-tool", "--on-unavailable", "deny")
+		cmd, err := device.command(ctx, "claude-pre-tool", "--on-unavailable", "deny")
 		if err != nil {
 			return err
 		}
@@ -190,7 +212,7 @@ func proveTicket(ctx context.Context, args []string, out, diag io.Writer) error 
 		}
 		// Acknowledged remote receipts may have left the local spool. Only
 		// admit the exact still-verifiable observation. Leave gaps explicit.
-		evidence, receipt, ok := device.observation(attempt, allowed, reply.Status.Revision)
+		evidence, receipt, ok := device.observation(attempt, allowed, revision)
 		if ok {
 			adapter.Decisions = append(adapter.Decisions, evidence)
 			signed = append(signed, receipt)

@@ -56,6 +56,8 @@ func run(ctx context.Context, args []string, in io.Reader, out, diag io.Writer) 
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	f.SetOutput(diag)
 	switch args[0] {
+	case "watch-ticket":
+		return watchTicket(ctx, args[1:], out, diag)
 	case "prove-ticket":
 		return proveTicket(ctx, args[1:], out, diag)
 	case "init-device-key":
