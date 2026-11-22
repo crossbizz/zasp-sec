@@ -1,5 +1,5 @@
-// private-addon-worker is a single-Environment private, static, memory-only
-// archive scanner. Only opaque grant IDs and aggregate reporting metadata persist.
+// private-addon-worker is a single-Environment, static archive scanner.
+// Only a separately signed retention grant can send bytes to encrypted storage.
 package main
 
 import (

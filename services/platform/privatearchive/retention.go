@@ -120,9 +120,11 @@ type Backend interface {
 }
 type Record struct {
 	Binding
-	State     string     `json:"state"`
-	Version   string     `json:"storage_version,omitempty"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	State        string     `json:"state"`
+	Version      string     `json:"storage_version,omitempty"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	DeleteReason string     `json:"delete_reason,omitempty"`
+	RequestedAt  *time.Time `json:"delete_requested_at,omitempty"`
 }
 type Journal struct {
 	Root  *os.Root
@@ -196,6 +198,10 @@ func (j *Journal) Put(ctx context.Context, b Binding, body []byte) (Record, erro
 			return Record{}, ErrRejected
 		}
 		if old.State == "retained" {
+			v, present, e := j.Store.Lookup(ctx, b)
+			if e != nil || !present || v != old.Version {
+				return Record{}, ErrUnavailable
+			}
 			return old, nil
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -223,6 +229,24 @@ func (j *Journal) Status(id string) (Record, error) {
 	defer j.mu.Unlock()
 	return j.read(id)
 }
+
+// Verify checks the retained version's bytes and binding without exposing its contents.
+func (j *Journal) Verify(ctx context.Context, id string) (Record, error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	r, err := j.read(id)
+	if err != nil {
+		return Record{}, err
+	}
+	if r.State != "retained" || !j.Now().Before(time.Unix(r.Deadline, 0)) {
+		return Record{}, ErrRejected
+	}
+	v, exists, err := j.Store.Lookup(ctx, r.Binding)
+	if err != nil || !exists || v != r.Version {
+		return Record{}, ErrUnavailable
+	}
+	return r, nil
+}
 func (j *Journal) Delete(ctx context.Context, id string) (Record, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -230,11 +254,16 @@ func (j *Journal) Delete(ctx context.Context, id string) (Record, error) {
 	if e != nil {
 		return Record{}, e
 	}
-	return j.remove(ctx, r)
+	return j.remove(ctx, r, "operator_requested")
 }
-func (j *Journal) remove(ctx context.Context, r Record) (Record, error) {
+func (j *Journal) remove(ctx context.Context, r Record, reason string) (Record, error) {
 	if r.State == "deleted" {
 		return r, nil
+	}
+	if r.RequestedAt == nil {
+		stamp := j.Now().UTC()
+		r.RequestedAt = &stamp
+		r.DeleteReason = reason
 	}
 	r.State = "cleanup_pending"
 	if e := j.save(r); e != nil {
@@ -299,7 +328,7 @@ func (j *Journal) Sweep(ctx context.Context) error {
 			j.mu.Lock()
 			r, e := j.read(id)
 			if e == nil && r.State != "deleted" && (r.State == "cleanup_pending" || !j.Now().Before(time.Unix(r.Deadline, 0))) {
-				_, e = j.remove(ctx, r)
+				_, e = j.remove(ctx, r, "retention_expired")
 			}
 			j.mu.Unlock()
 			if e != nil {

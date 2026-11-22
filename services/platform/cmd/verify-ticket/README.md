@@ -10,7 +10,34 @@ sample=services/platform/cmd/verify-ticket/testdata
 /tmp/zasp-verify-ticket "$sample/scenario.json" "$sample/adapter.json" "$sample/recorder.json"
 ```
 
-For a staging exercise, copy the shape of `scenario.json`, pin a unique run, two distinct action IDs, an independent recorder ID and a window up to one hour. Obtain `adapter.json` and `recorder.json` separately from their authenticated sources. The recorder should report the timestamp through which it guarantees complete observation, including delayed writes. Its coverage must start at or before the opening of the scenario window. The verifier uses its own current time to check the watermark. Represent a disconnected recorder with `healthy: false`, and an unobserved adapter with `capability: "unknown"`. Retain the input evidence with the result under the same Environment’s access controls. The command checks the supplied evidence. An operator must establish source authenticity and deployment provenance before using it in a live coverage report.
+## Produce the three exports in one run
+
+On Linux, run the real local hook with an ephemeral Enforce policy and an isolated synthetic ticket recorder. Choose a new output directory under a private parent.
+
+```sh
+go build -C services/endpoint-agent -o /tmp/zasp-ticket-endpoint .
+work=$(mktemp -d)
+/tmp/zasp-ticket-endpoint prove-ticket --out "$work/proof"
+/tmp/zasp-verify-ticket "$work/proof/scenario.json" "$work/proof/adapter.json" "$work/proof/recorder.json"
+```
+
+Two hook processes hold distinct sessions. The command pins the scenario and opens both inputs, then releases the allowed update first. Its write must reach the recorder before the second attempt. The recorder accepts either pinned action. It independently commits each actual write to a private journal, seals it after the declared window, and reads the durable receipts. The proof directory includes the three importable files, the matched device-signed source receipts and the recorder journal. An isolated run uses an ephemeral test identity and is labeled `isolated_linux_ticket_fixture`.
+
+For an **enrolled staging pilot**, queue the existing synthetic-ticket definition in Red Team. On the assigned test device, run the installed executable as the endpoint service owner. The current signed revision must be in Enforce mode with `internal` as its allowed destination. Use the queued run ID, the saved target ID, the device's enrolled cohort, and the Environment class from the definition.
+
+```sh
+/usr/local/libexec/zasp-endpoint prove-ticket \
+  --managed-config "/Library/Application Support/Zasp/endpoint.json" \
+  --out "/private/staging-proof/run-001" \
+  --run-id "$STAGING_RUN_ID" --target-id "$STAGING_TARGET_ID" \
+  --cohort "$PILOT_COHORT" --environment-class staging
+```
+
+For a Linux test Environment use its protected configuration and `--environment-class test`. The command derives the tenant, signing identity, policy revision and action references from the configured device. It runs the fixed ticket hook as the assigned employee. Each target write goes only to the private synthetic recorder on loopback. No provider URL, shell command, production credential or deployment selector is accepted. The recorder's coverage is limited to this staging fixture. The CLI does not submit, approve or promote a run.
+
+The default window is five seconds. Set `--window` between two seconds and two minutes when measuring a slower staging device. A missing signed receipt, a policy change during the exercise or a missing positive write can yield an inconclusive result. Open the generated evidence, check device health and repeat with a new queued run and directory. Keep `device-receipts.json` and the recorder journal scoped to the staging operator. The web import consumes only `scenario.json`, `adapter.json` and `recorder.json`.
+
+Other authenticated staging adapters and recorders can provide the same three export shapes. Their recorder must cover the full window and account for delayed writes. Record a disconnected recorder with `healthy: false` and an unobserved capability with `capability: "unknown"`. The evaluator checks its own clock and the submitted evidence. The operator establishes source identity and deployment provenance.
 
 | Result | Exit | Meaning |
 | --- | --- | --- |

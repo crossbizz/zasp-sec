@@ -79,7 +79,7 @@ func (s *PrivateArchives) Lookup(ctx context.Context, b privatearchive.Binding) 
 		return "", false, e
 	}
 	out, e := s.client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: aws.String(s.config.Bucket), ExpectedBucketOwner: aws.String(s.config.ExpectedBucketOwner), Prefix: aws.String(loc.Key), MaxKeys: aws.Int32(2)}, oneAttemptOption)
-	if e != nil || out == nil || aws.ToBool(out.IsTruncated) || len(out.DeleteMarkers) > 0 || len(out.CommonPrefixes) > 0 || len(out.Versions) > 1 {
+	if e != nil || out == nil || out.IsTruncated == nil || aws.ToBool(out.IsTruncated) || aws.ToString(out.Name) != s.config.Bucket || aws.ToString(out.Prefix) != loc.Key || len(out.DeleteMarkers) > 0 || len(out.CommonPrefixes) > 0 || len(out.Versions) > 1 {
 		return "", false, ErrGet
 	}
 	if len(out.Versions) == 0 {

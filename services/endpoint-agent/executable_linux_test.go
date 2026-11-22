@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/redteam"
 )
 
 // Runs the compiled program as both daemon and managed hook. An independent
@@ -188,5 +190,54 @@ func TestExecutableTicketControl(t *testing.T) {
 	if err != nil || resp.Status == nil || resp.Status.Revision != 3 || resp.Status.Mode != "monitor" {
 		t.Fatal("rollback acknowledgement", resp, err)
 	}
+
+	t.Run("normal isolated proof command", func(t *testing.T) {
+		out := filepath.Join(dir, "standalone-proof")
+		c := exec.CommandContext(ctx, exe, "prove-ticket", "--out", out, "--window", "2s")
+		raw, err := c.CombinedOutput()
+		var verdict redteam.TicketVerification
+		if err != nil || json.Unmarshal(raw, &verdict) != nil || verdict.Verdict != "passed" {
+			t.Fatalf("produce: %v %s", err, raw)
+		}
+		var bundle redteam.TicketProofBundle
+		for name, dst := range map[string]any{"scenario": &bundle.Scenario, "adapter": &bundle.Adapter, "recorder": &bundle.Recorder} {
+			raw, err = os.ReadFile(filepath.Join(out, name+".json"))
+			if err != nil || redteam.DecodeTicketExport(raw, dst) != nil {
+				t.Fatalf("invalid %s", name)
+			}
+		}
+		if !bundle.Archivable() || bundle.Scenario.AdapterID != "isolated_linux_ticket_fixture" || len(bundle.Recorder.Writes) != 1 || bundle.Recorder.Writes[0].ActionID != bundle.Scenario.ControlActionID {
+			t.Fatal("incorrect fixture evidence")
+		}
+		v, e := redteam.VerifyTicketProof(bundle.Scenario, bundle.Adapter, bundle.Recorder, time.Now())
+		if e != nil || v != verdict {
+			t.Fatal("independent verification differs", v, e)
+		}
+		var source struct {
+			Key      []byte   `json:"device_public_key"`
+			Receipts []Signed `json:"receipts"`
+		}
+		raw, err = os.ReadFile(filepath.Join(out, "device-receipts.json"))
+		if err != nil || json.Unmarshal(raw, &source) != nil || len(source.Receipts) != 2 {
+			t.Fatal("missing two raw source receipts")
+		}
+		sessions := map[string]bool{}
+		for _, receipt := range source.Receipts {
+			var actual Observation
+			if !ed25519.Verify(source.Key, receipt.Payload, receipt.Signature) || strictJSON(receipt.Payload, &actual) != nil {
+				t.Fatal("invalid source signature")
+			}
+			sessions[actual.Session] = true
+		}
+		if len(sessions) != 2 {
+			t.Fatal("proof reused one session")
+		}
+		if exec.CommandContext(ctx, exe, "prove-ticket", "--out", out).Run() == nil {
+			t.Fatal("previous proof overwritten")
+		}
+		if exec.CommandContext(ctx, exe, "prove-ticket", "--out", filepath.Join(dir, "misbound"), "--run-id", bundle.Scenario.RunID).Run() == nil {
+			t.Fatal("isolated fixture accepted a product identity")
+		}
+	})
 
 }

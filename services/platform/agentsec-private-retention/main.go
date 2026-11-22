@@ -162,19 +162,31 @@ func (s service) administer(w http.ResponseWriter, r *http.Request) {
 	var e error
 	switch r.Method {
 	case http.MethodGet:
-		rec, e = s.journal.Status(id)
+		if strings.HasSuffix(id, "/verify") {
+			id = strings.TrimSuffix(id, "/verify")
+			rec, e = s.journal.Verify(r.Context(), id)
+		} else {
+			rec, e = s.journal.Status(id)
+		}
 	case http.MethodDelete:
 		rec, e = s.journal.Delete(r.Context(), id)
 	default:
 		http.Error(w, "Rejected", 405)
 		return
 	}
-	if e != nil && rec.State != "cleanup_pending" {
-		http.Error(w, "Unknown grant or storage unavailable", 404)
-		return
-	}
 	if e != nil {
+		if errors.Is(e, os.ErrNotExist) || errors.Is(e, privatearchive.ErrRejected) {
+			http.Error(w, "Grant absent or ineligible", 404)
+			return
+		}
+		current, readErr := s.journal.Status(id)
+		if readErr != nil {
+			http.Error(w, "Storage unavailable", 503)
+			return
+		}
+		rec = current
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(503)
 	}
 	send(w, rec)
@@ -318,7 +330,7 @@ func operator(ctx context.Context, args []string) error {
 	method := "GET"
 	if args[0] == "delete" {
 		method = "DELETE"
-	} else if args[0] != "status" {
+	} else if args[0] != "status" && args[0] != "verify" {
 		return privatearchive.ErrRejected
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
@@ -337,7 +349,11 @@ func operator(ctx context.Context, args []string) error {
 	client := &http.Client{Timeout: 35 * time.Second, Transport: &http.Transport{DialContext: func(c context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(c, "unix", socket)
 	}}}
-	req, e := http.NewRequestWithContext(ctx, method, "http://localhost/v1/grants/"+*id, nil)
+	target := "http://localhost/v1/grants/" + *id
+	if args[0] == "verify" {
+		target += "/verify"
+	}
+	req, e := http.NewRequestWithContext(ctx, method, target, nil)
 	if e != nil {
 		return e
 	}

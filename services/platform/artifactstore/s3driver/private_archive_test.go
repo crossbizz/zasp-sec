@@ -33,7 +33,7 @@ func (f *privateS3Fixture) ListObjectVersions(_ context.Context, in *s3.ListObje
 	if f.deniedList || aws.ToString(in.ExpectedBucketOwner) != validConfig().ExpectedBucketOwner || aws.ToInt32(in.MaxKeys) != 2 {
 		return nil, errors.New("denied")
 	}
-	out := &s3.ListObjectVersionsOutput{}
+	out := &s3.ListObjectVersionsOutput{Name: in.Bucket, Prefix: in.Prefix, IsTruncated: aws.Bool(false)}
 	if f.marked {
 		out.DeleteMarkers = []types.DeleteMarkerEntry{{Key: in.Prefix}}
 	}
