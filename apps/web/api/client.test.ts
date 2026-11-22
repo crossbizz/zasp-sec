@@ -29,6 +29,14 @@ describe("generated API client", () => {
 		expect(decodeRuntimeDecisionPage({ items: [{ id: "decision-1", policy_id: "policy-production", environment_id: "environment-production", result: "monitor", correlation_id: "correlation-1", at: "2026-08-18T12:00:00Z" }] }).items[0]?.id).toBe("decision-1");
 		expect(decodeIntegration({ id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:01:00Z" }).status).toBe("revoking");
 	});
+	it("retains the 100-action legacy bound and accepts 5,000 only for a complete pinned replay", () => {
+		const result = { matches: 250, would_block: 10, example_session_ids: [] };
+		const replay = { policy_revision: 1, agent_id: "pid_20000001-0000-4000-8000-000000000001", from: "2026-08-17T12:00:00Z", to: "2026-08-18T12:00:00Z", evaluated: 5000, coverage: "indexed_events_only", truncated: false };
+		expect(() => decodePolicySimulation({ ...result, replay })).toThrow("schema mismatch");
+		const expanded = { ...replay, examined_count: 5000, eligible_count: 5000, would_block_rate: { tool: 0.002 }, next_window_to: null, next_before_event_id: null };
+		expect(decodePolicySimulation({ ...result, replay: expanded }).matches).toBe(250);
+		expect(() => decodePolicySimulation({ ...result, replay: { ...expanded, examined_count: 5001 } })).toThrow("schema mismatch");
+	});
 	it("strictly decodes exact AWS and Kubernetes reference configurations", () => {
 		const base = { id: "pid_20000001-0000-4000-8000-000000000001", name: "Reference connector", status: "pending_authorization", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:01:00Z" };
 		const aws = { ...base, connector_key: "aws", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } };

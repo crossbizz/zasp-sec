@@ -440,10 +440,12 @@ export function decodeTicketVerification(value: unknown, runID: string): import(
 
 export function decodePolicySimulation(value: unknown): PolicySimulation {
   const record = exactRecord(value, ["matches", "would_block", "example_session_ids"], ["replay"]);
-  boundedInteger(record.matches, 0, 5000); boundedInteger(record.would_block, 0, 5000); stringArray(record.example_session_ids, 5);
+  let maximum = 100;
+  stringArray(record.example_session_ids, 5);
   if (record.replay !== undefined) {
     const replay = exactRecord(record.replay, ["policy_revision", "agent_id", "from", "to", "evaluated", "truncated", "coverage"], ["examined_count", "eligible_count", "next_window_to", "next_before_event_id", "would_block_rate"]);
-    positiveInteger(replay.policy_revision); productID(replay.agent_id); dateTime(replay.from); dateTime(replay.to); boundedInteger(replay.evaluated, 0, 5000);
+    maximum = replay.examined_count === undefined ? 100 : 5000;
+    positiveInteger(replay.policy_revision); productID(replay.agent_id); dateTime(replay.from); dateTime(replay.to); boundedInteger(replay.evaluated, 0, maximum);
     if (replay.examined_count !== undefined) {
       boundedInteger(replay.examined_count, 0, 5000); boundedInteger(replay.eligible_count, 0, replay.examined_count as number);
       if (replay.eligible_count !== replay.evaluated) fail();
@@ -455,6 +457,8 @@ export function decodePolicySimulation(value: unknown): PolicySimulation {
     } else if (["eligible_count","next_window_to","next_before_event_id","would_block_rate"].some(key => key in replay)) fail();
     if (typeof replay.truncated !== "boolean" || replay.coverage !== "indexed_events_only" || replay.truncated && replay.examined_count === undefined && replay.evaluated !== 100 || (record.would_block as number) > (record.matches as number) || (record.matches as number) > (replay.evaluated as number)) fail();
   }
+  boundedInteger(record.matches, 0, maximum);
+  boundedInteger(record.would_block, 0, record.matches as number);
   return value as PolicySimulation;
 }
 export function decodePolicyRollout(value: unknown): PolicyRollout { const record = exactRecord(value, ["policy_id", "state", "target_id"]); if (typeof record.policy_id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(record.policy_id)) fail(); enumValue(record.state, ["draft", "monitor", "enforced", "disabled"]); boundedString(record.target_id, 1, 128); return value as PolicyRollout; }
