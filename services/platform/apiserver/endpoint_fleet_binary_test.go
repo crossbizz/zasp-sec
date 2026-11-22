@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -42,7 +43,28 @@ func exerciseInstalledEndpoint(t *testing.T, b *installedBaseline, h http.Handle
 		t.Fatalf("build: %v %s", err, out)
 	}
 	base := "/api/v1/devices/" + binding.Device
+	// Queue an approved staging definition, drive the real supervisor against
+	// the currently enrolled broker, then import the three unedited files.
+	runID, target, definition := b.id(), b.id(), b.id()
+	class := b.text("SELECT environment_class FROM public.zasp_environments WHERE id=$1", b.e)
+	if class != "test" && class != "staging" {
+		t.Fatal("expected disposable staging or test Environment", class)
+	}
+	b.seed(func() {
+		b.exec(`INSERT INTO zasp_red_team_definitions(organization_id,workspace_id,environment_id,definition_id,name,target_id,target_kind,categories,safety,created_by) VALUES($1,$2,$3,$4,'Supervised ticket proof',$5,'agent_endpoint','["tool_abuse"]',jsonb_build_object('environment',$7::text,'credential_class','test_write','expected_side_effects',jsonb_build_array('synthetic_ticket_update')),$6)`, b.o, b.w, b.e, definition, target, admin.identity.PrincipalID.String(), class)
+		b.exec(`INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,input_digest,queued_at) VALUES($1,$2,$3,$4,$5,1,$6,decode(repeat('cd',32),'hex'),clock_timestamp())`, b.o, b.w, b.e, runID, definition, admin.identity.PrincipalID.String())
+	})
+	// Installed authorization fixtures keep one pgx connection per service
+	// login. Serialize test-harness database calls across HTTP and the operator.
+	var dbMu sync.Mutex
+	queryCount := func(query string, args ...any) string {
+		dbMu.Lock()
+		defer dbMu.Unlock()
+		return b.text(query, args...)
+	}
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dbMu.Lock()
+		defer dbMu.Unlock()
 		header := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		i, err := repo.Authenticate(r.Context(), Credential{Kind: CredentialBearerToken, Value: header})
 		if err != nil {
@@ -163,20 +185,9 @@ func exerciseInstalledEndpoint(t *testing.T, b *installedBaseline, h http.Handle
 		t.Fatal("wrong permitted action count")
 	}
 	await(2, 0)
-	if count := b.text("SELECT count(*)::text FROM public.zasp_endpoint_observations WHERE device_id=$1 AND observation->>'policy_revision'='2'", binding.Device); count != "2" {
+	if count := queryCount("SELECT count(*)::text FROM public.zasp_endpoint_observations WHERE device_id=$1 AND observation->>'policy_revision'='2'", binding.Device); count != "2" {
 		t.Fatal("server did not retain both real adapter receipts", count)
 	}
-	// Queue an approved staging definition, drive the real supervisor against
-	// the currently enrolled broker, then import the three unedited files.
-	runID, target, definition := b.id(), b.id(), b.id()
-	class := b.text("SELECT environment_class FROM public.zasp_environments WHERE id=$1", b.e)
-	if class != "test" && class != "staging" {
-		t.Fatal("expected disposable staging or test Environment", class)
-	}
-	b.seed(func() {
-		b.exec(`INSERT INTO zasp_red_team_definitions(organization_id,workspace_id,environment_id,definition_id,name,target_id,target_kind,categories,safety,created_by) VALUES($1,$2,$3,$4,'Supervised ticket proof',$5,'agent_endpoint','["tool_abuse"]',jsonb_build_object('environment',$7::text,'credential_class','test_write','expected_side_effects',jsonb_build_array('synthetic_ticket_update')),$6)`, b.o, b.w, b.e, definition, target, admin.identity.PrincipalID.String(), class)
-		b.exec(`INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,input_digest,queued_at) VALUES($1,$2,$3,$4,$5,1,$6,decode(repeat('cd',32),'hex'),clock_timestamp())`, b.o, b.w, b.e, runID, definition, admin.identity.PrincipalID.String())
-	})
 	outDir := filepath.Join(dir, "ticket-proof")
 	producer := exec.CommandContext(ctx, exe, "prove-ticket", "--managed-config", configPath, "--out", outDir, "--run-id", runID, "--target-id", target, "--cohort", "pilot", "--environment-class", class, "--window", "5s")
 	if out, err := producer.CombinedOutput(); err != nil {
@@ -196,7 +207,11 @@ func exerciseInstalledEndpoint(t *testing.T, b *installedBaseline, h http.Handle
 	if err != nil {
 		t.Fatal(err)
 	}
-	imported := b.serve(&discoveryWorkflowSurface{evidenceDB: b.product}, admin, "putTicketVerification", "PUT", "/api/v1/test-runs/"+runID+"/ticket-verification", map[string]string{"id": runID}, string(payload), nil)
+	imported := func() *httptest.ResponseRecorder {
+		dbMu.Lock()
+		defer dbMu.Unlock()
+		return b.serve(&discoveryWorkflowSurface{evidenceDB: b.product}, admin, "putTicketVerification", "PUT", "/api/v1/test-runs/"+runID+"/ticket-verification", map[string]string{"id": runID}, string(payload), nil)
+	}()
 	var stored struct {
 		Source string                     `json:"evidence_source"`
 		Result redteam.TicketVerification `json:"result"`
@@ -205,7 +220,7 @@ func exerciseInstalledEndpoint(t *testing.T, b *installedBaseline, h http.Handle
 		t.Fatalf("imported producer result: %d %s", imported.Code, imported.Body)
 	}
 	await(2, 0)
-	if count := b.text("SELECT count(*)::text FROM public.zasp_endpoint_observations WHERE device_id=$1 AND action_id IN ($2,$3)", binding.Device, bundle.Scenario.ControlActionID, bundle.Scenario.ProtectedActionID); count != "2" {
+	if count := queryCount("SELECT count(*)::text FROM public.zasp_endpoint_observations WHERE device_id=$1 AND action_id IN ($2,$3)", binding.Device, bundle.Scenario.ControlActionID, bundle.Scenario.ProtectedActionID); count != "2" {
 		t.Fatal("proof action IDs do not join actual enrolled observations", count)
 	}
 
