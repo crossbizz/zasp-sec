@@ -129,6 +129,10 @@ func (handler *identityHTTPHandler) serveCLILogin(w http.ResponseWriter, r *http
 			writeProductionError(w, r, err)
 			return
 		}
+		if string(raw) == `"forbidden"` {
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
+			return
+		}
 		var result struct {
 			Approved bool `json:"approved"`
 		}

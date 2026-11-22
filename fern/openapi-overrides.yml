@@ -91,7 +91,12 @@ paths:
         - CLI sign-in
       x-fern-sdk-group-name: cliAuth
       x-fern-sdk-method-name: approve
-      description: 'Authentication: a browser session only. An API token is refused.'
+      description: >-
+        Fresh browser consent requires the existing run_tests grant in this Environment. The exchanged credential can submit local add-on findings for up to
+        fifteen minutes. Eligibility is rechecked at exchange and submission.
+
+
+        Authentication: a browser session only. An API token is refused.
   /api/v1/cli/auth/exchange:
     post:
       tags:

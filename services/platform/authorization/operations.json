@@ -1,7 +1,7 @@
 [
   {"ID":"createPrivateAddonUpload","Method":"POST","Path":"/api/v1/addon-scan-uploads","Permission":"manage_data_controls","Relation":"manage_data_controls","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"startCLILogin","Method":"POST","Path":"/api/v1/cli/auth/start","Permission":"","Relation":"","Surface":"core","Security":[],"FreshAuth":false},
-  {"ID":"approveCLILogin","Method":"POST","Path":"/api/v1/cli/auth/approve","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"approveCLILogin","Method":"POST","Path":"/api/v1/cli/auth/approve","Permission":"run_tests","Relation":"run_tests","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"exchangeCLILogin","Method":"POST","Path":"/api/v1/cli/auth/exchange","Permission":"","Relation":"","Surface":"core","Security":[],"FreshAuth":false},
   {"ID":"startSession","Method":"GET","Path":"/api/v1/session/start","Permission":"","Relation":"","Surface":"core","Security":[],"FreshAuth":false},
   {"ID":"bootstrapSession","Method":"GET","Path":"/api/v1/session/bootstrap","Permission":"","Relation":"","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},

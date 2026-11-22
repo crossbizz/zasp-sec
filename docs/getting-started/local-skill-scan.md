@@ -4,6 +4,10 @@ A developer can inventory Claude Code or Codex skills, check one bundle and read
 
 The offline scanner benchmark shows which benign declarations produce review findings and where source comments can trigger a capability warning. [Benchmark and fixtures](../operations/local-skill-scanner-benchmark.md)
 
+## Get a verified binary
+
+Open **Scan this device**. When your deployment has published a release, choose its exact OS and architecture. Use **Verify your download** to authenticate the signed manifest with your organization's trusted Ed25519 public key, then compare the file's SHA-256 before execution. A deployment with no staged release shows the source build. [Release owner instructions](../../deploy/cli-release/README.md)
+
 ## Build and run
 
 From the repository root, build the developer CLI with Go 1.26.0 or a compatible newer toolchain.
@@ -94,7 +98,7 @@ zaspctl addons submit scan.json --mode findings-only --environment pid_00000000-
 
 The preview works offline. It shows the Environment, origin, completeness, manifest digest when complete, rule counts, skipped count and scanner versions. To send those fields to a deployment with the add-on scan API, configure its HTTPS origin in `ZASP_API_URL` and supply an Environment-scoped `ZASP_API_TOKEN` through your secret manager. Run the same command without `--dry-run`. The receipt for a complete report includes the review link. Scope and review authorization are enforced by the deployment.
 
-For an interactive developer session, set `ZASP_API_URL` and run `zaspctl auth login --environment <environment-id>`. Open the first-party link and enter the code printed separately in your terminal. Check the Environment and choose **Approve CLI access**. Approval requires a fresh browser session with permission to manage API tokens for that Environment. The CLI redeems the single-use grant and stores its 15-minute findings-only credential in the user’s OS credential store. Use `--no-open` to open the URL yourself. Linux requires a desktop Secret Service and `/usr/bin/secret-tool`. macOS Keychain support requires a native build with cgo. Windows uses Credential Manager. Failure to use secure storage ends the interactive login.
+For an interactive developer session, set `ZASP_API_URL` and run `zaspctl auth login --environment <environment-id>`. Open the first-party link and enter the code printed separately in your terminal. Check the Environment and choose **Approve CLI access**. Consent requires fresh sign-in and the active Environment’s existing OpenFGA `run_tests` grant. Developer owners, security engineers, security admins and organization admins receive it within their assigned scope. Compliance viewers and read-only viewers do not. The CLI receives only `submit_addon_scans` for local findings. Removing the user’s testing grant stops redemption and further uploads. The CLI redeems the single-use grant and stores its 15-minute findings-only credential in the user’s OS credential store. Use `--no-open` to open the URL yourself. Linux requires a desktop Secret Service and `/usr/bin/secret-tool`. macOS Keychain support requires a native build with cgo. Windows uses Credential Manager. Failure to use secure storage ends the interactive login.
 
 On a managed Mac, `zaspctl device status` reads the assigned local endpoint's current policy revision, mode, sync state, and receipt counts. Use `zaspctl device doctor` for recovery guidance or add `--json` for machine output. The native macOS build verifies the service's root identity on the local socket. A stopped, unsupported or unassigned endpoint yields exit 3. The reported policy state describes this device's cached coverage.
 
@@ -104,7 +108,7 @@ A data-controls administrator can explicitly send a selected ZIP to an Environme
 
 ## Export a managed pilot report
 
-An authorized security lead can open **Compliance → Export managed pilot evidence** and choose a registered cohort, device, or device-bound session reference. Request the retained report in a fresh browser session, then use its existing status and download controls. The report covers reported device policy acknowledgments, bounded endpoint decisions and installation digests. It marks truncated results, independent target verification, skill usage and the assigned fleet denominator explicitly.
+An authorized security lead can open **Compliance → Export managed pilot evidence** and choose a registered cohort, device, or device-bound session reference. Request the retained report in a fresh browser session, then use its existing status and download controls. The report covers reported device policy acknowledgments, bounded endpoint decisions and installation digests. It flags truncated results and identifies unknown skill usage and fleet assignment. For a signed macOS ticket decision, the JSON, CSV and printable report can show the linked test run, evidence digest and recorder result. A finding of no protected write covers only the verified observation window and requires an allowed control write from the same device generation, session and policy revision. Missing or ambiguous evidence leaves the target effect unknown.
 
 The CLI can open the same form, optionally with `--no-open` to print the link. Set the first-party HTTPS origin in `ZASP_API_URL`.
 

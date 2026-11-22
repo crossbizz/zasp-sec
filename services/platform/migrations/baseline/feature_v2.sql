@@ -204,6 +204,12 @@ DECLARE proof jsonb; credential text; version_value text; receipt_value jsonb; p
 BEGIN
  proof:=zasp_authorization80.product_request(o,w,e,actor_value,'submitAddonScan','submit_addon_scans','environment',e,false,false,false,true);
  credential:=proof->>'credential_id';
+ -- Recheck the human's testing grant at use, including exact replays. Native
+ -- automation tokens keep their separately administered scope and origin.
+ IF EXISTS(SELECT FROM zasp_authorization80_identity.cli_authorizations g WHERE (g.organization_id,g.workspace_id,g.environment_id,g.principal_id,g.credential_id)=(o,w,e,actor_value,credential))
+  AND (NOT zasp_authorization80_identity.cli_submitter_active(o,w,e,actor_value) OR report_value->>'origin' IS DISTINCT FROM 'local' OR report_value?'private_upload') THEN
+  RETURN '"forbidden"'::jsonb;
+ END IF;
  IF proof->>'credential_kind' IS DISTINCT FROM '2' OR proof->'pat_ceiling' IS DISTINCT FROM '["submit_addon_scans"]'::jsonb OR credential IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='restricted submission credential required'; END IF;
  IF NOT COALESCE(public.zasp_valid_product_id(scan_value) AND public.zasp_valid_product_id(version_candidate) AND key_value ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' AND zasp_authorization80.addon_report_valid(report_value,e),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid findings report'; END IF;
  -- Serialize only this scoped retry key. Concurrent distinct scans can share a version.
@@ -543,6 +549,18 @@ CREATE TABLE IF NOT EXISTS zasp_authorization80_identity.cli_authorizations (
 ALTER TABLE zasp_authorization80_identity.cli_authorizations OWNER TO zasp_discovery_authority;
 REVOKE ALL ON TABLE zasp_authorization80_identity.cli_authorizations FROM PUBLIC,zasp_discovery_api;
 CREATE INDEX IF NOT EXISTS cli_authorizations_expiry ON zasp_authorization80_identity.cli_authorizations(exchange_until);
+CREATE UNIQUE INDEX IF NOT EXISTS cli_authorizations_credential ON zasp_authorization80_identity.cli_authorizations(organization_id,workspace_id,environment_id,credential_id);
+
+-- The Environment's existing security-testing grant is available to its
+-- developer owners, security engineers and admins. Effective scopes combine
+-- active direct membership with any narrower per-Environment group role.
+CREATE OR REPLACE FUNCTION zasp_authorization80_identity.cli_submitter_active(o text,w text,e text,actor text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $cli_eligibility$
+ SELECT EXISTS(SELECT FROM public.zasp_identity_admin_effective_scopes(actor,o) s
+  WHERE (s.organization_id,s.workspace_id,s.environment_id)=(o,w,e) AND s.permissions?'run_tests')
+$cli_eligibility$;
+ALTER FUNCTION zasp_authorization80_identity.cli_submitter_active(text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80_identity.cli_submitter_active(text,text,text,text) FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION zasp_authorization80.cli_approve(o text,w text,e text,actor text,req text,challenge_value text,token_hash text,exchange_epoch bigint) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $cli_approve$
@@ -551,7 +569,8 @@ DECLARE proof jsonb; prior zasp_authorization80_identity.cli_authorizations%ROWT
  until_value timestamptz; cred text:='pid_'||gen_random_uuid()::text; audit text:='pid_'||gen_random_uuid()::text;
  ceiling_value CONSTANT jsonb:='["submit_addon_scans"]'::jsonb; label_value CONSTANT text:='zaspctl findings submission';
 BEGIN
- proof:=zasp_authorization80.product_request(o,w,e,actor,'approveCLILogin','manage_api_tokens','environment',e,false,true,true,true);
+ proof:=zasp_authorization80.product_request(o,w,e,actor,'approveCLILogin','run_tests','environment',e,false,true,true,true);
+ IF NOT zasp_authorization80_identity.cli_submitter_active(o,w,e,actor) THEN RETURN '"forbidden"'::jsonb; END IF;
  IF NOT COALESCE(public.zasp_valid_product_id(req) AND challenge_value ~ '^[A-Za-z0-9_-]{43}$' AND token_hash ~ '^[a-f0-9]{64}$' AND
       exchange_epoch BETWEEN floor(extract(epoch FROM clock_timestamp())) AND floor(extract(epoch FROM clock_timestamp()))+301,false)
  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid CLI approval'; END IF;
@@ -564,7 +583,7 @@ BEGIN
   PERFORM zasp_authorization80.product_settled(proof); RETURN '{"approved":true}'::jsonb;
  END IF;
  -- Reuse the native PAT row guard with the exact data permitted to this
- -- manage_api_tokens principal. Its normal expiry, revocation, scope and
+ -- CLI delegate. Its normal expiry, revocation, scope and
  -- OpenFGA rechecks continue to apply on every subsequent submission.
  PERFORM zasp_authorization80_identity.set_permit(jsonb_build_object('purpose','admin','operation','createAPIToken','organization_id',o,'workspace_id',w,'environment_id',e,'actor',actor,'audit_id',audit,
  'values',jsonb_build_object('token_digest',token_hash,'id',cred,'name',label_value,'permissions',ceiling_value,'expires_at',expiry)));
@@ -592,6 +611,7 @@ BEGIN
  UPDATE zasp_authorization80_identity.cli_authorizations g SET consumed_at=clock_timestamp()
  WHERE request_id=req AND environment_id=e AND consumed_at IS NULL AND exchange_until>clock_timestamp()
  AND challenge=translate(rtrim(encode(public.digest(verifier,'sha256'),'base64'),'='),'+/','-_')
+ AND zasp_authorization80_identity.cli_submitter_active(g.organization_id,g.workspace_id,e,g.principal_id)
  AND EXISTS(SELECT 1 FROM public.zasp_product_api_tokens t WHERE t.id=g.credential_id AND t.organization_id=g.organization_id AND t.workspace_id=g.workspace_id
  AND t.environment_id=e AND t.token_digest=decode(expected_digest,'hex') AND t.principal_id=g.principal_id AND t.revoked_at IS NULL AND t.expires_at>clock_timestamp() AND t.permissions='["submit_addon_scans"]'::jsonb)
  RETURNING g.* INTO approved;
@@ -715,6 +735,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $ci_bindi
 DECLARE p jsonb; v jsonb;
 BEGIN
  p:=zasp_authorization80.product_request(o,w,e,actor_value,'attestAddonScan','submit_addon_scans','environment',e,false,false,false,write_value);
+ IF EXISTS(SELECT FROM zasp_authorization80_identity.cli_authorizations g WHERE (g.organization_id,g.workspace_id,g.environment_id,g.principal_id,g.credential_id)=(o,w,e,actor_value,p->>'credential_id')) THEN RETURN 'null'::jsonb; END IF;
  IF p->>'credential_kind' IS DISTINCT FROM '2' OR p->'pat_ceiling' IS DISTINCT FROM '["submit_addon_scans"]'::jsonb OR p#>>'{path_parameters,id}' IS DISTINCT FROM i THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='restricted CI credential required'; END IF;
  SELECT jsonb_build_object('environment_id',e,'credential_id',s.credential_id,'scan_id',s.scan_id,'manifest_digest',s.report->>'manifest_digest','ruleset',s.report->>'ruleset','findings',s.report->'findings','key_id',k.key_id,'repository',k.repository,'public_key',encode(k.public_key,'hex')) INTO v FROM public.zasp_addon_scan_receipts s JOIN public.zasp_addon_ci_keys k USING(organization_id,workspace_id,environment_id,credential_id) WHERE (s.organization_id,s.workspace_id,s.environment_id,s.credential_id,s.scan_id,k.key_id,k.repository)=(o,w,e,p->>'credential_id',i,kid,repo) AND s.report->>'origin'='ci' AND s.report->>'completeness'='complete' AND k.revoked_at IS NULL FOR SHARE OF k;
  RETURN COALESCE(v,'null'::jsonb);
@@ -1901,3 +1922,55 @@ ALTER FUNCTION zasp_authorization80.private_addon_upload_consent(text,text,text,
 REVOKE ALL ON FUNCTION zasp_authorization80.private_addon_upload_consent(text,text,text,text,text,text,text,bigint,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION zasp_authorization80.private_addon_upload_consent(text,text,text,text,text,text,text,bigint,text,text) TO zasp_discovery_api;
 REVOKE EXECUTE ON FUNCTION zasp_authorization80.private_addon_upload_with_reporter(text,text,text,text,text,text,text,bigint,text) FROM zasp_discovery_api;
+
+-- Capture verifier inputs only for a completed, receipt-backed test already
+-- visible to this Environment's compliance export. The renderer consumes
+-- these internal bounded inputs and publishes only the derived outcome.
+CREATE OR REPLACE FUNCTION zasp_authorization80.pilot_export_verified_pack(o text,w text,e text,q jsonb,stamp timestamptz) RETURNS jsonb
+LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $verified_pilot_pack$
+ WITH base AS MATERIALIZED (SELECT zasp_authorization80.pilot_export_pack(o,w,e,q,stamp) doc),
+ shown AS MATERIALIZED (
+  SELECT a.* FROM base b CROSS JOIN LATERAL jsonb_to_recordset(b.doc->'observations')
+   a(device_id text,generation bigint,session_ref text,action_ref text,policy_revision bigint)
+ ), sources AS MATERIALIZED (
+  SELECT s.source_id FROM public.zasp_compliance_sources(o,w,e) s WHERE s.source_kind='red_team_test' AND s.source_valid AND s.source_time<=stamp
+ ), linked AS (
+  SELECT a.*,p.run_id,p.submitted_at,p.bundle,
+   EXISTS(SELECT 1 FROM public.zasp_endpoint_observations pos WHERE
+    (pos.organization_id,pos.workspace_id,pos.environment_id,pos.device_id,pos.credential_generation,pos.action_id)=(o,w,e,a.device_id,a.generation,p.bundle#>>'{scenario,control_action_id}')
+    AND (pos.observation->>'session_ref',pos.observation->>'policy_revision',pos.observation->>'tool',pos.observation->>'mode',pos.observation->>'verdict',pos.observation->>'target_class')=
+     (a.session_ref,a.policy_revision::text,'mcp__pilot__update_ticket','enforce','continue','allowed_destination')
+    AND pos.received_at<=stamp AND (pos.observation->>'observed_at')::timestamptz BETWEEN (p.bundle#>>'{scenario,window_start}')::timestamptz AND (p.bundle#>>'{scenario,window_end}')::timestamptz
+   ) AS control_bound,
+   count(*) OVER(PARTITION BY a.device_id,a.generation,a.action_ref) AS candidate_count
+  FROM shown a JOIN public.zasp_endpoint_devices d ON (d.organization_id,d.workspace_id,d.environment_id,d.id)=(o,w,e,a.device_id)
+  JOIN public.zasp_endpoint_observations deny ON (deny.organization_id,deny.workspace_id,deny.environment_id,deny.device_id,deny.credential_generation,deny.action_id)=(o,w,e,a.device_id,a.generation,a.action_ref)
+  JOIN public.zasp_ticket_verification_imports p ON
+   (p.organization_id,p.workspace_id,p.environment_id,p.bundle#>>'{scenario,cohort_id}',p.bundle#>>'{scenario,policy_revision}',p.bundle#>>'{scenario,adapter_id}',p.bundle#>>'{scenario,protected_action_id}')=
+   (o,w,e,d.cohort,a.policy_revision::text,'macos_claude_ticket',a.action_ref)
+  JOIN sources s ON s.source_id=p.run_id
+  WHERE p.submitted_at<=stamp AND deny.received_at<=stamp
+   AND (deny.observation->>'session_ref',deny.observation->>'tool',deny.observation->>'mode',deny.observation->>'verdict',deny.observation->>'target_class',deny.observation->>'would_block')=
+    (a.session_ref,'mcp__pilot__update_ticket','enforce','deny','outside_allowed_destination','true')
+   AND (deny.observation->>'observed_at')::timestamptz BETWEEN (p.bundle#>>'{scenario,window_start}')::timestamptz AND (p.bundle#>>'{scenario,window_end}')::timestamptz
+   AND EXISTS(SELECT 1 FROM public.zasp_ticket_cohort_rollouts c WHERE (c.organization_id,c.workspace_id,c.environment_id,c.cohort)=(o,w,e,d.cohort)
+    AND c.created_at<=(p.bundle#>>'{scenario,window_start}')::timestamptz
+    AND c.targets @> jsonb_build_array(jsonb_build_object('id',a.device_id,'generation',a.generation,'revision',a.policy_revision,'mode','enforce')))
+ ), page AS MATERIALIZED (SELECT * FROM linked WHERE candidate_count=1 ORDER BY submitted_at DESC,run_id,device_id,action_ref LIMIT 9)
+ SELECT base.doc||jsonb_build_object('ticket_proof_inputs',coalesce((SELECT jsonb_agg(jsonb_build_object('device_id',device_id,'generation',generation,'action_ref',action_ref,'session_ref',session_ref,'policy_revision',policy_revision,'control_bound',control_bound,'submitted_at',submitted_at,'evidence_sha256',encode(sha256(convert_to(bundle::text,'UTF8')),'hex'),'bundle',bundle) ORDER BY submitted_at DESC,run_id,device_id,action_ref)
+    FROM (SELECT * FROM page ORDER BY submitted_at DESC,run_id,device_id,action_ref LIMIT 8) selected),'[]'::jsonb),
+  'ticket_proofs_truncated',(SELECT count(*)>8 FROM page),
+  'ticket_proofs_ambiguous',EXISTS(SELECT FROM linked WHERE candidate_count>1)) FROM base
+$verified_pilot_pack$;
+ALTER FUNCTION zasp_authorization80.pilot_export_verified_pack(text,text,text,jsonb,timestamptz) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.pilot_export_verified_pack(text,text,text,jsonb,timestamptz) FROM PUBLIC;
+DO $verified_capture$
+DECLARE fn regprocedure:='public.zasp_compliance_export_capture(text,text,text,text,text,text,bigint,jsonb,text,text)'::regprocedure; src text:=pg_get_functiondef(fn);
+ old_call text:='zasp_authorization80.pilot_export_pack(org_value,workspace_value,environment_value,j.request,stamp)';
+ new_call text:='zasp_authorization80.pilot_export_verified_pack(org_value,workspace_value,environment_value,j.request,stamp)';
+BEGIN
+ IF position(new_call IN src)=0 THEN
+  IF position(old_call IN src)=0 THEN RAISE EXCEPTION 'unsupported pilot export capture';END IF;
+  EXECUTE replace(src,old_call,new_call);
+ END IF;
+END $verified_capture$;

@@ -12,7 +12,7 @@ vi.mock("../../api/APIProvider", () => ({ APIProvider: ({children}: {children: R
   useAPI: () => ({ client: { POST } as unknown as APIClient }) }));
 vi.mock("../../auth/SessionProvider", () => ({ SessionProvider: ({children}: {children: React.ReactNode}) => children,
   useSession: () => ({status:"authenticated", environmentID:env, workspaceID:id, organizationID:id,
-    scopes:[], isFreshAuthenticated:state.fresh, hasCapability: () => state.permitted}) }));
+    scopes:[], isFreshAuthenticated:state.fresh, hasCapability: (capability: string) => capability === "addon-scans.share" && state.permitted}) }));
 function link() {
   return "#" + new URLSearchParams({request_id:id,environment_id:env,code_challenge:"X".repeat(43),
     request_proof: Math.floor(Date.now()/1000+300)+"."+"Y".repeat(43)}).toString();

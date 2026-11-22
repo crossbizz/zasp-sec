@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -111,11 +112,33 @@ func (p *pilotPack) valid(s complianceFrozenSnapshot) bool {
 }
 
 func renderPilotPackage(l complianceExportLease, s complianceFrozenSnapshot) (compliancePreparedArtifact, error) {
-	var p pilotPack
+	var stored struct {
+		pilotPack
+		Tickets         []pilotTicketInput `json:"ticket_proof_inputs"`
+		ProofsTruncated *bool              `json:"ticket_proofs_truncated"`
+		ProofsAmbiguous *bool              `json:"ticket_proofs_ambiguous"`
+	}
 	decoder := json.NewDecoder(bytes.NewReader(s.PilotEvidencePack))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&p) != nil || decoder.Decode(new(any)) != io.EOF || !p.valid(s) {
+	if decoder.Decode(&stored) != nil || decoder.Decode(new(any)) != io.EOF || !stored.pilotPack.valid(s) {
 		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	p := stored.pilotPack
+	if (stored.Tickets == nil) != (stored.ProofsTruncated == nil) || (stored.Tickets == nil) != (stored.ProofsAmbiguous == nil) {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	checks, valid := pilotTicketChecks(p, stored.Tickets)
+	if !valid {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	if len(checks) > 0 {
+		p.External = "see_independent_ticket_checks"
+	}
+	for _, check := range checks {
+		if check.Effect != "unknown" {
+			p.Effect = "see_independent_ticket_checks"
+			break
+		}
 	}
 	// Count only the registered records included in this frozen snapshot.
 	// A truncated page and an unknown MDM assignment have different meanings.
@@ -139,8 +162,11 @@ func renderPilotPackage(l complianceExportLease, s complianceFrozenSnapshot) (co
 	}
 	document, err := json.Marshal(struct {
 		pilotPack
-		Shown shownCounts `json:"shown_device_counts"`
-	}{p, counts})
+		Shown           shownCounts        `json:"shown_device_counts"`
+		Checks          []pilotTicketCheck `json:"independent_ticket_checks,omitempty"`
+		ProofsTruncated *bool              `json:"ticket_proofs_truncated,omitempty"`
+		ProofsAmbiguous *bool              `json:"ticket_proofs_ambiguous,omitempty"`
+	}{p, counts, checks, stored.ProofsTruncated, stored.ProofsAmbiguous})
 	if err != nil {
 		return compliancePreparedArtifact{}, errWorkerExecution
 	}
@@ -156,10 +182,15 @@ func renderPilotPackage(l complianceExportLease, s complianceFrozenSnapshot) (co
 			fmt.Fprintf(&readable, "Device-bound session %s.\n", p.Selection.Session)
 		}
 	}
-	fmt.Fprint(&readable, "The following facts were reported to this Environment. The assigned fleet, external verification, target effects and skill usage are unknown.\n\n")
-	for _, field := range []string{"assigned_fleet", "external_verification", "target_effect", "skill_usage"} {
-		writer.Write([]string{"coverage", "", "", field, "unknown"})
+	if len(checks) == 0 {
+		fmt.Fprint(&readable, "The following facts were reported to this Environment. The assigned fleet, external verification, target effects and skill usage are unknown.\n\n")
+	} else {
+		fmt.Fprint(&readable, "Independent checks apply to the linked synthetic ticket actions and observation windows only. The assigned fleet, other target effects and skill usage are unknown.\n\n")
 	}
+	writer.Write([]string{"coverage", "", "", "assigned_fleet", p.Assigned})
+	writer.Write([]string{"coverage", "", "", "external_verification", p.External})
+	writer.Write([]string{"coverage", "", "", "target_effect", p.Effect})
+	writer.Write([]string{"coverage", "", "", "skill_usage", p.Usage})
 	fmt.Fprintf(&readable, "Among the %d registered devices shown, %d enrolled devices are active, %d are online and %d acknowledged their current policy.\n\n", counts.Registered, counts.Enrolled, counts.Online, counts.Acknowledged)
 	fmt.Fprintf(&readable, "## Registered devices (%d shown)\n\n", len(p.Devices))
 	for _, d := range p.Devices {
@@ -183,6 +214,31 @@ func renderPilotPackage(l complianceExportLease, s complianceFrozenSnapshot) (co
 		row("mode", a.Mode)
 		row("verdict", a.Verdict)
 		row("would_block", strconv.FormatBool(*a.WouldBlock))
+	}
+	if stored.Tickets != nil {
+		fmt.Fprintf(&readable, "\n## Independent synthetic ticket checks (%d shown)\n\n", len(checks))
+		fmt.Fprint(&readable, "Only receipt-backed completed tests with matching device, generation, cohort, policy, session, protected action and observation window are eligible. Missing or ambiguous evidence leaves the target effect unknown. A passed result also requires the signed positive control from that session.\n")
+		for _, r := range checks {
+			start, end := r.WindowStart.UTC().Format(time.RFC3339Nano), r.WindowEnd.UTC().Format(time.RFC3339Nano)
+			effect := "The protected write could not be verified."
+			switch r.Effect {
+			case "no_protected_write_in_verified_window":
+				effect = "The recorder saw the allowed control write and no protected write during this window."
+			case "protected_write_recorded":
+				effect = "The recorder saw a protected write."
+			}
+			fmt.Fprintf(&readable, "- Run %s · %s (%s). %s Window %s to %s. Cohort %s · device %s generation %d · session %s · action %s · revision %d · submitted %s · evidence SHA-256 %s\n", r.Run, r.Verdict, strings.ReplaceAll(r.Reason, "_", " "), effect, start, end, r.Cohort, r.Device, r.Generation, r.Session, r.Action, r.Revision, r.At.UTC().Format(time.RFC3339), r.Digest)
+			for _, v := range [][2]string{{"run_id", r.Run}, {"cohort", r.Cohort}, {"window_start", start}, {"window_end", end}, {"session_ref", r.Session}, {"generation", strconv.FormatUint(r.Generation, 10)}, {"policy_revision", strconv.FormatUint(r.Revision, 10)}, {"evidence_source", r.Source}, {"submitted_at", r.At.UTC().Format(time.RFC3339)}, {"verdict", r.Verdict}, {"reason", r.Reason}, {"protected_ticket_effect", r.Effect}, {"evidence_sha256", r.Digest}} {
+				writer.Write([]string{"ticket_check", r.Device, r.Action, v[0], v[1]})
+			}
+		}
+		for _, v := range []struct {
+			k string
+			b bool
+		}{{"ticket_proofs_truncated", *stored.ProofsTruncated}, {"ticket_proofs_ambiguous", *stored.ProofsAmbiguous}} {
+			writer.Write([]string{"coverage", "", "", v.k, strconv.FormatBool(v.b)})
+		}
+		fmt.Fprintf(&readable, "Additional matching checks omitted: %t. Ambiguous matches omitted: %t.\n", *stored.ProofsTruncated, *stored.ProofsAmbiguous)
 	}
 	fmt.Fprintf(&readable, "\n## Observed installations (%d shown)\n\n", len(p.Installs))
 	for _, i := range p.Installs {

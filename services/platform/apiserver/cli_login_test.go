@@ -48,7 +48,12 @@ func TestCLILoginProofBindsEnvironmentRequestAndTime(t *testing.T) {
 
 func TestCLILoginOnInstalledBaselinePostgres(t *testing.T) {
 	b := startInstalledV2Baseline(t)
-	admin := b.member("security_admin", "manage_api_tokens", "view")
+	developer := b.member("developer_owner", "investigate_sessions", "run_tests", "view")
+	viewer := b.member("read_only_viewer", "view")
+	browser := developer
+	// Installed fixtures substitute the OpenFGA decision for these real roles.
+	b.refused[developer.identity.PrincipalID.String()+" manage_api_tokens"] = true
+	b.refused[viewer.identity.PrincipalID.String()+" run_tests"] = true
 	if err := b.product.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +66,7 @@ func TestCLILoginOnInstalledBaselinePostgres(t *testing.T) {
 	paths := map[string]string{"startCLILogin": "/api/v1/cli/auth/start", "approveCLILogin": "/api/v1/cli/auth/approve", "exchangeCLILogin": "/api/v1/cli/auth/exchange"}
 	router, err := NewRouter([]Operation{
 		{Method: "POST", Pattern: paths["startCLILogin"], OperationID: "startCLILogin", Handler: h},
-		{Method: "POST", Pattern: paths["approveCLILogin"], OperationID: "approveCLILogin", Permission: "manage_api_tokens", Security: []CredentialKind{CredentialBrowserSession}, RequireFreshAuth: true, RequireCSRF: true, Handler: h},
+		{Method: "POST", Pattern: paths["approveCLILogin"], OperationID: "approveCLILogin", Permission: "run_tests", Security: []CredentialKind{CredentialBrowserSession}, RequireFreshAuth: true, RequireCSRF: true, Handler: h},
 		{Method: "POST", Pattern: paths["exchangeCLILogin"], OperationID: "exchangeCLILogin", Handler: h},
 	})
 	if err != nil {
@@ -81,10 +86,10 @@ func TestCLILoginOnInstalledBaselinePostgres(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, paths[op], bytes.NewReader(encoded)).WithContext(b.ctx)
 		req.Header.Set("Content-Type", "application/json")
 		if op == "approveCLILogin" {
-			req.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "session-secret-" + admin.identity.PrincipalID.String()})
+			req.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "session-secret-" + browser.identity.PrincipalID.String()})
 			req.Header.Set("Origin", "https://app.zasp.test")
-			req.Header.Set("X-CSRF-Token", admin.identity.CSRFToken)
-			req.Header.Set(expectedScopeHeader, expectedScopeValue(admin.identity.Scope))
+			req.Header.Set("X-CSRF-Token", browser.identity.CSRFToken)
+			req.Header.Set(expectedScopeHeader, expectedScopeValue(browser.identity.Scope))
 		}
 		resp := httptest.NewRecorder()
 		server.ServeHTTP(resp, req)
@@ -108,6 +113,14 @@ func TestCLILoginOnInstalledBaselinePostgres(t *testing.T) {
 		t.Fatalf("pending exchange %d", r.Code)
 	}
 	approval := cliApproval{cliClientID, b.e, first.ID, challenge, first.Proof, first.Code}
+	if _, err := b.checked(developer, RoutedOperation{OperationID: "createAPIToken", PathParameters: map[string]string{}}); err == nil {
+		t.Fatal("developer can manage general API credentials")
+	}
+	browser = viewer
+	if got := call("approveCLILogin", approval); got.Code != http.StatusForbidden {
+		t.Fatalf("read-only viewer consent %d %s", got.Code, got.Body)
+	}
+	browser = developer
 	invalid := approval
 	invalid.Environment = b.id()
 	if r := call("approveCLILogin", invalid); r.Code == 200 {
@@ -149,9 +162,39 @@ func TestCLILoginOnInstalledBaselinePostgres(t *testing.T) {
 	if resolve.Code != http.StatusOK {
 		t.Fatalf("issued CLI credential cannot submit findings: %d %s", resolve.Code, resolve.Body.String())
 	}
-	if _, err = b.authorizer.Authorize(b.ctx, auth, auth.credentialBinding, RoutedOperation{OperationID: "getAPITokenPolicy", PathParameters: map[string]string{}}); err == nil {
-		t.Fatal("bearer authorized to administer")
+	for _, forbidden := range []string{"getAPITokenPolicy", "runTest", "reviewAddonVersion", "listComplianceEvidence", "createPolicy"} {
+		if _, err = b.authorizer.Authorize(b.ctx, auth, auth.credentialBinding, RoutedOperation{OperationID: forbidden, PathParameters: map[string]string{"id": b.id()}}); err == nil {
+			t.Fatalf("findings-only token allowed %s", forbidden)
+		}
 	}
+	local := addonTestReport(b.e, `"sha256:`+strings.Repeat("a", 64)+`"`)
+	submit := func(raw string) *httptest.ResponseRecorder {
+		return b.serve(surface, installedPrincipal{auth, auth.credentialBinding}, "submitAddonScan", "POST", "/api/v1/addon-scans", nil, raw, map[string]string{"Idempotency-Key": "cli-after-" + b.id()})
+	}
+	if r := submit(strings.Replace(local, `"local"`, `"ci"`, 1)); r.Code != 403 {
+		t.Fatal("findings-only token claimed CI source", r.Code, r.Body)
+	}
+	// Approve one more short-lived request, then remove the workload-testing
+	// grant before exchange. An existing bearer must also stop submitting.
+	second := call("startCLILogin", cliStart{cliClientID, b.e, "S256", challenge})
+	if second.Code != 200 || json.Unmarshal(second.Body.Bytes(), &first) != nil {
+		t.Fatal(second.Code, second.Body)
+	}
+	approval.ID, approval.Proof, approval.Code = first.ID, first.Proof, first.Code
+	if r := call("approveCLILogin", approval); r.Code != 200 {
+		t.Fatal(r.Code, r.Body)
+	}
+	b.seed(func() {
+		b.exec(`UPDATE zasp_identity_memberships SET role='read_only_viewer' WHERE organization_id=$1 AND principal_id=$2`, b.o, developer.identity.PrincipalID.String())
+	})
+	poll.ID = first.ID
+	if r := call("exchangeCLILogin", poll); r.Code != 409 {
+		t.Fatal("downgraded user redeemed", r.Code, r.Body)
+	}
+	if r := submit(local); r.Code != 403 {
+		t.Fatal("downgraded user submitted", r.Code, r.Body)
+	}
+
 }
 
 func TestCLILoginNativeEntryRejectsAmbientCredentials(t *testing.T) {

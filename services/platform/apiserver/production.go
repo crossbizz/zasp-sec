@@ -523,7 +523,7 @@ func capabilitiesForPermissions(permissions []string) []string {
 		case "manage_data_controls":
 			capabilities = append(capabilities, "data-controls.manage")
 		case "run_tests":
-			capabilities = append(capabilities, "red-team.write")
+			capabilities = append(capabilities, "red-team.write", "addon-scans.share")
 		}
 	}
 	return capabilities

@@ -48,7 +48,7 @@ type coreOperation struct {
 var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/addon-scan-uploads", "createPrivateAddonUpload", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/cli/auth/start", "startCLILogin", "", []string{}}, identityDependency},
-	{OperationDefinition{"POST", "/api/v1/cli/auth/approve", "approveCLILogin", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/cli/auth/approve", "approveCLILogin", "run_tests", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/cli/auth/exchange", "exchangeCLILogin", "", []string{}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/session/start", "startSession", "", []string{}}, sessionDependency},
 	{OperationDefinition{"GET", "/api/v1/session/bootstrap", "bootstrapSession", "", []string{"BrowserSession"}}, sessionDependency},

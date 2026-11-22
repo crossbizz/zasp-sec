@@ -60,28 +60,37 @@ func SecurityAgentExistingTestsFingerprint() string {
 }
 
 func securityAgentExistingTestsTemplate(budget, context string) string {
-	sql := strings.Replace(securityAgentExistingTestsUpSQL, "-- existing test candidate fragments", securityAgentExistingTestEnqueueWithPredecessor(context), 1)
-	sql += "\n" + securityAgentExistingTestPlannerSQL
-	sql += "\n" + securityAgentExistingTestApprovalsSQL
-	sql += "\n" + securityAgentExistingTestReadsSQL
-	sql += "\n" + securityAgentExistingTestControlsSQL
-	sql += "\n" + securityAgentExistingTestLifecycleSQL
-	sql += "\n" + securityAgentExistingTestAdmissionSQL
-	sql += "\n" + securityAgentExistingTestInvocationSQL
-	sql += "\n" + securityAgentExistingTestInvocationJournalSQL
-	sql += "\n" + securityAgentExistingTestEvidenceSQL
-	sql += "\n" + securityAgentExistingTestReconcileSQL
-	sql += "\n" + securityAgentExistingTestSettlementSQL
-	sql += "\n" + securityAgentExistingTestExecutionSQL
-	sql += "\n" + securityAgentExistingTestPublicSQL
-	sql += "\n" + securityAgentExistingTestGlobalControlSQL
-	sql = strings.NewReplacer(
+	parts := []string{
+		strings.Replace(securityAgentExistingTestsUpSQL, "-- existing test candidate fragments", securityAgentExistingTestEnqueueWithPredecessor(context), 1),
+		securityAgentExistingTestPlannerSQL,
+		securityAgentExistingTestApprovalsSQL,
+		securityAgentExistingTestReadsSQL,
+		securityAgentExistingTestControlsSQL,
+		securityAgentExistingTestLifecycleSQL,
+		securityAgentExistingTestAdmissionSQL,
+		securityAgentExistingTestInvocationSQL,
+		securityAgentExistingTestInvocationJournalSQL,
+		securityAgentExistingTestEvidenceSQL,
+		securityAgentExistingTestReconcileSQL,
+		securityAgentExistingTestSettlementSQL,
+		securityAgentExistingTestExecutionSQL,
+		securityAgentExistingTestPublicSQL,
+		securityAgentExistingTestGlobalControlSQL,
+	}
+	replacer := strings.NewReplacer(
 		"-- existing tests budget checksum", budget,
 		"-- existing tests budget fingerprint", SecurityAgentBudgetCandidateFingerprint(),
 		"-- existing tests context checksum", context,
 		"-- existing tests context fingerprint", SecurityAgentRunContextFingerprint(),
-	).Replace(sql)
-	return sql
+	)
+	// Most fragments contain no release markers. Join them once after substituting
+	// any marked parts; a marker cannot span the newline between two parts.
+	for index, part := range parts {
+		if strings.Contains(part, "-- existing tests ") {
+			parts[index] = replacer.Replace(part)
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 func ProductionSecurityAgentExistingTests() Metadata {

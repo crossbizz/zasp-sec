@@ -27,6 +27,9 @@ jobs:
       - name: Test browser collection and managed policy
         run: node --test extensions/browser-guard/test/guard.test.mjs
 
+      - name: Verify CLI release staging and rollback with a disposable key
+        run: node --test deploy/cli-release/release.test.mjs
+
   macos-endpoint:
     runs-on: macos-15
     timeout-minutes: 15

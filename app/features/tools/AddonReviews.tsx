@@ -1,5 +1,6 @@
 "use client";
 
+import { CLIReleaseDownloads } from "./CLIReleaseDownloads";
 import { AddonInstallations } from "./AddonInstallations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { APIProductError } from "../../../apps/web/api/client";
@@ -25,6 +26,7 @@ export function LocalScanHelp() {
   return (
     <details>
       <summary>Scan this device</summary>
+      <CLIReleaseDownloads />
       <p>
         From a Zasp source checkout, build the local scanner with Go 1.26. Scan
         a selected project or skill directory without signing in.

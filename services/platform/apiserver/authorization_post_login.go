@@ -165,7 +165,7 @@ func (c *postLoginCapabilityChecks) capabilities(ctx context.Context, environmen
 		{"integrations.write", "manage_workflows", "listIntegrations"}, {"sensors.write", "manage_workflows", "listSensors"},
 		{"security-agents.write", "manage_workflows", "listSecurityAgents"}, {"findings.write", "manage_findings", "listFindings"},
 		{"red-team.write", "run_tests", "listTests"}, {"sessions.revoke", "revoke_sessions", "listSessions"},
-		{"api-access.manage", "manage_api_tokens", ""}, {"data-controls.manage", "manage_data_controls", ""},
+		{"addon-scans.share", "run_tests", ""}, {"api-access.manage", "manage_api_tokens", ""}, {"data-controls.manage", "manage_data_controls", ""},
 		{"recovery.read", "view", ""}, {"administration.read", "view", ""}, {"system.read", "view", ""},
 		{"recovery.write", "manage_identity", ""}, {"security-agents.controls.manage", "manage_identity", ""},
 		{"identity.groups.manage", "manage_identity", ""}, {"identity.scopes.manage", "view manage_identity", ""},

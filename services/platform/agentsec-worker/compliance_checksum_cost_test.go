@@ -31,8 +31,8 @@ func TestComplianceAuthorityDoesNotRebuildChecksumAncestors(t *testing.T) {
 	if db.arguments[1] != "f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1" || db.arguments[2] != "8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced" {
 		t.Fatal("authority migration identity changed")
 	}
-	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 32<<20 {
-		t.Fatalf("checksum-only compliance query rebuilt ancestors: %d allocated bytes exceed 32 MiB", allocated)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 8<<20 {
+		t.Fatalf("checksum-only compliance query allocated %d bytes, exceeding 8 MiB", allocated)
 	}
 }
 

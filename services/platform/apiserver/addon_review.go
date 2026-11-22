@@ -216,6 +216,10 @@ func (h *addonReviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, r
 		writeProductionError(w, r, ErrRepositoryNotFound)
 		return
 	}
+	if string(raw) == `"forbidden"` {
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
+		return
+	}
 	if string(raw) == `"conflict"` {
 		writeProductionError(w, r, ErrRepositoryConflict)
 		return

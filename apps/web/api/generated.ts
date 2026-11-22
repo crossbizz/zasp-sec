@@ -1009,7 +1009,10 @@ export type paths = {
         };
         readonly get?: never;
         readonly put?: never;
-        /** Approve short-lived CLI access to findings submission */
+        /**
+         * Approve short-lived CLI access to findings submission
+         * @description Fresh browser consent requires the existing run_tests grant in this Environment. The exchanged credential can submit local add-on findings for up to fifteen minutes. Eligibility is rechecked at exchange and submission.
+         */
         readonly post: operations["approveCLILogin"];
         readonly delete?: never;
         readonly options?: never;

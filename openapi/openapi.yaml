@@ -29,6 +29,7 @@ paths:
     post:
       operationId: approveCLILogin
       summary: Approve short-lived CLI access to findings submission
+      description: Fresh browser consent requires the existing run_tests grant in this Environment. The exchanged credential can submit local add-on findings for up to fifteen minutes. Eligibility is rechecked at exchange and submission.
       security:
         - BrowserSession: []
           BrowserExpectedScope: []

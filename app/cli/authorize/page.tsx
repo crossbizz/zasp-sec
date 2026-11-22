@@ -28,7 +28,7 @@ export function CLIConsent() {
 
   async function approve() {
     if (!request || session.status !== "authenticated" || !session.isFreshAuthenticated ||
-        session.environmentID !== request.environment_id || !session.hasCapability("api-access.manage") || !/^[0-9a-f]{8}$/.test(code) || inFlight.current) return;
+        session.environmentID !== request.environment_id || !session.hasCapability("addon-scans.share") || !/^[0-9a-f]{8}$/.test(code) || inFlight.current) return;
     inFlight.current = true;
     setPhase("pending");
     try {
@@ -59,13 +59,13 @@ export function CLIConsent() {
     content = <><p>The CLI requested Environment <code>{request.environment_id}</code>. Your current Environment is <code>{session.environmentID}</code>.</p>
       {target ? <button disabled={session.scopeSwitch.status === "pending"} onClick={() => void session.switchScope(target.workspace_id, target.environment_id)}>Switch to {target.label}</button>
         : <p>Start a login for an Environment you can access.</p>}</>;
-  } else if (!session.hasCapability("api-access.manage")) {
-    content = <p>Your session cannot approve CLI credentials in this Environment. Contact an administrator with permission to manage API tokens.</p>;
+  } else if (!session.hasCapability("addon-scans.share")) {
+    content = <p>Your session cannot approve CLI credentials in this Environment. Ask your administrator for a developer or security role in this Environment.</p>;
   } else {
     const label = session.scopes.find((item) => item.environment_id === request.environment_id)?.label;
     content = <form onSubmit={(event) => { event.preventDefault(); void approve(); }}>
       <p><strong>Environment</strong> {label && <>{label} · </>}<code>{request.environment_id}</code></p>
-      <p>This CLI can submit findings-only add-on scans to this Environment for up to 15 minutes. Approval requires permission to manage API tokens.</p>
+      <p>This CLI can submit findings-only add-on scans to this Environment for up to 15 minutes. Consent uses your security-testing grant in this Environment.</p>
       <label htmlFor="comparison-code">Enter the eight-character code shown in your terminal</label>{" "}
       <input id="comparison-code" type="text" autoComplete="off" autoCapitalize="none" spellCheck={false}
         maxLength={8} pattern="[0-9a-f]{8}" value={code} onChange={(event) => setCode(event.target.value.toLowerCase())} />

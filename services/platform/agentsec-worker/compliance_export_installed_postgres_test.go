@@ -530,6 +530,27 @@ func TestComplianceExportOnInstalledBaselinePostgres(t *testing.T) {
 			strings.Contains(string(packageValue.JSON), "local_uid") || !strings.Contains(packageValue.Human, "target effects and skill usage are unknown") || !strings.Contains(packageValue.CSV, action) {
 			t.Fatalf("unexpected retained pilot report: %v %s", err, packageValue.JSON)
 		}
+		var captures bool
+		if err := admin.QueryRow(ctx, "SELECT to_regprocedure('zasp_authorization80.pilot_export_verified_pack(text,text,text,jsonb,timestamptz)') IS NOT NULL").Scan(&captures); err != nil || !captures {
+			t.Fatal("installed pilot verifier missing", err)
+		}
+		runID := id()
+		control, protected := seedPilotExportTicketProof(t, ctx, admin, o, w, e, actor, device, ref, agent, id(), runID)
+		positive := run(create("pilot-exact-protected-effect", `{"device_id":"`+device+`","endpoint_session_ref":"`+ref+`"}`))
+		var verified struct {
+			Checks []pilotTicketCheck `json:"independent_ticket_checks"`
+		}
+		if err := json.Unmarshal(positive.JSON, &verified); err != nil || len(verified.Checks) != 1 || verified.Checks[0].Run != runID || verified.Checks[0].Action != protected || verified.Checks[0].Effect != "no_protected_write_in_verified_window" || !strings.Contains(positive.CSV, runID) || verified.Checks[0].WindowStart.IsZero() || !verified.Checks[0].WindowEnd.After(verified.Checks[0].WindowStart) || !strings.Contains(positive.Human, "no protected write during this window") || bytes.Contains(positive.JSON, []byte("recorder-private-write-receipt")) || bytes.Contains(positive.JSON, []byte("ticket_proof_inputs")) {
+			t.Fatalf("missing or unsafe independent proof: %s", positive.JSON)
+		}
+		// A valid control on another session cannot confirm prevention for this session.
+		if _, err := admin.Exec(ctx, `UPDATE public.zasp_endpoint_observations SET observation=jsonb_set(observation,'{session_ref}',to_jsonb($6::text)) WHERE (organization_id,workspace_id,environment_id,device_id,action_id)=($1,$2,$3,$4,$5)`, o, w, e, device, control, strings.Repeat("b", 64)); err != nil {
+			t.Fatal(err)
+		}
+		var bound bool
+		if err := admin.QueryRow(ctx, `SELECT (zasp_authorization80.pilot_export_verified_pack($1,$2,$3,jsonb_build_object('device_id',$4::text,'endpoint_session_ref',$5::text),clock_timestamp())#>>'{ticket_proof_inputs,0,control_bound}')::boolean`, o, w, e, device, ref).Scan(&bound); err != nil || bound {
+			t.Fatal("cross-session positive control was linked", err)
+		}
 	})
 	// End fixture membership using the registered migration principal. The
 	// installed write guard checks both session_user and current_user.
