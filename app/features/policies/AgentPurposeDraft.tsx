@@ -9,6 +9,7 @@ import { useAPIQuery } from "../../api/query";
 import { Button, Card, Field, Select } from "../../components/ui";
 import { createProductionAgentSecurityAPI } from "../agents/ProductionAgentSecurityView";
 
+import { ActionAnalysis } from "./ActionAnalysis";
 import { SuggestedTools } from "./SuggestedTools";
 
 export function AgentPurposeDraft({ disabled, onCreate, initialAgent = "", canManage = true }: { initialAgent?: string; canManage?:boolean; disabled: boolean; onCreate(value: Policy): void }) {
@@ -60,6 +61,7 @@ export function AgentPurposeDraft({ disabled, onCreate, initialAgent = "", canMa
         {stored.status === "success" && current && <p>{current.revision ? `Purpose revision ${current.revision}` : "No purpose has been saved for this agent."}</p>}
         {canManage && stored.status === "success" && current && <Button disabled={disabled || saving || !pending && !draft} onClick={() => void savePurpose()}>{pending ? "Retry purpose change" : "Save agent purpose"}</Button>}
         {notice && <p role="status">{notice}</p>}
+        <ActionAnalysis key={agentID} agent={agentID} canManage={canManage} disabled={blocked}/>
         {current && current.revision > 0 && !draft && stored.status === "success" && <SuggestedTools key={agentID+"/"+current.revision} agent={agentID} revision={current.revision} canManage={canManage} disabled={blocked} tools={tools.data ?? []} onCreate={onCreate} />}
       </>}
     </>}

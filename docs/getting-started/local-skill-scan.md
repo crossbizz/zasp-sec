@@ -100,7 +100,7 @@ On a managed Mac, `zaspctl device status` reads the assigned local endpoint's cu
 
 A protected CI job can attach a commit-bound signature to a complete repository scan. The review can then distinguish a CI version from a personal installation with matching bytes. [Register and use a CI signer](../operations/addon-ci-provenance.md)
 
-A data-controls administrator can explicitly send a selected ZIP to an Environment's configured private static worker. Tools & MCP shows the worker host for confirmation before transferring bytes. The ZIP is processed in memory. Before transfer, the browser shows whether the result stays in the browser or enters the Environment review registry. A recorded complete scan provides a version review link. [Configure the private scanner and understand its retention](../operations/private-addon-worker.md)
+A data-controls administrator can explicitly send a selected ZIP to an Environment's configured private static worker. Tools & MCP shows the worker host for confirmation before transferring bytes. The ZIP is processed in memory by default. In Environments with private encrypted retention enabled, you can separately choose to keep the ZIP for up to 24 hours. Before transfer, verify the worker host, any archive expiry, and whether the finding counts stay in the browser or enter the Environment review registry. A recorded complete scan provides a version review link. [Configure the private scanner and understand its retention](../operations/private-addon-worker.md)
 
 ## Export a managed pilot report
 

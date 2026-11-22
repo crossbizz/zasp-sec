@@ -88,6 +88,9 @@ spec:
             - { name: ZASP_REQUEST_TIMEOUT, value: "10s" }
             {{- with include "zasp.privateAddonWorker.origin" $root }}
             - { name: ZASP_PRIVATE_ADDON_WORKER_ORIGIN, value: {{ . | quote }} }
+            {{- if $.Values.privateAddonWorker.retained }}
+            - { name: ZASP_PRIVATE_ADDON_RETAINED_SCOPE, value: {{ $.Values.privateAddonWorker.scope | quote }} }
+            {{- end }}
             - { name: ZASP_PRIVATE_ADDON_WORKER_SCOPE, value: {{ $root.Values.privateAddonWorker.scope | quote }} }
             {{- with $root.Values.privateAddonWorker.resultCredentialID }}
             - { name: ZASP_PRIVATE_ADDON_RESULT_CREDENTIAL, value: {{ . | quote }} }

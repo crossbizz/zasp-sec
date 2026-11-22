@@ -62,6 +62,6 @@ echo "The populated upgrade preserves the fixture and matches the fresh catalog.
 # CLI and endpoint clients. The release fixture runs only in this throwaway DB.
 export ZASP_BASELINE_RELEASE_TEST_DSN="postgres://postgres@/v2_fresh?host=$socket_dir&sslmode=disable"
 go test -C "$repo_dir/services/platform" -count=1 -timeout=20m -v -run \
-  '^Test(Addon|AgentPurpose|AgentSuggestions|CLILogin|EndpointFleet|ManagedBrowserProfile|ImportedTicketProof|Pilot|PrivateAddon|Workload).*OnInstalledBaselinePostgres$' ./apiserver
+  '^Test(Addon|AgentPurpose|AgentActionAnalysis|TicketCohort|AgentSuggestions|CLILogin|EndpointFleet|ManagedBrowserProfile|ImportedTicketProof|TicketCohort|Pilot|PrivateAddon|Workload).*OnInstalledBaselinePostgres$' ./apiserver
 go test -C "$repo_dir/services/platform" -count=1 -timeout=10m -v \
   -run '^TestComplianceExportOnInstalledBaselinePostgres$' ./agentsec-worker

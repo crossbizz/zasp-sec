@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/tls"
 	"encoding/base64"
@@ -10,10 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,24 +28,26 @@ var productID = regexp.MustCompile(`^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[8
 var archiveDigest = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
 
 type grant struct {
-	Version  string `json:"version"`
-	Audience string `json:"audience"`
-	Scope    string `json:"scope"`
-	Actor    string `json:"actor"`
-	ID       string `json:"id"`
-	SHA256   string `json:"sha256"`
-	Size     int64  `json:"size"`
-	Expires  int64  `json:"expires"`
-	Registry bool   `json:"registry,omitempty"`
+	Version     string `json:"version"`
+	Audience    string `json:"audience"`
+	Scope       string `json:"scope"`
+	Actor       string `json:"actor"`
+	ID          string `json:"id"`
+	SHA256      string `json:"sha256"`
+	Size        int64  `json:"size"`
+	Expires     int64  `json:"expires"`
+	Registry    bool   `json:"registry,omitempty"`
+	RetainUntil int64  `json:"retain_until,omitempty"`
 }
 type worker struct {
-	reporter *reporter
-	uiOrigin string
-	origin   string
-	scope    string
-	key      ed25519.PublicKey
-	markers  *os.Root
-	seats    chan struct{}
+	reporter        *reporter
+	retentionSocket string
+	uiOrigin        string
+	origin          string
+	scope           string
+	key             ed25519.PublicKey
+	markers         *os.Root
+	seats           chan struct{}
 }
 
 func (w *worker) verify(token, id string, now time.Time) (grant, bool) {
@@ -64,7 +70,8 @@ func (w *worker) verify(token, id string, now time.Time) (grant, bool) {
 	if json.Unmarshal(raw, &g) != nil {
 		return g, false
 	}
-	return g, g.Version == "private-addon-upload.v1" && g.Audience == w.origin && g.Scope == w.scope && g.ID == id && productID.MatchString(g.Actor) && archiveDigest.MatchString(g.SHA256) && g.Size > 0 && g.Size <= addons.MaxArchiveBytes && g.Expires > now.Unix() && g.Expires <= now.Unix()+300
+	profileOK := (g.Version == "private-addon-upload.v1" && g.RetainUntil == 0) || (g.Version == "private-addon-upload-retained.v1" && g.RetainUntil == g.Expires+int64((24*time.Hour-5*time.Minute)/time.Second))
+	return g, profileOK && g.Audience == w.origin && g.Scope == w.scope && g.ID == id && productID.MatchString(g.Actor) && archiveDigest.MatchString(g.SHA256) && g.Size > 0 && g.Size <= addons.MaxArchiveBytes && g.Expires > now.Unix() && g.Expires <= now.Unix()+300
 }
 func (w *worker) ServeHTTP(out http.ResponseWriter, r *http.Request) {
 	out.Header().Set("Cache-Control", "no-store")
@@ -103,6 +110,10 @@ func (w *worker) ServeHTTP(out http.ResponseWriter, r *http.Request) {
 		http.Error(out, "Grant invalid or expired", 403)
 		return
 	}
+	if g.RetainUntil != 0 && w.retentionSocket == "" {
+		http.Error(out, "Retained storage unavailable", 503)
+		return
+	}
 	if g.Registry && w.reporter == nil {
 		http.Error(out, "Configured review registry unavailable", 503)
 		return
@@ -135,7 +146,14 @@ func (w *worker) ServeHTTP(out http.ResponseWriter, r *http.Request) {
 		deadline = expiry
 	}
 	_ = http.NewResponseController(out).SetReadDeadline(deadline)
-	report := addons.ScanArchive(r.Body, g.Size, g.SHA256)
+	var retained bytes.Buffer
+	var input io.Reader = r.Body
+	if g.RetainUntil != 0 {
+		retained.Grow(int(g.Size))
+		input = io.TeeReader(io.LimitReader(r.Body, g.Size+1), &retained)
+		defer func() { clear(retained.Bytes()) }()
+	}
+	report := addons.ScanArchive(input, g.Size, g.SHA256)
 	if !time.Now().Before(time.Unix(g.Expires, 0)) {
 		http.Error(out, "Grant expired", 403)
 		return
@@ -143,6 +161,15 @@ func (w *worker) ServeHTTP(out http.ResponseWriter, r *http.Request) {
 	for _, skip := range report.Skipped {
 		if skip.Reason == "archive_digest_mismatch" || skip.Reason == "archive_size_mismatch" {
 			http.Error(out, "Archive differs from grant", 422)
+			return
+		}
+	}
+	var retainedReceipt *retentionReceipt
+	if g.RetainUntil != 0 {
+		var err error
+		retainedReceipt, err = retainViaSocket(r.Context(), w.retentionSocket, strings.TrimPrefix(h[0], "Bearer "), g, retained.Bytes())
+		if err != nil {
+			http.Error(out, "Encrypted retention unconfirmed", 503)
 			return
 		}
 	}
@@ -163,11 +190,12 @@ func (w *worker) ServeHTTP(out http.ResponseWriter, r *http.Request) {
 	}
 	out.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(out).Encode(struct {
-		GrantID  string                `json:"grant_id"`
-		Result   addons.PrivateSummary `json:"result"`
-		Registry string                `json:"registry_status"`
-		Receipt  *receipt              `json:"receipt,omitempty"`
-	}{id, result, state, ack})
+		GrantID   string                `json:"grant_id"`
+		Result    addons.PrivateSummary `json:"result"`
+		Registry  string                `json:"registry_status"`
+		Receipt   *receipt              `json:"receipt,omitempty"`
+		Retention *retentionReceipt     `json:"retention,omitempty"`
+	}{id, result, state, ack, retainedReceipt})
 }
 func (w *worker) expireMarkers(now time.Time) {
 	// Markers outlive the maximum grant and request lifetime by an hour.
@@ -203,7 +231,27 @@ func (w *worker) expireMarkers(now time.Time) {
 		}
 	}
 }
+
+// A local smoke or developer instance may bind one IPv4/IPv6 loopback
+// address. All managed deployments retain the documented service listener.
+func workerListenAddress(environment, override string) (string, error) {
+	if override == "" {
+		return ":8443", nil
+	}
+	host, rawPort, err := net.SplitHostPort(override)
+	port, portErr := strconv.Atoi(rawPort)
+	ip := net.ParseIP(host)
+	if (environment != "local" && environment != "test") || err != nil || portErr != nil || port < 1 || port > 65535 || ip == nil || !ip.IsLoopback() {
+		return "", errors.New("invalid local worker listener")
+	}
+	return override, nil
+}
+
 func run() error {
+	listen, err := workerListenAddress(os.Getenv("ZASP_ENVIRONMENT"), os.Getenv("ZASP_PRIVATE_ADDON_LISTEN_ADDRESS"))
+	if err != nil {
+		return err
+	}
 	origin := os.Getenv("ZASP_PRIVATE_ADDON_WORKER_ORIGIN")
 	u, err := url.Parse(origin)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || origin != u.Scheme+"://"+u.Host {
@@ -237,7 +285,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	w := &worker{reporter: q, uiOrigin: ui, origin: origin, scope: scope, key: ed25519.PublicKey(raw), markers: markers, seats: make(chan struct{}, 2)}
+	socket := os.Getenv("ZASP_PRIVATE_ADDON_RETENTION_UPLOAD_SOCKET")
+	if socket != "" && !filepath.IsAbs(socket) {
+		return errors.New("invalid retention socket")
+	}
+	w := &worker{retentionSocket: socket, reporter: q, uiOrigin: ui, origin: origin, scope: scope, key: ed25519.PublicKey(raw), markers: markers, seats: make(chan struct{}, 2)}
 	stop := make(chan struct{})
 	defer close(stop)
 	go func() {
@@ -255,7 +307,7 @@ func run() error {
 			}
 		}
 	}()
-	server := &http.Server{Addr: ":8443", Handler: w, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 40 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 8192, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
+	server := &http.Server{Addr: listen, Handler: w, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 40 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 8192, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
 	return server.ListenAndServeTLS(os.Getenv("ZASP_PRIVATE_ADDON_TLS_CERT"), os.Getenv("ZASP_PRIVATE_ADDON_TLS_KEY"))
 }
 func main() {

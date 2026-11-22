@@ -8,6 +8,7 @@ import { useAPI } from "../../api/APIProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, MetricGrid, Modal, PageHeader, Select } from "../../components/ui";
 import { SectionTabs } from "../../components/section-tabs";
 import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
+import { TicketCohort } from "./TicketCohort";
 import { DeviceFleet } from "./DeviceFleet";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
@@ -30,7 +31,7 @@ export function ProductionSensorSurface({ canWrite, fresh, onReauthenticate }: {
   const api = useMemo(() => createSensorsAPI(client), [client]);
   return <SectionTabs active={section} onChange={setSection} sections={[
     { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
-    { id:"devices", label:"Devices", content:section==="devices" && <DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} initialID={linkedDevice} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/> },
+    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} initialID={linkedDevice} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/></> },
   ]} />;
 }
 

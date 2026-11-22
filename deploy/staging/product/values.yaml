@@ -90,6 +90,7 @@ replicas:
   runtimeProjection: 2
   runtimeComplete: 2
 privateAddonWorker:
+  retained: false
   origin: ""
   scope: ""
   resultCredentialID: ""

@@ -26,8 +26,9 @@ type workloadActionRequest struct {
 	ActionKind    string `json:"action_kind"`
 	Operation     string `json:"operation"`
 	Resource      struct {
-		Kind           string `json:"kind"`
-		Classification string `json:"classification"`
+		Kind           string  `json:"kind"`
+		Classification string  `json:"classification"`
+		Destination    *string `json:"destination_class,omitempty"`
 	} `json:"resource"`
 	Session *string `json:"source_session_ref,omitempty"`
 	Call    *string `json:"source_call_ref,omitempty"`
@@ -36,6 +37,7 @@ type workloadActionRequest struct {
 func (r workloadActionRequest) valid() bool {
 	return r.SchemaVersion == "action.v1" && r.ActionKind == "tool_call" && workloadLabel.MatchString(r.ActionID) && workloadLabel.MatchString(r.Operation) &&
 		workloadLabel.MatchString(r.Resource.Kind) && workloadLabel.MatchString(r.Resource.Classification) &&
+		(r.Resource.Destination == nil || validAnalysisDestination(*r.Resource.Destination)) &&
 		(r.Session == nil || workloadLabel.MatchString(*r.Session)) && (r.Call == nil || workloadLabel.MatchString(*r.Call))
 }
 

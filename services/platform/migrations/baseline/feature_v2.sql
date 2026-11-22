@@ -1601,3 +1601,303 @@ DO $graph_grants$ DECLARE f text; BEGIN
   IF f LIKE '%_claim(%' OR f LIKE '%_ack(%' THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO zasp_projection_graph_worker',f::regprocedure); END IF;
  END LOOP;
 END $graph_grants$;
+
+-- Atomic, staging-only promotion of a bounded, explicitly signed device cohort.
+CREATE TABLE IF NOT EXISTS public.zasp_ticket_cohort_rollouts(
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,cohort text NOT NULL,
+ revision bigint NOT NULL CHECK(revision BETWEEN 1 AND 1000000),phase text NOT NULL CHECK(phase IN('monitor','canary','promote','rollback')),
+ destination text NOT NULL,targets jsonb NOT NULL CHECK(jsonb_typeof(targets)='array' AND jsonb_array_length(targets) BETWEEN 1 AND 32),
+ actor text NOT NULL,request_key text NOT NULL,request_digest text NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,cohort,revision),
+ UNIQUE(organization_id,workspace_id,environment_id,cohort,actor,request_key)
+);
+ALTER TABLE public.zasp_ticket_cohort_rollouts OWNER TO zasp_discovery_authority;
+ALTER TABLE public.zasp_ticket_cohort_rollouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.zasp_ticket_cohort_rollouts FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.zasp_ticket_cohort_rollouts FROM PUBLIC;
+DO $cohort_rls$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='zasp_ticket_cohort_rollouts' AND policyname='cohort_authority') THEN
+  CREATE POLICY cohort_authority ON public.zasp_ticket_cohort_rollouts TO zasp_discovery_authority USING(true) WITH CHECK(true);
+ END IF;
+END $cohort_rls$;
+CREATE INDEX IF NOT EXISTS zasp_ticket_cohort_device_lookup ON public.zasp_endpoint_devices(organization_id,workspace_id,environment_id,cohort,id);
+CREATE INDEX IF NOT EXISTS zasp_ticket_observation_phase_lookup ON public.zasp_endpoint_observations
+ (organization_id,workspace_id,environment_id,device_id,credential_generation,(observation->>'policy_revision'),(observation->>'mode'),(observation->>'target_class'),(observation->>'verdict'));
+CREATE OR REPLACE FUNCTION zasp_authorization80.ticket_cohort_receipt(row_value public.zasp_ticket_cohort_rollouts) RETURNS jsonb
+LANGUAGE sql STABLE SET search_path=pg_catalog AS $cohort_receipt$
+ SELECT jsonb_build_object('cohort',row_value.cohort,'revision',row_value.revision,'phase',row_value.phase,'allowed_destination',row_value.destination,
+ 'target_ids',(SELECT jsonb_agg(t->'id' ORDER BY t->>'id') FROM jsonb_array_elements(row_value.targets)t),
+ 'submitted_by',row_value.actor,'submitted_at',to_char(row_value.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'request_sha256',row_value.request_digest)
+$cohort_receipt$;
+CREATE INDEX IF NOT EXISTS zasp_cohort_ticket_proof_revision ON public.zasp_ticket_verification_imports
+ (organization_id,workspace_id,environment_id,(bundle#>>'{scenario,cohort_id}'),(bundle#>>'{scenario,policy_revision}'),submitted_at DESC);
+CREATE OR REPLACE FUNCTION zasp_authorization80.ticket_cohort_state(o text,w text,e text,c text) RETURNS jsonb
+LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $cohort_state$
+ WITH latest AS (SELECT * FROM public.zasp_ticket_cohort_rollouts WHERE (organization_id,workspace_id,environment_id,cohort)=(o,w,e,c) ORDER BY revision DESC LIMIT 1),
+ roster AS (SELECT d.* FROM public.zasp_endpoint_devices d WHERE (d.organization_id,d.workspace_id,d.environment_id,d.cohort)=(o,w,e,c) AND
+  (d.state<>'retired' OR EXISTS (SELECT 1 FROM public.zasp_ticket_cohort_rollouts p WHERE (p.organization_id,p.workspace_id,p.environment_id,p.cohort)=(o,w,e,c) AND p.targets @> jsonb_build_array(jsonb_build_object('id',d.id))))),
+ members AS (
+  SELECT r.*,zasp_authorization80.endpoint_view(r::public.zasp_endpoint_devices) status,proof.target,proof.created_at AS published_at
+  FROM (SELECT * FROM roster ORDER BY id LIMIT 32) r
+  LEFT JOIN LATERAL (SELECT x.target,p.created_at FROM public.zasp_ticket_cohort_rollouts p CROSS JOIN LATERAL jsonb_array_elements(p.targets)x(target)
+   WHERE (p.organization_id,p.workspace_id,p.environment_id,p.cohort)=(o,w,e,c) AND x.target->>'id'=r.id ORDER BY p.revision DESC LIMIT 1)proof ON true
+ ), facts AS (
+  SELECT m.*,EXISTS(SELECT 1 FROM public.zasp_endpoint_observations r WHERE
+   (r.organization_id,r.workspace_id,r.environment_id,r.device_id,r.credential_generation,r.observation->>'policy_revision',r.observation->>'mode',r.observation->>'target_class',r.observation->>'verdict')=
+    (o,w,e,m.id,m.generation,m.policy_revision::text,m.target->>'mode','allowed_destination','continue') AND r.received_at>=m.published_at AND (r.observation->>'observed_at')::timestamptz>=m.published_at) AS saw_allow,
+   EXISTS(SELECT 1 FROM public.zasp_endpoint_observations r WHERE
+   (r.organization_id,r.workspace_id,r.environment_id,r.device_id,r.credential_generation,r.observation->>'policy_revision',r.observation->>'mode',r.observation->>'target_class',r.observation->>'verdict')=
+    (o,w,e,m.id,m.generation,m.policy_revision::text,m.target->>'mode','outside_allowed_destination',CASE m.target->>'mode' WHEN 'monitor' THEN 'continue' ELSE 'deny' END)
+   AND r.observation->>'would_block'='true' AND r.received_at>=m.published_at AND (r.observation->>'observed_at')::timestamptz>=m.published_at) AS saw_outside
+  FROM members m
+ ), matching_proofs AS (
+  -- A shared action digest is necessary even when two devices use the same
+  -- revision number. Count an adverse recorder result with a bound protected
+  -- decision; a passing result requires the positive action on this device too.
+  SELECT z.bundle,z.submitted_at, EXISTS(SELECT 1 FROM public.zasp_endpoint_observations agree
+   WHERE (agree.organization_id,agree.workspace_id,agree.environment_id,agree.device_id,agree.credential_generation,agree.action_id)=
+    (o,w,e,f.id,f.generation,z.bundle#>>'{scenario,control_action_id}')
+    AND agree.observation->>'mode'='enforce' AND agree.observation->>'verdict'='continue' AND agree.observation->>'target_class'='allowed_destination'
+    AND agree.observation->>'policy_revision'=f.policy_revision::text AND agree.received_at>=f.published_at
+    AND (agree.observation->>'observed_at')::timestamptz BETWEEN (z.bundle#>>'{scenario,window_start}')::timestamptz AND (z.bundle#>>'{scenario,window_end}')::timestamptz) AS control_bound
+  FROM facts f JOIN public.zasp_ticket_verification_imports z ON
+   (z.organization_id,z.workspace_id,z.environment_id,z.bundle#>>'{scenario,cohort_id}',z.bundle#>>'{scenario,policy_revision}',z.bundle#>>'{scenario,adapter_id}')=
+    (o,w,e,c,f.policy_revision::text,f.reported->>'adapter')
+  JOIN public.zasp_endpoint_observations deny ON (deny.organization_id,deny.workspace_id,deny.environment_id,deny.device_id,deny.credential_generation,deny.action_id)=
+    (o,w,e,f.id,f.generation,z.bundle#>>'{scenario,protected_action_id}')
+  WHERE (SELECT phase FROM latest)='canary' AND f.target->>'mode'='enforce' AND f.target->>'revision'=f.policy_revision::text
+   AND deny.observation->>'mode'='enforce' AND deny.observation->>'verdict'='deny' AND deny.observation->>'target_class'='outside_allowed_destination'
+   AND deny.observation->>'policy_revision'=f.policy_revision::text AND deny.received_at>=f.published_at
+   AND (deny.observation->>'observed_at')::timestamptz BETWEEN (z.bundle#>>'{scenario,window_start}')::timestamptz AND (z.bundle#>>'{scenario,window_end}')::timestamptz
+  ORDER BY z.submitted_at DESC,z.run_id LIMIT 17
+ )
+ SELECT jsonb_build_object('view',jsonb_build_object('cohort',c,'assigned',(SELECT count(*) FROM roster),'environment_class',(SELECT environment_class FROM public.zasp_environments WHERE (organization_id,workspace_id,id)=(o,w,e)),
+ 'revision',coalesce((SELECT revision FROM latest),0),'phase',coalesce((SELECT phase FROM latest),'none'),'allowed_destination',coalesce((SELECT destination FROM latest),''),
+ 'members',coalesce(jsonb_agg(jsonb_build_object('id',f.id,'version',f.version,'generation',f.generation,'policy_revision',f.policy_revision,
+ 'managed_revision',coalesce((f.target->>'revision')::bigint,0),'managed_generation',coalesce((f.target->>'generation')::bigint,0),'managed_mode',coalesce(f.target->>'mode',''),
+ 'adapter',coalesce(f.reported->>'adapter','unknown'),'state',f.state,'online',f.status->>'connection'='online','acknowledged',f.status->'acknowledged',
+ 'allowed_observed',f.saw_allow,'outside_observed',f.saw_outside,'queue_clear',coalesce(f.reported->>'queued_receipts'='0' AND f.reported->>'dropped_receipts'='0',false)) ORDER BY f.id),'[]'::jsonb)),
+ 'proofs',coalesce((SELECT jsonb_agg(jsonb_build_object('bundle',bundle,'submitted_at',submitted_at,'control_bound',control_bound)) FROM matching_proofs),'[]'::jsonb),
+ 'keys',coalesce(jsonb_object_agg(f.id,f.policy_key),'{}'::jsonb)) FROM facts f
+$cohort_state$;
+CREATE OR REPLACE FUNCTION zasp_authorization80.ticket_cohort_inspect(o text,w text,e text,a text,op text,c text,k text,digest_value text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $cohort_inspect$
+DECLARE s jsonb; prior public.zasp_ticket_cohort_rollouts%ROWTYPE; BEGIN
+ IF op IS NULL OR op NOT IN('getTicketCohort','publishTicketCohort') OR c IS NULL OR c!~'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid cohort';END IF;
+ PERFORM zasp_authorization80.product_request(o,w,e,a,op,CASE op WHEN 'getTicketCohort' THEN 'view' ELSE 'manage_workflows' END,'environment',e,false,true,op='publishTicketCohort',op='publishTicketCohort');
+ IF op='publishTicketCohort' THEN
+  SELECT * INTO prior FROM public.zasp_ticket_cohort_rollouts WHERE (organization_id,workspace_id,environment_id,cohort,actor,request_key)=(o,w,e,c,a,k);
+  IF FOUND THEN IF prior.request_digest<>digest_value THEN RETURN '"conflict"'::jsonb;END IF;
+   RETURN jsonb_build_object('view',jsonb_build_object('cohort',c,'members','[]'::jsonb),'receipt',zasp_authorization80.ticket_cohort_receipt(prior));END IF;
+ END IF;
+ s:=zasp_authorization80.ticket_cohort_state(o,w,e,c);
+ IF op='getTicketCohort' THEN RETURN s-'keys'; END IF;
+ RETURN s||jsonb_build_object('snapshot',encode(public.digest(convert_to(s::text,'UTF8'),'sha256'),'hex'));
+END $cohort_inspect$;
+CREATE OR REPLACE FUNCTION zasp_authorization80.ticket_cohort_commit(o text,w text,e text,a text,c text,k text,digest_value text,expected_snapshot text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $cohort_commit$
+DECLARE s jsonb; p public.zasp_ticket_cohort_rollouts%ROWTYPE; v bigint; t jsonb;targets jsonb:='[]'::jsonb;
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,a,'publishTicketCohort','manage_workflows','environment',e,false,true,true,true);
+ IF c IS NULL OR c!~'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' OR k IS NULL OR k!~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' OR digest_value IS NULL OR digest_value!~'^[a-f0-9]{64}$' OR expected_snapshot IS NULL OR NOT coalesce(q->>'phase' IN('monitor','canary','promote','rollback') AND jsonb_typeof(q->'targets')='array' AND jsonb_array_length(q->'targets') BETWEEN 1 AND 32,false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid signed cohort'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws('/',o,w,e,'ticket-cohort',c),0));
+ SELECT * INTO p FROM public.zasp_ticket_cohort_rollouts WHERE (organization_id,workspace_id,environment_id,cohort,actor,request_key)=(o,w,e,c,a,k);
+ IF FOUND THEN IF p.request_digest<>digest_value THEN RETURN '"conflict"'::jsonb;END IF;RETURN zasp_authorization80.ticket_cohort_receipt(p);END IF;
+ PERFORM id FROM public.zasp_endpoint_devices WHERE(organization_id,workspace_id,environment_id,cohort)=(o,w,e,c) AND id IN(SELECT i->>'id' FROM jsonb_array_elements(q->'targets')i) ORDER BY id FOR UPDATE;
+ s:=zasp_authorization80.ticket_cohort_state(o,w,e,c);
+ IF encode(public.digest(convert_to(s::text,'UTF8'),'sha256'),'hex')<>expected_snapshot OR NOT coalesce(s#>>'{view,environment_class}' IN('staging','test','development'),false) OR (s#>>'{view,assigned}')::integer>32 OR (s#>>'{view,revision}')::bigint IS DISTINCT FROM (q->>'expected_revision')::bigint THEN RETURN '"conflict"'::jsonb;END IF;
+ v:=(q->>'expected_revision')::bigint+1;
+ FOR t IN SELECT value FROM jsonb_array_elements(q->'targets') LOOP
+  UPDATE public.zasp_endpoint_devices SET policy_bundle=t->'bundle',policy_expires_at=(t->>'expires_at')::timestamptz,policy_generation=generation,policy_revision=(t->>'revision')::bigint,version=version+1
+   WHERE (organization_id,workspace_id,environment_id,cohort,id,state,generation,version,policy_revision+1)=(o,w,e,c,t->>'id','active',(t->>'generation')::bigint,(t->>'expected_version')::bigint,(t->>'revision')::bigint);
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='device changed';END IF;
+  targets:=targets||jsonb_build_array(t-ARRAY['bundle','expires_at','expected_version']);
+ END LOOP;
+ INSERT INTO public.zasp_ticket_cohort_rollouts(organization_id,workspace_id,environment_id,cohort,revision,phase,destination,targets,actor,request_key,request_digest) VALUES(o,w,e,c,v,q->>'phase',q->>'allowed_destination',targets,a,k,digest_value) RETURNING * INTO p;
+ RETURN zasp_authorization80.ticket_cohort_receipt(p);
+END $cohort_commit$;
+DO $cohort_priv$ DECLARE f text; BEGIN
+ FOREACH f IN ARRAY ARRAY['zasp_authorization80.ticket_cohort_receipt(public.zasp_ticket_cohort_rollouts)','zasp_authorization80.ticket_cohort_state(text,text,text,text)','zasp_authorization80.ticket_cohort_inspect(text,text,text,text,text,text,text,text)','zasp_authorization80.ticket_cohort_commit(text,text,text,text,text,text,text,text,jsonb)'] LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f::regprocedure);
+  IF f LIKE '%cohort_inspect%' OR f LIKE '%cohort_commit%' THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO zasp_discovery_api',f::regprocedure); END IF;
+ END LOOP;
+END $cohort_priv$;
+
+-- Versioned, owner-declared purpose for online workload evidence.
+CREATE TABLE IF NOT EXISTS public.zasp_action_analysis_versions(
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,agent_id text NOT NULL,
+ revision bigint NOT NULL,actor text NOT NULL,request_key text NOT NULL,settings jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,agent_id,revision),UNIQUE(organization_id,workspace_id,environment_id,agent_id,actor,request_key)
+);
+CREATE TABLE IF NOT EXISTS public.zasp_action_analysis_evidence(
+ seq bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,agent_id text NOT NULL,session_id text NOT NULL,
+ revision bigint NOT NULL,policy_revision text NOT NULL,decision_id text NOT NULL,operation text NOT NULL,classification text NOT NULL,destination text,
+ occurred_at timestamptz NOT NULL, analyzed_at timestamptz,previous_operation text,issues text[],
+ UNIQUE(organization_id,workspace_id,environment_id,decision_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,agent_id,revision) REFERENCES public.zasp_action_analysis_versions(organization_id,workspace_id,environment_id,agent_id,revision),
+ CHECK ((analyzed_at IS NULL)=(issues IS NULL))
+);
+CREATE INDEX IF NOT EXISTS zasp_action_analysis_queue ON public.zasp_action_analysis_evidence(seq) WHERE analyzed_at IS NULL;
+CREATE INDEX IF NOT EXISTS zasp_action_analysis_agent ON public.zasp_action_analysis_evidence(organization_id,workspace_id,environment_id,agent_id,revision,occurred_at DESC);
+CREATE INDEX IF NOT EXISTS zasp_action_analysis_sequence ON public.zasp_action_analysis_evidence(organization_id,workspace_id,environment_id,agent_id,session_id,seq DESC);
+DO $analysis_rls$ DECLARE t text;
+BEGIN
+ FOREACH t IN ARRAY ARRAY['zasp_action_analysis_versions','zasp_action_analysis_evidence'] LOOP
+  EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',t); EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t); EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',t);
+  EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC',t);
+  IF NOT EXISTS(SELECT FROM pg_policies WHERE schemaname='public' AND tablename=t AND policyname='action_analysis_authority') THEN
+   EXECUTE format('CREATE POLICY action_analysis_authority ON public.%I TO zasp_discovery_authority USING(true) WITH CHECK(true)',t); END IF;
+ END LOOP;
+END $analysis_rls$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.action_analysis_settings_valid(s jsonb) RETURNS boolean
+LANGUAGE plpgsql IMMUTABLE SET search_path=pg_catalog AS $settings$
+DECLARE attr text;item jsonb; key text;
+BEGIN
+ IF jsonb_typeof(s) IS DISTINCT FROM 'object' OR (SELECT count(*) FROM jsonb_object_keys(s))<>4 THEN RETURN false; END IF;
+ FOREACH attr IN ARRAY ARRAY['allowed_operations','allowed_classifications','allowed_destinations','blocked_transitions'] LOOP
+  IF jsonb_typeof(s->attr) IS DISTINCT FROM 'array' OR jsonb_array_length(s->attr)>32 OR (SELECT count(DISTINCT value) FROM jsonb_array_elements(s->attr))<>jsonb_array_length(s->attr) THEN RETURN false; END IF;
+  FOR item IN SELECT value FROM jsonb_array_elements(s->attr) LOOP
+   IF attr='blocked_transitions' THEN
+    IF jsonb_typeof(item) IS DISTINCT FROM 'object' OR (SELECT count(*) FROM jsonb_object_keys(item))<>2 OR NOT COALESCE(item->>'from'~'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$' AND item->>'to'~'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$',false) THEN RETURN false; END IF;
+   ELSE
+    key:=item#>>'{}'; IF jsonb_typeof(item) IS DISTINCT FROM 'string' OR key!~'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$' OR attr='allowed_destinations' AND key NOT IN('internal','approved_partner','external','public') THEN RETURN false; END IF;
+   END IF;
+  END LOOP;
+ END LOOP;
+ RETURN true;
+END $settings$;
+ALTER FUNCTION zasp_authorization80.action_analysis_settings_valid(jsonb) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.action_analysis_settings_valid(jsonb) FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.action_analysis(o text,w text,e text,actor_value text,i text,k text,expected bigint,settings_value jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $analysis$
+DECLARE p jsonb; op text; v public.zasp_action_analysis_versions%ROWTYPE; prior public.zasp_action_analysis_versions%ROWTYPE; cutoff timestamptz:=clock_timestamp()-interval '30 days'; rev bigint;
+BEGIN
+ op:=CASE WHEN settings_value IS NULL THEN 'getAgentActionAnalysis' ELSE 'putAgentActionAnalysis' END;
+ p:=zasp_authorization80.product_request(o,w,e,actor_value,op,CASE WHEN settings_value IS NULL THEN 'view' ELSE 'manage_workflows' END,'agent',i,true,true,false,settings_value IS NOT NULL);
+ IF settings_value IS NULL THEN
+  IF NOT EXISTS(SELECT FROM public.zasp_inventory_entities WHERE (organization_id,workspace_id,environment_id,id,product_kind,state)=(o,w,e,i,'agent','active')) THEN RETURN 'null'; END IF;
+ ELSE
+  IF expected IS NULL OR expected NOT BETWEEN 0 AND 999999 OR k IS NULL OR k!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' OR NOT zasp_authorization80.action_analysis_settings_valid(settings_value) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid action purpose'; END IF;
+  PERFORM id FROM public.zasp_inventory_entities WHERE (organization_id,workspace_id,environment_id,id,product_kind,state)=(o,w,e,i,'agent','active') FOR UPDATE;
+  IF NOT FOUND THEN RETURN 'null'; END IF;
+ END IF;
+ SELECT * INTO v FROM public.zasp_action_analysis_versions WHERE (organization_id,workspace_id,environment_id,agent_id)=(o,w,e,i) ORDER BY revision DESC LIMIT 1;
+ IF settings_value IS NOT NULL THEN
+  SELECT * INTO prior FROM public.zasp_action_analysis_versions WHERE (organization_id,workspace_id,environment_id,agent_id,actor,request_key)=(o,w,e,i,actor_value,k);
+  IF FOUND THEN
+   IF prior.revision<>expected+1 OR prior.settings<>settings_value THEN RETURN '"conflict"'; END IF;
+   v:=prior;
+  ELSE
+   IF coalesce(v.revision,0)<>expected THEN RETURN '"conflict"'; END IF;
+   INSERT INTO public.zasp_action_analysis_versions(organization_id,workspace_id,environment_id,agent_id,revision,actor,request_key,settings)
+    VALUES(o,w,e,i,expected+1,actor_value,k,settings_value) RETURNING * INTO v;
+  END IF;
+  PERFORM zasp_authorization80.product_settled(p);
+ END IF;
+ rev:=coalesce(v.revision,0);
+ RETURN (WITH scope AS MATERIALIZED (
+   SELECT * FROM public.zasp_action_analysis_evidence WHERE (organization_id,workspace_id,environment_id,agent_id,revision)=(o,w,e,i,rev) AND occurred_at>=cutoff
+  ), page AS (SELECT * FROM scope WHERE cardinality(issues)>0 ORDER BY seq DESC LIMIT 50)
+ SELECT jsonb_build_object('agent_id',i,'revision',rev,'updated_at',v.created_at,'settings',coalesce(v.settings,'{"allowed_operations":[],"allowed_classifications":[],"allowed_destinations":[],"blocked_transitions":[]}'::jsonb),
+ 'source','bound_workload_reported','pending',(SELECT count(*) FROM scope WHERE analyzed_at IS NULL),'analyzed',(SELECT count(*) FROM scope WHERE analyzed_at IS NOT NULL),
+ 'unknown_destination',(SELECT count(*) FROM scope WHERE analyzed_at IS NOT NULL AND destination IS NULL),'truncated',(SELECT count(*)>50 FROM scope WHERE cardinality(issues)>0),
+ 'findings',coalesce((SELECT jsonb_agg(jsonb_build_object('decision_id',decision_id,'session_id',session_id,'operation',operation,'classification',classification,'destination_class',destination,
+ 'previous_operation',previous_operation,'issues',issues,'occurred_at',occurred_at) ORDER BY seq DESC) FROM page),'[]'::jsonb)));
+END $analysis$;
+ALTER FUNCTION zasp_authorization80.action_analysis(text,text,text,text,text,text,bigint,jsonb) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.action_analysis(text,text,text,text,text,text,bigint,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.action_analysis(text,text,text,text,text,text,bigint,jsonb) TO zasp_discovery_api;
+
+-- Only an authentic admission that already has a governed identity may enter
+-- the queue. The action and its queue entry commit together. Facts reported by
+-- the adapter do not establish that the tool ran or reached the destination.
+CREATE OR REPLACE FUNCTION zasp_authorization80.capture_action_analysis() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $capture$
+DECLARE b public.zasp_workload_bindings%ROWTYPE; r bigint;
+BEGIN
+ SELECT * INTO b FROM public.zasp_workload_bindings WHERE (organization_id,workspace_id,environment_id,credential_id)=(NEW.organization_id,NEW.workspace_id,NEW.environment_id,NEW.credential_id) AND created_at<=NEW.created_at;
+ IF NOT FOUND THEN RETURN NEW; END IF;
+ SELECT revision INTO r FROM public.zasp_action_analysis_versions WHERE (organization_id,workspace_id,environment_id,agent_id)=(b.organization_id,b.workspace_id,b.environment_id,b.agent_id) AND created_at<=NEW.created_at ORDER BY revision DESC LIMIT 1;
+ IF NOT FOUND THEN RETURN NEW; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'workload-analysis',b.organization_id,b.workspace_id,b.environment_id,b.session_id),0));
+ INSERT INTO public.zasp_action_analysis_evidence(organization_id,workspace_id,environment_id,agent_id,session_id,revision,policy_revision,decision_id,operation,classification,destination,occurred_at)
+ VALUES(b.organization_id,b.workspace_id,b.environment_id,b.agent_id,b.session_id,r,NEW.receipt->>'policy_revision_id',NEW.receipt->>'decision_id',NEW.request->>'operation',
+  NEW.request#>>'{resource,classification}',NEW.request#>>'{resource,destination_class}',NEW.created_at);
+ RETURN NEW;
+END $capture$;
+ALTER FUNCTION zasp_authorization80.capture_action_analysis() OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.capture_action_analysis() FROM PUBLIC;
+CREATE OR REPLACE TRIGGER zasp_capture_action_analysis AFTER INSERT ON public.zasp_workload_actions FOR EACH ROW EXECUTE FUNCTION zasp_authorization80.capture_action_analysis();
+
+CREATE OR REPLACE FUNCTION public.zasp_analyze_bound_actions(maximum integer) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $worker$
+DECLARE job public.zasp_action_analysis_evidence%ROWTYPE; previous public.zasp_action_analysis_evidence%ROWTYPE; cfg jsonb; issue_values text[]; previous_op text; done integer:=0;
+BEGIN
+ IF NOT pg_has_role(session_user,'zasp_discovery_scheduler','MEMBER') OR maximum IS NULL OR maximum NOT BETWEEN 1 AND 250 THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='bounded scheduler analysis required'; END IF;
+ FOR job IN SELECT * FROM public.zasp_action_analysis_evidence WHERE analyzed_at IS NULL ORDER BY seq LIMIT maximum FOR UPDATE SKIP LOCKED LOOP
+  SELECT settings INTO STRICT cfg FROM public.zasp_action_analysis_versions WHERE (organization_id,workspace_id,environment_id,agent_id,revision)=(job.organization_id,job.workspace_id,job.environment_id,job.agent_id,job.revision);
+  SELECT * INTO previous FROM public.zasp_action_analysis_evidence WHERE (organization_id,workspace_id,environment_id,agent_id,session_id)=(job.organization_id,job.workspace_id,job.environment_id,job.agent_id,job.session_id) AND seq<job.seq ORDER BY seq DESC LIMIT 1;
+  previous_op:=CASE WHEN previous.revision=job.revision AND previous.policy_revision=job.policy_revision AND job.occurred_at BETWEEN previous.occurred_at AND previous.occurred_at+interval '15 minutes' THEN previous.operation END;
+  issue_values:=ARRAY[]::text[];
+  IF jsonb_array_length(cfg->'allowed_operations')>0 AND NOT cfg->'allowed_operations'?job.operation THEN issue_values:=array_append(issue_values,'operation_outside_purpose'); END IF;
+  IF jsonb_array_length(cfg->'allowed_classifications')>0 AND NOT cfg->'allowed_classifications'?job.classification THEN issue_values:=array_append(issue_values,'classification_outside_purpose'); END IF;
+  IF job.destination IS NOT NULL AND jsonb_array_length(cfg->'allowed_destinations')>0 AND NOT cfg->'allowed_destinations'?job.destination THEN issue_values:=array_append(issue_values,'destination_outside_purpose'); END IF;
+  IF previous_op IS NOT NULL AND cfg->'blocked_transitions' @> jsonb_build_array(jsonb_build_object('from',previous_op,'to',job.operation)) THEN issue_values:=array_append(issue_values,'sequence_outside_purpose'); END IF;
+  UPDATE public.zasp_action_analysis_evidence a SET analyzed_at=clock_timestamp(),issues=issue_values,previous_operation=previous_op WHERE a.seq=job.seq;
+  done:=done+1;
+ END LOOP;
+ RETURN done;
+END $worker$;
+ALTER FUNCTION public.zasp_analyze_bound_actions(integer) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_analyze_bound_actions(integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.zasp_analyze_bound_actions(integer) TO zasp_discovery_scheduler;
+
+-- Preserve the original action wire contract and validate a destination only
+-- when supplied. Reapplying the canonical source rechecks both function shapes.
+DO $workload_destination$
+DECLARE fn regprocedure:='zasp_authorization80.workload_action(text,text,text,text,jsonb,jsonb)'::regprocedure; d text:=pg_get_functiondef(fn);
+ old_value constant text:=$a$((q->'resource')-ARRAY['kind','classification'])='{}'::jsonb$a$;
+ new_value constant text:=$a$((q->'resource')-ARRAY['kind','classification','destination_class'])='{}'::jsonb AND (NOT (q->'resource')?'destination_class' OR q#>>'{resource,destination_class}' IN('internal','approved_partner','external','public'))$a$;
+BEGIN
+ IF position(new_value IN d)=0 THEN
+  IF length(d)-length(replace(d,old_value,''))<>length(old_value) THEN RAISE EXCEPTION 'unrecognized workload resource shape'; END IF;
+  EXECUTE replace(d,old_value,new_value);
+ END IF;
+END $workload_destination$;
+
+-- Store explicit retention consent independently from the one-use transfer.
+-- A memory-only grant issued by a previous release cannot be upgraded on replay.
+CREATE TABLE IF NOT EXISTS public.zasp_private_addon_retention_consents(
+ grant_id text PRIMARY KEY REFERENCES public.zasp_private_addon_uploads(grant_id),
+ mode text NOT NULL CHECK(mode IN ('memory_only','encrypted_24h')), retain_until timestamptz,
+ CHECK((mode='encrypted_24h')=(retain_until IS NOT NULL))
+);
+ALTER TABLE public.zasp_private_addon_retention_consents OWNER TO zasp_operator;
+REVOKE ALL ON public.zasp_private_addon_retention_consents FROM PUBLIC,zasp_discovery_api;
+GRANT SELECT,INSERT ON public.zasp_private_addon_retention_consents TO zasp_discovery_authority;
+ALTER TABLE public.zasp_private_addon_retention_consents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.zasp_private_addon_retention_consents FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS private_retention_consent_authority ON public.zasp_private_addon_retention_consents;
+CREATE POLICY private_retention_consent_authority ON public.zasp_private_addon_retention_consents TO zasp_discovery_authority USING(true) WITH CHECK(true);
+CREATE OR REPLACE FUNCTION zasp_authorization80.private_addon_upload_consent(o text,w text,e text,a text,request_key text,id_value text,digest_value text,size_value bigint,reporter text,mode_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $consented_scan$
+DECLARE receipt jsonb; selected text; retained_until timestamptz;
+BEGIN
+ IF mode_value IS NULL OR mode_value NOT IN ('memory_only','encrypted_24h') THEN RAISE invalid_parameter_value; END IF;
+ receipt:=zasp_authorization80.private_addon_upload_with_reporter(o,w,e,a,request_key,id_value,digest_value,size_value,reporter);
+ IF receipt IS NULL OR receipt='null'::jsonb THEN RETURN receipt; END IF;
+ selected:=CASE WHEN receipt->>'id'=id_value THEN mode_value ELSE 'memory_only' END;
+ INSERT INTO public.zasp_private_addon_retention_consents(grant_id,mode,retain_until)
+ VALUES(receipt->>'id',selected,CASE WHEN selected='encrypted_24h' THEN (receipt->>'expires_at')::timestamptz+interval '23 hours 55 minutes' END) ON CONFLICT DO NOTHING;
+ SELECT c.mode,c.retain_until INTO STRICT selected,retained_until FROM public.zasp_private_addon_retention_consents c WHERE c.grant_id=receipt->>'id';
+ IF selected<>mode_value THEN RETURN 'null'::jsonb; END IF;
+ RETURN receipt||jsonb_strip_nulls(jsonb_build_object('retain_until',retained_until));
+END $consented_scan$;
+ALTER FUNCTION zasp_authorization80.private_addon_upload_consent(text,text,text,text,text,text,text,bigint,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.private_addon_upload_consent(text,text,text,text,text,text,text,bigint,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.private_addon_upload_consent(text,text,text,text,text,text,text,bigint,text,text) TO zasp_discovery_api;
+REVOKE EXECUTE ON FUNCTION zasp_authorization80.private_addon_upload_with_reporter(text,text,text,text,text,text,text,bigint,text) FROM zasp_discovery_api;

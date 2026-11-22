@@ -90,6 +90,15 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(AlreadyAttempted):
             action.run(self.write_ticket, "second")
 
+    def test_optional_reported_destination_is_bounded(self):
+        guard = ToolGuard(self.url, "fixture-only")
+        with self.assertRaises(ValueError):
+            guard.action("ticket.update", resource_kind="ticket", classification="internal", destination_class="https://private.example/user")
+        self.assertFalse(self.requests)
+        action = guard.action("ticket.update", resource_kind="ticket", classification="internal", destination_class="approved_partner")
+        action.run(lambda: None)
+        self.assertEqual(self.requests[0][1]["resource"]["destination_class"], "approved_partner")
+
     def test_deny_has_receipt_no_target_effect(self):
         self.override = {"verdict": "block", "reason_code": "restricted"}
         action = self.action()

@@ -46,12 +46,24 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		serveTicketProof(surface.evidenceDB, writer, request, routed)
+	case "getAgentActionAnalysis", "putAgentActionAnalysis":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveActionAnalysis(surface.evidenceDB, writer, request, routed)
 	case "getAgentPurpose", "putAgentPurpose":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
 		serveAgentPurpose(surface.evidenceDB, writer, request, routed)
+	case "getTicketCohort", "publishTicketCohort":
+		if surface.fleet == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.fleet.cohort(writer, request, routed)
 	case "registerEndpointDevice", "listEndpointDevices", "getEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "exchangeEndpointEnrollment", "recordEndpointHeartbeat", "recordEndpointInventory", "recordEndpointObservations", "fetchEndpointPolicy":
 		if surface.fleet == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)

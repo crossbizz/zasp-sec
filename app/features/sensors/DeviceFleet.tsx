@@ -344,10 +344,15 @@ function DeviceDetail({
                         : "Continued"}
                 </summary>
                 <dl>
-                  {receipt.graph_state && <>
-                    <dt>Evidence graph</dt>
-                    <dd>{receipt.graph_state === "projected" ? "Projected" : "Awaiting projection"} · <code>{receipt.graph_evidence_id}</code></dd>
-                  </>}
+                  {receipt.graph_state && (
+                    <>
+                      <dt>Evidence graph</dt>
+                      <dd>
+                        {receipt.graph_state === "projected" ? "Projected" : "Awaiting projection"} ·{" "}
+                        <code>{receipt.graph_evidence_id}</code>
+                      </dd>
+                    </>
+                  )}
                   <dt>Action</dt>
                   <dd>
                     <code>{receipt.action_id}</code>

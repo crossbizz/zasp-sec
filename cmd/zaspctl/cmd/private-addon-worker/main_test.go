@@ -38,7 +38,7 @@ func TestWorkerBindsOneUploadAndExcludesContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body.Bytes())
-	base := grant{"private-addon-upload.v1", origin, scope, id, id, "sha256:" + hex.EncodeToString(sum[:]), int64(body.Len()), time.Now().Unix() + 299, false}
+	base := grant{"private-addon-upload.v1", origin, scope, id, id, "sha256:" + hex.EncodeToString(sum[:]), int64(body.Len()), time.Now().Unix() + 299, false, 0}
 	send := func(g grant, contents []byte, origin string) *httptest.ResponseRecorder {
 		raw, err := json.Marshal(g)
 		if err != nil {
@@ -89,5 +89,17 @@ func TestWorkerBindsOneUploadAndExcludesContent(t *testing.T) {
 	w.expireMarkers(time.Now().Add(2 * time.Hour))
 	if _, err = root.Lstat(id); !os.IsNotExist(err) {
 		t.Fatal("expired marker retained")
+	}
+}
+
+func TestPrivateWorkerLocalListener(t *testing.T) {
+	for _, tc := range []struct {
+		env, addr string
+		valid     bool
+	}{{"production", "", true}, {"local", "127.0.0.1:8444", true}, {"test", "[::1]:9200", true}, {"production", "127.0.0.1:8444", false}, {"test", "0.0.0.0:8444", false}, {"local", "unverified.invalid:8443", false}, {"local", ":8443", false}, {"test", "127.0.0.1:99999", false}} {
+		got, err := workerListenAddress(tc.env, tc.addr)
+		if (err == nil) != tc.valid || tc.addr == "" && got != ":8443" {
+			t.Fatalf("listener %s %s: %s %v", tc.env, tc.addr, got, err)
+		}
 	}
 }

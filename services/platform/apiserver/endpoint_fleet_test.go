@@ -186,7 +186,7 @@ func TestEndpointFleetOnInstalledBaselinePostgres(t *testing.T) {
 	payload, _ := json.Marshal(pol)
 	request(admin, "publishEndpointPolicy", "PUT", base+"/policy-bundle", id, endpointprotocol.Signed{Payload: payload, Signature: ed25519.Sign(signer, payload)}, edit(2), 200)
 	t.Run("daemon and hook through installed HTTP", func(t *testing.T) {
-		exerciseInstalledEndpoint(t, b, surface, repo, binding, key, issuer, tokenSecrets["Pilot device"])
+		exerciseInstalledEndpoint(t, b, surface, repo, binding, key, issuer, tokenSecrets["Pilot device"], admin)
 	})
 	newPub, newKey, _ := ed25519.GenerateKey(rand.Reader)
 	request(admin, "rotateEndpointCredential", "POST", base+"/credential-rotations", id, endpointRegister{Credential: other.binding.ID, DeviceKey: newPub}, edit(3), 200)

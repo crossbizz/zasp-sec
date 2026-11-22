@@ -465,6 +465,19 @@ paths:
       x-fern-sdk-group-name: integrations
       x-fern-sdk-method-name: acknowledgeMutationReceipt
       description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/device-cohorts/{cohort}/ticket-rollout:
+    get:
+      tags:
+        - Sensors
+      x-fern-sdk-group-name: sensors
+      x-fern-sdk-method-name: getTicketCohort
+      description: 'Authentication: a browser session only. An API token is refused.'
+    put:
+      tags:
+        - Sensors
+      x-fern-sdk-group-name: sensors
+      x-fern-sdk-method-name: publishTicketCohort
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/device-enrollments:
     post:
       tags:
@@ -1133,6 +1146,19 @@ paths:
         - Agents
       x-fern-sdk-group-name: agents
       x-fern-sdk-method-name: putPurpose
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/agents/{id}/action-analysis:
+    get:
+      tags:
+        - Agents
+      x-fern-sdk-group-name: agents
+      x-fern-sdk-method-name: getActionAnalysis
+      description: 'Authentication: a browser session only. An API token is refused.'
+    put:
+      tags:
+        - Agents
+      x-fern-sdk-group-name: agents
+      x-fern-sdk-method-name: putActionAnalysis
       description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/agents/{id}/capabilities:
     get:

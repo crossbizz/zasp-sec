@@ -549,6 +549,26 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/action-analysis": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Read background analysis of this agent’s bound workload admissions */
+        readonly get: operations["getAgentActionAnalysis"];
+        /** Save a revision of reported action analysis settings */
+        readonly put: operations["putAgentActionAnalysis"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/capabilities": {
         readonly parameters: {
             readonly query?: never;
@@ -1162,6 +1182,26 @@ export type paths = {
          * @description The grant binds principal, browser session, selected scope, job and format. Expiry never exceeds export retrieval expiry. Keep the token in memory and send it only in the download body, never in URLs or logs.
          */
         readonly post: operations["createComplianceDownloadGrant"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/device-cohorts/{cohort}/ticket-rollout": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly cohort: string;
+            };
+            readonly cookie?: never;
+        };
+        /** Inspect a staging ticket cohort and prepare a per-device signing plan */
+        readonly get: operations["getTicketCohort"];
+        /** Apply one revision of signed device-specific ticket policies to a staging cohort */
+        readonly put: operations["publishTicketCohort"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -3645,6 +3685,27 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly ActionAnalysisFinding: {
+            readonly classification: components["schemas"]["WorkloadActionLabel"];
+            readonly decision_id: components["schemas"]["ProductID"];
+            /** @enum {string|null} */
+            readonly destination_class: "internal" | "approved_partner" | "external" | "public" | null;
+            readonly issues: readonly ("operation_outside_purpose" | "classification_outside_purpose" | "destination_outside_purpose" | "sequence_outside_purpose")[];
+            /** Format: date-time */
+            readonly occurred_at: string;
+            readonly operation: components["schemas"]["WorkloadActionLabel"];
+            readonly previous_operation: string | null;
+            readonly session_id: components["schemas"]["ProductID"];
+        };
+        readonly ActionAnalysisSettings: {
+            readonly allowed_classifications: readonly components["schemas"]["WorkloadActionLabel"][];
+            readonly allowed_destinations: readonly components["schemas"]["WorkloadDestinationClass"][];
+            readonly allowed_operations: readonly components["schemas"]["WorkloadActionLabel"][];
+            readonly blocked_transitions: readonly {
+                readonly from: components["schemas"]["WorkloadActionLabel"];
+                readonly to: components["schemas"]["WorkloadActionLabel"];
+            }[];
+        };
         readonly AddonCIOrigin: {
             readonly commit: string | null;
             /** @enum {string|null} */
@@ -3804,6 +3865,21 @@ export type components = {
                 /** @description What an action invokes, for example flow or apex. Null for a topic and where the platform did not state it. */
                 readonly target: null | string;
             }[];
+        };
+        readonly AgentActionAnalysis: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly analyzed: number;
+            readonly findings: readonly components["schemas"]["ActionAnalysisFinding"][];
+            readonly pending: number;
+            /** Format: int64 */
+            readonly revision: number;
+            readonly settings: components["schemas"]["ActionAnalysisSettings"];
+            /** @constant */
+            readonly source: "bound_workload_reported";
+            readonly truncated: boolean;
+            readonly unknown_destination: number;
+            /** Format: date-time */
+            readonly updated_at: string | null;
         };
         readonly AgentEvidencePack: {
             readonly agent: components["schemas"]["InventoryDetail"];
@@ -5740,8 +5816,13 @@ export type components = {
             readonly id: components["schemas"]["ProductID"];
             /** @enum {string} */
             readonly result_delivery: "browser_only" | "registry";
-            /** @constant */
-            readonly retention: "memory_only";
+            /**
+             * Format: date-time
+             * @description Deletion deadline for an explicitly retained encrypted archive.
+             */
+            readonly retain_until?: string;
+            /** @enum {string} */
+            readonly retention: "memory_only" | "encrypted_24h";
             readonly upload_grant: string;
             /** Format: uri */
             readonly upload_url: string;
@@ -5752,8 +5833,8 @@ export type components = {
             readonly archive_digest: string;
             /** @constant */
             readonly mode: "private_upload";
-            /** @constant */
-            readonly retention: "memory_only";
+            /** @enum {string} */
+            readonly retention: "memory_only" | "encrypted_24h";
         };
         readonly ProductError: {
             readonly code: string;
@@ -7325,6 +7406,71 @@ export type components = {
             readonly scope: components["schemas"]["TicketScope"];
             readonly target_id: components["schemas"]["ProductID"];
         };
+        readonly TicketCohortMember: {
+            readonly acknowledged: boolean;
+            readonly adapter: string;
+            readonly allowed_observed: boolean;
+            readonly generation: number;
+            readonly id: components["schemas"]["ProductID"];
+            readonly managed_generation: number;
+            readonly managed_mode: string;
+            readonly managed_revision: number;
+            readonly online: boolean;
+            readonly outside_observed: boolean;
+            readonly policy_revision: number;
+            readonly queue_clear: boolean;
+            readonly state: string;
+            readonly version: number;
+        };
+        /** @enum {string} */
+        readonly TicketCohortPhase: "monitor" | "canary" | "promote" | "rollback";
+        readonly TicketCohortPlan: {
+            readonly cohort: string;
+            readonly expected_rollout_revision: number;
+            readonly items: readonly {
+                readonly expected_device_version: number;
+                readonly policy: components["schemas"]["TicketPolicyPayload"];
+            }[];
+            readonly phase: components["schemas"]["TicketCohortPhase"];
+            /** @constant */
+            readonly schema_version: "ticket-cohort-plan.v1";
+        };
+        readonly TicketCohortReceipt: {
+            readonly allowed_destination: string;
+            readonly cohort: string;
+            readonly phase: components["schemas"]["TicketCohortPhase"];
+            readonly request_sha256: string;
+            readonly revision: number;
+            /** Format: date-time */
+            readonly submitted_at: string;
+            readonly submitted_by: components["schemas"]["ProductID"];
+            readonly target_ids: readonly components["schemas"]["ProductID"][];
+        };
+        readonly TicketCohortUpload: {
+            readonly cohort: string;
+            readonly expected_rollout_revision: number;
+            readonly items: readonly {
+                readonly bundle: {
+                    readonly payload: string;
+                    readonly signature: string;
+                };
+                readonly expected_device_version: number;
+            }[];
+            readonly phase: components["schemas"]["TicketCohortPhase"];
+            /** @constant */
+            readonly schema_version: "ticket-cohort-bundle.v1";
+        };
+        readonly TicketCohortView: {
+            readonly allowed_destination: string;
+            readonly assigned: number;
+            readonly cohort: string;
+            readonly environment_class: string;
+            readonly members: readonly components["schemas"]["TicketCohortMember"][];
+            readonly phase: string;
+            readonly plan: components["schemas"]["TicketCohortPlan"] | null;
+            readonly reason: string;
+            readonly revision: number;
+        };
         readonly TicketDecision: {
             readonly action_id: components["schemas"]["TicketOpaqueID"];
             readonly applied: boolean;
@@ -7337,6 +7483,27 @@ export type components = {
             readonly verdict: "allow" | "block";
         };
         readonly TicketOpaqueID: string;
+        readonly TicketPolicyPayload: {
+            readonly allowed_destination: string;
+            /** @constant */
+            readonly audience: "zasp.endpoint-policy.v1";
+            readonly binding: {
+                readonly credential_generation: number;
+                readonly device_id: components["schemas"]["ProductID"];
+                readonly environment_id: components["schemas"]["ProductID"];
+                readonly organization_id: components["schemas"]["ProductID"];
+                readonly workspace_id: components["schemas"]["ProductID"];
+            };
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** Format: date-time */
+            readonly issued_at: string;
+            /** @enum {string} */
+            readonly mode: "monitor" | "enforce";
+            readonly revision: number;
+            /** @constant */
+            readonly tool: "mcp__pilot__update_ticket";
+        };
         readonly TicketRecorderEvidence: {
             /** Format: date-time */
             readonly complete_from: string;
@@ -7457,6 +7624,7 @@ export type components = {
             readonly operation: components["schemas"]["WorkloadActionLabel"];
             readonly resource: {
                 readonly classification: components["schemas"]["WorkloadActionLabel"];
+                readonly destination_class?: components["schemas"]["WorkloadDestinationClass"];
                 readonly kind: components["schemas"]["WorkloadActionLabel"];
             };
             /** @constant */
@@ -7490,6 +7658,8 @@ export type components = {
             /** @constant */
             readonly source: "administrator_bound_credential";
         };
+        /** @enum {string} */
+        readonly WorkloadDestinationClass: "internal" | "approved_partner" | "external" | "public";
         readonly WorkloadOutcomeAck: {
             /** @constant */
             readonly recorded: true;
@@ -7566,6 +7736,8 @@ export type components = {
     };
     pathItems: never;
 };
+export type ActionAnalysisFinding = components['schemas']['ActionAnalysisFinding'];
+export type ActionAnalysisSettings = components['schemas']['ActionAnalysisSettings'];
 export type AddonCiOrigin = components['schemas']['AddonCIOrigin'];
 export type AddonCiReceipt = components['schemas']['AddonCIReceipt'];
 export type AddonCiSignature = components['schemas']['AddonCISignature'];
@@ -7579,6 +7751,7 @@ export type AddonScanSubmission = components['schemas']['AddonScanSubmission'];
 export type AddonVersionDetail = components['schemas']['AddonVersionDetail'];
 export type AddonVersionPage = components['schemas']['AddonVersionPage'];
 export type AgentAccess = components['schemas']['AgentAccess'];
+export type AgentActionAnalysis = components['schemas']['AgentActionAnalysis'];
 export type AgentEvidencePack = components['schemas']['AgentEvidencePack'];
 export type AgentEvidencePackResponse = components['schemas']['AgentEvidencePackResponse'];
 export type AgentEvidencePackStatus = components['schemas']['AgentEvidencePackStatus'];
@@ -7982,8 +8155,15 @@ export type TestRunPage = components['schemas']['TestRunPage'];
 export type TestSchedule = components['schemas']['TestSchedule'];
 export type TestScheduleInput = components['schemas']['TestScheduleInput'];
 export type TicketAdapterEvidence = components['schemas']['TicketAdapterEvidence'];
+export type TicketCohortMember = components['schemas']['TicketCohortMember'];
+export type TicketCohortPhase = components['schemas']['TicketCohortPhase'];
+export type TicketCohortPlan = components['schemas']['TicketCohortPlan'];
+export type TicketCohortReceipt = components['schemas']['TicketCohortReceipt'];
+export type TicketCohortUpload = components['schemas']['TicketCohortUpload'];
+export type TicketCohortView = components['schemas']['TicketCohortView'];
 export type TicketDecision = components['schemas']['TicketDecision'];
 export type TicketOpaqueId = components['schemas']['TicketOpaqueID'];
+export type TicketPolicyPayload = components['schemas']['TicketPolicyPayload'];
 export type TicketRecorderEvidence = components['schemas']['TicketRecorderEvidence'];
 export type TicketScenario = components['schemas']['TicketScenario'];
 export type TicketScope = components['schemas']['TicketScope'];
@@ -8000,6 +8180,7 @@ export type WorkloadActionOutcome = components['schemas']['WorkloadActionOutcome
 export type WorkloadActionRequest = components['schemas']['WorkloadActionRequest'];
 export type WorkloadContainment = components['schemas']['WorkloadContainment'];
 export type WorkloadCredentialBinding = components['schemas']['WorkloadCredentialBinding'];
+export type WorkloadDestinationClass = components['schemas']['WorkloadDestinationClass'];
 export type WorkloadOutcomeAck = components['schemas']['WorkloadOutcomeAck'];
 export type Workspace = components['schemas']['Workspace'];
 export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
@@ -9077,6 +9258,74 @@ export interface operations {
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAgentActionAnalysis: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current purpose revision and up to 50 recent advisory findings. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentActionAnalysis"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putAgentActionAnalysis: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                readonly "If-Match": string;
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ActionAnalysisSettings"];
+            };
+        };
+        readonly responses: {
+            /** @description Current purpose revision and up to 50 recent advisory findings. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentActionAnalysis"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -10183,6 +10432,66 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTicketCohort: {
+        readonly parameters: {
+            readonly query?: {
+                readonly allowed_destination?: string;
+                readonly phase?: components["schemas"]["TicketCohortPhase"];
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly cohort: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Actual cohort evidence and eligible signing plan. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TicketCohortView"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly publishTicketCohort: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly cohort: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TicketCohortUpload"];
+            };
+        };
+        readonly responses: {
+            /** @description Immutable cohort publication receipt. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TicketCohortReceipt"];
+                };
+            };
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

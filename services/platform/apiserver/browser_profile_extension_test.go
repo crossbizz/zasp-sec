@@ -67,7 +67,11 @@ func testBrowserExtensionSync(t *testing.T, b *installedBaseline, repo *Postgres
 		t.Fatalf("extension origin-day report failed: %v %s", err, out)
 	}
 	read := b.serve(data, admin, "getBrowserProfile", "GET", path, params, "", nil)
-	if read.Code != 200 || !strings.Contains(read.Body.String(), `"state":"reporting"`) || !strings.Contains(read.Body.String(), `"origin":"https://claude.ai"`) {
+	var confirmed struct {
+		State string       `json:"state"`
+		Days  []browserDay `json:"observations"`
+	}
+	if read.Code != 200 || json.Unmarshal(read.Body.Bytes(), &confirmed) != nil || confirmed.State != "reporting" || len(confirmed.Days) != 1 || confirmed.Days[0].Origin != "https://claude.ai" {
 		t.Fatal("missing actual profile readback", read.Code, read.Body)
 	}
 }

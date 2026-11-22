@@ -1025,6 +1025,31 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/device-cohorts/{cohort}/ticket-rollout:
+    parameters:
+      - { name: cohort, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' } }
+    get:
+      operationId: getTicketCohort
+      summary: Inspect a staging ticket cohort and prepare a per-device signing plan
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: phase, in: query, schema: { $ref: '#/components/schemas/TicketCohortPhase' } }
+        - { name: allowed_destination, in: query, schema: { type: string, maxLength: 128 } }
+      responses:
+        '200': { description: Actual cohort evidence and eligible signing plan., content: { application/json: { schema: { $ref: '#/components/schemas/TicketCohortView' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: publishTicketCohort
+      summary: Apply one revision of signed device-specific ticket policies to a staging cohort
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TicketCohortUpload' } } } }
+      responses:
+        '200': { description: Immutable cohort publication receipt., content: { application/json: { schema: { $ref: '#/components/schemas/TicketCohortReceipt' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/device-enrollments:
     post:
       operationId: registerEndpointDevice
@@ -2964,6 +2989,44 @@ paths:
         '200': { description: Recorded purpose revision., content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/action-analysis:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentActionAnalysis
+      summary: Read background analysis of this agent’s bound workload admissions
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200': { description: Current purpose revision and up to 50 recent advisory findings., content: { application/json: { schema: { $ref: '#/components/schemas/AgentActionAnalysis' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        'default': { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putAgentActionAnalysis
+      summary: Save a revision of reported action analysis settings
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: If-Match, in: header, required: true, schema: { type: string } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ActionAnalysisSettings' } } } }
+      responses:
+        '200': { description: Current purpose revision and up to 50 recent advisory findings., content: { application/json: { schema: { $ref: '#/components/schemas/AgentActionAnalysis' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        'default': { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/capabilities:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -4875,7 +4938,7 @@ components:
       required: [mode, retention, archive_digest, archive_bytes]
       properties:
         mode: { type: string, const: private_upload }
-        retention: { type: string, const: memory_only }
+        retention: { type: string, enum: [memory_only, encrypted_24h] }
         archive_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
         archive_bytes: { type: integer, minimum: 1, maximum: 8388608 }
     PrivateAddonUploadGrant:
@@ -4887,7 +4950,8 @@ components:
         upload_url: { type: string, format: uri, pattern: '^https://' }
         upload_grant: { type: string, maxLength: 3072 }
         expires_at: { type: string, format: date-time }
-        retention: { type: string, const: memory_only }
+        retain_until: { type: string, format: date-time, description: "Deletion deadline for an explicitly retained encrypted archive." }
+        retention: { type: string, enum: [memory_only, encrypted_24h] }
         result_delivery: { type: string, enum: [browser_only, registry] }
         verification_key: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
     CLIStartInput:
@@ -4944,6 +5008,20 @@ components:
         environment_id: { $ref: '#/components/schemas/ProductID' }
         expires_at: { type: string, format: date-time }
         scope: { type: string, const: submit_addon_scans }
+    TicketCohortPhase:
+      {"type":"string","enum":["monitor","canary","promote","rollback"]}
+    TicketPolicyPayload:
+      {"type":"object","additionalProperties":false,"required":["audience","binding","revision","issued_at","expires_at","mode","tool","allowed_destination"],"properties":{"audience":{"type":"string","const":"zasp.endpoint-policy.v1"},"binding":{"type":"object","additionalProperties":false,"required":["organization_id","workspace_id","environment_id","device_id","credential_generation"],"properties":{"organization_id":{"$ref":"#/components/schemas/ProductID"},"workspace_id":{"$ref":"#/components/schemas/ProductID"},"environment_id":{"$ref":"#/components/schemas/ProductID"},"device_id":{"$ref":"#/components/schemas/ProductID"},"credential_generation":{"type":"integer","minimum":1,"maximum":9007199254740991}}},"revision":{"type":"integer","minimum":1,"maximum":9007199254740991},"issued_at":{"type":"string","format":"date-time"},"expires_at":{"type":"string","format":"date-time"},"mode":{"type":"string","enum":["monitor","enforce"]},"tool":{"type":"string","const":"mcp__pilot__update_ticket"},"allowed_destination":{"type":"string"}}}
+    TicketCohortPlan:
+      {"type":"object","additionalProperties":false,"required":["schema_version","cohort","phase","expected_rollout_revision","items"],"properties":{"schema_version":{"type":"string","const":"ticket-cohort-plan.v1"},"cohort":{"type":"string"},"phase":{"$ref":"#/components/schemas/TicketCohortPhase"},"expected_rollout_revision":{"type":"integer","minimum":0,"maximum":9007199254740991},"items":{"type":"array","maxItems":32,"items":{"type":"object","additionalProperties":false,"required":["expected_device_version","policy"],"properties":{"expected_device_version":{"type":"integer","minimum":1,"maximum":9007199254740991},"policy":{"$ref":"#/components/schemas/TicketPolicyPayload"}}}}}}
+    TicketCohortUpload:
+      {"type":"object","additionalProperties":false,"required":["schema_version","cohort","phase","expected_rollout_revision","items"],"properties":{"schema_version":{"type":"string","const":"ticket-cohort-bundle.v1"},"cohort":{"type":"string"},"phase":{"$ref":"#/components/schemas/TicketCohortPhase"},"expected_rollout_revision":{"type":"integer","minimum":0,"maximum":9007199254740991},"items":{"type":"array","maxItems":32,"items":{"type":"object","additionalProperties":false,"required":["expected_device_version","bundle"],"properties":{"expected_device_version":{"type":"integer","minimum":1,"maximum":9007199254740991},"bundle":{"type":"object","additionalProperties":false,"required":["payload","signature"],"properties":{"payload":{"type":"string"},"signature":{"type":"string"}}}}}}}}
+    TicketCohortMember:
+      {"type":"object","additionalProperties":false,"required":["id","version","generation","policy_revision","managed_revision","managed_generation","managed_mode","adapter","state","online","acknowledged","allowed_observed","outside_observed","queue_clear"],"properties":{"id":{"$ref":"#/components/schemas/ProductID"},"version":{"type":"integer","minimum":1,"maximum":9007199254740991},"generation":{"type":"integer","minimum":1,"maximum":9007199254740991},"policy_revision":{"type":"integer","minimum":0,"maximum":9007199254740991},"managed_revision":{"type":"integer","minimum":0,"maximum":9007199254740991},"managed_generation":{"type":"integer","minimum":0,"maximum":9007199254740991},"managed_mode":{"type":"string"},"adapter":{"type":"string"},"state":{"type":"string"},"online":{"type":"boolean"},"acknowledged":{"type":"boolean"},"allowed_observed":{"type":"boolean"},"outside_observed":{"type":"boolean"},"queue_clear":{"type":"boolean"}}}
+    TicketCohortView:
+      {"type":"object","additionalProperties":false,"required":["cohort","environment_class","revision","phase","allowed_destination","assigned","members","plan","reason"],"properties":{"cohort":{"type":"string"},"environment_class":{"type":"string"},"revision":{"type":"integer","minimum":0,"maximum":9007199254740991},"phase":{"type":"string"},"allowed_destination":{"type":"string"},"assigned":{"type":"integer","minimum":0,"maximum":9007199254740991},"members":{"type":"array","maxItems":32,"items":{"$ref":"#/components/schemas/TicketCohortMember"}},"plan":{"oneOf":[{"$ref":"#/components/schemas/TicketCohortPlan"},{"type":"null"}]},"reason":{"type":"string"}}}
+    TicketCohortReceipt:
+      {"type":"object","additionalProperties":false,"required":["cohort","revision","phase","allowed_destination","target_ids","submitted_by","submitted_at","request_sha256"],"properties":{"cohort":{"type":"string"},"revision":{"type":"integer","minimum":1,"maximum":9007199254740991},"phase":{"$ref":"#/components/schemas/TicketCohortPhase"},"allowed_destination":{"type":"string"},"target_ids":{"type":"array","maxItems":32,"items":{"$ref":"#/components/schemas/ProductID"}},"submitted_by":{"$ref":"#/components/schemas/ProductID"},"submitted_at":{"type":"string","format":"date-time"},"request_sha256":{"type":"string"}}}
     EndpointDevice:
       {"type": "object", "additionalProperties": false, "required": ["id", "cohort", "state", "version", "credential_generation", "last_seen", "connection", "policy_revision", "reported_policy_revision", "acknowledged", "queued_receipts", "dropped_receipts"], "properties": {"id": {"$ref": "#/components/schemas/ProductID"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}, "state": {"type": "string", "enum": ["pending", "active", "retired"]}, "version": {"type": "integer", "minimum": 1}, "credential_generation": {"type": "integer", "minimum": 1}, "last_seen": {"type": ["string", "null"], "format": "date-time"}, "connection": {"type": "string", "enum": ["retired", "never_seen", "online", "stale"]}, "policy_revision": {"type": "integer", "minimum": 0}, "reported_policy_revision": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "boolean"}, "queued_receipts": {"type": ["integer", "null"], "minimum": 0}, "dropped_receipts": {"type": ["integer", "null"], "minimum": 0}}}
     EndpointInstallationDetail:
@@ -8302,6 +8380,59 @@ components:
       type: string
       pattern: '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$'
       maxLength: 128
+    WorkloadDestinationClass:
+      type: string
+      enum: [internal, approved_partner, external, public]
+    ActionAnalysisSettings:
+      type: object
+      additionalProperties: false
+      required: [allowed_operations, allowed_classifications, allowed_destinations, blocked_transitions]
+      properties:
+        allowed_operations: { type: array, maxItems: 32, uniqueItems: true, items: { $ref: '#/components/schemas/WorkloadActionLabel' } }
+        allowed_classifications: { type: array, maxItems: 32, uniqueItems: true, items: { $ref: '#/components/schemas/WorkloadActionLabel' } }
+        allowed_destinations: { type: array, maxItems: 4, uniqueItems: true, items: { $ref: '#/components/schemas/WorkloadDestinationClass' } }
+        blocked_transitions:
+          type: array
+          maxItems: 32
+          uniqueItems: true
+          items:
+            type: object
+            additionalProperties: false
+            required: [from, to]
+            properties:
+              from: { $ref: '#/components/schemas/WorkloadActionLabel' }
+              to: { $ref: '#/components/schemas/WorkloadActionLabel' }
+    ActionAnalysisFinding:
+      type: object
+      additionalProperties: false
+      required: [decision_id, session_id, operation, classification, destination_class, previous_operation, issues, occurred_at]
+      properties:
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        classification: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        destination_class: { type: [string, 'null'], enum: [internal, approved_partner, external, public, null] }
+        previous_operation: { type: [string, 'null'] }
+        occurred_at: { type: string, format: date-time }
+        issues:
+          type: array
+          maxItems: 4
+          items: { type: string, enum: [operation_outside_purpose, classification_outside_purpose, destination_outside_purpose, sequence_outside_purpose] }
+    AgentActionAnalysis:
+      type: object
+      additionalProperties: false
+      required: [agent_id, revision, updated_at, settings, pending, analyzed, unknown_destination, findings, truncated, source]
+      properties:
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        revision: { type: integer, format: int64, minimum: 0 }
+        updated_at: { type: [string, 'null'], format: date-time }
+        settings: { $ref: '#/components/schemas/ActionAnalysisSettings' }
+        pending: { type: integer, minimum: 0 }
+        analyzed: { type: integer, minimum: 0 }
+        unknown_destination: { type: integer, minimum: 0 }
+        findings: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/ActionAnalysisFinding' } }
+        truncated: { type: boolean }
+        source: { type: string, const: bound_workload_reported }
     WorkloadActionRequest:
       type: object
       additionalProperties: false
@@ -8320,6 +8451,7 @@ components:
           properties:
             kind: { $ref: '#/components/schemas/WorkloadActionLabel' }
             classification: { $ref: '#/components/schemas/WorkloadActionLabel' }
+            destination_class: { $ref: '#/components/schemas/WorkloadDestinationClass' }
     WorkloadActionDecision:
       type: object
       additionalProperties: false

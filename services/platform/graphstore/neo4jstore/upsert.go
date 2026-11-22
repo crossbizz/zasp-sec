@@ -18,8 +18,10 @@ const attachActionEvidenceQuery = `MATCH (n:ZaspGraphNode {organization_id:$orga
 SET n.kind=n.kind
 WITH n WHERE n.kind=$event_type
 MERGE (n)-[:ZASP_HAS_ACTION_EVIDENCE]->(f:ZaspActionEvidence)
-ON CREATE SET f.evidence_id=$evidence_id, f.source=$source, f.event_type=$event_type, f.observed_at=$observed_at, f.verdict=$verdict
-WITH f WHERE f.evidence_id=$evidence_id AND f.source=$source AND f.event_type=$event_type AND f.observed_at=$observed_at AND f.verdict=$verdict
+ON CREATE SET f.organization_id=$organization_id, f.workspace_id=$workspace_id, f.environment_id=$environment_id,
+  f.evidence_id=$evidence_id, f.source=$source, f.event_type=$event_type, f.observed_at=$observed_at, f.verdict=$verdict
+WITH f WHERE size(keys(f))=8 AND f.organization_id=$organization_id AND f.workspace_id=$workspace_id AND f.environment_id=$environment_id
+  AND f.evidence_id=$evidence_id AND f.source=$source AND f.event_type=$event_type AND f.observed_at=$observed_at AND f.verdict=$verdict
 RETURN count(f) AS matched`
 
 const (

@@ -13,20 +13,21 @@ import (
 	"time"
 )
 
-const privateAddonUploadSQL = `SELECT zasp_authorization80.private_addon_upload_with_reporter($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+const privateAddonUploadSQL = `SELECT zasp_authorization80.private_addon_upload_consent($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 
 // Wire format is an Ed25519 signature over the domain separator and payload.
 // Each deployment worker pins its key and audience independently of submissions.
 type privateArchiveGrant struct {
-	Version  string `json:"version"`
-	Audience string `json:"audience"`
-	Scope    string `json:"scope"`
-	Actor    string `json:"actor"`
-	ID       string `json:"id"`
-	SHA256   string `json:"sha256"`
-	Size     int64  `json:"size"`
-	Expires  int64  `json:"expires"`
-	Registry bool   `json:"registry,omitempty"`
+	Version     string `json:"version"`
+	Audience    string `json:"audience"`
+	Scope       string `json:"scope"`
+	Actor       string `json:"actor"`
+	ID          string `json:"id"`
+	SHA256      string `json:"sha256"`
+	Size        int64  `json:"size"`
+	Expires     int64  `json:"expires"`
+	Registry    bool   `json:"registry,omitempty"`
+	RetainUntil int64  `json:"retain_until,omitempty"`
 }
 
 func privateArchiveSigner(seed []byte, scope string) ed25519.PrivateKey {
@@ -62,8 +63,12 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		Size      int64  `json:"archive_bytes"`
 	}
 	key := r.Header.Values("Idempotency-Key")
-	if r.Method != "POST" || r.URL.RawQuery != "" || !decodeCLIInput(r, &in, "mode", "retention", "archive_digest", "archive_bytes") || in.Mode != "private_upload" || in.Retention != "memory_only" || !addonDigest.MatchString(in.Digest) || in.Size <= 0 || in.Size > 8<<20 || len(key) != 1 || !validPublicIdempotency(key[0]) {
+	if r.Method != "POST" || r.URL.RawQuery != "" || !decodeCLIInput(r, &in, "mode", "retention", "archive_digest", "archive_bytes") || in.Mode != "private_upload" || (in.Retention != "memory_only" && in.Retention != "encrypted_24h") || !addonDigest.MatchString(in.Digest) || in.Size <= 0 || in.Size > 8<<20 || len(key) != 1 || !validPublicIdempotency(key[0]) {
 		writeProductionError(w, r, ErrRepositoryOperation)
+		return
+	}
+	if in.Retention == "encrypted_24h" && os.Getenv("ZASP_PRIVATE_ADDON_RETAINED_SCOPE") != partition {
+		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
 	candidate, err := newWorkflowProductID()
@@ -76,7 +81,7 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
-	raw, err := repo.database.QueryJSON(r.Context(), privateAddonUploadSQL, o, ws, e, id.PrincipalID.String(), key[0], candidate, in.Digest, in.Size, reporter)
+	raw, err := repo.database.QueryJSON(r.Context(), privateAddonUploadSQL, o, ws, e, id.PrincipalID.String(), key[0], candidate, in.Digest, in.Size, reporter, in.Retention)
 	if securityAgentStatementRefused(err, "extended collection required") {
 		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
@@ -90,14 +95,28 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		return
 	}
 	var result struct {
-		ID      string    `json:"id"`
-		Expires time.Time `json:"expires_at"`
+		ID          string     `json:"id"`
+		Expires     time.Time  `json:"expires_at"`
+		RetainUntil *time.Time `json:"retain_until,omitempty"`
 	}
-	if !exactJSONFields(raw, "id", "expires_at") || json.Unmarshal(raw, &result) != nil || !validProductID(result.ID) || !result.Expires.After(h.now()) || result.Expires.After(h.now().Add(6*time.Minute)) {
+	fields := []string{"id", "expires_at"}
+	if in.Retention == "encrypted_24h" {
+		fields = append(fields, "retain_until")
+	}
+	if !exactJSONFields(raw, fields...) || json.Unmarshal(raw, &result) != nil || !validProductID(result.ID) || !result.Expires.After(h.now()) || result.Expires.After(h.now().Add(6*time.Minute)) {
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
-	payload, _ := json.Marshal(privateArchiveGrant{"private-addon-upload.v1", origin, partition, id.PrincipalID.String(), result.ID, in.Digest, in.Size, result.Expires.Unix(), reporter != ""})
+	claim := privateArchiveGrant{Version: "private-addon-upload.v1", Audience: origin, Scope: partition, Actor: id.PrincipalID.String(), ID: result.ID, SHA256: in.Digest, Size: in.Size, Expires: result.Expires.Unix(), Registry: reporter != ""}
+	if in.Retention == "encrypted_24h" {
+		if result.RetainUntil == nil || !result.RetainUntil.Equal(result.Expires.Add(24*time.Hour-5*time.Minute)) {
+			writeProductionError(w, r, ErrRepositoryUnavailable)
+			return
+		}
+		claim.Version = "private-addon-upload-retained.v1"
+		claim.RetainUntil = result.RetainUntil.Unix()
+	}
+	payload, _ := json.Marshal(claim)
 	signer := privateArchiveSigner(h.tokenRevealKey, partition)
 	sig := ed25519.Sign(signer, append([]byte("zasp-private-addon-upload.v1\x00"), payload...))
 	token := strings.Join([]string{base64.RawURLEncoding.EncodeToString(payload), base64.RawURLEncoding.EncodeToString(sig)}, ".")
@@ -105,9 +124,13 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 	if reporter != "" {
 		delivery = "registry"
 	}
-	out, _ := json.Marshal(map[string]any{"id": result.ID, "upload_url": origin + "/v1/uploads/" + result.ID, "upload_grant": token, "expires_at": result.Expires, "retention": "memory_only", "result_delivery": delivery, "verification_key": base64.RawURLEncoding.EncodeToString(signer.Public().(ed25519.PublicKey))})
+	response := map[string]any{"id": result.ID, "upload_url": origin + "/v1/uploads/" + result.ID, "upload_grant": token, "expires_at": result.Expires, "retention": in.Retention, "result_delivery": delivery, "verification_key": base64.RawURLEncoding.EncodeToString(signer.Public().(ed25519.PublicKey))}
+	if result.RetainUntil != nil {
+		response["retain_until"] = result.RetainUntil
+	}
+	out, _ := json.Marshal(response)
 	writeProductionResponse(w, r, http.StatusOK, out, nil)
 }
 func init() {
-	productStatementRules[privateAddonUploadSQL] = productStatementRule{operations: []string{"createPrivateAddonUpload"}, arguments: 9, scope: 1, actor: 4, browserOnly: true, fresh: true, check: addonEnvAllowed}
+	productStatementRules[privateAddonUploadSQL] = productStatementRule{operations: []string{"createPrivateAddonUpload"}, arguments: 10, scope: 1, actor: 4, browserOnly: true, fresh: true, check: addonEnvAllowed}
 }

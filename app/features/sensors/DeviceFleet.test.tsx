@@ -49,8 +49,8 @@ const device: EndpointDetail = {
       target_class: "outside_allowed_destination",
       skill_usage: "unknown",
       target_effect: "unknown",
-      graph_evidence_id:"pid_00000000-0000-4000-8000-000000000011",
-      graph_state:"pending",
+      graph_evidence_id: "pid_00000000-0000-4000-8000-000000000011",
+      graph_state: "pending",
     },
   ],
 };

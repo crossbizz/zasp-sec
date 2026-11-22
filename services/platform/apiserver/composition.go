@@ -121,6 +121,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/suggestions", "listAgentSuggestions", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/agents/{id}/suggestions/refresh", "refreshAgentSuggestions", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/agents/{id}/suggestions/{toolId}/decision", "reviewAgentSuggestion", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/action-analysis", "getAgentActionAnalysis", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/agents/{id}/action-analysis", "putAgentActionAnalysis", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/purpose", "getAgentPurpose", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/agents/{id}/purpose", "putAgentPurpose", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -142,6 +144,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PUT", "/api/v1/browser-profiles/{id}", "registerBrowserProfile", "manage_api_tokens", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/browser-profiles/{id}", "retireBrowserProfile", "manage_api_tokens", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/browser-profiles/{id}/observations", "recordBrowserOriginDays", "report_browser_usage", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/device-cohorts/{cohort}/ticket-rollout", "getTicketCohort", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/device-cohorts/{cohort}/ticket-rollout", "publishTicketCohort", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/device-enrollments", "registerEndpointDevice", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/devices", "listEndpointDevices", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/devices/{id}", "getEndpointDevice", "view", []string{"BrowserSession"}}, workflowDependency},
@@ -407,7 +411,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "registerBrowserProfile", "retireBrowserProfile":
 		return true
-	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy":
+	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "publishTicketCohort":
 		return true
 	case "reviewAddonVersion", "approveCLILogin", "createPrivateAddonUpload":
 		return true

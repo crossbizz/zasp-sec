@@ -73,14 +73,17 @@ func (c *ExportCleanup) DeleteExact(ctx context.Context, locator artifactstore.D
 	if c == nil || nilInterface(c.client) || ctx == nil || ctx.Err() != nil || !validVersion(locator.VersionID) || !(&Driver{config: c.config, export: true}).validLocator(locator) {
 		return ErrArtifact
 	}
-	_, _ = c.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(c.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(c.config.ExpectedBucketOwner)}, oneAttemptOption)
+	return deletePinnedAndVerify(ctx, c.client, c.config, locator)
+}
+func deletePinnedAndVerify(ctx context.Context, client ExportCleanupAPI, config Config, locator artifactstore.DriverLocator) error {
+	_, _ = client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(config.ExpectedBucketOwner)}, oneAttemptOption)
 	if ctx.Err() != nil {
 		return ErrImmutable
 	}
 	// HEAD cannot distinguish a missing version from generic HTTP404. GET has a
 	// typed NoSuchVersion error, and also recovers a lost DELETE response or an
 	// object already removed by lifecycle. The range bounds any successful body.
-	out, err := c.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(c.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(c.config.ExpectedBucketOwner), Range: aws.String("bytes=0-0")}, oneAttemptOption)
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(config.ExpectedBucketOwner), Range: aws.String("bytes=0-0")}, oneAttemptOption)
 	if out != nil && out.Body != nil {
 		if out.Body.Close() != nil {
 			return ErrImmutable

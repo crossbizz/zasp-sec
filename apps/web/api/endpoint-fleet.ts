@@ -142,7 +142,8 @@ function decodeObservation(row: unknown): EndpointObservationDetail {
     r.target_effect !== "unknown" ||
     (r.graph_state === undefined) !== (r.graph_evidence_id === undefined) ||
     (r.graph_state !== undefined && r.graph_state !== "projected" && r.graph_state !== "pending") ||
-    (r.graph_evidence_id !== undefined && (typeof r.graph_evidence_id !== "string" || !idPattern.test(r.graph_evidence_id)))
+    (r.graph_evidence_id !== undefined &&
+      (typeof r.graph_evidence_id !== "string" || !idPattern.test(r.graph_evidence_id)))
   )
     return invalid();
   return {
@@ -157,7 +158,11 @@ function decodeObservation(row: unknown): EndpointObservationDetail {
     target_class: r.target_class,
     skill_usage: r.skill_usage,
     target_effect: r.target_effect,
-    ...(r.graph_state !== undefined && typeof r.graph_evidence_id === "string" && { graph_state: r.graph_state, graph_evidence_id: r.graph_evidence_id }),
+    ...(r.graph_state !== undefined &&
+      typeof r.graph_evidence_id === "string" && {
+        graph_state: r.graph_state,
+        graph_evidence_id: r.graph_evidence_id,
+      }),
   };
 }
 export function decodeDetail(data: unknown, id: string): EndpointDetail {

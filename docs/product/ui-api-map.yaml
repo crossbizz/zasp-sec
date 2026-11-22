@@ -288,6 +288,12 @@ screens:
       - id: register_endpoint_device
         operation_id: registerEndpointDevice
         availability: available
+      - id: review_ticket_cohort
+        operation_id: getTicketCohort
+        availability: available
+      - id: apply_signed_ticket_cohort
+        operation_id: publishTicketCohort
+        availability: available
       - id: list_endpoint_devices
         operation_id: listEndpointDevices
         availability: available
@@ -518,6 +524,12 @@ screens:
         availability: available
       - id: decide_suggestion
         operation_id: reviewAgentSuggestion
+        availability: available
+      - id: read_agent_action_analysis
+        operation_id: getAgentActionAnalysis
+        availability: available
+      - id: update_agent_action_analysis
+        operation_id: putAgentActionAnalysis
         availability: available
       - id: view_agent_purpose
         operation_id: getAgentPurpose

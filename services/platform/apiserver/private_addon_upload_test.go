@@ -45,7 +45,24 @@ func TestPrivateAddonUploadOnInstalledBaselinePostgres(t *testing.T) {
 	b.seed(func() {
 		b.exec(`UPDATE public.zasp_environments SET environment_class='staging' WHERE (organization_id,workspace_id,id)=($1,$2,$3)`, b.o, b.w, b.e)
 	})
+	retainedBody := strings.Replace(body, "memory_only", "encrypted_24h", 1)
+	call(retainedBody, 503)
+	t.Setenv("ZASP_PRIVATE_ADDON_RETAINED_SCOPE", scope)
+	originalKey := headers["Idempotency-Key"]
+	headers["Idempotency-Key"] = "private-retain-" + b.id()
+	retained := call(retainedBody, 200)
+	var expires struct {
+		Until time.Time `json:"retain_until"`
+		TTL   time.Time `json:"expires_at"`
+		Mode  string    `json:"retention"`
+	}
+	if json.Unmarshal(retained, &expires) != nil || expires.Mode != "encrypted_24h" || !expires.Until.Equal(expires.TTL.Add(24*time.Hour-5*time.Minute)) || !bytes.Equal(retained, call(retainedBody, 200)) {
+		t.Fatal("retained grant missing stable deletion deadline")
+	}
+	call(body, 409)
+	headers["Idempotency-Key"] = originalKey
 	reply := call(body, 200)
+	call(retainedBody, 409)
 	if !bytes.Equal(reply, call(body, 200)) {
 		t.Fatal("grant retry changed")
 	}

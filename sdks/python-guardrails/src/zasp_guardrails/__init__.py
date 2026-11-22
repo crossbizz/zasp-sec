@@ -81,7 +81,7 @@ class ToolGuard:
 
     def action(
         self, operation: str, *, resource_kind: str, classification: str,
-        session_ref: str | None = None, call_ref: str | None = None,
+        session_ref: str | None = None, call_ref: str | None = None, destination_class: str | None = None,
     ) -> Action:
         metadata: dict = {
             "schema_version": "action.v1",
@@ -90,6 +90,10 @@ class ToolGuard:
             "operation": _label(operation),
             "resource": {"kind": _label(resource_kind), "classification": _label(classification)},
         }
+        if destination_class is not None:
+            if destination_class not in ("internal", "approved_partner", "external", "public"):
+                raise ValueError("Invalid destination class")
+            metadata["resource"]["destination_class"] = destination_class
         if session_ref is not None:
             metadata["source_session_ref"] = _label(session_ref)
         if call_ref is not None:
