@@ -164,9 +164,15 @@ func TestNativeManagedPretoolPipe(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer windows.CloseHandle(restricted)
-	go func() { _ = servePretool(root, c, cfg, key, name) }()
+	serverExited := make(chan error, 1)
+	go func() { serverExited <- servePretool(root, c, cfg, key, name) }()
 	failAt := time.Now().Add(55 * time.Second)
 	for {
+		select {
+		case err := <-serverExited:
+			t.Fatalf("SYSTEM broker stopped: %v", err)
+		default:
+		}
 		data, e := os.ReadFile(filepath.Join(root, "employee.done"))
 		if e == nil && string(data) == "done" {
 			break

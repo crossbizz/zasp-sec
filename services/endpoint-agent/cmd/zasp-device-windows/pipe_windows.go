@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,7 +26,10 @@ import (
 )
 
 const pipeName = `\\.\pipe\zasp-claude-pretool-v2`
-const pipeAccess = windows.FILE_READ_DATA | windows.FILE_WRITE_DATA | windows.FILE_WRITE_ATTRIBUTES | windows.SYNCHRONIZE | windows.READ_CONTROL
+
+// A Win32 CreateFile client also needs read-attributes on a named pipe.
+// FILE_APPEND_DATA would grant FILE_CREATE_PIPE_INSTANCE and is excluded.
+const pipeAccess = windows.FILE_READ_ATTRIBUTES | windows.FILE_READ_DATA | windows.FILE_WRITE_DATA | windows.FILE_WRITE_ATTRIBUTES | windows.SYNCHRONIZE | windows.READ_CONTROL
 const maxHook = 32768
 
 var impersonate = windows.NewLazySystemDLL("advapi32.dll").NewProc("ImpersonateNamedPipeClient")
@@ -34,7 +38,7 @@ func newPipe(name string, sid *windows.SID) (windows.Handle, error) {
 	if sid == nil {
 		return 0, invalid
 	}
-	sd, err := windows.SecurityDescriptorFromString("O:SYG:SYD:P(A;;GA;;;SY)(A;;0x00120103;;;" + sid.String() + ")")
+	sd, err := windows.SecurityDescriptorFromString(fmt.Sprintf("O:SYG:SYD:P(A;;GA;;;SY)(A;;0x%08x;;;%s)S:(ML;;NW;;;ME)", pipeAccess, sid.String()))
 	if err != nil {
 		return 0, err
 	}
@@ -134,15 +138,21 @@ func exchangePipe(name string, raw []byte) ([]byte, error) {
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("open assigned pipe: %w", err)
 		}
 		defer windows.CloseHandle(h)
 		if !systemPipe(h) {
-			return nil, invalid
+			return nil, fmt.Errorf("verify SYSTEM pipe: %w", invalid)
 		}
 		mode := uint32(windows.PIPE_NOWAIT | windows.PIPE_READMODE_MESSAGE)
 		var n uint32
-		if windows.SetNamedPipeHandleState(h, &mode, nil, nil) != nil || windows.WriteFile(h, raw, &n, nil) != nil || int(n) != len(raw) {
+		if err := windows.SetNamedPipeHandleState(h, &mode, nil, nil); err != nil {
+			return nil, fmt.Errorf("set pipe read mode: %w", err)
+		}
+		if err := windows.WriteFile(h, raw, &n, nil); err != nil {
+			return nil, fmt.Errorf("write pipe request: %w", err)
+		}
+		if int(n) != len(raw) {
 			return nil, invalid
 		}
 		reply, err := pipeRead(h, 4096, deadline)
