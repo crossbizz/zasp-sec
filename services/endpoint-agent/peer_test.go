@@ -10,7 +10,7 @@ import (
 
 // Both sides use the native socket credential API before handling a hook.
 func TestKernelCredentialOnBothEnds(t *testing.T) {
-	dir, err := os.MkdirTemp("", "ep-peer-")
+	dir, err := os.MkdirTemp("/tmp", "ep-peer-")
 	if err != nil {
 		t.Fatal(err)
 	}

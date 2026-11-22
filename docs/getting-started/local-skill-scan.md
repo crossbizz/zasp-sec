@@ -50,6 +50,25 @@ zaspctl addons inventory --local --harness codex --scope personal
 
 The output identifies the harness and discovery profile for each observed bundle. Matching bytes can appear in multiple locations. Codex can follow skill symlinks, while this privacy-bounded discovery profile reports them as partial. Built-ins, plugin stores, configuration-dependent enablement, actual invocation and the Windows Codex admin root have no verified coverage in this profile.
 
+## Inspect Claude Code declarations
+
+Opt in to the additional local declaration profile. You can select a checked-out plugin or the installed plugin directory itself as the project root.
+
+```sh
+zaspctl addons inventory --local --harness claude-code --scope project --project . --declarations --json
+zaspctl addons inventory --local --harness claude-code --scope personal --declarations --report-html personal.html
+```
+
+| Location | Evidence returned |
+| --- | --- |
+| Project or personal `.claude/agents/*.md` and `.claude/commands/*.md` | Filename, component type and whether frontmatter declares a tool list. A sub-agent needs a name and description. |
+| Personal/project `.claude/settings.json`, project `.claude/settings.local.json`, managed `managed-settings.json` | Counts of declared hook handlers and command handlers. Ordinary settings and hook contents stay private. |
+| An explicitly selected plugin directory with `.claude-plugin/plugin.json` | The manifest's recognized component keys and declarations in its conventional immediate `agents/`, `commands/` and `hooks/hooks.json` paths. |
+
+These local rows carry the separate `claude-code-declarations.v1` profile. Usage and enablement remain unknown. Only the selected paths participate. The parser does not resolve manifest-supplied paths, registry URLs or custom component locations. Marketplace cache discovery, nested command groups, `CLAUDE_CONFIG_DIR` overrides and merged effective permissions remain outside the profile. File and entry limits, malformed metadata and linked directories surface partial coverage. Each run inspects up to 256 declaration entries, each at most 256 KiB, under the existing inventory time budget.
+
+A declaration has no immutable skill manifest digest. Scanning a declaration alone cannot approve a plugin, export a shareable skill version, or prove execution. [Claude Code plugin manifest](https://code.claude.com/docs/en/plugins-reference) · [Settings](https://code.claude.com/docs/en/settings) · [Sub-agents](https://code.claude.com/docs/en/sub-agents)
+
 ## Use results in CI
 
 ```sh

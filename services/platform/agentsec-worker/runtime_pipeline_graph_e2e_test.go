@@ -48,6 +48,9 @@ func newRuntimePipelineGraphFixture(t *testing.T, ctx context.Context) *graphsto
 	if err := adapter.EnsureSchema(ctx); err != nil {
 		t.Fatal("actual graph schema", err)
 	}
+	if err := adapter.EnsureActionEvidenceTokens(ctx); err != nil {
+		t.Fatal("actual evidence graph tokens", err)
+	}
 	if err := adapter.Ready(ctx); err != nil {
 		t.Fatal("actual graph readiness", err)
 	}

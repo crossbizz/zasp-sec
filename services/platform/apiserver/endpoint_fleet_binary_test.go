@@ -30,7 +30,7 @@ func exerciseInstalledEndpoint(t *testing.T, b *installedBaseline, h http.Handle
 	if runtime.GOOS != "linux" {
 		t.Skip("managed Mac needs a provisioned System Keychain identity")
 	}
-	dir, err := os.MkdirTemp("", "zasp-fleet-e2e-")
+	dir, err := os.MkdirTemp("/tmp", "zasp-fleet-e2e-")
 	if err != nil {
 		t.Fatal(err)
 	}

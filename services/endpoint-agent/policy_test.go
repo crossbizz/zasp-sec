@@ -22,6 +22,11 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	dir := t.TempDir()
+	// testing.T.TempDir can use the runner's umask for its leaf. The
+	// production store requires an owner-only directory on every host.
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	pub, signer, e := ed25519.GenerateKey(rand.Reader)
 	if e != nil {
 		t.Fatal(e)
@@ -238,5 +243,19 @@ func TestArchiveAndBackpressure(t *testing.T) {
 	allowed, _ := f.b.evaluate(event("new", "other", "internal"))
 	if allowed.Verdict != "unavailable" || allowed.Reason != "spool_full" || f.b.store.state.Gaps != 2 {
 		t.Fatal(allowed)
+	}
+}
+
+func TestHookWakesTransportWithoutNetworkInDecision(t *testing.T) {
+	f := newFixture(t)
+	f.b.syncRequested = make(chan struct{}, 1)
+	for _, id := range []string{"first", "second"} {
+		r := f.b.process(request{Operation: "pre-tool", Hook: event("one", id, "external")}, f.b.uid)
+		if r.Error != "" || r.Decision == nil || r.Decision.Verdict != "continue" {
+			t.Fatal(r)
+		}
+	}
+	if len(f.b.syncRequested) != 1 || len(f.b.store.state.Decisions) != 2 {
+		t.Fatal("background wake was lost or coupled to receipt selection")
 	}
 }

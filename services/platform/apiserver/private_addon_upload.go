@@ -43,7 +43,7 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 	w.Header().Set("Cache-Control", "no-store")
 	id, ok := IdentityFromRequest(r)
 	if !ok || id.CredentialKind != CredentialBrowserSession || !id.FreshAuthenticated {
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	}
 	scope := id.Scope
@@ -77,6 +77,10 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		return
 	}
 	raw, err := repo.database.QueryJSON(r.Context(), privateAddonUploadSQL, o, ws, e, id.PrincipalID.String(), key[0], candidate, in.Digest, in.Size, reporter)
+	if securityAgentStatementRefused(err, "extended collection required") {
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
+		return
+	}
 	if err != nil {
 		writeProductionError(w, r, err)
 		return

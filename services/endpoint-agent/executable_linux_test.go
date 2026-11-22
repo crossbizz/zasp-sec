@@ -29,7 +29,14 @@ func TestExecutableTicketControl(t *testing.T) {
 	if out, err := exec.Command("go", "build", "-o", exe, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v %s", err, out)
 	}
-	socket := filepath.Join(dir, "agent.sock")
+	// AF_UNIX has a fixed pathname bound independently of the runner's
+	// scratch path and the length of its test name.
+	socketDir, err := os.MkdirTemp("/tmp", "ze-sock-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(socketDir)
+	socket := filepath.Join(socketDir, "agent.sock")
 	uid := os.Geteuid()
 	cfg := configuration{Binding: f.b.binding, UID: &uid, PolicyKey: f.b.policyKey, PolicyFile: f.b.policyFile, StateDir: dir, Socket: socket, SeedFile: filepath.Join(dir, "key")}
 	if err := os.WriteFile(cfg.SeedFile, []byte(base64.StdEncoding.EncodeToString(f.b.key.Seed())), 0600); err != nil {
@@ -37,6 +44,9 @@ func TestExecutableTicketControl(t *testing.T) {
 	}
 	config := filepath.Join(dir, "config.json")
 	writeJSON(t, config, cfg)
+	if _, err := loadConfig(config); err != nil {
+		t.Fatalf("fixture failed daemon configuration validation: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, "serve", "--config", config)

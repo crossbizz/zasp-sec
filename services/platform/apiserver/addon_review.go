@@ -204,6 +204,10 @@ func (h *addonReviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, r
 		writeProductionError(w, r, ErrRepositoryNotFound)
 		return
 	}
+	if securityAgentStatementRefused(err, "registered upload worker required") {
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
+		return
+	}
 	if err != nil {
 		writeProductionError(w, r, err)
 		return

@@ -108,7 +108,7 @@ func (handler *identityHTTPHandler) serveCLILogin(w http.ResponseWriter, r *http
 	case "approveCLILogin":
 		id, ok := IdentityFromRequest(r)
 		if !ok || id.CredentialKind != CredentialBrowserSession || !id.FreshAuthenticated {
-			writeProductionError(w, r, ErrRepositoryAuthorization)
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 			return
 		}
 		var in cliApproval

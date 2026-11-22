@@ -88,6 +88,7 @@ export function createReporting({ origin = controlOrigin, store = storage, crypt
     const issued = Math.floor(clock.getTime() / 1000);
     const earliest = new Date(clock.getTime() - (policy.retentionDays - 1) * 86400000).toISOString().slice(0, 10);
     const days = local.pending.filter((v) => policy.origins.includes(v.origin) && v.day >= earliest && v.day <= clock.toISOString().slice(0, 10));
+    local.pending = days;
     const nonce = [...cryptoApi.getRandomValues(new Uint8Array(16))].map((n) => n.toString(16).padStart(2, "0")).join("");
     const signature = b64(await subtle.sign({ name: "ECDSA", hash: "SHA-256" }, local.signer.privateKey, signInput(local.id, issued, nonce, days)));
     const credential = new TextDecoder().decode(await subtle.decrypt({ name: "AES-GCM", iv: local.iv, additionalData: encoder.encode(origin + "/" + local.id) }, local.vault, local.encrypted));
@@ -97,12 +98,16 @@ export function createReporting({ origin = controlOrigin, store = storage, crypt
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + credential },
         body: JSON.stringify({ issued_at: issued, nonce, days, signature }),
       });
-      if ([401, 403, 404].includes(response.status)) local.state = "authorization_required";
+      if ([401, 403, 404].includes(response.status)) {
+        local.state = "authorization_required";
+        local.pending = [];
+      }
       else {
         if (!response.ok) throw Error("Service unavailable");
         const ack = await response.json();
         if (ack?.accepted !== true || ack.credential_id !== local.id || ack.environment_id !== local.environment) {
           local.state = "authorization_required";
+          local.pending = [];
         } else {
           local.pending = [];
           local.state = "reporting";

@@ -132,6 +132,11 @@ func TestEndpointFleetOnInstalledBaselinePostgres(t *testing.T) {
 	if rows := detail["recent_observations"].([]any); len(rows) != 1 || rows[0].(map[string]any)["session_ref"] != obs.Session || rows[0].(map[string]any)["skill_usage"] != "unknown" || rows[0].(map[string]any)["target_effect"] != "unknown" {
 		t.Fatal("receipt lineage", rows)
 	}
+	receipt := detail["recent_observations"].([]any)[0].(map[string]any)
+	evidenceID, _ := receipt["graph_evidence_id"].(string)
+	if receipt["graph_state"] != "pending" || !strings.HasPrefix(evidenceID, "pid_") {
+		t.Fatal("newly admitted hook receipt must be identifiable while graph lags", receipt)
+	}
 	root := detail["partition_summaries"].([]any)[0].(map[string]any)
 	if root["complete"] != false || root["observed_count"] != float64(0) || root["last_complete_generation"] != float64(1) || root["confirmed_installations"].([]any)[0].(map[string]any)["installation_id"] != strings.Repeat("b", 64) {
 		t.Fatal("incomplete root lost confirmed installations", root)

@@ -30,3 +30,21 @@ python3 scripts/skill-benchmark/run.py --zasp /tmp/zaspctl \
 The reference run used CPython 3.12.14 and a single isolated virtual environment for the two vendor tools. Its shared 132-package installation occupied about 590 MiB. This is the installed size of this combination, including optional capabilities pulled into default vendor dependency trees. Third-party transitive dependencies can change between installations. The bundled corpus SHA-256 was `9c7dc7473918f49fd325514536dc5d792bf684a0173896ae4b0481c52dfc0a77`. [Labeled fixtures](../../scripts/skill-benchmark/corpus.json) · [Runner](../../scripts/skill-benchmark/run.py)
 
 ## Run results
+
+Each time below includes fresh process startup and the network namespace on a shared Linux worker. The ZASP time is the median of five runs per fixture. Cisco and NVIDIA each ran once per fixture. Host load varied during the experiment. These measurements describe this run and are unsuitable as production latency estimates.
+
+| Fixture and labeled fact | ZASP rule and median | Cisco additional signal and time | NVIDIA signal and time |
+| --- | --- | --- | --- |
+| Plain guide. No capability. | None · 104 ms | None · 21.5 s | None · 36.4 s |
+| Exact dependency pin. No range. | None · 78 ms | None · 56.0 s | Offline advisory fallback · 60.0 s |
+| Dependency range. Pin review warranted. | `dependency.unpinned` · 54 ms | `SUPPLY_CHAIN_UNPINNED_DEPENDENCY` · 42.8 s | `SC1` and offline advisory fallback · 44.0 s |
+| Local subprocess used only to print a greeting. | `script.shell_execution` · 54 ms | None · 51.2 s | `AST4`, `LP3` · 43.8 s |
+| Source comment naming the same subprocess API. No executable call. | `script.shell_execution` · 82 ms | None · 47.0 s | `LP3` · 42.9 s |
+| Hidden editorial markup. No command or request. | `instruction.hidden_text` · 74 ms | None · 49.7 s | None · 41.8 s |
+| Network client targeting an invalid example domain. | `script.network_access` · 64 ms | `DATA_EXFIL_NETWORK_REQUESTS`, `TOOL_ABUSE_UNDECLARED_NETWORK` · 41.6 s | `LP3` · 42.3 s |
+
+Cisco also emitted `MANIFEST_MISSING_LICENSE` on all seven fixtures. Their manifests omit the license field. NVIDIA's `SC4` explicitly says its live advisory lookup was unavailable and that its 15-package fallback can be incomplete. Its `LP3` describes a missing permission declaration. Neither code independently establishes a vulnerable dependency or executed capability. [NVIDIA rule definitions](https://github.com/NVIDIA/SkillSpector/blob/e2674da339b0bddc6e565d059c0577c6d9cd25da/src/skillspector/nodes/analyzers/pattern_defaults.py)
+
+The built-in pack surfaced the four labeled review signals and also flagged the comment-only process reference. That fifth warning is a false positive for an *executable call*, although the lexical pattern is present. NVIDIA's AST subprocess signal appeared only on the executable helper. Cisco surfaced useful manifest-hygiene and network-permission signals. These seven benign bundles measure capability hints and review noise. They cannot estimate malware recall, adversarial robustness, general false-positive rates or installed runtime effects.
+
+**Decision.** Keep the small built-in pack on the offline developer path. Mark its lexical process finding as a reference requiring review. Evaluate syntax-aware parsing on a larger permissioned corpus before promoting an executable-call claim. An optional private worker can return normalized vendor findings with analyzer/version, exact rule ID and a separate coverage status. The laptop scan and the findings-only submission should remain usable with the built-in binary alone. A missing license, an offline advisory source and a request-capable helper each deserve a distinct explanation in the UI.

@@ -99,7 +99,7 @@ func serveBrowserProfile(db JSONDatabase, w http.ResponseWriter, r *http.Request
 	machine := op.OperationID == "recordBrowserOriginDays"
 	if machine {
 		if i.CredentialKind != CredentialBearerToken || i.credentialBinding.ID != id || !slices.Equal(i.credentialBinding.PATCeiling, []string{permissionBrowserUsage}) {
-			writeProductionError(w, r, ErrRepositoryAuthorization)
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 			return
 		}
 		var report browserReport
@@ -126,13 +126,13 @@ func serveBrowserProfile(db JSONDatabase, w http.ResponseWriter, r *http.Request
 		}
 		pub := browserPublic(keys.Key)
 		if pub == nil || !ecdsa.Verify(pub, digest, new(big.Int).SetBytes(report.Signature[:32]), new(big.Int).SetBytes(report.Signature[32:])) {
-			writeProductionError(w, r, ErrRepositoryAuthorization)
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 			return
 		}
 		v = map[string]any{"public_key": base64.StdEncoding.EncodeToString(keys.Key), "days": report.Days, "issued_at": report.IssuedAt, "nonce": report.Nonce, "digest": hex.EncodeToString(digest)}
 	} else {
 		if i.CredentialKind != CredentialBrowserSession || op.OperationID != "getBrowserProfile" && !i.FreshAuthenticated {
-			writeProductionError(w, r, ErrRepositoryAuthorization)
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 			return
 		}
 		switch op.OperationID {
@@ -181,7 +181,7 @@ func serveBrowserProfile(db JSONDatabase, w http.ResponseWriter, r *http.Request
 		writeProductionError(w, r, ErrRepositoryConflict)
 		return
 	case `"forbidden"`:
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	}
 	if !json.Valid(raw) || raw[0] != '{' {

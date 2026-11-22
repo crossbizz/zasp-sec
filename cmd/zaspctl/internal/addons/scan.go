@@ -192,8 +192,13 @@ func OpenDirectory(parent *os.Root, name string) (*os.Root, string) {
 	if err != nil {
 		return nil, reason(err)
 	}
-	pinned, err := dir.Stat(".")
-	if err != nil || !os.SameFile(before, pinned) || !sameEntry(parent, name, before) {
+	pinned, pinErr := dir.Stat(".")
+	current, linkErr := parent.Lstat(name)
+	// Ancestors can gain an unrelated sibling while being pinned. The
+	// directory identity and link checks establish this handle's boundary.
+	// Enumeration of a selected directory still checks its own revision.
+	if pinErr != nil || linkErr != nil || IsLink(current) || !current.IsDir() ||
+		!os.SameFile(before, pinned) || !os.SameFile(before, current) {
 		dir.Close()
 		return nil, "changed_during_scan"
 	}
