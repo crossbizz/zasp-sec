@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   APIProductError,
   APITransportError,
@@ -67,15 +67,26 @@ export function decodeContainment(
 
 type Token = { id: string; name: string; permissions: string[]; revokedAt: string | null; expiresAt: string };
 type Context = { client: APIClient; fresh: boolean; canContain: boolean };
+
+function subscribeToExpiry(deadline: number, update: (now: number) => void) {
+  if (!Number.isFinite(deadline)) return;
+  const delay = Math.max(0, Math.min(deadline - Date.now(), 2_147_483_647));
+  const timer = window.setTimeout(() => update(Date.now()), delay);
+  return () => window.clearTimeout(timer);
+}
+
 export function WorkloadControls({ tokens, ...context }: Context & { tokens: Token[] }) {
   const [tokenID, select] = useState("");
+  const [now, setNow] = useState(Date.now);
   const active = tokens.filter(
     (t) =>
       !t.revokedAt &&
-      Date.parse(t.expiresAt) > Date.now() &&
+      Date.parse(t.expiresAt) > now &&
       t.permissions.length > 0 &&
       t.permissions.every((permission) => permission === "decide_actions" || permission === "use_gateway"),
   );
+  const nextExpiry = active.reduce((next, t) => Math.min(next, Date.parse(t.expiresAt)), Infinity);
+  useEffect(() => subscribeToExpiry(nextExpiry, setNow), [nextExpiry, now]);
   if (!active.length) return null;
   return (
     <Card title="Workload sessions">
@@ -95,46 +106,49 @@ export function WorkloadControls({ tokens, ...context }: Context & { tokens: Tok
   );
 }
 function Binding({ id, client, fresh, canContain }: Context & { id: string }) {
-  const [binding, setBinding] = useState<WorkloadCredentialBinding | null>();
   const [agent, setAgent] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const active = useRef<AbortController | undefined>(undefined);
-  const read = useCallback(
-    async (agentID?: string) => {
-      active.current?.abort();
-      const controller = new AbortController();
-      active.current = controller;
-      setBusy(true);
-      setMessage("");
-      try {
-        const request = { params: { path: { id } }, signal: controller.signal };
-        const response = agentID
-          ? await client.PUT(bindingPath, { ...request, body: { agent_id: agentID } })
-          : await client.GET(bindingPath, request);
-        const result = requireAPIData(response, (v) => decodeBinding(v, id));
-        if (!controller.signal.aborted) setBinding(result);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        if (!agentID && error instanceof APIProductError && error.status === 404) setBinding(null);
-        else setMessage("Could not verify this credential binding. Refresh before retrying.");
-      } finally {
-        if (!controller.signal.aborted) setBusy(false);
-      }
-    },
-    [client, id],
-  );
+  const [revision, setRevision] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<{
+    client: APIClient; revision: number; binding?: WorkloadCredentialBinding | null; message?: string;
+  }>();
+  const current = result?.client === client && result.revision === revision ? result : undefined;
+  const { binding, message } = current ?? {};
+  const busy = saving || !current;
+  const save = useRef<AbortController | undefined>(undefined);
   useEffect(() => {
-    void read();
-    return () => active.current?.abort();
-  }, [read]);
+    const read = new AbortController();
+    void client.GET(bindingPath, { params: { path: { id } }, signal: read.signal }).then((response) => {
+      if (read.signal.aborted) return;
+      const binding = response.response.status === 404 ? null : requireAPIData(response, (v) => decodeBinding(v, id));
+      setResult({ client, revision, binding });
+    }).catch(() => {
+      if (!read.signal.aborted) setResult({ client, revision, message: "Could not verify this credential binding. Refresh before retrying." });
+    });
+    return () => { read.abort(); save.current?.abort(); };
+  }, [client, id, revision]);
+  async function bind() {
+    if (!fresh || !identifier(agent) || busy) return;
+    const controller = new AbortController();
+    save.current = controller;
+    setSaving(true);
+    try {
+      const response = await client.PUT(bindingPath, { params: { path: { id } }, body: { agent_id: agent }, signal: controller.signal });
+      const binding = requireAPIData(response, (v) => decodeBinding(v, id));
+      if (!controller.signal.aborted) setResult({ client, revision, binding });
+    } catch {
+      if (!controller.signal.aborted) setResult({ client, revision, binding: null, message: "Could not verify this credential binding. Refresh before retrying." });
+    } finally {
+      if (save.current === controller) setSaving(false);
+    }
+  }
   return (
     <div>
       {binding === undefined && !message && <p role="status">Checking binding…</p>}
       {message && (
         <p role="alert">
           {message}{" "}
-          <Button onClick={() => void read()} disabled={busy}>
+          <Button onClick={() => setRevision((value) => value + 1)} disabled={busy}>
             Refresh binding
           </Button>
         </p>
@@ -145,7 +159,7 @@ function Binding({ id, client, fresh, canContain }: Context & { id: string }) {
             Bind this credential to one active inventory agent. Future actions will use its governed session.
           </p>
           <Field label="Inventory agent ID" value={agent} onChange={(e) => setAgent(e.target.value)} />
-          <Button disabled={!fresh || busy || !identifier(agent)} onClick={() => void read(agent)}>
+          <Button disabled={!fresh || busy || !identifier(agent)} onClick={() => void bind()}>
             Bind credential to agent
           </Button>
         </>

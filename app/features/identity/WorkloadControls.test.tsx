@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { APIClient } from "../../../apps/web/api/client";
 import { WorkloadControls, decodeBinding, decodeContainment } from "./WorkloadControls";
@@ -73,4 +73,23 @@ it("rejects a valid-looking receipt for a different credential, run, or session"
   expect(() => decodeBinding(binding, id(10))).toThrow();
   expect(() => decodeContainment(containment, token, id(10), session)).toThrow();
   expect(() => decodeContainment(containment, token, run, id(11))).toThrow();
+});
+
+it("removes the selected credential at expiry and aborts its outstanding binding request", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+    let request: AbortSignal | undefined;
+    const client = { GET: vi.fn((_path: string, options: { signal: AbortSignal }) => {
+      request = options.signal;
+      return new Promise(() => {});
+    }) };
+    render(<WorkloadControls tokens={[{ ...tokens[0], expiresAt: "2026-10-01T12:00:02Z" }]} client={client as unknown as APIClient} canContain fresh />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: token } });
+    expect(screen.getByText("Checking binding…")).toBeInTheDocument();
+    expect(request?.aborted).toBe(false);
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(request?.aborted).toBe(true);
+  } finally { vi.useRealTimers(); }
 });

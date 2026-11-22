@@ -27,36 +27,44 @@ export function decodeBrowserProfile(value: unknown, credential: string, environ
 }
 
 function Profile({ client, id, environment, fresh }: { client: APIClient; id: string; environment: string; fresh: boolean }) {
-  const [profile, setProfile] = useState<BrowserProfile | null>(null);
   const [key, setKey] = useState("");
   const [origins, setOrigins] = useState<BrowserObservedOrigin[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [missing, setMissing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<{
+    client: APIClient; revision: number; profile: BrowserProfile | null; missing: boolean; error?: string;
+  }>();
+  const current = result?.client === client && result.revision === revision ? result : undefined;
+  const busy = saving || !current;
+  const { profile, missing, error } = current ?? {};
   useEffect(() => {
     const abort = new AbortController();
-    setBusy(true); setMissing(false); setError("");
-    void client.GET(path, { params: { path: { id } }, signal: abort.signal }).then((result) => {
+    void client.GET(path, { params: { path: { id } }, signal: abort.signal }).then((response) => {
       if (abort.signal.aborted) return;
-      if (result.response.status === 404) { setMissing(true); setProfile(null); return; }
-      setProfile(requireAPIData(result, (value) => decodeBrowserProfile(value, id, environment)));
-    }).catch(() => { if (!abort.signal.aborted) { setProfile(null); setError("Could not verify the profile status."); } })
-      .finally(() => { if (!abort.signal.aborted) setBusy(false); });
+      const missing = response.response.status === 404;
+      const profile = missing ? null : requireAPIData(response, (value) => decodeBrowserProfile(value, id, environment));
+      setResult({ client, revision, missing, profile });
+    }).catch(() => {
+      if (!abort.signal.aborted) setResult({ client, revision, missing: false, profile: null, error: "Could not verify the profile status." });
+    });
     return () => abort.abort();
   }, [client, id, environment, revision]);
   async function change(retire: boolean) {
-    setError(""); setBusy(true);
+    if (!current || busy) return;
+    setSaving(true);
+    setResult({ ...current, error: undefined });
     try {
       const params = { path: { id }, header: { "X-CSRF-Token": "" } };
-      const result = retire ? await client.DELETE(path, { params }) : await client.PUT(path, { params, body: { public_key: key.trim(), origins } });
-      setProfile(requireAPIData(result, (value) => decodeBrowserProfile(value, id, environment)));
-      setMissing(false);
-    } catch { setError("Could not update the profile. Refresh its status before retrying."); }
-    finally { setBusy(false); }
+      const response = retire ? await client.DELETE(path, { params }) : await client.PUT(path, { params, body: { public_key: key.trim(), origins } });
+      const profile = requireAPIData(response, (value) => decodeBrowserProfile(value, id, environment));
+      setResult((prior) => prior?.client === client && prior.revision === revision ? { client, revision, profile, missing: false } : prior);
+    } catch {
+      setResult((prior) => prior?.client === client && prior.revision === revision ? { ...prior, error: "Could not update the profile. Refresh its status before retrying." } : prior);
+    } finally { setSaving(false); }
   }
   return <>
     <p>Profile credential <code>{id}</code> · Environment <code>{environment}</code></p>
+    {!current && <p role="status">Checking profile status…</p>}
     {error && <p role="alert">{error}</p>}
     {profile && <>
       <p role="status">{states[profile.state]}</p>
@@ -86,6 +94,6 @@ export function BrowserProfiles({ client, tokens, environment, fresh }: { client
     <Select label="Browser profile credential" value={id} onChange={(event) => setSelection(event.target.value)}>
       {profiles.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
     </Select>
-    <Profile key={id} client={client} fresh={fresh} environment={environment} id={id} />
+    <Profile key={environment + "/" + id} client={client} fresh={fresh} environment={environment} id={id} />
   </Card>;
 }
