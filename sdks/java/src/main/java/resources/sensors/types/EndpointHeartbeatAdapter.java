@@ -10,7 +10,15 @@ import java.lang.Object;
 import java.lang.String;
 
 public final class EndpointHeartbeatAdapter {
+  public static final EndpointHeartbeatAdapter LINUX_CLAUDE_PRETOOL_V2TEST = new EndpointHeartbeatAdapter(Value.LINUX_CLAUDE_PRETOOL_V2TEST, "linux_claude_pretool_v2_test");
+
   public static final EndpointHeartbeatAdapter LINUX_CLAUDE_TICKET_TEST = new EndpointHeartbeatAdapter(Value.LINUX_CLAUDE_TICKET_TEST, "linux_claude_ticket_test");
+
+  public static final EndpointHeartbeatAdapter MACOS_CODEX_PRETOOL_V2 = new EndpointHeartbeatAdapter(Value.MACOS_CODEX_PRETOOL_V2, "macos_codex_pretool_v2");
+
+  public static final EndpointHeartbeatAdapter MACOS_CLAUDE_PRETOOL_V2 = new EndpointHeartbeatAdapter(Value.MACOS_CLAUDE_PRETOOL_V2, "macos_claude_pretool_v2");
+
+  public static final EndpointHeartbeatAdapter WINDOWS_CLAUDE_PRETOOL_V2 = new EndpointHeartbeatAdapter(Value.WINDOWS_CLAUDE_PRETOOL_V2, "windows_claude_pretool_v2");
 
   public static final EndpointHeartbeatAdapter WINDOWS_INVENTORY = new EndpointHeartbeatAdapter(Value.WINDOWS_INVENTORY, "windows_inventory");
 
@@ -48,8 +56,16 @@ public final class EndpointHeartbeatAdapter {
 
   public <T> T visit(Visitor<T> visitor) {
     switch (value) {
+      case LINUX_CLAUDE_PRETOOL_V2TEST:
+        return visitor.visitLinuxClaudePretoolV2Test();
       case LINUX_CLAUDE_TICKET_TEST:
         return visitor.visitLinuxClaudeTicketTest();
+      case MACOS_CODEX_PRETOOL_V2:
+        return visitor.visitMacosCodexPretoolV2();
+      case MACOS_CLAUDE_PRETOOL_V2:
+        return visitor.visitMacosClaudePretoolV2();
+      case WINDOWS_CLAUDE_PRETOOL_V2:
+        return visitor.visitWindowsClaudePretoolV2();
       case WINDOWS_INVENTORY:
         return visitor.visitWindowsInventory();
       case MACOS_CLAUDE_TICKET:
@@ -65,8 +81,16 @@ public final class EndpointHeartbeatAdapter {
   )
   public static EndpointHeartbeatAdapter valueOf(String value) {
     switch (value) {
+      case "linux_claude_pretool_v2_test":
+        return LINUX_CLAUDE_PRETOOL_V2TEST;
       case "linux_claude_ticket_test":
         return LINUX_CLAUDE_TICKET_TEST;
+      case "macos_codex_pretool_v2":
+        return MACOS_CODEX_PRETOOL_V2;
+      case "macos_claude_pretool_v2":
+        return MACOS_CLAUDE_PRETOOL_V2;
+      case "windows_claude_pretool_v2":
+        return WINDOWS_CLAUDE_PRETOOL_V2;
       case "windows_inventory":
         return WINDOWS_INVENTORY;
       case "macos_claude_ticket":
@@ -83,6 +107,14 @@ public final class EndpointHeartbeatAdapter {
 
     WINDOWS_INVENTORY,
 
+    MACOS_CLAUDE_PRETOOL_V2,
+
+    MACOS_CODEX_PRETOOL_V2,
+
+    LINUX_CLAUDE_PRETOOL_V2TEST,
+
+    WINDOWS_CLAUDE_PRETOOL_V2,
+
     UNKNOWN
   }
 
@@ -92,6 +124,14 @@ public final class EndpointHeartbeatAdapter {
     T visitLinuxClaudeTicketTest();
 
     T visitWindowsInventory();
+
+    T visitMacosClaudePretoolV2();
+
+    T visitMacosCodexPretoolV2();
+
+    T visitLinuxClaudePretoolV2Test();
+
+    T visitWindowsClaudePretoolV2();
 
     T visitUnknown(String unknownType);
   }

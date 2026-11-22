@@ -10,6 +10,8 @@ import java.lang.Object;
 import java.lang.String;
 
 public final class AddonScanSubmissionRuleset {
+  public static final AddonScanSubmissionRuleset ZASP_STATIC_V2 = new AddonScanSubmissionRuleset(Value.ZASP_STATIC_V2, "zasp-static.v2");
+
   public static final AddonScanSubmissionRuleset ZASP_STATIC_V1 = new AddonScanSubmissionRuleset(Value.ZASP_STATIC_V1, "zasp-static.v1");
 
   private final Value value;
@@ -44,6 +46,8 @@ public final class AddonScanSubmissionRuleset {
 
   public <T> T visit(Visitor<T> visitor) {
     switch (value) {
+      case ZASP_STATIC_V2:
+        return visitor.visitZaspStaticV2();
       case ZASP_STATIC_V1:
         return visitor.visitZaspStaticV1();
       case UNKNOWN:
@@ -57,6 +61,8 @@ public final class AddonScanSubmissionRuleset {
   )
   public static AddonScanSubmissionRuleset valueOf(String value) {
     switch (value) {
+      case "zasp-static.v2":
+        return ZASP_STATIC_V2;
       case "zasp-static.v1":
         return ZASP_STATIC_V1;
       default:
@@ -67,11 +73,15 @@ public final class AddonScanSubmissionRuleset {
   public enum Value {
     ZASP_STATIC_V1,
 
+    ZASP_STATIC_V2,
+
     UNKNOWN
   }
 
   public interface Visitor<T> {
     T visitZaspStaticV1();
+
+    T visitZaspStaticV2();
 
     T visitUnknown(String unknownType);
   }

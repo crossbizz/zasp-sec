@@ -28,6 +28,11 @@ class PolicyReplayInput(UniversalBaseModel):
     Exclusive end of the replay window.
     """
 
+    before_event_id: typing.Optional[ProductId] = pydantic.Field(default=None)
+    """
+    Resume the same window before this tie-breaker at the returned end timestamp.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:

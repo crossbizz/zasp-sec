@@ -36,7 +36,11 @@ export namespace EndpointHeartbeat {
     export const Adapter = {
             MacosClaudeTicket: "macos_claude_ticket",
             LinuxClaudeTicketTest: "linux_claude_ticket_test",
-            WindowsInventory: "windows_inventory"
+            WindowsInventory: "windows_inventory",
+            MacosClaudePretoolV2: "macos_claude_pretool_v2",
+            MacosCodexPretoolV2: "macos_codex_pretool_v2",
+            LinuxClaudePretoolV2Test: "linux_claude_pretool_v2_test",
+            WindowsClaudePretoolV2: "windows_claude_pretool_v2"
         } as const;
     export type Adapter = typeof Adapter[keyof typeof Adapter];
 }

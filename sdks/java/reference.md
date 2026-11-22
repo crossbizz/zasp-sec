@@ -2597,6 +2597,14 @@ client.guardrails().recordActionOutcome(
 <dl>
 <dd>
 
+**contextEvidence:** `Optional<WorkloadContextEvidence>`
+
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **status:** `WorkloadActionOutcomeStatus` 
     
 </dd>

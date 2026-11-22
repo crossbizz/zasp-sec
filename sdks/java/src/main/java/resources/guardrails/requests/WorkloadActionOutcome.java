@@ -7,6 +7,7 @@ package ai.zasp.api.resources.guardrails.requests;
 import ai.zasp.api.core.ObjectMappers;
 import ai.zasp.api.resources.guardrails.types.WorkloadActionOutcomeSchemaVersion;
 import ai.zasp.api.resources.guardrails.types.WorkloadActionOutcomeStatus;
+import ai.zasp.api.types.WorkloadContextEvidence;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -14,12 +15,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.lang.Object;
 import java.lang.String;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
@@ -35,17 +38,21 @@ public final class WorkloadActionOutcome {
 
   private final String decisionId;
 
+  private final Optional<WorkloadContextEvidence> contextEvidence;
+
   private final WorkloadActionOutcomeStatus status;
 
   private final Map<String, Object> additionalProperties;
 
   private WorkloadActionOutcome(String idempotencyKey,
       WorkloadActionOutcomeSchemaVersion schemaVersion, String actionId, String decisionId,
-      WorkloadActionOutcomeStatus status, Map<String, Object> additionalProperties) {
+      Optional<WorkloadContextEvidence> contextEvidence, WorkloadActionOutcomeStatus status,
+      Map<String, Object> additionalProperties) {
     this.idempotencyKey = idempotencyKey;
     this.schemaVersion = schemaVersion;
     this.actionId = actionId;
     this.decisionId = decisionId;
+    this.contextEvidence = contextEvidence;
     this.status = status;
     this.additionalProperties = additionalProperties;
   }
@@ -70,6 +77,11 @@ public final class WorkloadActionOutcome {
     return decisionId;
   }
 
+  @JsonProperty("context_evidence")
+  public Optional<WorkloadContextEvidence> getContextEvidence() {
+    return contextEvidence;
+  }
+
   @JsonProperty("status")
   public WorkloadActionOutcomeStatus getStatus() {
     return status;
@@ -87,12 +99,12 @@ public final class WorkloadActionOutcome {
   }
 
   private boolean equalTo(WorkloadActionOutcome other) {
-    return idempotencyKey.equals(other.idempotencyKey) && schemaVersion.equals(other.schemaVersion) && actionId.equals(other.actionId) && decisionId.equals(other.decisionId) && status.equals(other.status);
+    return idempotencyKey.equals(other.idempotencyKey) && schemaVersion.equals(other.schemaVersion) && actionId.equals(other.actionId) && decisionId.equals(other.decisionId) && contextEvidence.equals(other.contextEvidence) && status.equals(other.status);
   }
 
   @java.lang.Override
   public int hashCode() {
-    return Objects.hash(this.idempotencyKey, this.schemaVersion, this.actionId, this.decisionId, this.status);
+    return Objects.hash(this.idempotencyKey, this.schemaVersion, this.actionId, this.decisionId, this.contextEvidence, this.status);
   }
 
   @java.lang.Override
@@ -132,6 +144,10 @@ public final class WorkloadActionOutcome {
     _FinalStage additionalProperty(String key, Object value);
 
     _FinalStage additionalProperties(Map<String, Object> additionalProperties);
+
+    _FinalStage contextEvidence(Optional<WorkloadContextEvidence> contextEvidence);
+
+    _FinalStage contextEvidence(WorkloadContextEvidence contextEvidence);
   }
 
   @JsonIgnoreProperties(
@@ -148,6 +164,8 @@ public final class WorkloadActionOutcome {
 
     private WorkloadActionOutcomeStatus status;
 
+    private Optional<WorkloadContextEvidence> contextEvidence = Optional.empty();
+
     private Map<String, Object> additionalProperties = new HashMap<>();
 
     private Builder() {
@@ -159,6 +177,7 @@ public final class WorkloadActionOutcome {
       schemaVersion(other.getSchemaVersion());
       actionId(other.getActionId());
       decisionId(other.getDecisionId());
+      contextEvidence(other.getContextEvidence());
       status(other.getStatus());
       return this;
     }
@@ -198,13 +217,29 @@ public final class WorkloadActionOutcome {
     }
 
     @java.lang.Override
+    public _FinalStage contextEvidence(WorkloadContextEvidence contextEvidence) {
+      this.contextEvidence = Optional.ofNullable(contextEvidence);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "context_evidence",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage contextEvidence(Optional<WorkloadContextEvidence> contextEvidence) {
+      this.contextEvidence = contextEvidence;
+      return this;
+    }
+
+    @java.lang.Override
     public WorkloadActionOutcome build() {
-      return new WorkloadActionOutcome(idempotencyKey, schemaVersion, actionId, decisionId, status, additionalProperties);
+      return new WorkloadActionOutcome(idempotencyKey, schemaVersion, actionId, decisionId, contextEvidence, status, additionalProperties);
     }
 
     @JsonAnySetter
     private void putAdditionalPropertyFromJson(String key, Object value) {
-      if (key.equalsIgnoreCase("schema_version") || key.equalsIgnoreCase("action_id") || key.equalsIgnoreCase("decision_id") || key.equalsIgnoreCase("status")) {
+      if (key.equalsIgnoreCase("schema_version") || key.equalsIgnoreCase("action_id") || key.equalsIgnoreCase("decision_id") || key.equalsIgnoreCase("context_evidence") || key.equalsIgnoreCase("status")) {
         return;
       }
       this.additionalProperties.put(key, value);

@@ -520,12 +520,16 @@ func (a *AddonFindingCount) String() string {
 type AddonFindingCountRuleID string
 
 const (
-	AddonFindingCountRuleIDDependencyUnpinned    AddonFindingCountRuleID = "dependency.unpinned"
-	AddonFindingCountRuleIDScriptShellExecution  AddonFindingCountRuleID = "script.shell_execution"
-	AddonFindingCountRuleIDScriptNetworkAccess   AddonFindingCountRuleID = "script.network_access"
-	AddonFindingCountRuleIDInstructionHiddenText AddonFindingCountRuleID = "instruction.hidden_text"
-	AddonFindingCountRuleIDMcpUnpinnedLauncher   AddonFindingCountRuleID = "mcp.unpinned_launcher"
-	AddonFindingCountRuleIDMcpRemoteEndpoint     AddonFindingCountRuleID = "mcp.remote_endpoint"
+	AddonFindingCountRuleIDDependencyUnpinned         AddonFindingCountRuleID = "dependency.unpinned"
+	AddonFindingCountRuleIDScriptShellExecution       AddonFindingCountRuleID = "script.shell_execution"
+	AddonFindingCountRuleIDScriptNetworkAccess        AddonFindingCountRuleID = "script.network_access"
+	AddonFindingCountRuleIDInstructionHiddenText      AddonFindingCountRuleID = "instruction.hidden_text"
+	AddonFindingCountRuleIDMcpUnpinnedLauncher        AddonFindingCountRuleID = "mcp.unpinned_launcher"
+	AddonFindingCountRuleIDMcpRemoteEndpoint          AddonFindingCountRuleID = "mcp.remote_endpoint"
+	AddonFindingCountRuleIDInstructionOverride        AddonFindingCountRuleID = "instruction.override"
+	AddonFindingCountRuleIDScriptCredentialPathAccess AddonFindingCountRuleID = "script.credential_path_access"
+	AddonFindingCountRuleIDScriptRemoteExecPipe       AddonFindingCountRuleID = "script.remote_exec_pipe"
+	AddonFindingCountRuleIDMcpUnpinnedExec            AddonFindingCountRuleID = "mcp.unpinned_exec"
 )
 
 func NewAddonFindingCountRuleIDFromString(s string) (AddonFindingCountRuleID, error) {
@@ -542,6 +546,14 @@ func NewAddonFindingCountRuleIDFromString(s string) (AddonFindingCountRuleID, er
 		return AddonFindingCountRuleIDMcpUnpinnedLauncher, nil
 	case "mcp.remote_endpoint":
 		return AddonFindingCountRuleIDMcpRemoteEndpoint, nil
+	case "instruction.override":
+		return AddonFindingCountRuleIDInstructionOverride, nil
+	case "script.credential_path_access":
+		return AddonFindingCountRuleIDScriptCredentialPathAccess, nil
+	case "script.remote_exec_pipe":
+		return AddonFindingCountRuleIDScriptRemoteExecPipe, nil
+	case "mcp.unpinned_exec":
+		return AddonFindingCountRuleIDMcpUnpinnedExec, nil
 	}
 	var t AddonFindingCountRuleID
 	return "", fmt.Errorf("%s is not a valid %T", s, t)
@@ -925,12 +937,15 @@ type AddonScanSubmissionRuleset string
 
 const (
 	AddonScanSubmissionRulesetZaspStaticV1 AddonScanSubmissionRuleset = "zasp-static.v1"
+	AddonScanSubmissionRulesetZaspStaticV2 AddonScanSubmissionRuleset = "zasp-static.v2"
 )
 
 func NewAddonScanSubmissionRulesetFromString(s string) (AddonScanSubmissionRuleset, error) {
 	switch s {
 	case "zasp-static.v1":
 		return AddonScanSubmissionRulesetZaspStaticV1, nil
+	case "zasp-static.v2":
+		return AddonScanSubmissionRulesetZaspStaticV2, nil
 	}
 	var t AddonScanSubmissionRuleset
 	return "", fmt.Errorf("%s is not a valid %T", s, t)

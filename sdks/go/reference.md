@@ -2598,6 +2598,14 @@ _, err := client.Guardrails.RecordActionOutcome(
 <dl>
 <dd>
 
+**contextEvidence:** `*zasp.WorkloadContextEvidence`
+
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **status:** `zasp.WorkloadActionOutcomeStatus` 
     
 </dd>

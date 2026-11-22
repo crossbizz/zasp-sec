@@ -1930,6 +1930,34 @@ func TestEnumAddonFindingCountRuleID(t *testing.T) {
 		assert.Equal(t, AddonFindingCountRuleID("mcp.remote_endpoint"), val, "enum value should match expected wire value")
 	})
 
+	t.Run("NewFromString_instruction_override", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewAddonFindingCountRuleIDFromString("instruction.override")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, AddonFindingCountRuleID("instruction.override"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_script_credential_path_access", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewAddonFindingCountRuleIDFromString("script.credential_path_access")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, AddonFindingCountRuleID("script.credential_path_access"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_script_remote_exec_pipe", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewAddonFindingCountRuleIDFromString("script.remote_exec_pipe")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, AddonFindingCountRuleID("script.remote_exec_pipe"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_mcp_unpinned_exec", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewAddonFindingCountRuleIDFromString("mcp.unpinned_exec")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, AddonFindingCountRuleID("mcp.unpinned_exec"), val, "enum value should match expected wire value")
+	})
+
 	t.Run("NewFromString_Invalid", func(t *testing.T) {
 		_, err := NewAddonFindingCountRuleIDFromString("invalid_value_that_does_not_exist")
 		assert.Error(t, err)
@@ -2066,6 +2094,13 @@ func TestEnumAddonScanSubmissionRuleset(t *testing.T) {
 		val, err := NewAddonScanSubmissionRulesetFromString("zasp-static.v1")
 		assert.NoError(t, err, "valid enum value should not return error")
 		assert.Equal(t, AddonScanSubmissionRuleset("zasp-static.v1"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_zasp_static_v2", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewAddonScanSubmissionRulesetFromString("zasp-static.v2")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, AddonScanSubmissionRuleset("zasp-static.v2"), val, "enum value should match expected wire value")
 	})
 
 	t.Run("NewFromString_Invalid", func(t *testing.T) {

@@ -519,6 +519,9 @@ if typing.TYPE_CHECKING:
     from .workload_action_decision_reason_code import WorkloadActionDecisionReasonCode
     from .workload_action_decision_verdict import WorkloadActionDecisionVerdict
     from .workload_action_label import WorkloadActionLabel
+    from .workload_context_evidence import WorkloadContextEvidence
+    from .workload_context_evidence_kind import WorkloadContextEvidenceKind
+    from .workload_context_evidence_result import WorkloadContextEvidenceResult
     from .workload_destination_class import WorkloadDestinationClass
     from .workload_outcome_ack import WorkloadOutcomeAck
 _dynamic_imports: typing.Dict[str, str] = {
@@ -1003,6 +1006,9 @@ _dynamic_imports: typing.Dict[str, str] = {
     "WorkloadActionDecisionReasonCode": ".workload_action_decision_reason_code",
     "WorkloadActionDecisionVerdict": ".workload_action_decision_verdict",
     "WorkloadActionLabel": ".workload_action_label",
+    "WorkloadContextEvidence": ".workload_context_evidence",
+    "WorkloadContextEvidenceKind": ".workload_context_evidence_kind",
+    "WorkloadContextEvidenceResult": ".workload_context_evidence_result",
     "WorkloadDestinationClass": ".workload_destination_class",
     "WorkloadOutcomeAck": ".workload_outcome_ack",
 }
@@ -1511,6 +1517,9 @@ __all__ = [
     "WorkloadActionDecisionReasonCode",
     "WorkloadActionDecisionVerdict",
     "WorkloadActionLabel",
+    "WorkloadContextEvidence",
+    "WorkloadContextEvidenceKind",
+    "WorkloadContextEvidenceResult",
     "WorkloadDestinationClass",
     "WorkloadOutcomeAck",
 ]

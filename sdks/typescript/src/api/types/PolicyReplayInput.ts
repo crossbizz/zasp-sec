@@ -10,4 +10,6 @@ export interface PolicyReplayInput {
     from: string;
     /** Exclusive end of the replay window. */
     to: string;
+    /** Resume the same window before this tie-breaker at the returned end timestamp. */
+    before_event_id?: Zasp.ProductId | undefined;
 }

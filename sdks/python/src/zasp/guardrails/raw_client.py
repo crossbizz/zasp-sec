@@ -26,6 +26,7 @@ from ..types.product_error import ProductError
 from ..types.product_id import ProductId
 from ..types.workload_action_decision import WorkloadActionDecision
 from ..types.workload_action_label import WorkloadActionLabel
+from ..types.workload_context_evidence import WorkloadContextEvidence
 from ..types.workload_outcome_ack import WorkloadOutcomeAck
 from .types.guardrail_interaction_direction import GuardrailInteractionDirection
 from .types.workload_action_outcome_schema_version import WorkloadActionOutcomeSchemaVersion
@@ -211,6 +212,7 @@ class RawGuardrailsClient:
         action_id: WorkloadActionLabel,
         decision_id: ProductId,
         status: WorkloadActionOutcomeStatus,
+        context_evidence: typing.Optional[WorkloadContextEvidence] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[WorkloadOutcomeAck]:
         """
@@ -230,6 +232,8 @@ class RawGuardrailsClient:
 
         status : WorkloadActionOutcomeStatus
 
+        context_evidence : typing.Optional[WorkloadContextEvidence]
+
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
 
@@ -245,6 +249,9 @@ class RawGuardrailsClient:
                 "schema_version": schema_version,
                 "action_id": action_id,
                 "decision_id": decision_id,
+                "context_evidence": convert_and_respect_annotation_metadata(
+                    object_=context_evidence, annotation=WorkloadContextEvidence, direction="write"
+                ),
                 "status": status,
             },
             headers={
@@ -851,6 +858,7 @@ class AsyncRawGuardrailsClient:
         action_id: WorkloadActionLabel,
         decision_id: ProductId,
         status: WorkloadActionOutcomeStatus,
+        context_evidence: typing.Optional[WorkloadContextEvidence] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[WorkloadOutcomeAck]:
         """
@@ -870,6 +878,8 @@ class AsyncRawGuardrailsClient:
 
         status : WorkloadActionOutcomeStatus
 
+        context_evidence : typing.Optional[WorkloadContextEvidence]
+
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
 
@@ -885,6 +895,9 @@ class AsyncRawGuardrailsClient:
                 "schema_version": schema_version,
                 "action_id": action_id,
                 "decision_id": decision_id,
+                "context_evidence": convert_and_respect_annotation_metadata(
+                    object_=context_evidence, annotation=WorkloadContextEvidence, direction="write"
+                ),
                 "status": status,
             },
             headers={

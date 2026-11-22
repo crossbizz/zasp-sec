@@ -14,6 +14,12 @@ public final class AddonFindingCountRuleId {
 
   public static final AddonFindingCountRuleId MCP_REMOTE_ENDPOINT = new AddonFindingCountRuleId(Value.MCP_REMOTE_ENDPOINT, "mcp.remote_endpoint");
 
+  public static final AddonFindingCountRuleId SCRIPT_CREDENTIAL_PATH_ACCESS = new AddonFindingCountRuleId(Value.SCRIPT_CREDENTIAL_PATH_ACCESS, "script.credential_path_access");
+
+  public static final AddonFindingCountRuleId MCP_UNPINNED_EXEC = new AddonFindingCountRuleId(Value.MCP_UNPINNED_EXEC, "mcp.unpinned_exec");
+
+  public static final AddonFindingCountRuleId INSTRUCTION_OVERRIDE = new AddonFindingCountRuleId(Value.INSTRUCTION_OVERRIDE, "instruction.override");
+
   public static final AddonFindingCountRuleId SCRIPT_SHELL_EXECUTION = new AddonFindingCountRuleId(Value.SCRIPT_SHELL_EXECUTION, "script.shell_execution");
 
   public static final AddonFindingCountRuleId MCP_UNPINNED_LAUNCHER = new AddonFindingCountRuleId(Value.MCP_UNPINNED_LAUNCHER, "mcp.unpinned_launcher");
@@ -21,6 +27,8 @@ public final class AddonFindingCountRuleId {
   public static final AddonFindingCountRuleId SCRIPT_NETWORK_ACCESS = new AddonFindingCountRuleId(Value.SCRIPT_NETWORK_ACCESS, "script.network_access");
 
   public static final AddonFindingCountRuleId INSTRUCTION_HIDDEN_TEXT = new AddonFindingCountRuleId(Value.INSTRUCTION_HIDDEN_TEXT, "instruction.hidden_text");
+
+  public static final AddonFindingCountRuleId SCRIPT_REMOTE_EXEC_PIPE = new AddonFindingCountRuleId(Value.SCRIPT_REMOTE_EXEC_PIPE, "script.remote_exec_pipe");
 
   private final Value value;
 
@@ -58,6 +66,12 @@ public final class AddonFindingCountRuleId {
         return visitor.visitDependencyUnpinned();
       case MCP_REMOTE_ENDPOINT:
         return visitor.visitMcpRemoteEndpoint();
+      case SCRIPT_CREDENTIAL_PATH_ACCESS:
+        return visitor.visitScriptCredentialPathAccess();
+      case MCP_UNPINNED_EXEC:
+        return visitor.visitMcpUnpinnedExec();
+      case INSTRUCTION_OVERRIDE:
+        return visitor.visitInstructionOverride();
       case SCRIPT_SHELL_EXECUTION:
         return visitor.visitScriptShellExecution();
       case MCP_UNPINNED_LAUNCHER:
@@ -66,6 +80,8 @@ public final class AddonFindingCountRuleId {
         return visitor.visitScriptNetworkAccess();
       case INSTRUCTION_HIDDEN_TEXT:
         return visitor.visitInstructionHiddenText();
+      case SCRIPT_REMOTE_EXEC_PIPE:
+        return visitor.visitScriptRemoteExecPipe();
       case UNKNOWN:
       default:
         return visitor.visitUnknown(string);
@@ -81,6 +97,12 @@ public final class AddonFindingCountRuleId {
         return DEPENDENCY_UNPINNED;
       case "mcp.remote_endpoint":
         return MCP_REMOTE_ENDPOINT;
+      case "script.credential_path_access":
+        return SCRIPT_CREDENTIAL_PATH_ACCESS;
+      case "mcp.unpinned_exec":
+        return MCP_UNPINNED_EXEC;
+      case "instruction.override":
+        return INSTRUCTION_OVERRIDE;
       case "script.shell_execution":
         return SCRIPT_SHELL_EXECUTION;
       case "mcp.unpinned_launcher":
@@ -89,6 +111,8 @@ public final class AddonFindingCountRuleId {
         return SCRIPT_NETWORK_ACCESS;
       case "instruction.hidden_text":
         return INSTRUCTION_HIDDEN_TEXT;
+      case "script.remote_exec_pipe":
+        return SCRIPT_REMOTE_EXEC_PIPE;
       default:
         return new AddonFindingCountRuleId(Value.UNKNOWN, value);
     }
@@ -107,6 +131,14 @@ public final class AddonFindingCountRuleId {
 
     MCP_REMOTE_ENDPOINT,
 
+    INSTRUCTION_OVERRIDE,
+
+    SCRIPT_CREDENTIAL_PATH_ACCESS,
+
+    SCRIPT_REMOTE_EXEC_PIPE,
+
+    MCP_UNPINNED_EXEC,
+
     UNKNOWN
   }
 
@@ -122,6 +154,14 @@ public final class AddonFindingCountRuleId {
     T visitMcpUnpinnedLauncher();
 
     T visitMcpRemoteEndpoint();
+
+    T visitInstructionOverride();
+
+    T visitScriptCredentialPathAccess();
+
+    T visitScriptRemoteExecPipe();
+
+    T visitMcpUnpinnedExec();
 
     T visitUnknown(String unknownType);
   }

@@ -3008,6 +3008,14 @@ client.guardrails.record_action_outcome(
 <dl>
 <dd>
 
+**context_evidence:** `typing.Optional[WorkloadContextEvidence]`
+
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>

@@ -10,6 +10,7 @@ from ..types.guardrail_policy import GuardrailPolicy
 from ..types.product_id import ProductId
 from ..types.workload_action_decision import WorkloadActionDecision
 from ..types.workload_action_label import WorkloadActionLabel
+from ..types.workload_context_evidence import WorkloadContextEvidence
 from ..types.workload_outcome_ack import WorkloadOutcomeAck
 from .raw_client import AsyncRawGuardrailsClient, RawGuardrailsClient
 from .types.guardrail_interaction_direction import GuardrailInteractionDirection
@@ -123,6 +124,7 @@ class GuardrailsClient:
         action_id: WorkloadActionLabel,
         decision_id: ProductId,
         status: WorkloadActionOutcomeStatus,
+        context_evidence: typing.Optional[WorkloadContextEvidence] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> WorkloadOutcomeAck:
         """
@@ -141,6 +143,8 @@ class GuardrailsClient:
         decision_id : ProductId
 
         status : WorkloadActionOutcomeStatus
+
+        context_evidence : typing.Optional[WorkloadContextEvidence]
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -174,6 +178,7 @@ class GuardrailsClient:
             action_id=action_id,
             decision_id=decision_id,
             status=status,
+            context_evidence=context_evidence,
             request_options=request_options,
         )
         return _response.data
@@ -423,6 +428,7 @@ class AsyncGuardrailsClient:
         action_id: WorkloadActionLabel,
         decision_id: ProductId,
         status: WorkloadActionOutcomeStatus,
+        context_evidence: typing.Optional[WorkloadContextEvidence] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> WorkloadOutcomeAck:
         """
@@ -441,6 +447,8 @@ class AsyncGuardrailsClient:
         decision_id : ProductId
 
         status : WorkloadActionOutcomeStatus
+
+        context_evidence : typing.Optional[WorkloadContextEvidence]
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -482,6 +490,7 @@ class AsyncGuardrailsClient:
             action_id=action_id,
             decision_id=decision_id,
             status=status,
+            context_evidence=context_evidence,
             request_options=request_options,
         )
         return _response.data

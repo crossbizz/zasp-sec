@@ -476,21 +476,38 @@ func (p *PolicyPage) String() string {
 }
 
 var (
-	policyReplayCoverageFieldPolicyRevision = big.NewInt(1 << 0)
-	policyReplayCoverageFieldAgentID        = big.NewInt(1 << 1)
-	policyReplayCoverageFieldFrom           = big.NewInt(1 << 2)
-	policyReplayCoverageFieldTo             = big.NewInt(1 << 3)
-	policyReplayCoverageFieldEvaluated      = big.NewInt(1 << 4)
-	policyReplayCoverageFieldTruncated      = big.NewInt(1 << 5)
-	policyReplayCoverageFieldCoverage       = big.NewInt(1 << 6)
+	policyReplayCoverageFieldPolicyRevision    = big.NewInt(1 << 0)
+	policyReplayCoverageFieldAgentID           = big.NewInt(1 << 1)
+	policyReplayCoverageFieldFrom              = big.NewInt(1 << 2)
+	policyReplayCoverageFieldTo                = big.NewInt(1 << 3)
+	policyReplayCoverageFieldEvaluated         = big.NewInt(1 << 4)
+	policyReplayCoverageFieldExaminedCount     = big.NewInt(1 << 5)
+	policyReplayCoverageFieldEligibleCount     = big.NewInt(1 << 6)
+	policyReplayCoverageFieldNextWindowTo      = big.NewInt(1 << 7)
+	policyReplayCoverageFieldNextBeforeEventID = big.NewInt(1 << 8)
+	policyReplayCoverageFieldWouldBlockRate    = big.NewInt(1 << 9)
+	policyReplayCoverageFieldTruncated         = big.NewInt(1 << 10)
+	policyReplayCoverageFieldCoverage          = big.NewInt(1 << 11)
 )
 
+// policyReplayCoverageNullableFields maps the wire names of PolicyReplayCoverage's nullable fields (required or optional) to their field bits.
+var policyReplayCoverageNullableFields = map[string]*big.Int{
+	"next_window_to":       policyReplayCoverageFieldNextWindowTo,
+	"next_before_event_id": policyReplayCoverageFieldNextBeforeEventID,
+}
+
 type PolicyReplayCoverage struct {
-	PolicyRevision int                          `json:"policy_revision" url:"policy_revision"`
-	AgentID        ProductID                    `json:"agent_id" url:"agent_id"`
-	From           time.Time                    `json:"from" url:"from"`
-	To             time.Time                    `json:"to" url:"to"`
-	Evaluated      int                          `json:"evaluated" url:"evaluated"`
+	PolicyRevision    int        `json:"policy_revision" url:"policy_revision"`
+	AgentID           ProductID  `json:"agent_id" url:"agent_id"`
+	From              time.Time  `json:"from" url:"from"`
+	To                time.Time  `json:"to" url:"to"`
+	Evaluated         int        `json:"evaluated" url:"evaluated"`
+	ExaminedCount     *int       `json:"examined_count,omitempty" url:"examined_count,omitempty"`
+	EligibleCount     *int       `json:"eligible_count,omitempty" url:"eligible_count,omitempty"`
+	NextWindowTo      *time.Time `json:"next_window_to,omitempty" url:"next_window_to,omitempty"`
+	NextBeforeEventID *ProductID `json:"next_before_event_id,omitempty" url:"next_before_event_id,omitempty"`
+	// Fraction of eligible indexed events that would block on each evaluated trigger.
+	WouldBlockRate map[string]float64           `json:"would_block_rate,omitempty" url:"would_block_rate,omitempty"`
 	Truncated      bool                         `json:"truncated" url:"truncated"`
 	Coverage       PolicyReplayCoverageCoverage `json:"coverage" url:"coverage"`
 
@@ -534,6 +551,41 @@ func (p *PolicyReplayCoverage) GetEvaluated() int {
 		return 0
 	}
 	return p.Evaluated
+}
+
+func (p *PolicyReplayCoverage) GetExaminedCount() *int {
+	if p == nil {
+		return nil
+	}
+	return p.ExaminedCount
+}
+
+func (p *PolicyReplayCoverage) GetEligibleCount() *int {
+	if p == nil {
+		return nil
+	}
+	return p.EligibleCount
+}
+
+func (p *PolicyReplayCoverage) GetNextWindowTo() *time.Time {
+	if p == nil {
+		return nil
+	}
+	return p.NextWindowTo
+}
+
+func (p *PolicyReplayCoverage) GetNextBeforeEventID() *ProductID {
+	if p == nil {
+		return nil
+	}
+	return p.NextBeforeEventID
+}
+
+func (p *PolicyReplayCoverage) GetWouldBlockRate() map[string]float64 {
+	if p == nil {
+		return nil
+	}
+	return p.WouldBlockRate
 }
 
 func (p *PolicyReplayCoverage) GetTruncated() bool {
@@ -601,6 +653,41 @@ func (p *PolicyReplayCoverage) SetEvaluated(evaluated int) {
 	p.require(policyReplayCoverageFieldEvaluated)
 }
 
+// SetExaminedCount sets the ExaminedCount field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (p *PolicyReplayCoverage) SetExaminedCount(examinedCount *int) {
+	p.ExaminedCount = examinedCount
+	p.require(policyReplayCoverageFieldExaminedCount)
+}
+
+// SetEligibleCount sets the EligibleCount field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (p *PolicyReplayCoverage) SetEligibleCount(eligibleCount *int) {
+	p.EligibleCount = eligibleCount
+	p.require(policyReplayCoverageFieldEligibleCount)
+}
+
+// SetNextWindowTo sets the NextWindowTo field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (p *PolicyReplayCoverage) SetNextWindowTo(nextWindowTo *time.Time) {
+	p.NextWindowTo = nextWindowTo
+	p.require(policyReplayCoverageFieldNextWindowTo)
+}
+
+// SetNextBeforeEventID sets the NextBeforeEventID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (p *PolicyReplayCoverage) SetNextBeforeEventID(nextBeforeEventID *ProductID) {
+	p.NextBeforeEventID = nextBeforeEventID
+	p.require(policyReplayCoverageFieldNextBeforeEventID)
+}
+
+// SetWouldBlockRate sets the WouldBlockRate field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (p *PolicyReplayCoverage) SetWouldBlockRate(wouldBlockRate map[string]float64) {
+	p.WouldBlockRate = wouldBlockRate
+	p.require(policyReplayCoverageFieldWouldBlockRate)
+}
+
 // SetTruncated sets the Truncated field and marks it as non-optional;
 // this prevents an empty or null value for this field from being omitted during serialization.
 func (p *PolicyReplayCoverage) SetTruncated(truncated bool) {
@@ -619,8 +706,9 @@ func (p *PolicyReplayCoverage) UnmarshalJSON(data []byte) error {
 	type embed PolicyReplayCoverage
 	var unmarshaler = struct {
 		embed
-		From *internal.DateTime `json:"from"`
-		To   *internal.DateTime `json:"to"`
+		From         *internal.DateTime `json:"from"`
+		To           *internal.DateTime `json:"to"`
+		NextWindowTo *internal.DateTime `json:"next_window_to,omitempty"`
 	}{
 		embed: embed(*p),
 	}
@@ -630,11 +718,19 @@ func (p *PolicyReplayCoverage) UnmarshalJSON(data []byte) error {
 	*p = PolicyReplayCoverage(unmarshaler.embed)
 	p.From = unmarshaler.From.Time()
 	p.To = unmarshaler.To.Time()
+	p.NextWindowTo = unmarshaler.NextWindowTo.TimePtr()
 	extraProperties, err := internal.ExtractExtraProperties(data, *p)
 	if err != nil {
 		return err
 	}
 	p.extraProperties = extraProperties
+	presentFields, err := internal.ExplicitFieldsFromJSON(data, policyReplayCoverageNullableFields)
+	if err != nil {
+		return err
+	}
+	if presentFields != nil {
+		p.require(presentFields)
+	}
 	p.rawJSON = json.RawMessage(data)
 	return nil
 }
@@ -643,12 +739,14 @@ func (p *PolicyReplayCoverage) MarshalJSON() ([]byte, error) {
 	type embed PolicyReplayCoverage
 	var marshaler = struct {
 		embed
-		From *internal.DateTime `json:"from"`
-		To   *internal.DateTime `json:"to"`
+		From         *internal.DateTime `json:"from"`
+		To           *internal.DateTime `json:"to"`
+		NextWindowTo *internal.DateTime `json:"next_window_to,omitempty"`
 	}{
-		embed: embed(*p),
-		From:  internal.NewDateTime(p.From),
-		To:    internal.NewDateTime(p.To),
+		embed:        embed(*p),
+		From:         internal.NewDateTime(p.From),
+		To:           internal.NewDateTime(p.To),
+		NextWindowTo: internal.NewOptionalDateTime(p.NextWindowTo),
 	}
 	explicitMarshaler := internal.HandleExplicitFields(marshaler, p.explicitFields)
 	return json.Marshal(explicitMarshaler)
@@ -694,6 +792,7 @@ var (
 	policyReplayInputFieldAgentID        = big.NewInt(1 << 2)
 	policyReplayInputFieldFrom           = big.NewInt(1 << 3)
 	policyReplayInputFieldTo             = big.NewInt(1 << 4)
+	policyReplayInputFieldBeforeEventID  = big.NewInt(1 << 5)
 )
 
 type PolicyReplayInput struct {
@@ -704,6 +803,8 @@ type PolicyReplayInput struct {
 	From time.Time `json:"from" url:"from"`
 	// Exclusive end of the replay window.
 	To time.Time `json:"to" url:"to"`
+	// Resume the same window before this tie-breaker at the returned end timestamp.
+	BeforeEventID *ProductID `json:"before_event_id,omitempty" url:"before_event_id,omitempty"`
 
 	// Private bitmask of fields set to an explicit value and therefore not to be omitted
 	explicitFields *big.Int `json:"-" url:"-"`
@@ -745,6 +846,13 @@ func (p *PolicyReplayInput) GetTo() time.Time {
 		return time.Time{}
 	}
 	return p.To
+}
+
+func (p *PolicyReplayInput) GetBeforeEventID() *ProductID {
+	if p == nil {
+		return nil
+	}
+	return p.BeforeEventID
 }
 
 func (p *PolicyReplayInput) GetExtraProperties() map[string]interface{} {
@@ -796,6 +904,13 @@ func (p *PolicyReplayInput) SetFrom(from time.Time) {
 func (p *PolicyReplayInput) SetTo(to time.Time) {
 	p.To = to
 	p.require(policyReplayInputFieldTo)
+}
+
+// SetBeforeEventID sets the BeforeEventID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (p *PolicyReplayInput) SetBeforeEventID(beforeEventID *ProductID) {
+	p.BeforeEventID = beforeEventID
+	p.require(policyReplayInputFieldBeforeEventID)
 }
 
 func (p *PolicyReplayInput) UnmarshalJSON(data []byte) error {
@@ -1132,7 +1247,7 @@ func (p *PolicySimulationInput) UnmarshalJSON(data []byte) error {
 		p.StringUnknownMap = valueStringUnknownMap
 		return nil
 	}
-	if internal.MatchesObjectKeys(data, []string{"schema_version", "policy_revision", "agent_id", "from", "to"}, []string{"schema_version", "policy_revision", "agent_id", "from", "to"}) {
+	if internal.MatchesObjectKeys(data, []string{"schema_version", "policy_revision", "agent_id", "from", "to", "before_event_id"}, []string{"schema_version", "policy_revision", "agent_id", "from", "to"}) {
 		valuePolicyReplayInput := new(PolicyReplayInput)
 		if err := json.Unmarshal(data, &valuePolicyReplayInput); err == nil {
 			p.typ = "PolicyReplayInput"

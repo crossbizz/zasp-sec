@@ -2,4 +2,4 @@
 
 import typing
 
-AddonScanSubmissionRuleset = typing.Union[typing.Literal["zasp-static.v1"], typing.Any]
+AddonScanSubmissionRuleset = typing.Union[typing.Literal["zasp-static.v1", "zasp-static.v2"], typing.Any]

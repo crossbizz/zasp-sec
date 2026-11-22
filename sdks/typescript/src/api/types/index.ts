@@ -219,5 +219,6 @@ export * from "./TestRunPage.js";
 export * from "./TestSchedule.js";
 export * from "./WorkloadActionDecision.js";
 export * from "./WorkloadActionLabel.js";
+export * from "./WorkloadContextEvidence.js";
 export * from "./WorkloadDestinationClass.js";
 export * from "./WorkloadOutcomeAck.js";

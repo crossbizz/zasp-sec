@@ -19,6 +19,7 @@ export interface WorkloadActionOutcome {
     schema_version: WorkloadActionOutcome.SchemaVersion;
     action_id: Zasp.WorkloadActionLabel;
     decision_id: Zasp.ProductId;
+    context_evidence?: Zasp.WorkloadContextEvidence;
     status: WorkloadActionOutcome.Status;
 }
 

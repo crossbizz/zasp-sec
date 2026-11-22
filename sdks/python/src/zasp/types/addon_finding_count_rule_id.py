@@ -10,6 +10,10 @@ AddonFindingCountRuleId = typing.Union[
         "instruction.hidden_text",
         "mcp.unpinned_launcher",
         "mcp.remote_endpoint",
+        "instruction.override",
+        "script.credential_path_access",
+        "script.remote_exec_pipe",
+        "mcp.unpinned_exec",
     ],
     typing.Any,
 ]

@@ -12,7 +12,11 @@ export namespace AddonFindingCount {
             ScriptNetworkAccess: "script.network_access",
             InstructionHiddenText: "instruction.hidden_text",
             McpUnpinnedLauncher: "mcp.unpinned_launcher",
-            McpRemoteEndpoint: "mcp.remote_endpoint"
+            McpRemoteEndpoint: "mcp.remote_endpoint",
+            InstructionOverride: "instruction.override",
+            ScriptCredentialPathAccess: "script.credential_path_access",
+            ScriptRemoteExecPipe: "script.remote_exec_pipe",
+            McpUnpinnedExec: "mcp.unpinned_exec"
         } as const;
     export type RuleId = typeof RuleId[keyof typeof RuleId];
 }

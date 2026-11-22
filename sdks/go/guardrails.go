@@ -280,21 +280,23 @@ func (g *GuardrailPolicyInput) MarshalJSON() ([]byte, error) {
 }
 
 var (
-	workloadActionOutcomeFieldIdempotencyKey = big.NewInt(1 << 0)
-	workloadActionOutcomeFieldPathActionID   = big.NewInt(1 << 1)
-	workloadActionOutcomeFieldSchemaVersion  = big.NewInt(1 << 2)
-	workloadActionOutcomeFieldActionID       = big.NewInt(1 << 3)
-	workloadActionOutcomeFieldDecisionID     = big.NewInt(1 << 4)
-	workloadActionOutcomeFieldStatus         = big.NewInt(1 << 5)
+	workloadActionOutcomeFieldIdempotencyKey  = big.NewInt(1 << 0)
+	workloadActionOutcomeFieldPathActionID    = big.NewInt(1 << 1)
+	workloadActionOutcomeFieldSchemaVersion   = big.NewInt(1 << 2)
+	workloadActionOutcomeFieldActionID        = big.NewInt(1 << 3)
+	workloadActionOutcomeFieldDecisionID      = big.NewInt(1 << 4)
+	workloadActionOutcomeFieldContextEvidence = big.NewInt(1 << 5)
+	workloadActionOutcomeFieldStatus          = big.NewInt(1 << 6)
 )
 
 type WorkloadActionOutcome struct {
-	IdempotencyKey string                             `json:"-" url:"-"`
-	PathActionID   WorkloadActionLabel                `json:"-" url:"-"`
-	SchemaVersion  WorkloadActionOutcomeSchemaVersion `json:"schema_version" url:"-"`
-	ActionID       WorkloadActionLabel                `json:"action_id" url:"-"`
-	DecisionID     ProductID                          `json:"decision_id" url:"-"`
-	Status         WorkloadActionOutcomeStatus        `json:"status" url:"-"`
+	IdempotencyKey  string                             `json:"-" url:"-"`
+	PathActionID    WorkloadActionLabel                `json:"-" url:"-"`
+	SchemaVersion   WorkloadActionOutcomeSchemaVersion `json:"schema_version" url:"-"`
+	ActionID        WorkloadActionLabel                `json:"action_id" url:"-"`
+	DecisionID      ProductID                          `json:"decision_id" url:"-"`
+	ContextEvidence *WorkloadContextEvidence           `json:"context_evidence,omitempty" url:"-"`
+	Status          WorkloadActionOutcomeStatus        `json:"status" url:"-"`
 
 	// Private bitmask of fields set to an explicit value and therefore not to be omitted
 	explicitFields *big.Int `json:"-" url:"-"`
@@ -342,6 +344,13 @@ func (w *WorkloadActionOutcome) SetActionID(actionID WorkloadActionLabel) {
 func (w *WorkloadActionOutcome) SetDecisionID(decisionID ProductID) {
 	w.DecisionID = decisionID
 	w.require(workloadActionOutcomeFieldDecisionID)
+}
+
+// SetContextEvidence sets the ContextEvidence field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetContextEvidence(contextEvidence *WorkloadContextEvidence) {
+	w.ContextEvidence = contextEvidence
+	w.require(workloadActionOutcomeFieldContextEvidence)
 }
 
 // SetStatus sets the Status field and marks it as non-optional;
@@ -1207,6 +1216,243 @@ func NewWorkloadActionDecisionVerdictFromString(s string) (WorkloadActionDecisio
 }
 
 func (w WorkloadActionDecisionVerdict) Ptr() *WorkloadActionDecisionVerdict {
+	return &w
+}
+
+var (
+	workloadContextEvidenceFieldKind          = big.NewInt(1 << 0)
+	workloadContextEvidenceFieldCollectionRef = big.NewInt(1 << 1)
+	workloadContextEvidenceFieldRecordRef     = big.NewInt(1 << 2)
+	workloadContextEvidenceFieldVersion       = big.NewInt(1 << 3)
+	workloadContextEvidenceFieldDigest        = big.NewInt(1 << 4)
+	workloadContextEvidenceFieldResult        = big.NewInt(1 << 5)
+)
+
+type WorkloadContextEvidence struct {
+	Kind          WorkloadContextEvidenceKind   `json:"kind" url:"kind"`
+	CollectionRef string                        `json:"collection_ref" url:"collection_ref"`
+	RecordRef     string                        `json:"record_ref" url:"record_ref"`
+	Version       int                           `json:"version" url:"version"`
+	Digest        *string                       `json:"digest,omitempty" url:"digest,omitempty"`
+	Result        WorkloadContextEvidenceResult `json:"result" url:"result"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (w *WorkloadContextEvidence) GetKind() WorkloadContextEvidenceKind {
+	if w == nil {
+		return ""
+	}
+	return w.Kind
+}
+
+func (w *WorkloadContextEvidence) GetCollectionRef() string {
+	if w == nil {
+		return ""
+	}
+	return w.CollectionRef
+}
+
+func (w *WorkloadContextEvidence) GetRecordRef() string {
+	if w == nil {
+		return ""
+	}
+	return w.RecordRef
+}
+
+func (w *WorkloadContextEvidence) GetVersion() int {
+	if w == nil {
+		return 0
+	}
+	return w.Version
+}
+
+func (w *WorkloadContextEvidence) GetDigest() *string {
+	if w == nil {
+		return nil
+	}
+	return w.Digest
+}
+
+func (w *WorkloadContextEvidence) GetResult() WorkloadContextEvidenceResult {
+	if w == nil {
+		return ""
+	}
+	return w.Result
+}
+
+func (w *WorkloadContextEvidence) GetExtraProperties() map[string]interface{} {
+	if w == nil {
+		return nil
+	}
+	return w.extraProperties
+}
+
+func (w *WorkloadContextEvidence) require(field *big.Int) {
+	next := new(big.Int)
+	if w.explicitFields != nil {
+		next.Set(w.explicitFields)
+	}
+	next.Or(next, field)
+	w.explicitFields = next
+}
+
+// SetKind sets the Kind field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadContextEvidence) SetKind(kind WorkloadContextEvidenceKind) {
+	w.Kind = kind
+	w.require(workloadContextEvidenceFieldKind)
+}
+
+// SetCollectionRef sets the CollectionRef field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadContextEvidence) SetCollectionRef(collectionRef string) {
+	w.CollectionRef = collectionRef
+	w.require(workloadContextEvidenceFieldCollectionRef)
+}
+
+// SetRecordRef sets the RecordRef field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadContextEvidence) SetRecordRef(recordRef string) {
+	w.RecordRef = recordRef
+	w.require(workloadContextEvidenceFieldRecordRef)
+}
+
+// SetVersion sets the Version field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadContextEvidence) SetVersion(version int) {
+	w.Version = version
+	w.require(workloadContextEvidenceFieldVersion)
+}
+
+// SetDigest sets the Digest field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadContextEvidence) SetDigest(digest *string) {
+	w.Digest = digest
+	w.require(workloadContextEvidenceFieldDigest)
+}
+
+// SetResult sets the Result field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadContextEvidence) SetResult(result WorkloadContextEvidenceResult) {
+	w.Result = result
+	w.require(workloadContextEvidenceFieldResult)
+}
+
+func (w *WorkloadContextEvidence) UnmarshalJSON(data []byte) error {
+	type unmarshaler WorkloadContextEvidence
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*w = WorkloadContextEvidence(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *w)
+	if err != nil {
+		return err
+	}
+	w.extraProperties = extraProperties
+	w.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (w *WorkloadContextEvidence) MarshalJSON() ([]byte, error) {
+	type embed WorkloadContextEvidence
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*w),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, w.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (w *WorkloadContextEvidence) String() string {
+	if w == nil {
+		return "<nil>"
+	}
+	if len(w.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(w.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(w); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", w)
+}
+
+type WorkloadContextEvidenceKind string
+
+const (
+	WorkloadContextEvidenceKindMemoryWrite        WorkloadContextEvidenceKind = "memory_write"
+	WorkloadContextEvidenceKindMemoryRecall       WorkloadContextEvidenceKind = "memory_recall"
+	WorkloadContextEvidenceKindRetrieval          WorkloadContextEvidenceKind = "retrieval"
+	WorkloadContextEvidenceKindArtifactPromotion  WorkloadContextEvidenceKind = "artifact_promotion"
+	WorkloadContextEvidenceKindGroundedDecision   WorkloadContextEvidenceKind = "grounded_decision"
+	WorkloadContextEvidenceKindHiddenContextCheck WorkloadContextEvidenceKind = "hidden_context_check"
+	WorkloadContextEvidenceKindWorkflowPurpose    WorkloadContextEvidenceKind = "workflow_purpose"
+	WorkloadContextEvidenceKindWorkflowApproval   WorkloadContextEvidenceKind = "workflow_approval"
+	WorkloadContextEvidenceKindWorkflowHandoff    WorkloadContextEvidenceKind = "workflow_handoff"
+	WorkloadContextEvidenceKindWorkflowChild      WorkloadContextEvidenceKind = "workflow_child"
+	WorkloadContextEvidenceKindWorkflowBudget     WorkloadContextEvidenceKind = "workflow_budget"
+)
+
+func NewWorkloadContextEvidenceKindFromString(s string) (WorkloadContextEvidenceKind, error) {
+	switch s {
+	case "memory_write":
+		return WorkloadContextEvidenceKindMemoryWrite, nil
+	case "memory_recall":
+		return WorkloadContextEvidenceKindMemoryRecall, nil
+	case "retrieval":
+		return WorkloadContextEvidenceKindRetrieval, nil
+	case "artifact_promotion":
+		return WorkloadContextEvidenceKindArtifactPromotion, nil
+	case "grounded_decision":
+		return WorkloadContextEvidenceKindGroundedDecision, nil
+	case "hidden_context_check":
+		return WorkloadContextEvidenceKindHiddenContextCheck, nil
+	case "workflow_purpose":
+		return WorkloadContextEvidenceKindWorkflowPurpose, nil
+	case "workflow_approval":
+		return WorkloadContextEvidenceKindWorkflowApproval, nil
+	case "workflow_handoff":
+		return WorkloadContextEvidenceKindWorkflowHandoff, nil
+	case "workflow_child":
+		return WorkloadContextEvidenceKindWorkflowChild, nil
+	case "workflow_budget":
+		return WorkloadContextEvidenceKindWorkflowBudget, nil
+	}
+	var t WorkloadContextEvidenceKind
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadContextEvidenceKind) Ptr() *WorkloadContextEvidenceKind {
+	return &w
+}
+
+type WorkloadContextEvidenceResult string
+
+const (
+	WorkloadContextEvidenceResultAllowed  WorkloadContextEvidenceResult = "allowed"
+	WorkloadContextEvidenceResultRejected WorkloadContextEvidenceResult = "rejected"
+)
+
+func NewWorkloadContextEvidenceResultFromString(s string) (WorkloadContextEvidenceResult, error) {
+	switch s {
+	case "allowed":
+		return WorkloadContextEvidenceResultAllowed, nil
+	case "rejected":
+		return WorkloadContextEvidenceResultRejected, nil
+	}
+	var t WorkloadContextEvidenceResult
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadContextEvidenceResult) Ptr() *WorkloadContextEvidenceResult {
 	return &w
 }
 

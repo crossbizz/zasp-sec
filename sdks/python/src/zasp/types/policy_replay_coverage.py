@@ -17,6 +17,15 @@ class PolicyReplayCoverage(UniversalBaseModel):
     from_: typing_extensions.Annotated[dt.datetime, FieldMetadata(alias="from"), pydantic.Field(alias="from")]
     to: dt.datetime
     evaluated: int
+    examined_count: typing.Optional[int] = None
+    eligible_count: typing.Optional[int] = None
+    next_window_to: typing.Optional[dt.datetime] = None
+    next_before_event_id: typing.Optional[ProductId] = None
+    would_block_rate: typing.Optional[typing.Dict[str, float]] = pydantic.Field(default=None)
+    """
+    Fraction of eligible indexed events that would block on each evaluated trigger.
+    """
+
     truncated: bool
     coverage: PolicyReplayCoverageCoverage
 

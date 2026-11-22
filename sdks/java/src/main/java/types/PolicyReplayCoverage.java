@@ -4,20 +4,27 @@
 
 package ai.zasp.api.types;
 
+import ai.zasp.api.core.Nullable;
+import ai.zasp.api.core.NullableNonemptyFilter;
 import ai.zasp.api.core.ObjectMappers;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.lang.Double;
+import java.lang.Integer;
 import java.lang.Object;
 import java.lang.String;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
@@ -35,6 +42,16 @@ public final class PolicyReplayCoverage {
 
   private final int evaluated;
 
+  private final Optional<Integer> examinedCount;
+
+  private final Optional<Integer> eligibleCount;
+
+  private final Optional<OffsetDateTime> nextWindowTo;
+
+  private final Optional<String> nextBeforeEventId;
+
+  private final Optional<Map<String, Double>> wouldBlockRate;
+
   private final boolean truncated;
 
   private final PolicyReplayCoverageCoverage coverage;
@@ -42,13 +59,21 @@ public final class PolicyReplayCoverage {
   private final Map<String, Object> additionalProperties;
 
   private PolicyReplayCoverage(int policyRevision, String agentId, OffsetDateTime from,
-      OffsetDateTime to, int evaluated, boolean truncated, PolicyReplayCoverageCoverage coverage,
+      OffsetDateTime to, int evaluated, Optional<Integer> examinedCount,
+      Optional<Integer> eligibleCount, Optional<OffsetDateTime> nextWindowTo,
+      Optional<String> nextBeforeEventId, Optional<Map<String, Double>> wouldBlockRate,
+      boolean truncated, PolicyReplayCoverageCoverage coverage,
       Map<String, Object> additionalProperties) {
     this.policyRevision = policyRevision;
     this.agentId = agentId;
     this.from = from;
     this.to = to;
     this.evaluated = evaluated;
+    this.examinedCount = examinedCount;
+    this.eligibleCount = eligibleCount;
+    this.nextWindowTo = nextWindowTo;
+    this.nextBeforeEventId = nextBeforeEventId;
+    this.wouldBlockRate = wouldBlockRate;
     this.truncated = truncated;
     this.coverage = coverage;
     this.additionalProperties = additionalProperties;
@@ -79,6 +104,40 @@ public final class PolicyReplayCoverage {
     return evaluated;
   }
 
+  @JsonProperty("examined_count")
+  public Optional<Integer> getExaminedCount() {
+    return examinedCount;
+  }
+
+  @JsonProperty("eligible_count")
+  public Optional<Integer> getEligibleCount() {
+    return eligibleCount;
+  }
+
+  @JsonIgnore
+  public Optional<OffsetDateTime> getNextWindowTo() {
+    if (nextWindowTo == null) {
+      return Optional.empty();
+    }
+    return nextWindowTo;
+  }
+
+  @JsonIgnore
+  public Optional<String> getNextBeforeEventId() {
+    if (nextBeforeEventId == null) {
+      return Optional.empty();
+    }
+    return nextBeforeEventId;
+  }
+
+  /**
+   * @return Fraction of eligible indexed events that would block on each evaluated trigger.
+   */
+  @JsonProperty("would_block_rate")
+  public Optional<Map<String, Double>> getWouldBlockRate() {
+    return wouldBlockRate;
+  }
+
   @JsonProperty("truncated")
   public boolean getTruncated() {
     return truncated;
@@ -87,6 +146,24 @@ public final class PolicyReplayCoverage {
   @JsonProperty("coverage")
   public PolicyReplayCoverageCoverage getCoverage() {
     return coverage;
+  }
+
+  @JsonInclude(
+      value = JsonInclude.Include.CUSTOM,
+      valueFilter = NullableNonemptyFilter.class
+  )
+  @JsonProperty("next_window_to")
+  private Optional<OffsetDateTime> _getNextWindowTo() {
+    return nextWindowTo;
+  }
+
+  @JsonInclude(
+      value = JsonInclude.Include.CUSTOM,
+      valueFilter = NullableNonemptyFilter.class
+  )
+  @JsonProperty("next_before_event_id")
+  private Optional<String> _getNextBeforeEventId() {
+    return nextBeforeEventId;
   }
 
   @java.lang.Override
@@ -101,12 +178,12 @@ public final class PolicyReplayCoverage {
   }
 
   private boolean equalTo(PolicyReplayCoverage other) {
-    return policyRevision == other.policyRevision && agentId.equals(other.agentId) && from.equals(other.from) && to.equals(other.to) && evaluated == other.evaluated && truncated == other.truncated && coverage.equals(other.coverage);
+    return policyRevision == other.policyRevision && agentId.equals(other.agentId) && from.equals(other.from) && to.equals(other.to) && evaluated == other.evaluated && examinedCount.equals(other.examinedCount) && eligibleCount.equals(other.eligibleCount) && nextWindowTo.equals(other.nextWindowTo) && nextBeforeEventId.equals(other.nextBeforeEventId) && wouldBlockRate.equals(other.wouldBlockRate) && truncated == other.truncated && coverage.equals(other.coverage);
   }
 
   @java.lang.Override
   public int hashCode() {
-    return Objects.hash(this.policyRevision, this.agentId, this.from, this.to, this.evaluated, this.truncated, this.coverage);
+    return Objects.hash(this.policyRevision, this.agentId, this.from, this.to, this.evaluated, this.examinedCount, this.eligibleCount, this.nextWindowTo, this.nextBeforeEventId, this.wouldBlockRate, this.truncated, this.coverage);
   }
 
   @java.lang.Override
@@ -154,6 +231,33 @@ public final class PolicyReplayCoverage {
     _FinalStage additionalProperty(String key, Object value);
 
     _FinalStage additionalProperties(Map<String, Object> additionalProperties);
+
+    _FinalStage examinedCount(Optional<Integer> examinedCount);
+
+    _FinalStage examinedCount(Integer examinedCount);
+
+    _FinalStage eligibleCount(Optional<Integer> eligibleCount);
+
+    _FinalStage eligibleCount(Integer eligibleCount);
+
+    _FinalStage nextWindowTo(Optional<OffsetDateTime> nextWindowTo);
+
+    _FinalStage nextWindowTo(OffsetDateTime nextWindowTo);
+
+    _FinalStage nextWindowTo(Nullable<OffsetDateTime> nextWindowTo);
+
+    _FinalStage nextBeforeEventId(Optional<String> nextBeforeEventId);
+
+    _FinalStage nextBeforeEventId(String nextBeforeEventId);
+
+    _FinalStage nextBeforeEventId(Nullable<String> nextBeforeEventId);
+
+    /**
+     * <p>Fraction of eligible indexed events that would block on each evaluated trigger.</p>
+     */
+    _FinalStage wouldBlockRate(Optional<Map<String, Double>> wouldBlockRate);
+
+    _FinalStage wouldBlockRate(Map<String, Double> wouldBlockRate);
   }
 
   @JsonIgnoreProperties(
@@ -174,6 +278,16 @@ public final class PolicyReplayCoverage {
 
     private PolicyReplayCoverageCoverage coverage;
 
+    private Optional<Map<String, Double>> wouldBlockRate = Optional.empty();
+
+    private Optional<String> nextBeforeEventId = Optional.empty();
+
+    private Optional<OffsetDateTime> nextWindowTo = Optional.empty();
+
+    private Optional<Integer> eligibleCount = Optional.empty();
+
+    private Optional<Integer> examinedCount = Optional.empty();
+
     private Map<String, Object> additionalProperties = new HashMap<>();
 
     private Builder() {
@@ -186,6 +300,11 @@ public final class PolicyReplayCoverage {
       from(other.getFrom());
       to(other.getTo());
       evaluated(other.getEvaluated());
+      examinedCount(other.getExaminedCount());
+      eligibleCount(other.getEligibleCount());
+      nextWindowTo(other.getNextWindowTo());
+      nextBeforeEventId(other.getNextBeforeEventId());
+      wouldBlockRate(other.getWouldBlockRate());
       truncated(other.getTruncated());
       coverage(other.getCoverage());
       return this;
@@ -240,14 +359,129 @@ public final class PolicyReplayCoverage {
       return this;
     }
 
+    /**
+     * <p>Fraction of eligible indexed events that would block on each evaluated trigger.</p>
+     * @return Reference to {@code this} so that method calls can be chained together.
+     */
+    @java.lang.Override
+    public _FinalStage wouldBlockRate(Map<String, Double> wouldBlockRate) {
+      this.wouldBlockRate = Optional.ofNullable(wouldBlockRate);
+      return this;
+    }
+
+    /**
+     * <p>Fraction of eligible indexed events that would block on each evaluated trigger.</p>
+     */
+    @java.lang.Override
+    @JsonSetter(
+        value = "would_block_rate",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage wouldBlockRate(Optional<Map<String, Double>> wouldBlockRate) {
+      this.wouldBlockRate = wouldBlockRate;
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage nextBeforeEventId(Nullable<String> nextBeforeEventId) {
+      if (nextBeforeEventId.isNull()) {
+        this.nextBeforeEventId = null;
+      }
+      else if (nextBeforeEventId.isEmpty()) {
+        this.nextBeforeEventId = Optional.empty();
+      }
+      else {
+        this.nextBeforeEventId = Optional.of(nextBeforeEventId.get());
+      }
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage nextBeforeEventId(String nextBeforeEventId) {
+      this.nextBeforeEventId = Optional.ofNullable(nextBeforeEventId);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "next_before_event_id",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage nextBeforeEventId(Optional<String> nextBeforeEventId) {
+      this.nextBeforeEventId = nextBeforeEventId;
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage nextWindowTo(Nullable<OffsetDateTime> nextWindowTo) {
+      if (nextWindowTo.isNull()) {
+        this.nextWindowTo = null;
+      }
+      else if (nextWindowTo.isEmpty()) {
+        this.nextWindowTo = Optional.empty();
+      }
+      else {
+        this.nextWindowTo = Optional.of(nextWindowTo.get());
+      }
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage nextWindowTo(OffsetDateTime nextWindowTo) {
+      this.nextWindowTo = Optional.ofNullable(nextWindowTo);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "next_window_to",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage nextWindowTo(Optional<OffsetDateTime> nextWindowTo) {
+      this.nextWindowTo = nextWindowTo;
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage eligibleCount(Integer eligibleCount) {
+      this.eligibleCount = Optional.ofNullable(eligibleCount);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "eligible_count",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage eligibleCount(Optional<Integer> eligibleCount) {
+      this.eligibleCount = eligibleCount;
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage examinedCount(Integer examinedCount) {
+      this.examinedCount = Optional.ofNullable(examinedCount);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "examined_count",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage examinedCount(Optional<Integer> examinedCount) {
+      this.examinedCount = examinedCount;
+      return this;
+    }
+
     @java.lang.Override
     public PolicyReplayCoverage build() {
-      return new PolicyReplayCoverage(policyRevision, agentId, from, to, evaluated, truncated, coverage, additionalProperties);
+      return new PolicyReplayCoverage(policyRevision, agentId, from, to, evaluated, examinedCount, eligibleCount, nextWindowTo, nextBeforeEventId, wouldBlockRate, truncated, coverage, additionalProperties);
     }
 
     @JsonAnySetter
     private void putAdditionalPropertyFromJson(String key, Object value) {
-      if (key.equalsIgnoreCase("policy_revision") || key.equalsIgnoreCase("agent_id") || key.equalsIgnoreCase("from") || key.equalsIgnoreCase("to") || key.equalsIgnoreCase("evaluated") || key.equalsIgnoreCase("truncated") || key.equalsIgnoreCase("coverage")) {
+      if (key.equalsIgnoreCase("policy_revision") || key.equalsIgnoreCase("agent_id") || key.equalsIgnoreCase("from") || key.equalsIgnoreCase("to") || key.equalsIgnoreCase("evaluated") || key.equalsIgnoreCase("examined_count") || key.equalsIgnoreCase("eligible_count") || key.equalsIgnoreCase("next_window_to") || key.equalsIgnoreCase("next_before_event_id") || key.equalsIgnoreCase("would_block_rate") || key.equalsIgnoreCase("truncated") || key.equalsIgnoreCase("coverage")) {
         return;
       }
       this.additionalProperties.put(key, value);

@@ -8,6 +8,12 @@ export interface PolicyReplayCoverage {
     from: string;
     to: string;
     evaluated: number;
+    examined_count?: number | undefined;
+    eligible_count?: number | undefined;
+    next_window_to?: (string | null) | undefined;
+    next_before_event_id?: (Zasp.ProductId | null) | undefined;
+    /** Fraction of eligible indexed events that would block on each evaluated trigger. */
+    would_block_rate?: Record<string, number> | undefined;
     truncated: boolean;
     coverage: PolicyReplayCoverage.Coverage;
 }

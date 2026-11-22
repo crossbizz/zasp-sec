@@ -2574,9 +2574,13 @@ func (c CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema) Ptr() *Create
 type EndpointHeartbeatAdapter string
 
 const (
-	EndpointHeartbeatAdapterMacosClaudeTicket     EndpointHeartbeatAdapter = "macos_claude_ticket"
-	EndpointHeartbeatAdapterLinuxClaudeTicketTest EndpointHeartbeatAdapter = "linux_claude_ticket_test"
-	EndpointHeartbeatAdapterWindowsInventory      EndpointHeartbeatAdapter = "windows_inventory"
+	EndpointHeartbeatAdapterMacosClaudeTicket        EndpointHeartbeatAdapter = "macos_claude_ticket"
+	EndpointHeartbeatAdapterLinuxClaudeTicketTest    EndpointHeartbeatAdapter = "linux_claude_ticket_test"
+	EndpointHeartbeatAdapterWindowsInventory         EndpointHeartbeatAdapter = "windows_inventory"
+	EndpointHeartbeatAdapterMacosClaudePretoolV2     EndpointHeartbeatAdapter = "macos_claude_pretool_v2"
+	EndpointHeartbeatAdapterMacosCodexPretoolV2      EndpointHeartbeatAdapter = "macos_codex_pretool_v2"
+	EndpointHeartbeatAdapterLinuxClaudePretoolV2Test EndpointHeartbeatAdapter = "linux_claude_pretool_v2_test"
+	EndpointHeartbeatAdapterWindowsClaudePretoolV2   EndpointHeartbeatAdapter = "windows_claude_pretool_v2"
 )
 
 func NewEndpointHeartbeatAdapterFromString(s string) (EndpointHeartbeatAdapter, error) {
@@ -2587,6 +2591,14 @@ func NewEndpointHeartbeatAdapterFromString(s string) (EndpointHeartbeatAdapter, 
 		return EndpointHeartbeatAdapterLinuxClaudeTicketTest, nil
 	case "windows_inventory":
 		return EndpointHeartbeatAdapterWindowsInventory, nil
+	case "macos_claude_pretool_v2":
+		return EndpointHeartbeatAdapterMacosClaudePretoolV2, nil
+	case "macos_codex_pretool_v2":
+		return EndpointHeartbeatAdapterMacosCodexPretoolV2, nil
+	case "linux_claude_pretool_v2_test":
+		return EndpointHeartbeatAdapterLinuxClaudePretoolV2Test, nil
+	case "windows_claude_pretool_v2":
+		return EndpointHeartbeatAdapterWindowsClaudePretoolV2, nil
 	}
 	var t EndpointHeartbeatAdapter
 	return "", fmt.Errorf("%s is not a valid %T", s, t)

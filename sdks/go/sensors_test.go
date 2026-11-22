@@ -6358,6 +6358,34 @@ func TestEnumEndpointHeartbeatAdapter(t *testing.T) {
 		assert.Equal(t, EndpointHeartbeatAdapter("windows_inventory"), val, "enum value should match expected wire value")
 	})
 
+	t.Run("NewFromString_macos_claude_pretool_v2", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewEndpointHeartbeatAdapterFromString("macos_claude_pretool_v2")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, EndpointHeartbeatAdapter("macos_claude_pretool_v2"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_macos_codex_pretool_v2", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewEndpointHeartbeatAdapterFromString("macos_codex_pretool_v2")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, EndpointHeartbeatAdapter("macos_codex_pretool_v2"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_linux_claude_pretool_v2_test", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewEndpointHeartbeatAdapterFromString("linux_claude_pretool_v2_test")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, EndpointHeartbeatAdapter("linux_claude_pretool_v2_test"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_windows_claude_pretool_v2", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewEndpointHeartbeatAdapterFromString("windows_claude_pretool_v2")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, EndpointHeartbeatAdapter("windows_claude_pretool_v2"), val, "enum value should match expected wire value")
+	})
+
 	t.Run("NewFromString_Invalid", func(t *testing.T) {
 		_, err := NewEndpointHeartbeatAdapterFromString("invalid_value_that_does_not_exist")
 		assert.Error(t, err)

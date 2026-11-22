@@ -3,5 +3,14 @@
 import typing
 
 EndpointHeartbeatAdapter = typing.Union[
-    typing.Literal["macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory"], typing.Any
+    typing.Literal[
+        "macos_claude_ticket",
+        "linux_claude_ticket_test",
+        "windows_inventory",
+        "macos_claude_pretool_v2",
+        "macos_codex_pretool_v2",
+        "linux_claude_pretool_v2_test",
+        "windows_claude_pretool_v2",
+    ],
+    typing.Any,
 ]

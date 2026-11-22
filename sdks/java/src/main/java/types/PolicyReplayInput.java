@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.lang.Object;
 import java.lang.String;
@@ -18,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
@@ -35,15 +37,19 @@ public final class PolicyReplayInput {
 
   private final OffsetDateTime to;
 
+  private final Optional<String> beforeEventId;
+
   private final Map<String, Object> additionalProperties;
 
   private PolicyReplayInput(int schemaVersion, int policyRevision, String agentId,
-      OffsetDateTime from, OffsetDateTime to, Map<String, Object> additionalProperties) {
+      OffsetDateTime from, OffsetDateTime to, Optional<String> beforeEventId,
+      Map<String, Object> additionalProperties) {
     this.schemaVersion = schemaVersion;
     this.policyRevision = policyRevision;
     this.agentId = agentId;
     this.from = from;
     this.to = to;
+    this.beforeEventId = beforeEventId;
     this.additionalProperties = additionalProperties;
   }
 
@@ -78,6 +84,14 @@ public final class PolicyReplayInput {
     return to;
   }
 
+  /**
+   * @return Resume the same window before this tie-breaker at the returned end timestamp.
+   */
+  @JsonProperty("before_event_id")
+  public Optional<String> getBeforeEventId() {
+    return beforeEventId;
+  }
+
   @java.lang.Override
   public boolean equals(Object other) {
     if (this == other) return true;
@@ -90,12 +104,12 @@ public final class PolicyReplayInput {
   }
 
   private boolean equalTo(PolicyReplayInput other) {
-    return schemaVersion == other.schemaVersion && policyRevision == other.policyRevision && agentId.equals(other.agentId) && from.equals(other.from) && to.equals(other.to);
+    return schemaVersion == other.schemaVersion && policyRevision == other.policyRevision && agentId.equals(other.agentId) && from.equals(other.from) && to.equals(other.to) && beforeEventId.equals(other.beforeEventId);
   }
 
   @java.lang.Override
   public int hashCode() {
-    return Objects.hash(this.schemaVersion, this.policyRevision, this.agentId, this.from, this.to);
+    return Objects.hash(this.schemaVersion, this.policyRevision, this.agentId, this.from, this.to, this.beforeEventId);
   }
 
   @java.lang.Override
@@ -141,6 +155,13 @@ public final class PolicyReplayInput {
     _FinalStage additionalProperty(String key, Object value);
 
     _FinalStage additionalProperties(Map<String, Object> additionalProperties);
+
+    /**
+     * <p>Resume the same window before this tie-breaker at the returned end timestamp.</p>
+     */
+    _FinalStage beforeEventId(Optional<String> beforeEventId);
+
+    _FinalStage beforeEventId(String beforeEventId);
   }
 
   @JsonIgnoreProperties(
@@ -157,6 +178,8 @@ public final class PolicyReplayInput {
 
     private OffsetDateTime to;
 
+    private Optional<String> beforeEventId = Optional.empty();
+
     private Map<String, Object> additionalProperties = new HashMap<>();
 
     private Builder() {
@@ -169,6 +192,7 @@ public final class PolicyReplayInput {
       agentId(other.getAgentId());
       from(other.getFrom());
       to(other.getTo());
+      beforeEventId(other.getBeforeEventId());
       return this;
     }
 
@@ -215,14 +239,37 @@ public final class PolicyReplayInput {
       return this;
     }
 
+    /**
+     * <p>Resume the same window before this tie-breaker at the returned end timestamp.</p>
+     * @return Reference to {@code this} so that method calls can be chained together.
+     */
+    @java.lang.Override
+    public _FinalStage beforeEventId(String beforeEventId) {
+      this.beforeEventId = Optional.ofNullable(beforeEventId);
+      return this;
+    }
+
+    /**
+     * <p>Resume the same window before this tie-breaker at the returned end timestamp.</p>
+     */
+    @java.lang.Override
+    @JsonSetter(
+        value = "before_event_id",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage beforeEventId(Optional<String> beforeEventId) {
+      this.beforeEventId = beforeEventId;
+      return this;
+    }
+
     @java.lang.Override
     public PolicyReplayInput build() {
-      return new PolicyReplayInput(schemaVersion, policyRevision, agentId, from, to, additionalProperties);
+      return new PolicyReplayInput(schemaVersion, policyRevision, agentId, from, to, beforeEventId, additionalProperties);
     }
 
     @JsonAnySetter
     private void putAdditionalPropertyFromJson(String key, Object value) {
-      if (key.equalsIgnoreCase("schema_version") || key.equalsIgnoreCase("policy_revision") || key.equalsIgnoreCase("agent_id") || key.equalsIgnoreCase("from") || key.equalsIgnoreCase("to")) {
+      if (key.equalsIgnoreCase("schema_version") || key.equalsIgnoreCase("policy_revision") || key.equalsIgnoreCase("agent_id") || key.equalsIgnoreCase("from") || key.equalsIgnoreCase("to") || key.equalsIgnoreCase("before_event_id")) {
         return;
       }
       this.additionalProperties.put(key, value);

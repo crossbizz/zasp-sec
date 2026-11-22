@@ -46,7 +46,8 @@ export namespace AddonScanSubmission {
         } as const;
     export type SchemaVersion = typeof SchemaVersion[keyof typeof SchemaVersion];
     export const Ruleset = {
-            ZaspStaticV1: "zasp-static.v1"
+            ZaspStaticV1: "zasp-static.v1",
+            ZaspStaticV2: "zasp-static.v2"
         } as const;
     export type Ruleset = typeof Ruleset[keyof typeof Ruleset];
     export const ManifestMethod = {
