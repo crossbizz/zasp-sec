@@ -1134,6 +1134,356 @@ await client.integrations.getWebhookStatus({
 </details>
 
 ## Sensors
+<details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">fetchEndpointPolicy</a>({ ...params }) -> Zasp.EndpointBundle</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.sensors.fetchEndpointPolicy({
+    "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+    "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+    id: "id"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.FetchEndpointPolicySensorsRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `SensorsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">exchangeEndpointEnrollment</a>({ ...params }) -> Zasp.EndpointExchangeReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.sensors.exchangeEndpointEnrollment({
+    "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+    "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+    body: {
+        "key": "value"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.ExchangeEndpointEnrollmentSensorsRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `SensorsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">recordEndpointHeartbeat</a>({ ...params }) -> Zasp.EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.sensors.recordEndpointHeartbeat({
+    "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+    "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+    id: "id",
+    policy_revision: 1,
+    policy_status: "verified_cache",
+    queued_receipts: 1,
+    dropped_receipts: 1
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.EndpointHeartbeat` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `SensorsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">recordEndpointInventory</a>({ ...params }) -> Zasp.EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.sensors.recordEndpointInventory({
+    "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+    "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+    id: "id",
+    partition_id: "partition_id",
+    snapshot_generation: 1,
+    complete: true,
+    installations: [{
+            installation_id: "installation_id"
+        }]
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.EndpointSnapshot` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `SensorsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">recordEndpointObservations</a>({ ...params }) -> Zasp.EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.sensors.recordEndpointObservations({
+    "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+    "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+    receipts: [{
+            payload: "payload",
+            signature: "signature"
+        }]
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.EndpointObservationBatch` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `SensorsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">list</a>({ ...params }) -> core.Page&lt;Zasp.Sensor, Zasp.SensorPage&gt;</code></summary>
 <dl>
 <dd>
@@ -1545,7 +1895,208 @@ await client.sensors.getCoverage({
 </dl>
 </details>
 
+<details><summary><code>client.sensors.<a href="/src/api/resources/sensors/client/Client.ts">recordBrowserOriginDays</a>({ ...params }) -> Zasp.BrowserOriginAck</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.sensors.recordBrowserOriginDays({
+    id: "id",
+    issued_at: 1000000,
+    nonce: "nonce",
+    days: [{
+            origin: "https://claude.ai",
+            day: "2023-01-15"
+        }],
+    signature: "signature"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.BrowserOriginReport` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `SensorsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 ## Guardrails
+<details><summary><code>client.guardrails.<a href="/src/api/resources/guardrails/client/Client.ts">decideAction</a>({ ...params }) -> Zasp.WorkloadActionDecision</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.guardrails.decideAction({
+    "Idempotency-Key": "Idempotency-Key",
+    schema_version: "action.v1",
+    action_id: "action_id",
+    action_kind: "tool_call",
+    operation: "operation",
+    resource: {
+        kind: "kind",
+        classification: "classification"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.WorkloadActionRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `GuardrailsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.guardrails.<a href="/src/api/resources/guardrails/client/Client.ts">recordActionOutcome</a>({ ...params }) -> Zasp.WorkloadOutcomeAck</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.guardrails.recordActionOutcome({
+    "Idempotency-Key": "Idempotency-Key",
+    pathActionId: "actionId",
+    schema_version: "action-outcome.v1",
+    action_id: "action_id",
+    decision_id: "decision_id",
+    status: "not_dispatched"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.WorkloadActionOutcome` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `GuardrailsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.guardrails.<a href="/src/api/resources/guardrails/client/Client.ts">createDecision</a>({ ...params }) -> Zasp.GuardrailDecision</code></summary>
 <dl>
 <dd>
@@ -1725,6 +2276,264 @@ await client.guardrails.putPolicy({
 <dd>
 
 **requestOptions:** `GuardrailsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+## Tools
+<details><summary><code>client.tools.<a href="/src/api/resources/tools/client/Client.ts">attestAddonScan</a>({ ...params }) -> Zasp.AddonCiReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.tools.attestAddonScan({
+    id: "id",
+    key_id: "key_id",
+    repository: "repository",
+    commit: "commit",
+    signature: "signature"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.AddonCiSignature` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `ToolsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.<a href="/src/api/resources/tools/client/Client.ts">submitAddonScan</a>({ ...params }) -> Zasp.AddonScanReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.tools.submitAddonScan({
+    "Idempotency-Key": "Idempotency-Key",
+    environment_id: "environment_id",
+    schema_version: "zasp-addon-findings.v1",
+    ruleset: "zasp-static.v1",
+    manifest_method: "addon-manifest.v1",
+    completeness: "complete",
+    origin: "local",
+    findings: [{
+            rule_id: "dependency.unpinned",
+            count: 1
+        }],
+    skipped_count: 1
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.AddonScanSubmission` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `ToolsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.<a href="/src/api/resources/tools/client/Client.ts">list</a>({ ...params }) -> core.Page&lt;Zasp.InventorySummary, Zasp.InventoryPage&gt;</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+const pageableResponse = await client.tools.list();
+for await (const item of pageableResponse) {
+    console.log(item);
+}
+
+// Or you can manually iterate page-by-page
+let page = await client.tools.list();
+while (page.hasNextPage()) {
+    page = await page.getNextPage();
+}
+
+// You can also access the underlying response
+const response = page.response;
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.ListToolsRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `ToolsClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.<a href="/src/api/resources/tools/client/Client.ts">get</a>({ ...params }) -> Zasp.InventoryDetail</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.tools.get({
+    id: "id"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.GetToolsRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `ToolsClient.RequestOptions` 
     
 </dd>
 </dl>
@@ -2973,8 +3782,8 @@ await client.agents.getAccess({
 </dl>
 </details>
 
-## Tools
-<details><summary><code>client.tools.<a href="/src/api/resources/tools/client/Client.ts">list</a>({ ...params }) -> core.Page&lt;Zasp.InventorySummary, Zasp.InventoryPage&gt;</code></summary>
+## Policies
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">list</a>({ ...params }) -> core.Page&lt;Zasp.Policy, Zasp.PolicyPage&gt;</code></summary>
 <dl>
 <dd>
 
@@ -2987,13 +3796,13 @@ await client.agents.getAccess({
 <dd>
 
 ```typescript
-const pageableResponse = await client.tools.list();
+const pageableResponse = await client.policies.list();
 for await (const item of pageableResponse) {
     console.log(item);
 }
 
 // Or you can manually iterate page-by-page
-let page = await client.tools.list();
+let page = await client.policies.list();
 while (page.hasNextPage()) {
     page = await page.getNextPage();
 }
@@ -3015,7 +3824,7 @@ const response = page.response;
 <dl>
 <dd>
 
-**request:** `Zasp.ListToolsRequest` 
+**request:** `Zasp.ListPoliciesRequest` 
     
 </dd>
 </dl>
@@ -3023,7 +3832,7 @@ const response = page.response;
 <dl>
 <dd>
 
-**requestOptions:** `ToolsClient.RequestOptions` 
+**requestOptions:** `PoliciesClient.RequestOptions` 
     
 </dd>
 </dl>
@@ -3035,7 +3844,7 @@ const response = page.response;
 </dl>
 </details>
 
-<details><summary><code>client.tools.<a href="/src/api/resources/tools/client/Client.ts">get</a>({ ...params }) -> Zasp.InventoryDetail</code></summary>
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">create</a>({ ...params }) -> Zasp.Policy</code></summary>
 <dl>
 <dd>
 
@@ -3048,7 +3857,72 @@ const response = page.response;
 <dd>
 
 ```typescript
-await client.tools.get({
+await client.policies.create({
+    "Idempotency-Key": "Idempotency-Key",
+    body: {
+        id: "id",
+        name: "name",
+        scope: "environment",
+        trigger: "trigger",
+        conditions: [{
+                field: "field",
+                operator: "equals",
+                value: "value"
+            }],
+        action: "monitor",
+        rollout: "draft",
+        failure_mode: "open"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.CreatePoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">get</a>({ ...params }) -> Zasp.Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.get({
     id: "id"
 });
 
@@ -3066,7 +3940,7 @@ await client.tools.get({
 <dl>
 <dd>
 
-**request:** `Zasp.GetToolsRequest` 
+**request:** `Zasp.GetPoliciesRequest` 
     
 </dd>
 </dl>
@@ -3074,7 +3948,345 @@ await client.tools.get({
 <dl>
 <dd>
 
-**requestOptions:** `ToolsClient.RequestOptions` 
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">delete</a>({ ...params }) -> void</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.delete({
+    "Idempotency-Key": "Idempotency-Key",
+    "If-Match": "If-Match",
+    id: "id"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.DeletePoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">update</a>({ ...params }) -> Zasp.Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.update({
+    "Idempotency-Key": "Idempotency-Key",
+    "If-Match": "If-Match",
+    id: "id",
+    body: {
+        id: "id",
+        name: "name",
+        scope: "environment",
+        trigger: "trigger",
+        conditions: [{
+                field: "field",
+                operator: "equals",
+                value: "value"
+            }],
+        action: "monitor",
+        rollout: "draft",
+        failure_mode: "open"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.UpdatePoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">rollout</a>({ ...params }) -> Zasp.PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.rollout({
+    "Idempotency-Key": "Idempotency-Key",
+    "If-Match": "If-Match",
+    id: "id",
+    body: {
+        state: "monitor",
+        target_id: "target_id"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.RolloutPoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">simulate</a>({ ...params }) -> Zasp.PolicySimulation</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.simulate({
+    id: "id",
+    body: {
+        "key": "value"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.SimulatePoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">listDecisions</a>({ ...params }) -> Zasp.RuntimeDecisionPage</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.listDecisions({
+    id: "id"
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.ListDecisionsPoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">disable</a>({ ...params }) -> Zasp.PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```typescript
+await client.policies.disable({
+    "Idempotency-Key": "Idempotency-Key",
+    "If-Match": "If-Match",
+    id: "id",
+    body: {
+        "key": "value"
+    }
+});
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `Zasp.DisablePoliciesRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**requestOptions:** `PoliciesClient.RequestOptions` 
     
 </dd>
 </dl>
@@ -4071,522 +5283,6 @@ await client.search.query({
 <dd>
 
 **requestOptions:** `SearchClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-## Policies
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">list</a>({ ...params }) -> core.Page&lt;Zasp.Policy, Zasp.PolicyPage&gt;</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-const pageableResponse = await client.policies.list();
-for await (const item of pageableResponse) {
-    console.log(item);
-}
-
-// Or you can manually iterate page-by-page
-let page = await client.policies.list();
-while (page.hasNextPage()) {
-    page = await page.getNextPage();
-}
-
-// You can also access the underlying response
-const response = page.response;
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.ListPoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">create</a>({ ...params }) -> Zasp.Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.create({
-    "Idempotency-Key": "Idempotency-Key",
-    body: {
-        id: "id",
-        name: "name",
-        scope: "environment",
-        trigger: "trigger",
-        conditions: [{
-                field: "field",
-                operator: "equals",
-                value: "value"
-            }],
-        action: "monitor",
-        rollout: "draft",
-        failure_mode: "open"
-    }
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.CreatePoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">get</a>({ ...params }) -> Zasp.Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.get({
-    id: "id"
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.GetPoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">delete</a>({ ...params }) -> void</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.delete({
-    "Idempotency-Key": "Idempotency-Key",
-    "If-Match": "If-Match",
-    id: "id"
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.DeletePoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">update</a>({ ...params }) -> Zasp.Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.update({
-    "Idempotency-Key": "Idempotency-Key",
-    "If-Match": "If-Match",
-    id: "id",
-    body: {
-        id: "id",
-        name: "name",
-        scope: "environment",
-        trigger: "trigger",
-        conditions: [{
-                field: "field",
-                operator: "equals",
-                value: "value"
-            }],
-        action: "monitor",
-        rollout: "draft",
-        failure_mode: "open"
-    }
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.UpdatePoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">rollout</a>({ ...params }) -> Zasp.PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.rollout({
-    "Idempotency-Key": "Idempotency-Key",
-    "If-Match": "If-Match",
-    id: "id",
-    body: {
-        state: "monitor",
-        target_id: "target_id"
-    }
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.RolloutPoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">simulate</a>({ ...params }) -> Zasp.PolicySimulation</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.simulate({
-    id: "id",
-    body: {
-        "key": "value"
-    }
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.SimulatePoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">listDecisions</a>({ ...params }) -> Zasp.RuntimeDecisionPage</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.listDecisions({
-    id: "id"
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.ListDecisionsPoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="/src/api/resources/policies/client/Client.ts">disable</a>({ ...params }) -> Zasp.PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```typescript
-await client.policies.disable({
-    "Idempotency-Key": "Idempotency-Key",
-    "If-Match": "If-Match",
-    id: "id",
-    body: {
-        "key": "value"
-    }
-});
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**request:** `Zasp.DisablePoliciesRequest` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**requestOptions:** `PoliciesClient.RequestOptions` 
     
 </dd>
 </dl>

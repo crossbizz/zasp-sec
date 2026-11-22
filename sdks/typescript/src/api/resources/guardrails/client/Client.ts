@@ -28,6 +28,153 @@ export class GuardrailsClient {
     }
 
     /**
+     * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+     *
+     * @param {Zasp.WorkloadActionRequest} request
+     * @param {GuardrailsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.UnprocessableEntityError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.guardrails.decideAction({
+     *         "Idempotency-Key": "Idempotency-Key",
+     *         schema_version: "action.v1",
+     *         action_id: "action_id",
+     *         action_kind: "tool_call",
+     *         operation: "operation",
+     *         resource: {
+     *             kind: "kind",
+     *             classification: "classification"
+     *         }
+     *     })
+     */
+    public decideAction(request: Zasp.WorkloadActionRequest, requestOptions?: GuardrailsClient.RequestOptions): core.HttpResponsePromise<Zasp.WorkloadActionDecision> {
+        return core.HttpResponsePromise.fromPromise(this.__decideAction(request, requestOptions));
+    }
+
+    private async __decideAction(request: Zasp.WorkloadActionRequest, requestOptions?: GuardrailsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.WorkloadActionDecision>> {
+        const { "Idempotency-Key": idempotencyKey, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "Idempotency-Key": idempotencyKey }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), "api/v1/runtime/action-decisions"),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.WorkloadActionDecision, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 422: throw new Zasp.UnprocessableEntityError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/runtime/action-decisions");
+    }
+
+    /**
+     * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+     *
+     * @param {Zasp.WorkloadActionOutcome} request
+     * @param {GuardrailsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.UnprocessableEntityError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.guardrails.recordActionOutcome({
+     *         "Idempotency-Key": "Idempotency-Key",
+     *         pathActionId: "actionId",
+     *         schema_version: "action-outcome.v1",
+     *         action_id: "action_id",
+     *         decision_id: "decision_id",
+     *         status: "not_dispatched"
+     *     })
+     */
+    public recordActionOutcome(request: Zasp.WorkloadActionOutcome, requestOptions?: GuardrailsClient.RequestOptions): core.HttpResponsePromise<Zasp.WorkloadOutcomeAck> {
+        return core.HttpResponsePromise.fromPromise(this.__recordActionOutcome(request, requestOptions));
+    }
+
+    private async __recordActionOutcome(request: Zasp.WorkloadActionOutcome, requestOptions?: GuardrailsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.WorkloadOutcomeAck>> {
+        const { pathActionId, "Idempotency-Key": idempotencyKey, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "Idempotency-Key": idempotencyKey }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), `api/v1/runtime/actions/${core.url.encodePathParam(pathActionId, errors.ZaspError)}/outcomes`),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.WorkloadOutcomeAck, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 422: throw new Zasp.UnprocessableEntityError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/runtime/actions/{pathActionId}/outcomes");
+    }
+
+    /**
      * For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the decide_guardrails permission; a browser session is not accepted, and a token with view alone is refused. decide_guardrails is a permission of API tokens only: a token created with it and nothing else can ask for decisions and cannot read anything. The owner of the token must be able to view the Environment. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
      *
      * @param {Zasp.GuardrailInteraction} request

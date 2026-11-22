@@ -1270,6 +1270,487 @@ _, err := client.Integrations.GetWebhookStatus(
 </details>
 
 ## Sensors
+<details><summary><code>client.Sensors.FetchEndpointPolicy(ID) -> *zasp.EndpointBundle</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.FetchEndpointPolicySensorsRequest{
+    ID: "id",
+    ZaspDeviceProof: "X-Zasp-Device-Proof",
+    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+}
+_, err := client.Sensors.FetchEndpointPolicy(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `string` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Sensors.ExchangeEndpointEnrollment(request) -> *zasp.EndpointExchangeReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.ExchangeEndpointEnrollmentSensorsRequest{
+    ZaspDeviceProof: "X-Zasp-Device-Proof",
+    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+    Body: map[string]any{
+        "key": "value",
+    },
+}
+_, err := client.Sensors.ExchangeEndpointEnrollment(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `zasp.EndpointEmpty` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Sensors.RecordEndpointHeartbeat(ID, request) -> *zasp.EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.EndpointHeartbeat{
+    ID: "id",
+    ZaspDeviceProof: "X-Zasp-Device-Proof",
+    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+    PolicyRevision: 1,
+    PolicyStatus: zasp.EndpointHeartbeatPolicyStatusVerifiedCache,
+    QueuedReceipts: 1,
+    DroppedReceipts: 1,
+}
+_, err := client.Sensors.RecordEndpointHeartbeat(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**policyRevision:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**policyStatus:** `zasp.EndpointHeartbeatPolicyStatus` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**queuedReceipts:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**droppedReceipts:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**adapter:** `*zasp.EndpointHeartbeatAdapter` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Sensors.RecordEndpointInventory(ID, request) -> *zasp.EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.EndpointSnapshot{
+    ID: "id",
+    ZaspDeviceProof: "X-Zasp-Device-Proof",
+    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+    PartitionID: "partition_id",
+    SnapshotGeneration: 1,
+    Complete: true,
+    Installations: []*zasp.EndpointSnapshotInstallationsItem{
+        &zasp.EndpointSnapshotInstallationsItem{
+            InstallationID: "installation_id",
+        },
+    },
+}
+_, err := client.Sensors.RecordEndpointInventory(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**partitionID:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**snapshotGeneration:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**complete:** `bool` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**installations:** `[]*zasp.EndpointSnapshotInstallationsItem` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Sensors.RecordEndpointObservations(request) -> *zasp.EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.EndpointObservationBatch{
+    ZaspDeviceProof: "X-Zasp-Device-Proof",
+    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+    Receipts: []*zasp.EndpointSigned{
+        &zasp.EndpointSigned{
+            Payload: "payload",
+            Signature: "signature",
+        },
+    },
+}
+_, err := client.Sensors.RecordEndpointObservations(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**receipts:** `[]*zasp.EndpointSigned` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.Sensors.List() -> *zasp.SensorPage</code></summary>
 <dl>
 <dd>
@@ -1810,7 +2291,325 @@ _, err := client.Sensors.GetCoverage(
 </dl>
 </details>
 
+<details><summary><code>client.Sensors.RecordBrowserOriginDays(ID, request) -> *zasp.BrowserOriginAck</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.BrowserOriginReport{
+    ID: "id",
+    IssuedAt: int64(1000000),
+    Nonce: "nonce",
+    Days: []*zasp.BrowserOriginDay{
+        &zasp.BrowserOriginDay{
+            Origin: zasp.BrowserObservedOriginHTTPSClaudeAi,
+            Day: zasp.MustParseDate(
+                "2023-01-15",
+            ),
+        },
+    },
+    Signature: "signature",
+}
+_, err := client.Sensors.RecordBrowserOriginDays(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**issuedAt:** `int64` — UTC Unix seconds.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**nonce:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**days:** `[]*zasp.BrowserOriginDay` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signature:** `string` — Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 ## Guardrails
+<details><summary><code>client.Guardrails.DecideAction(request) -> *zasp.WorkloadActionDecision</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.WorkloadActionRequest{
+    IdempotencyKey: "Idempotency-Key",
+    SchemaVersion: zasp.WorkloadActionRequestSchemaVersionActionV1,
+    ActionID: "action_id",
+    ActionKind: zasp.WorkloadActionRequestActionKindToolCall,
+    Operation: "operation",
+    Resource: &zasp.WorkloadActionRequestResource{
+        Kind: "kind",
+        Classification: "classification",
+    },
+}
+_, err := client.Guardrails.DecideAction(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schemaVersion:** `zasp.WorkloadActionRequestSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**actionID:** `zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**actionKind:** `zasp.WorkloadActionRequestActionKind` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**operation:** `zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**sourceSessionRef:** `*zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**sourceCallRef:** `*zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**resource:** `*zasp.WorkloadActionRequestResource` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Guardrails.RecordActionOutcome(PathActionID, request) -> *zasp.WorkloadOutcomeAck</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.WorkloadActionOutcome{
+    PathActionID: "actionId",
+    IdempotencyKey: "Idempotency-Key",
+    SchemaVersion: zasp.WorkloadActionOutcomeSchemaVersionActionOutcomeV1,
+    ActionID: "action_id",
+    DecisionID: "decision_id",
+    Status: zasp.WorkloadActionOutcomeStatusNotDispatched,
+}
+_, err := client.Guardrails.RecordActionOutcome(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**pathActionID:** `zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schemaVersion:** `zasp.WorkloadActionOutcomeSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**actionID:** `zasp.WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**decisionID:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**status:** `zasp.WorkloadActionOutcomeStatus` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.Guardrails.CreateDecision(request) -> *zasp.GuardrailDecision</code></summary>
 <dl>
 <dd>
@@ -2014,6 +2813,354 @@ _, err := client.Guardrails.PutPolicy(
 <dd>
 
 **rules:** `map[string]zasp.GuardrailMode` — Rule identifier to mode. A rule that is not named has its default mode.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+## Tools
+<details><summary><code>client.Tools.AttestAddonScan(ID, request) -> *zasp.AddonCiReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.AddonCiSignature{
+    ID: "id",
+    KeyID: "key_id",
+    Repository: "repository",
+    Commit: "commit",
+    Signature: "signature",
+}
+_, err := client.Tools.AttestAddonScan(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**keyID:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**repository:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**commit:** `string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signature:** `string` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Tools.SubmitAddonScan(request) -> *zasp.AddonScanReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.AddonScanSubmission{
+    IdempotencyKey: "Idempotency-Key",
+    EnvironmentID: "environment_id",
+    SchemaVersion: zasp.AddonScanSubmissionSchemaVersionZaspAddonFindingsV1,
+    Ruleset: zasp.AddonScanSubmissionRulesetZaspStaticV1,
+    ManifestMethod: zasp.AddonScanSubmissionManifestMethodAddonManifestV1,
+    Completeness: zasp.AddonScanSubmissionCompletenessComplete,
+    Origin: zasp.AddonScanSubmissionOriginLocal,
+    Findings: []*zasp.AddonFindingCount{
+        &zasp.AddonFindingCount{
+            RuleID: zasp.AddonFindingCountRuleIDDependencyUnpinned,
+            Count: 1,
+        },
+    },
+    SkippedCount: 1,
+}
+_, err := client.Tools.SubmitAddonScan(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**privateUpload:** `*zasp.AddonScanSubmissionPrivateUpload` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**environmentID:** `zasp.ProductID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schemaVersion:** `zasp.AddonScanSubmissionSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ruleset:** `zasp.AddonScanSubmissionRuleset` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**manifestMethod:** `zasp.AddonScanSubmissionManifestMethod` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**manifestDigest:** `*string` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**completeness:** `zasp.AddonScanSubmissionCompleteness` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**origin:** `zasp.AddonScanSubmissionOrigin` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**findings:** `[]*zasp.AddonFindingCount` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**skippedCount:** `int` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Tools.List() -> *zasp.InventoryPage</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.ListToolsRequest{}
+_, err := client.Tools.List(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**cursor:** `*zasp.Cursor` — Opaque cursor returned by the preceding page.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**limit:** `*int` — Maximum number of records to return.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Tools.Get(ID) -> *zasp.InventoryDetail</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.GetToolsRequest{
+    ID: "id",
+}
+_, err := client.Tools.Get(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.ProductID` 
     
 </dd>
 </dl>
@@ -3499,8 +4646,8 @@ _, err := client.Agents.GetAccess(
 </dl>
 </details>
 
-## Tools
-<details><summary><code>client.Tools.List() -> *zasp.InventoryPage</code></summary>
+## Policies
+<details><summary><code>client.Policies.List() -> *zasp.PolicyPage</code></summary>
 <dl>
 <dd>
 
@@ -3513,8 +4660,8 @@ _, err := client.Agents.GetAccess(
 <dd>
 
 ```go
-request := &zasp.ListToolsRequest{}
-_, err := client.Tools.List(
+request := &zasp.ListPoliciesRequest{}
+_, err := client.Policies.List(
     context.TODO(),
     request,
 )
@@ -3552,7 +4699,7 @@ _, err := client.Tools.List(
 </dl>
 </details>
 
-<details><summary><code>client.Tools.Get(ID) -> *zasp.InventoryDetail</code></summary>
+<details><summary><code>client.Policies.Create(request) -> *zasp.Policy</code></summary>
 <dl>
 <dd>
 
@@ -3565,10 +4712,26 @@ _, err := client.Tools.List(
 <dd>
 
 ```go
-request := &zasp.GetToolsRequest{
-    ID: "id",
+request := &zasp.CreatePoliciesRequest{
+    IdempotencyKey: "Idempotency-Key",
+    Body: &zasp.Policy{
+        ID: "id",
+        Name: "name",
+        Scope: zasp.PolicyScopeEnvironment,
+        Trigger: "trigger",
+        Conditions: []*zasp.PolicyCondition{
+            &zasp.PolicyCondition{
+                Field: "field",
+                Operator: zasp.PolicyConditionOperatorEquals,
+                Value: "value",
+            },
+        },
+        Action: zasp.PolicyActionMonitor,
+        Rollout: zasp.PolicyRolloutStateDraft,
+        FailureMode: zasp.PolicyFailureModeOpen,
+    },
 }
-_, err := client.Tools.Get(
+_, err := client.Policies.Create(
     context.TODO(),
     request,
 )
@@ -3586,7 +4749,485 @@ _, err := client.Tools.Get(
 <dl>
 <dd>
 
-**id:** `zasp.ProductID` 
+**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `*zasp.Policy` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.Get(ID) -> *zasp.Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.GetPoliciesRequest{
+    ID: "id",
+}
+_, err := client.Policies.Get(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.Delete(ID) -> error</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.DeletePoliciesRequest{
+    ID: "id",
+    IdempotencyKey: "Idempotency-Key",
+    IfMatch: "If-Match",
+}
+err := client.Policies.Delete(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `string` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.Update(ID, request) -> *zasp.Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.UpdatePoliciesRequest{
+    ID: "id",
+    IdempotencyKey: "Idempotency-Key",
+    IfMatch: "If-Match",
+    Body: &zasp.Policy{
+        ID: "id",
+        Name: "name",
+        Scope: zasp.PolicyScopeEnvironment,
+        Trigger: "trigger",
+        Conditions: []*zasp.PolicyCondition{
+            &zasp.PolicyCondition{
+                Field: "field",
+                Operator: zasp.PolicyConditionOperatorEquals,
+                Value: "value",
+            },
+        },
+        Action: zasp.PolicyActionMonitor,
+        Rollout: zasp.PolicyRolloutStateDraft,
+        FailureMode: zasp.PolicyFailureModeOpen,
+    },
+}
+_, err := client.Policies.Update(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `string` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `*zasp.Policy` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.Rollout(ID, request) -> *zasp.PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.RolloutPoliciesRequest{
+    ID: "id",
+    IdempotencyKey: "Idempotency-Key",
+    IfMatch: "If-Match",
+    Body: &zasp.PolicyRolloutInput{
+        State: zasp.PolicyRolloutInputStateMonitor,
+        TargetID: "target_id",
+    },
+}
+_, err := client.Policies.Rollout(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `string` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `*zasp.PolicyRolloutInput` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.Simulate(ID, request) -> *zasp.PolicySimulation</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.SimulatePoliciesRequest{
+    ID: "id",
+    Body: &zasp.PolicySimulationInput{
+        StringUnknownMap: map[string]any{
+            "key": "value",
+        },
+    },
+}
+_, err := client.Policies.Simulate(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**csrfToken:** `*string` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `*zasp.PolicySimulationInput` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.ListDecisions(ID) -> *zasp.RuntimeDecisionPage</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.ListDecisionsPoliciesRequest{
+    ID: "id",
+}
+_, err := client.Policies.ListDecisions(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**limit:** `*int` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.Policies.Disable(ID, request) -> *zasp.PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```go
+request := &zasp.DisablePoliciesRequest{
+    ID: "id",
+    IdempotencyKey: "Idempotency-Key",
+    IfMatch: "If-Match",
+    Body: map[string]any{
+        "key": "value",
+    },
+}
+_, err := client.Policies.Disable(
+    context.TODO(),
+    request,
+)
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `zasp.PolicyID` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `string` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `zasp.EmptyInput` 
     
 </dd>
 </dl>
@@ -4573,597 +6214,6 @@ _, err := client.Search.Query(
 <dd>
 
 **limit:** `*int` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-## Policies
-<details><summary><code>client.Policies.List() -> *zasp.PolicyPage</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.ListPoliciesRequest{}
-_, err := client.Policies.List(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**cursor:** `*zasp.Cursor` — Opaque cursor returned by the preceding page.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**limit:** `*int` — Maximum number of records to return.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Create(request) -> *zasp.Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.CreatePoliciesRequest{
-    IdempotencyKey: "Idempotency-Key",
-    Body: &zasp.Policy{
-        ID: "id",
-        Name: "name",
-        Scope: zasp.PolicyScopeEnvironment,
-        Trigger: "trigger",
-        Conditions: []*zasp.PolicyCondition{
-            &zasp.PolicyCondition{
-                Field: "field",
-                Operator: zasp.PolicyConditionOperatorEquals,
-                Value: "value",
-            },
-        },
-        Action: zasp.PolicyActionMonitor,
-        Rollout: zasp.PolicyRolloutStateDraft,
-        FailureMode: zasp.PolicyFailureModeOpen,
-    },
-}
-_, err := client.Policies.Create(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `*zasp.Policy` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Get(ID) -> *zasp.Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.GetPoliciesRequest{
-    ID: "id",
-}
-_, err := client.Policies.Get(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Delete(ID) -> error</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.DeletePoliciesRequest{
-    ID: "id",
-    IdempotencyKey: "Idempotency-Key",
-    IfMatch: "If-Match",
-}
-err := client.Policies.Delete(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `string` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Update(ID, request) -> *zasp.Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.UpdatePoliciesRequest{
-    ID: "id",
-    IdempotencyKey: "Idempotency-Key",
-    IfMatch: "If-Match",
-    Body: &zasp.Policy{
-        ID: "id",
-        Name: "name",
-        Scope: zasp.PolicyScopeEnvironment,
-        Trigger: "trigger",
-        Conditions: []*zasp.PolicyCondition{
-            &zasp.PolicyCondition{
-                Field: "field",
-                Operator: zasp.PolicyConditionOperatorEquals,
-                Value: "value",
-            },
-        },
-        Action: zasp.PolicyActionMonitor,
-        Rollout: zasp.PolicyRolloutStateDraft,
-        FailureMode: zasp.PolicyFailureModeOpen,
-    },
-}
-_, err := client.Policies.Update(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `string` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `*zasp.Policy` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Rollout(ID, request) -> *zasp.PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.RolloutPoliciesRequest{
-    ID: "id",
-    IdempotencyKey: "Idempotency-Key",
-    IfMatch: "If-Match",
-    Body: &zasp.PolicyRolloutInput{
-        State: zasp.PolicyRolloutInputStateMonitor,
-        TargetID: "target_id",
-    },
-}
-_, err := client.Policies.Rollout(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `string` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `*zasp.PolicyRolloutInput` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Simulate(ID, request) -> *zasp.PolicySimulation</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.SimulatePoliciesRequest{
-    ID: "id",
-    Body: map[string]any{
-        "key": "value",
-    },
-}
-_, err := client.Policies.Simulate(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**csrfToken:** `*string` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `zasp.PolicySimulationInput` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.ListDecisions(ID) -> *zasp.RuntimeDecisionPage</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.ListDecisionsPoliciesRequest{
-    ID: "id",
-}
-_, err := client.Policies.ListDecisions(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**limit:** `*int` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.Policies.Disable(ID, request) -> *zasp.PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```go
-request := &zasp.DisablePoliciesRequest{
-    ID: "id",
-    IdempotencyKey: "Idempotency-Key",
-    IfMatch: "If-Match",
-    Body: map[string]any{
-        "key": "value",
-    },
-}
-_, err := client.Policies.Disable(
-    context.TODO(),
-    request,
-)
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `zasp.PolicyID` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `string` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `string` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `zasp.EmptyInput` 
     
 </dd>
 </dl>

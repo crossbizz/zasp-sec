@@ -6,20 +6,33 @@ from json.decoder import JSONDecodeError
 from ..core.api_error import ApiError
 from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.http_response import AsyncHttpResponse, HttpResponse
+from ..core.jsonable_encoder import encode_path_param
 from ..core.parse_error import ParsingError
 from ..core.pydantic_utilities import parse_obj_as
 from ..core.request_options import RequestOptions
+from ..core.serialization import convert_and_respect_annotation_metadata
 from ..errors.bad_request_error import BadRequestError
 from ..errors.conflict_error import ConflictError
 from ..errors.content_too_large_error import ContentTooLargeError
 from ..errors.forbidden_error import ForbiddenError
+from ..errors.not_found_error import NotFoundError
 from ..errors.service_unavailable_error import ServiceUnavailableError
 from ..errors.unauthorized_error import UnauthorizedError
+from ..errors.unprocessable_entity_error import UnprocessableEntityError
 from ..types.guardrail_decision import GuardrailDecision
 from ..types.guardrail_mode import GuardrailMode
 from ..types.guardrail_policy import GuardrailPolicy
 from ..types.product_error import ProductError
+from ..types.product_id import ProductId
+from ..types.workload_action_decision import WorkloadActionDecision
+from ..types.workload_action_label import WorkloadActionLabel
+from ..types.workload_outcome_ack import WorkloadOutcomeAck
 from .types.guardrail_interaction_direction import GuardrailInteractionDirection
+from .types.workload_action_outcome_schema_version import WorkloadActionOutcomeSchemaVersion
+from .types.workload_action_outcome_status import WorkloadActionOutcomeStatus
+from .types.workload_action_request_action_kind import WorkloadActionRequestActionKind
+from .types.workload_action_request_resource import WorkloadActionRequestResource
+from .types.workload_action_request_schema_version import WorkloadActionRequestSchemaVersion
 from pydantic import ValidationError
 
 # this is used as the default value for optional parameters
@@ -29,6 +42,313 @@ OMIT = typing.cast(typing.Any, ...)
 class RawGuardrailsClient:
     def __init__(self, *, client_wrapper: SyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    def decide_action(
+        self,
+        *,
+        idempotency_key: WorkloadActionLabel,
+        schema_version: WorkloadActionRequestSchemaVersion,
+        action_id: WorkloadActionLabel,
+        action_kind: WorkloadActionRequestActionKind,
+        operation: WorkloadActionLabel,
+        resource: WorkloadActionRequestResource,
+        source_session_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        source_call_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[WorkloadActionDecision]:
+        """
+        A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+
+        Parameters
+        ----------
+        idempotency_key : WorkloadActionLabel
+
+        schema_version : WorkloadActionRequestSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        action_kind : WorkloadActionRequestActionKind
+
+        operation : WorkloadActionLabel
+
+        resource : WorkloadActionRequestResource
+
+        source_session_ref : typing.Optional[WorkloadActionLabel]
+
+        source_call_ref : typing.Optional[WorkloadActionLabel]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[WorkloadActionDecision]
+            Recorded authorized result.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "api/v1/runtime/action-decisions",
+            method="POST",
+            json={
+                "schema_version": schema_version,
+                "action_id": action_id,
+                "action_kind": action_kind,
+                "operation": operation,
+                "source_session_ref": source_session_ref,
+                "source_call_ref": source_call_ref,
+                "resource": convert_and_respect_annotation_metadata(
+                    object_=resource, annotation=WorkloadActionRequestResource, direction="write"
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "Idempotency-Key": str(idempotency_key) if idempotency_key is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    WorkloadActionDecision,
+                    parse_obj_as(
+                        type_=WorkloadActionDecision,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 422:
+                raise UnprocessableEntityError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def record_action_outcome(
+        self,
+        path_action_id: WorkloadActionLabel,
+        *,
+        idempotency_key: str,
+        schema_version: WorkloadActionOutcomeSchemaVersion,
+        action_id: WorkloadActionLabel,
+        decision_id: ProductId,
+        status: WorkloadActionOutcomeStatus,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[WorkloadOutcomeAck]:
+        """
+        The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+
+        Parameters
+        ----------
+        path_action_id : WorkloadActionLabel
+
+        idempotency_key : str
+
+        schema_version : WorkloadActionOutcomeSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        decision_id : ProductId
+
+        status : WorkloadActionOutcomeStatus
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[WorkloadOutcomeAck]
+            Recorded authorized result.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"api/v1/runtime/actions/{encode_path_param(path_action_id)}/outcomes",
+            method="POST",
+            json={
+                "schema_version": schema_version,
+                "action_id": action_id,
+                "decision_id": decision_id,
+                "status": status,
+            },
+            headers={
+                "content-type": "application/json",
+                "Idempotency-Key": str(idempotency_key) if idempotency_key is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    WorkloadOutcomeAck,
+                    parse_obj_as(
+                        type_=WorkloadOutcomeAck,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 422:
+                raise UnprocessableEntityError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     def create_decision(
         self,
@@ -362,6 +682,313 @@ class RawGuardrailsClient:
 class AsyncRawGuardrailsClient:
     def __init__(self, *, client_wrapper: AsyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    async def decide_action(
+        self,
+        *,
+        idempotency_key: WorkloadActionLabel,
+        schema_version: WorkloadActionRequestSchemaVersion,
+        action_id: WorkloadActionLabel,
+        action_kind: WorkloadActionRequestActionKind,
+        operation: WorkloadActionLabel,
+        resource: WorkloadActionRequestResource,
+        source_session_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        source_call_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[WorkloadActionDecision]:
+        """
+        A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+
+        Parameters
+        ----------
+        idempotency_key : WorkloadActionLabel
+
+        schema_version : WorkloadActionRequestSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        action_kind : WorkloadActionRequestActionKind
+
+        operation : WorkloadActionLabel
+
+        resource : WorkloadActionRequestResource
+
+        source_session_ref : typing.Optional[WorkloadActionLabel]
+
+        source_call_ref : typing.Optional[WorkloadActionLabel]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[WorkloadActionDecision]
+            Recorded authorized result.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "api/v1/runtime/action-decisions",
+            method="POST",
+            json={
+                "schema_version": schema_version,
+                "action_id": action_id,
+                "action_kind": action_kind,
+                "operation": operation,
+                "source_session_ref": source_session_ref,
+                "source_call_ref": source_call_ref,
+                "resource": convert_and_respect_annotation_metadata(
+                    object_=resource, annotation=WorkloadActionRequestResource, direction="write"
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "Idempotency-Key": str(idempotency_key) if idempotency_key is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    WorkloadActionDecision,
+                    parse_obj_as(
+                        type_=WorkloadActionDecision,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 422:
+                raise UnprocessableEntityError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def record_action_outcome(
+        self,
+        path_action_id: WorkloadActionLabel,
+        *,
+        idempotency_key: str,
+        schema_version: WorkloadActionOutcomeSchemaVersion,
+        action_id: WorkloadActionLabel,
+        decision_id: ProductId,
+        status: WorkloadActionOutcomeStatus,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[WorkloadOutcomeAck]:
+        """
+        The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+
+        Parameters
+        ----------
+        path_action_id : WorkloadActionLabel
+
+        idempotency_key : str
+
+        schema_version : WorkloadActionOutcomeSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        decision_id : ProductId
+
+        status : WorkloadActionOutcomeStatus
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[WorkloadOutcomeAck]
+            Recorded authorized result.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"api/v1/runtime/actions/{encode_path_param(path_action_id)}/outcomes",
+            method="POST",
+            json={
+                "schema_version": schema_version,
+                "action_id": action_id,
+                "decision_id": decision_id,
+                "status": status,
+            },
+            headers={
+                "content-type": "application/json",
+                "Idempotency-Key": str(idempotency_key) if idempotency_key is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    WorkloadOutcomeAck,
+                    parse_obj_as(
+                        type_=WorkloadOutcomeAck,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 422:
+                raise UnprocessableEntityError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     async def create_decision(
         self,

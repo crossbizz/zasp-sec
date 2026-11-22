@@ -1499,6 +1499,548 @@ client.integrations.get_webhook_status(
 </details>
 
 ## Sensors
+<details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">fetch_endpoint_policy</a>(...) -> EndpointBundle</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.sensors.fetch_endpoint_policy(
+    id="id",
+    zasp_device_proof="X-Zasp-Device-Proof",
+    zasp_device_signature="X-Zasp-Device-Signature",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_proof:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_signature:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">exchange_endpoint_enrollment</a>(...) -> EndpointExchangeReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.sensors.exchange_endpoint_enrollment(
+    zasp_device_proof="X-Zasp-Device-Proof",
+    zasp_device_signature="X-Zasp-Device-Signature",
+    request={
+        "key": "value"
+    },
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**zasp_device_proof:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_signature:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `EndpointEmpty` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">record_endpoint_heartbeat</a>(...) -> EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.sensors.record_endpoint_heartbeat(
+    id="id",
+    zasp_device_proof="X-Zasp-Device-Proof",
+    zasp_device_signature="X-Zasp-Device-Signature",
+    policy_revision=1,
+    policy_status="verified_cache",
+    queued_receipts=1,
+    dropped_receipts=1,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_proof:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_signature:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**policy_revision:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**policy_status:** `EndpointHeartbeatPolicyStatus` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**queued_receipts:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**dropped_receipts:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**adapter:** `typing.Optional[EndpointHeartbeatAdapter]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">record_endpoint_inventory</a>(...) -> EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+from zasp.sensors import EndpointSnapshotInstallationsItem
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.sensors.record_endpoint_inventory(
+    id="id",
+    zasp_device_proof="X-Zasp-Device-Proof",
+    zasp_device_signature="X-Zasp-Device-Signature",
+    partition_id="partition_id",
+    snapshot_generation=1,
+    complete=True,
+    installations=[
+        EndpointSnapshotInstallationsItem(
+            installation_id="installation_id",
+        )
+    ],
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_proof:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_signature:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**partition_id:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**snapshot_generation:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**complete:** `bool` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**installations:** `typing.List[EndpointSnapshotInstallationsItem]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">record_endpoint_observations</a>(...) -> EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp, EndpointSigned
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.sensors.record_endpoint_observations(
+    zasp_device_proof="X-Zasp-Device-Proof",
+    zasp_device_signature="X-Zasp-Device-Signature",
+    receipts=[
+        EndpointSigned(
+            payload="payload",
+            signature="signature",
+        )
+    ],
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**zasp_device_proof:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zasp_device_signature:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**receipts:** `typing.List[EndpointSigned]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">list</a>(...) -> SensorPage</code></summary>
 <dl>
 <dd>
@@ -2123,7 +2665,361 @@ client.sensors.get_coverage(
 </dl>
 </details>
 
+<details><summary><code>client.sensors.<a href="src/zasp/sensors/client.py">record_browser_origin_days</a>(...) -> BrowserOriginAck</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp, BrowserOriginDay
+import datetime
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.sensors.record_browser_origin_days(
+    id="id",
+    issued_at=1000000,
+    nonce="nonce",
+    days=[
+        BrowserOriginDay(
+            origin="https://claude.ai",
+            day=datetime.date.fromisoformat("2023-01-15"),
+        )
+    ],
+    signature="signature",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**issued_at:** `int` — UTC Unix seconds.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**nonce:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**days:** `typing.List[BrowserOriginDay]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signature:** `str` — Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 ## Guardrails
+<details><summary><code>client.guardrails.<a href="src/zasp/guardrails/client.py">decide_action</a>(...) -> WorkloadActionDecision</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+from zasp.guardrails import WorkloadActionRequestResource
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.guardrails.decide_action(
+    idempotency_key="Idempotency-Key",
+    schema_version="action.v1",
+    action_id="action_id",
+    action_kind="tool_call",
+    operation="operation",
+    resource=WorkloadActionRequestResource(
+        kind="kind",
+        classification="classification",
+    ),
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotency_key:** `WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schema_version:** `WorkloadActionRequestSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**action_id:** `WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**action_kind:** `WorkloadActionRequestActionKind` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**operation:** `WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**resource:** `WorkloadActionRequestResource` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**source_session_ref:** `typing.Optional[WorkloadActionLabel]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**source_call_ref:** `typing.Optional[WorkloadActionLabel]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.guardrails.<a href="src/zasp/guardrails/client.py">record_action_outcome</a>(...) -> WorkloadOutcomeAck</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.guardrails.record_action_outcome(
+    path_action_id="actionId",
+    idempotency_key="Idempotency-Key",
+    schema_version="action-outcome.v1",
+    action_id="action_id",
+    decision_id="decision_id",
+    status="not_dispatched",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**path_action_id:** `WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schema_version:** `WorkloadActionOutcomeSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**action_id:** `WorkloadActionLabel` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**decision_id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**status:** `WorkloadActionOutcomeStatus` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.guardrails.<a href="src/zasp/guardrails/client.py">create_decision</a>(...) -> GuardrailDecision</code></summary>
 <dl>
 <dd>
@@ -2364,6 +3260,402 @@ client.guardrails.put_policy(
 <dd>
 
 **csrf_token:** `typing.Optional[str]` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+## Tools
+<details><summary><code>client.tools.<a href="src/zasp/tools/client.py">attest_addon_scan</a>(...) -> AddonCiReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.tools.attest_addon_scan(
+    id="id",
+    key_id="key_id",
+    repository="repository",
+    commit="commit",
+    signature="signature",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**key_id:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**repository:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**commit:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signature:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.<a href="src/zasp/tools/client.py">submit_addon_scan</a>(...) -> AddonScanReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp, AddonFindingCount
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.tools.submit_addon_scan(
+    idempotency_key="Idempotency-Key",
+    environment_id="environment_id",
+    schema_version="zasp-addon-findings.v1",
+    ruleset="zasp-static.v1",
+    manifest_method="addon-manifest.v1",
+    completeness="complete",
+    origin="local",
+    findings=[
+        AddonFindingCount(
+            rule_id="dependency.unpinned",
+            count=1,
+        )
+    ],
+    skipped_count=1,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**environment_id:** `ProductId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schema_version:** `AddonScanSubmissionSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ruleset:** `AddonScanSubmissionRuleset` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**manifest_method:** `AddonScanSubmissionManifestMethod` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**completeness:** `AddonScanSubmissionCompleteness` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**origin:** `AddonScanSubmissionOrigin` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**findings:** `typing.List[AddonFindingCount]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**skipped_count:** `int` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**private_upload:** `typing.Optional[AddonScanSubmissionPrivateUpload]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**manifest_digest:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.<a href="src/zasp/tools/client.py">list</a>(...) -> InventoryPage</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.tools.list()
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**cursor:** `typing.Optional[Cursor]` — Opaque cursor returned by the preceding page.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**limit:** `typing.Optional[int]` — Maximum number of records to return.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.<a href="src/zasp/tools/client.py">get</a>(...) -> InventoryDetail</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.tools.get(
+    id="id",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `ProductId` 
     
 </dd>
 </dl>
@@ -4101,8 +5393,8 @@ client.agents.get_access(
 </dl>
 </details>
 
-## Tools
-<details><summary><code>client.tools.<a href="src/zasp/tools/client.py">list</a>(...) -> InventoryPage</code></summary>
+## Policies
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">list</a>(...) -> PolicyPage</code></summary>
 <dl>
 <dd>
 
@@ -4122,7 +5414,7 @@ client = Zasp(
     base_url="https://yourhost.com/path/to/api",
 )
 
-client.tools.list()
+client.policies.list()
 
 ```
 </dd>
@@ -4166,7 +5458,87 @@ client.tools.list()
 </dl>
 </details>
 
-<details><summary><code>client.tools.<a href="src/zasp/tools/client.py">get</a>(...) -> InventoryDetail</code></summary>
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">create</a>(...) -> Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp, PolicyCondition
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.create(
+    idempotency_key="Idempotency-Key",
+    id="id",
+    name="name",
+    scope="environment",
+    trigger="trigger",
+    conditions=[
+        PolicyCondition(
+            field="field",
+            operator="equals",
+            value="value",
+        )
+    ],
+    action="monitor",
+    rollout="draft",
+    failure_mode="open",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `Policy` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">get</a>(...) -> Policy</code></summary>
 <dl>
 <dd>
 
@@ -4186,7 +5558,7 @@ client = Zasp(
     base_url="https://yourhost.com/path/to/api",
 )
 
-client.tools.get(
+client.policies.get(
     id="id",
 )
 
@@ -4204,7 +5576,497 @@ client.tools.get(
 <dl>
 <dd>
 
-**id:** `ProductId` 
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">delete</a>(...)</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.delete(
+    id="id",
+    idempotency_key="Idempotency-Key",
+    if_match="If-Match",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**if_match:** `str` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">update</a>(...) -> Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp, PolicyCondition
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.update(
+    id_="id",
+    idempotency_key="Idempotency-Key",
+    if_match="If-Match",
+    id="id",
+    name="name",
+    scope="environment",
+    trigger="trigger",
+    conditions=[
+        PolicyCondition(
+            field="field",
+            operator="equals",
+            value="value",
+        )
+    ],
+    action="monitor",
+    rollout="draft",
+    failure_mode="open",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**if_match:** `str` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `Policy` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">rollout</a>(...) -> PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.rollout(
+    id="id",
+    idempotency_key="Idempotency-Key",
+    if_match="If-Match",
+    state="monitor",
+    target_id="target_id",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**if_match:** `str` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `PolicyRolloutInput` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">simulate</a>(...) -> PolicySimulation</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.simulate(
+    id="id",
+    request={
+        "key": "value"
+    },
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `PolicySimulationInput` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**csrf_token:** `typing.Optional[str]` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">list_decisions</a>(...) -> RuntimeDecisionPage</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.list_decisions(
+    id="id",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**limit:** `typing.Optional[int]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">disable</a>(...) -> PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from zasp import Zasp
+
+client = Zasp(
+    token="<token>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.policies.disable(
+    id="id",
+    idempotency_key="Idempotency-Key",
+    if_match="If-Match",
+    request={
+        "key": "value"
+    },
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `PolicyId` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**if_match:** `str` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `EmptyInput` 
     
 </dd>
 </dl>
@@ -5400,699 +7262,6 @@ client.search.query(
 <dd>
 
 **limit:** `typing.Optional[int]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-## Policies
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">list</a>(...) -> PolicyPage</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.list()
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**cursor:** `typing.Optional[Cursor]` — Opaque cursor returned by the preceding page.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**limit:** `typing.Optional[int]` — Maximum number of records to return.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">create</a>(...) -> Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp, PolicyCondition
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.create(
-    idempotency_key="Idempotency-Key",
-    id="id",
-    name="name",
-    scope="environment",
-    trigger="trigger",
-    conditions=[
-        PolicyCondition(
-            field="field",
-            operator="equals",
-            value="value",
-        )
-    ],
-    action="monitor",
-    rollout="draft",
-    failure_mode="open",
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `Policy` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">get</a>(...) -> Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.get(
-    id="id",
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">delete</a>(...)</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.delete(
-    id="id",
-    idempotency_key="Idempotency-Key",
-    if_match="If-Match",
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**if_match:** `str` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">update</a>(...) -> Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp, PolicyCondition
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.update(
-    id_="id",
-    idempotency_key="Idempotency-Key",
-    if_match="If-Match",
-    id="id",
-    name="name",
-    scope="environment",
-    trigger="trigger",
-    conditions=[
-        PolicyCondition(
-            field="field",
-            operator="equals",
-            value="value",
-        )
-    ],
-    action="monitor",
-    rollout="draft",
-    failure_mode="open",
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**if_match:** `str` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `Policy` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">rollout</a>(...) -> PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.rollout(
-    id="id",
-    idempotency_key="Idempotency-Key",
-    if_match="If-Match",
-    state="monitor",
-    target_id="target_id",
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**if_match:** `str` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `PolicyRolloutInput` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">simulate</a>(...) -> PolicySimulation</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.simulate(
-    id="id",
-    request={
-        "key": "value"
-    },
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `PolicySimulationInput` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**csrf_token:** `typing.Optional[str]` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">list_decisions</a>(...) -> RuntimeDecisionPage</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.list_decisions(
-    id="id",
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**limit:** `typing.Optional[int]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.<a href="src/zasp/policies/client.py">disable</a>(...) -> PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from zasp import Zasp
-
-client = Zasp(
-    token="<token>",
-    base_url="https://yourhost.com/path/to/api",
-)
-
-client.policies.disable(
-    id="id",
-    idempotency_key="Idempotency-Key",
-    if_match="If-Match",
-    request={
-        "key": "value"
-    },
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `PolicyId` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotency_key:** `str` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**if_match:** `str` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `EmptyInput` 
     
 </dd>
 </dl>

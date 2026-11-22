@@ -39,10 +39,11 @@ type Client struct {
 	Integrations           *integrations.Client
 	Sensors                *sensors.Client
 	Guardrails             *guardrails.Client
+	Tools                  *tools.Client
 	Gateway                *gateway.Client
 	GatewayTraffic         *gatewaytraffic.Client
 	Agents                 *agents.Client
-	Tools                  *tools.Client
+	Policies               *policies.Client
 	McpServers             *mcpservers.Client
 	Identities             *identities.Client
 	Runtimes               *runtimes.Client
@@ -50,7 +51,6 @@ type Client struct {
 	Findings               *findings.Client
 	AttackPaths            *attackpaths.Client
 	Search                 *search.Client
-	Policies               *policies.Client
 	SecurityAgents         *securityagents.Client
 	SecurityAgentRuns      *securityagentruns.Client
 	SecurityAgentApprovals *securityagentapprovals.Client
@@ -75,10 +75,11 @@ func NewClient(opts ...option.RequestOption) *Client {
 		Integrations:           integrations.NewClient(options),
 		Sensors:                sensors.NewClient(options),
 		Guardrails:             guardrails.NewClient(options),
+		Tools:                  tools.NewClient(options),
 		Gateway:                gateway.NewClient(options),
 		GatewayTraffic:         gatewaytraffic.NewClient(options),
 		Agents:                 agents.NewClient(options),
-		Tools:                  tools.NewClient(options),
+		Policies:               policies.NewClient(options),
 		McpServers:             mcpservers.NewClient(options),
 		Identities:             identities.NewClient(options),
 		Runtimes:               runtimes.NewClient(options),
@@ -86,7 +87,6 @@ func NewClient(opts ...option.RequestOption) *Client {
 		Findings:               findings.NewClient(options),
 		AttackPaths:            attackpaths.NewClient(options),
 		Search:                 search.NewClient(options),
-		Policies:               policies.NewClient(options),
 		SecurityAgents:         securityagents.NewClient(options),
 		SecurityAgentRuns:      securityagentruns.NewClient(options),
 		SecurityAgentApprovals: securityagentapprovals.NewClient(options),

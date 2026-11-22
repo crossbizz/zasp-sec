@@ -280,8 +280,10 @@ func (c *Client) Rollout(
 //
 //	request := &zasp.SimulatePoliciesRequest{
 //	    ID: "id",
-//	    Body: map[string]any{
-//	        "key": "value",
+//	    Body: &zasp.PolicySimulationInput{
+//	        StringUnknownMap: map[string]any{
+//	            "key": "value",
+//	        },
 //	    },
 //	}
 //	_, err := client.Policies.Simulate(

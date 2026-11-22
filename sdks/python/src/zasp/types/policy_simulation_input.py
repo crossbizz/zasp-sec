@@ -2,4 +2,6 @@
 
 import typing
 
-PolicySimulationInput = typing.Dict[str, typing.Any]
+from .policy_replay_input import PolicyReplayInput
+
+PolicySimulationInput = typing.Union[typing.Dict[str, typing.Any], PolicyReplayInput]

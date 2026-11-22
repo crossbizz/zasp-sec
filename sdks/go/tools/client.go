@@ -39,6 +39,77 @@ func NewClient(options *core.RequestOptions) *Client {
 	}
 }
 
+// Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+//
+// Example:
+//
+//	request := &zasp.AddonCiSignature{
+//	    ID: "id",
+//	    KeyID: "key_id",
+//	    Repository: "repository",
+//	    Commit: "commit",
+//	    Signature: "signature",
+//	}
+//	_, err := client.Tools.AttestAddonScan(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) AttestAddonScan(
+	ctx context.Context,
+	request *zasp.AddonCiSignature,
+	opts ...option.RequestOption,
+) (*zasp.AddonCiReceipt, error) {
+	response, err := c.WithRawResponse.AttestAddonScan(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
+// The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+//
+// Example:
+//
+//	request := &zasp.AddonScanSubmission{
+//	    IdempotencyKey: "Idempotency-Key",
+//	    EnvironmentID: "environment_id",
+//	    SchemaVersion: zasp.AddonScanSubmissionSchemaVersionZaspAddonFindingsV1,
+//	    Ruleset: zasp.AddonScanSubmissionRulesetZaspStaticV1,
+//	    ManifestMethod: zasp.AddonScanSubmissionManifestMethodAddonManifestV1,
+//	    Completeness: zasp.AddonScanSubmissionCompletenessComplete,
+//	    Origin: zasp.AddonScanSubmissionOriginLocal,
+//	    Findings: []*zasp.AddonFindingCount{
+//	        &zasp.AddonFindingCount{
+//	            RuleID: zasp.AddonFindingCountRuleIDDependencyUnpinned,
+//	            Count: 1,
+//	        },
+//	    },
+//	    SkippedCount: 1,
+//	}
+//	_, err := client.Tools.SubmitAddonScan(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) SubmitAddonScan(
+	ctx context.Context,
+	request *zasp.AddonScanSubmission,
+	opts ...option.RequestOption,
+) (*zasp.AddonScanReceipt, error) {
+	response, err := c.WithRawResponse.SubmitAddonScan(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
 // Example:
 //
 //	request := &zasp.ListToolsRequest{}

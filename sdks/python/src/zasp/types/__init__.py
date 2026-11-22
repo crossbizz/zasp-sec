@@ -6,6 +6,11 @@ import typing
 from importlib import import_module
 
 if typing.TYPE_CHECKING:
+    from .addon_ci_receipt import AddonCiReceipt
+    from .addon_finding_count import AddonFindingCount
+    from .addon_finding_count_rule_id import AddonFindingCountRuleId
+    from .addon_scan_receipt import AddonScanReceipt
+    from .addon_scan_receipt_completeness import AddonScanReceiptCompleteness
     from .agent_access import AgentAccess
     from .agent_access_ai_actions import AgentAccessAiActions
     from .agent_access_data_stores_item import AgentAccessDataStoresItem
@@ -67,6 +72,9 @@ if typing.TYPE_CHECKING:
     from .break_option import BreakOption
     from .break_option_kind import BreakOptionKind
     from .break_option_page import BreakOptionPage
+    from .browser_observed_origin import BrowserObservedOrigin
+    from .browser_origin_ack import BrowserOriginAck
+    from .browser_origin_day import BrowserOriginDay
     from .built_in_role_name import BuiltInRoleName
     from .capability import Capability
     from .capability_category import CapabilityCategory
@@ -79,6 +87,12 @@ if typing.TYPE_CHECKING:
     from .connector_setup_field import ConnectorSetupField
     from .cursor import Cursor
     from .empty_input import EmptyInput
+    from .endpoint_bundle import EndpointBundle
+    from .endpoint_empty import EndpointEmpty
+    from .endpoint_exchange_receipt import EndpointExchangeReceipt
+    from .endpoint_exchange_receipt_state import EndpointExchangeReceiptState
+    from .endpoint_recorded import EndpointRecorded
+    from .endpoint_signed import EndpointSigned
     from .finding import Finding
     from .finding_acceptance_input import FindingAcceptanceInput
     from .finding_framework_reference import FindingFrameworkReference
@@ -153,6 +167,15 @@ if typing.TYPE_CHECKING:
     from .integration_webhook_test_status_error_code import IntegrationWebhookTestStatusErrorCode
     from .integration_webhook_test_status_signature_status import IntegrationWebhookTestStatusSignatureStatus
     from .inventory_activity_state import InventoryActivityState
+    from .inventory_attribution import InventoryAttribution
+    from .inventory_attribution_creator import InventoryAttributionCreator
+    from .inventory_attribution_integration import InventoryAttributionIntegration
+    from .inventory_attribution_location import InventoryAttributionLocation
+    from .inventory_attribution_location_kind import InventoryAttributionLocationKind
+    from .inventory_attribution_suggested_owner import InventoryAttributionSuggestedOwner
+    from .inventory_attribution_suggested_team import InventoryAttributionSuggestedTeam
+    from .inventory_attribution_suggested_team_source import InventoryAttributionSuggestedTeamSource
+    from .inventory_creator_source import InventoryCreatorSource
     from .inventory_detail import InventoryDetail
     from .inventory_discovery import InventoryDiscovery
     from .inventory_discovery_method import InventoryDiscoveryMethod
@@ -194,6 +217,9 @@ if typing.TYPE_CHECKING:
     from .policy_failure_mode import PolicyFailureMode
     from .policy_id import PolicyId
     from .policy_page import PolicyPage
+    from .policy_replay_coverage import PolicyReplayCoverage
+    from .policy_replay_coverage_coverage import PolicyReplayCoverageCoverage
+    from .policy_replay_input import PolicyReplayInput
     from .policy_risk import PolicyRisk
     from .policy_rollout import PolicyRollout
     from .policy_rollout_input import PolicyRolloutInput
@@ -487,7 +513,20 @@ if typing.TYPE_CHECKING:
     from .test_schedule import TestSchedule
     from .test_schedule_last_outcome import TestScheduleLastOutcome
     from .test_schedule_last_trigger import TestScheduleLastTrigger
+    from .workload_action_decision import WorkloadActionDecision
+    from .workload_action_decision_coverage import WorkloadActionDecisionCoverage
+    from .workload_action_decision_mode import WorkloadActionDecisionMode
+    from .workload_action_decision_reason_code import WorkloadActionDecisionReasonCode
+    from .workload_action_decision_verdict import WorkloadActionDecisionVerdict
+    from .workload_action_label import WorkloadActionLabel
+    from .workload_destination_class import WorkloadDestinationClass
+    from .workload_outcome_ack import WorkloadOutcomeAck
 _dynamic_imports: typing.Dict[str, str] = {
+    "AddonCiReceipt": ".addon_ci_receipt",
+    "AddonFindingCount": ".addon_finding_count",
+    "AddonFindingCountRuleId": ".addon_finding_count_rule_id",
+    "AddonScanReceipt": ".addon_scan_receipt",
+    "AddonScanReceiptCompleteness": ".addon_scan_receipt_completeness",
     "AgentAccess": ".agent_access",
     "AgentAccessAiActions": ".agent_access_ai_actions",
     "AgentAccessDataStoresItem": ".agent_access_data_stores_item",
@@ -549,6 +588,9 @@ _dynamic_imports: typing.Dict[str, str] = {
     "BreakOption": ".break_option",
     "BreakOptionKind": ".break_option_kind",
     "BreakOptionPage": ".break_option_page",
+    "BrowserObservedOrigin": ".browser_observed_origin",
+    "BrowserOriginAck": ".browser_origin_ack",
+    "BrowserOriginDay": ".browser_origin_day",
     "BuiltInRoleName": ".built_in_role_name",
     "Capability": ".capability",
     "CapabilityCategory": ".capability_category",
@@ -561,6 +603,12 @@ _dynamic_imports: typing.Dict[str, str] = {
     "ConnectorSetupField": ".connector_setup_field",
     "Cursor": ".cursor",
     "EmptyInput": ".empty_input",
+    "EndpointBundle": ".endpoint_bundle",
+    "EndpointEmpty": ".endpoint_empty",
+    "EndpointExchangeReceipt": ".endpoint_exchange_receipt",
+    "EndpointExchangeReceiptState": ".endpoint_exchange_receipt_state",
+    "EndpointRecorded": ".endpoint_recorded",
+    "EndpointSigned": ".endpoint_signed",
     "Finding": ".finding",
     "FindingAcceptanceInput": ".finding_acceptance_input",
     "FindingFrameworkReference": ".finding_framework_reference",
@@ -635,6 +683,15 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IntegrationWebhookTestStatusErrorCode": ".integration_webhook_test_status_error_code",
     "IntegrationWebhookTestStatusSignatureStatus": ".integration_webhook_test_status_signature_status",
     "InventoryActivityState": ".inventory_activity_state",
+    "InventoryAttribution": ".inventory_attribution",
+    "InventoryAttributionCreator": ".inventory_attribution_creator",
+    "InventoryAttributionIntegration": ".inventory_attribution_integration",
+    "InventoryAttributionLocation": ".inventory_attribution_location",
+    "InventoryAttributionLocationKind": ".inventory_attribution_location_kind",
+    "InventoryAttributionSuggestedOwner": ".inventory_attribution_suggested_owner",
+    "InventoryAttributionSuggestedTeam": ".inventory_attribution_suggested_team",
+    "InventoryAttributionSuggestedTeamSource": ".inventory_attribution_suggested_team_source",
+    "InventoryCreatorSource": ".inventory_creator_source",
     "InventoryDetail": ".inventory_detail",
     "InventoryDiscovery": ".inventory_discovery",
     "InventoryDiscoveryMethod": ".inventory_discovery_method",
@@ -676,6 +733,9 @@ _dynamic_imports: typing.Dict[str, str] = {
     "PolicyFailureMode": ".policy_failure_mode",
     "PolicyId": ".policy_id",
     "PolicyPage": ".policy_page",
+    "PolicyReplayCoverage": ".policy_replay_coverage",
+    "PolicyReplayCoverageCoverage": ".policy_replay_coverage_coverage",
+    "PolicyReplayInput": ".policy_replay_input",
     "PolicyRisk": ".policy_risk",
     "PolicyRollout": ".policy_rollout",
     "PolicyRolloutInput": ".policy_rollout_input",
@@ -937,6 +997,14 @@ _dynamic_imports: typing.Dict[str, str] = {
     "TestSchedule": ".test_schedule",
     "TestScheduleLastOutcome": ".test_schedule_last_outcome",
     "TestScheduleLastTrigger": ".test_schedule_last_trigger",
+    "WorkloadActionDecision": ".workload_action_decision",
+    "WorkloadActionDecisionCoverage": ".workload_action_decision_coverage",
+    "WorkloadActionDecisionMode": ".workload_action_decision_mode",
+    "WorkloadActionDecisionReasonCode": ".workload_action_decision_reason_code",
+    "WorkloadActionDecisionVerdict": ".workload_action_decision_verdict",
+    "WorkloadActionLabel": ".workload_action_label",
+    "WorkloadDestinationClass": ".workload_destination_class",
+    "WorkloadOutcomeAck": ".workload_outcome_ack",
 }
 
 
@@ -962,6 +1030,11 @@ def __dir__():
 
 
 __all__ = [
+    "AddonCiReceipt",
+    "AddonFindingCount",
+    "AddonFindingCountRuleId",
+    "AddonScanReceipt",
+    "AddonScanReceiptCompleteness",
     "AgentAccess",
     "AgentAccessAiActions",
     "AgentAccessDataStoresItem",
@@ -1023,6 +1096,9 @@ __all__ = [
     "BreakOption",
     "BreakOptionKind",
     "BreakOptionPage",
+    "BrowserObservedOrigin",
+    "BrowserOriginAck",
+    "BrowserOriginDay",
     "BuiltInRoleName",
     "Capability",
     "CapabilityCategory",
@@ -1035,6 +1111,12 @@ __all__ = [
     "ConnectorSetupField",
     "Cursor",
     "EmptyInput",
+    "EndpointBundle",
+    "EndpointEmpty",
+    "EndpointExchangeReceipt",
+    "EndpointExchangeReceiptState",
+    "EndpointRecorded",
+    "EndpointSigned",
     "Finding",
     "FindingAcceptanceInput",
     "FindingFrameworkReference",
@@ -1109,6 +1191,15 @@ __all__ = [
     "IntegrationWebhookTestStatusErrorCode",
     "IntegrationWebhookTestStatusSignatureStatus",
     "InventoryActivityState",
+    "InventoryAttribution",
+    "InventoryAttributionCreator",
+    "InventoryAttributionIntegration",
+    "InventoryAttributionLocation",
+    "InventoryAttributionLocationKind",
+    "InventoryAttributionSuggestedOwner",
+    "InventoryAttributionSuggestedTeam",
+    "InventoryAttributionSuggestedTeamSource",
+    "InventoryCreatorSource",
     "InventoryDetail",
     "InventoryDiscovery",
     "InventoryDiscoveryMethod",
@@ -1150,6 +1241,9 @@ __all__ = [
     "PolicyFailureMode",
     "PolicyId",
     "PolicyPage",
+    "PolicyReplayCoverage",
+    "PolicyReplayCoverageCoverage",
+    "PolicyReplayInput",
     "PolicyRisk",
     "PolicyRollout",
     "PolicyRolloutInput",
@@ -1411,4 +1505,12 @@ __all__ = [
     "TestSchedule",
     "TestScheduleLastOutcome",
     "TestScheduleLastTrigger",
+    "WorkloadActionDecision",
+    "WorkloadActionDecisionCoverage",
+    "WorkloadActionDecisionMode",
+    "WorkloadActionDecisionReasonCode",
+    "WorkloadActionDecisionVerdict",
+    "WorkloadActionLabel",
+    "WorkloadDestinationClass",
+    "WorkloadOutcomeAck",
 ]

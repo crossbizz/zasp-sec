@@ -90,6 +90,117 @@ func (g *GuardrailInteraction) MarshalJSON() ([]byte, error) {
 }
 
 var (
+	workloadActionRequestFieldIdempotencyKey   = big.NewInt(1 << 0)
+	workloadActionRequestFieldSchemaVersion    = big.NewInt(1 << 1)
+	workloadActionRequestFieldActionID         = big.NewInt(1 << 2)
+	workloadActionRequestFieldActionKind       = big.NewInt(1 << 3)
+	workloadActionRequestFieldOperation        = big.NewInt(1 << 4)
+	workloadActionRequestFieldSourceSessionRef = big.NewInt(1 << 5)
+	workloadActionRequestFieldSourceCallRef    = big.NewInt(1 << 6)
+	workloadActionRequestFieldResource         = big.NewInt(1 << 7)
+)
+
+type WorkloadActionRequest struct {
+	IdempotencyKey   WorkloadActionLabel                `json:"-" url:"-"`
+	SchemaVersion    WorkloadActionRequestSchemaVersion `json:"schema_version" url:"-"`
+	ActionID         WorkloadActionLabel                `json:"action_id" url:"-"`
+	ActionKind       WorkloadActionRequestActionKind    `json:"action_kind" url:"-"`
+	Operation        WorkloadActionLabel                `json:"operation" url:"-"`
+	SourceSessionRef *WorkloadActionLabel               `json:"source_session_ref,omitempty" url:"-"`
+	SourceCallRef    *WorkloadActionLabel               `json:"source_call_ref,omitempty" url:"-"`
+	Resource         *WorkloadActionRequestResource     `json:"resource" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (w *WorkloadActionRequest) require(field *big.Int) {
+	next := new(big.Int)
+	if w.explicitFields != nil {
+		next.Set(w.explicitFields)
+	}
+	next.Or(next, field)
+	w.explicitFields = next
+}
+
+// SetIdempotencyKey sets the IdempotencyKey field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetIdempotencyKey(idempotencyKey WorkloadActionLabel) {
+	w.IdempotencyKey = idempotencyKey
+	w.require(workloadActionRequestFieldIdempotencyKey)
+}
+
+// SetSchemaVersion sets the SchemaVersion field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetSchemaVersion(schemaVersion WorkloadActionRequestSchemaVersion) {
+	w.SchemaVersion = schemaVersion
+	w.require(workloadActionRequestFieldSchemaVersion)
+}
+
+// SetActionID sets the ActionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetActionID(actionID WorkloadActionLabel) {
+	w.ActionID = actionID
+	w.require(workloadActionRequestFieldActionID)
+}
+
+// SetActionKind sets the ActionKind field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetActionKind(actionKind WorkloadActionRequestActionKind) {
+	w.ActionKind = actionKind
+	w.require(workloadActionRequestFieldActionKind)
+}
+
+// SetOperation sets the Operation field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetOperation(operation WorkloadActionLabel) {
+	w.Operation = operation
+	w.require(workloadActionRequestFieldOperation)
+}
+
+// SetSourceSessionRef sets the SourceSessionRef field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetSourceSessionRef(sourceSessionRef *WorkloadActionLabel) {
+	w.SourceSessionRef = sourceSessionRef
+	w.require(workloadActionRequestFieldSourceSessionRef)
+}
+
+// SetSourceCallRef sets the SourceCallRef field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetSourceCallRef(sourceCallRef *WorkloadActionLabel) {
+	w.SourceCallRef = sourceCallRef
+	w.require(workloadActionRequestFieldSourceCallRef)
+}
+
+// SetResource sets the Resource field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequest) SetResource(resource *WorkloadActionRequestResource) {
+	w.Resource = resource
+	w.require(workloadActionRequestFieldResource)
+}
+
+func (w *WorkloadActionRequest) UnmarshalJSON(data []byte) error {
+	type unmarshaler WorkloadActionRequest
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*w = WorkloadActionRequest(body)
+	return nil
+}
+
+func (w *WorkloadActionRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkloadActionRequest
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*w),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, w.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
 	guardrailPolicyInputFieldCsrfToken      = big.NewInt(1 << 0)
 	guardrailPolicyInputFieldIdempotencyKey = big.NewInt(1 << 1)
 	guardrailPolicyInputFieldIfMatch        = big.NewInt(1 << 2)
@@ -165,6 +276,99 @@ func (g *GuardrailPolicyInput) MarshalJSON() ([]byte, error) {
 		embed: embed(*g),
 	}
 	explicitMarshaler := internal.HandleExplicitFields(marshaler, g.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
+	workloadActionOutcomeFieldIdempotencyKey = big.NewInt(1 << 0)
+	workloadActionOutcomeFieldPathActionID   = big.NewInt(1 << 1)
+	workloadActionOutcomeFieldSchemaVersion  = big.NewInt(1 << 2)
+	workloadActionOutcomeFieldActionID       = big.NewInt(1 << 3)
+	workloadActionOutcomeFieldDecisionID     = big.NewInt(1 << 4)
+	workloadActionOutcomeFieldStatus         = big.NewInt(1 << 5)
+)
+
+type WorkloadActionOutcome struct {
+	IdempotencyKey string                             `json:"-" url:"-"`
+	PathActionID   WorkloadActionLabel                `json:"-" url:"-"`
+	SchemaVersion  WorkloadActionOutcomeSchemaVersion `json:"schema_version" url:"-"`
+	ActionID       WorkloadActionLabel                `json:"action_id" url:"-"`
+	DecisionID     ProductID                          `json:"decision_id" url:"-"`
+	Status         WorkloadActionOutcomeStatus        `json:"status" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (w *WorkloadActionOutcome) require(field *big.Int) {
+	next := new(big.Int)
+	if w.explicitFields != nil {
+		next.Set(w.explicitFields)
+	}
+	next.Or(next, field)
+	w.explicitFields = next
+}
+
+// SetIdempotencyKey sets the IdempotencyKey field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetIdempotencyKey(idempotencyKey string) {
+	w.IdempotencyKey = idempotencyKey
+	w.require(workloadActionOutcomeFieldIdempotencyKey)
+}
+
+// SetPathActionID sets the PathActionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetPathActionID(pathActionID WorkloadActionLabel) {
+	w.PathActionID = pathActionID
+	w.require(workloadActionOutcomeFieldPathActionID)
+}
+
+// SetSchemaVersion sets the SchemaVersion field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetSchemaVersion(schemaVersion WorkloadActionOutcomeSchemaVersion) {
+	w.SchemaVersion = schemaVersion
+	w.require(workloadActionOutcomeFieldSchemaVersion)
+}
+
+// SetActionID sets the ActionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetActionID(actionID WorkloadActionLabel) {
+	w.ActionID = actionID
+	w.require(workloadActionOutcomeFieldActionID)
+}
+
+// SetDecisionID sets the DecisionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetDecisionID(decisionID ProductID) {
+	w.DecisionID = decisionID
+	w.require(workloadActionOutcomeFieldDecisionID)
+}
+
+// SetStatus sets the Status field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionOutcome) SetStatus(status WorkloadActionOutcomeStatus) {
+	w.Status = status
+	w.require(workloadActionOutcomeFieldStatus)
+}
+
+func (w *WorkloadActionOutcome) UnmarshalJSON(data []byte) error {
+	type unmarshaler WorkloadActionOutcome
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*w = WorkloadActionOutcome(body)
+	return nil
+}
+
+func (w *WorkloadActionOutcome) MarshalJSON() ([]byte, error) {
+	type embed WorkloadActionOutcome
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*w),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, w.explicitFields)
 	return json.Marshal(explicitMarshaler)
 }
 
@@ -717,6 +921,381 @@ func (g GuardrailPolicyRuleCategory) Ptr() *GuardrailPolicyRuleCategory {
 	return &g
 }
 
+var (
+	workloadActionDecisionFieldActionID         = big.NewInt(1 << 0)
+	workloadActionDecisionFieldDecisionID       = big.NewInt(1 << 1)
+	workloadActionDecisionFieldMode             = big.NewInt(1 << 2)
+	workloadActionDecisionFieldVerdict          = big.NewInt(1 << 3)
+	workloadActionDecisionFieldWouldBlock       = big.NewInt(1 << 4)
+	workloadActionDecisionFieldReasonCode       = big.NewInt(1 << 5)
+	workloadActionDecisionFieldPolicyRevisionID = big.NewInt(1 << 6)
+	workloadActionDecisionFieldCoverage         = big.NewInt(1 << 7)
+)
+
+type WorkloadActionDecision struct {
+	ActionID         WorkloadActionLabel              `json:"action_id" url:"action_id"`
+	DecisionID       ProductID                        `json:"decision_id" url:"decision_id"`
+	Mode             WorkloadActionDecisionMode       `json:"mode" url:"mode"`
+	Verdict          WorkloadActionDecisionVerdict    `json:"verdict" url:"verdict"`
+	WouldBlock       bool                             `json:"would_block" url:"would_block"`
+	ReasonCode       WorkloadActionDecisionReasonCode `json:"reason_code" url:"reason_code"`
+	PolicyRevisionID WorkloadActionLabel              `json:"policy_revision_id" url:"policy_revision_id"`
+	Coverage         WorkloadActionDecisionCoverage   `json:"coverage" url:"coverage"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (w *WorkloadActionDecision) GetActionID() WorkloadActionLabel {
+	if w == nil {
+		return ""
+	}
+	return w.ActionID
+}
+
+func (w *WorkloadActionDecision) GetDecisionID() ProductID {
+	if w == nil {
+		return ""
+	}
+	return w.DecisionID
+}
+
+func (w *WorkloadActionDecision) GetMode() WorkloadActionDecisionMode {
+	if w == nil {
+		return ""
+	}
+	return w.Mode
+}
+
+func (w *WorkloadActionDecision) GetVerdict() WorkloadActionDecisionVerdict {
+	if w == nil {
+		return ""
+	}
+	return w.Verdict
+}
+
+func (w *WorkloadActionDecision) GetWouldBlock() bool {
+	if w == nil {
+		return false
+	}
+	return w.WouldBlock
+}
+
+func (w *WorkloadActionDecision) GetReasonCode() WorkloadActionDecisionReasonCode {
+	if w == nil {
+		return ""
+	}
+	return w.ReasonCode
+}
+
+func (w *WorkloadActionDecision) GetPolicyRevisionID() WorkloadActionLabel {
+	if w == nil {
+		return ""
+	}
+	return w.PolicyRevisionID
+}
+
+func (w *WorkloadActionDecision) GetCoverage() WorkloadActionDecisionCoverage {
+	if w == nil {
+		return ""
+	}
+	return w.Coverage
+}
+
+func (w *WorkloadActionDecision) GetExtraProperties() map[string]interface{} {
+	if w == nil {
+		return nil
+	}
+	return w.extraProperties
+}
+
+func (w *WorkloadActionDecision) require(field *big.Int) {
+	next := new(big.Int)
+	if w.explicitFields != nil {
+		next.Set(w.explicitFields)
+	}
+	next.Or(next, field)
+	w.explicitFields = next
+}
+
+// SetActionID sets the ActionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetActionID(actionID WorkloadActionLabel) {
+	w.ActionID = actionID
+	w.require(workloadActionDecisionFieldActionID)
+}
+
+// SetDecisionID sets the DecisionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetDecisionID(decisionID ProductID) {
+	w.DecisionID = decisionID
+	w.require(workloadActionDecisionFieldDecisionID)
+}
+
+// SetMode sets the Mode field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetMode(mode WorkloadActionDecisionMode) {
+	w.Mode = mode
+	w.require(workloadActionDecisionFieldMode)
+}
+
+// SetVerdict sets the Verdict field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetVerdict(verdict WorkloadActionDecisionVerdict) {
+	w.Verdict = verdict
+	w.require(workloadActionDecisionFieldVerdict)
+}
+
+// SetWouldBlock sets the WouldBlock field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetWouldBlock(wouldBlock bool) {
+	w.WouldBlock = wouldBlock
+	w.require(workloadActionDecisionFieldWouldBlock)
+}
+
+// SetReasonCode sets the ReasonCode field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetReasonCode(reasonCode WorkloadActionDecisionReasonCode) {
+	w.ReasonCode = reasonCode
+	w.require(workloadActionDecisionFieldReasonCode)
+}
+
+// SetPolicyRevisionID sets the PolicyRevisionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetPolicyRevisionID(policyRevisionID WorkloadActionLabel) {
+	w.PolicyRevisionID = policyRevisionID
+	w.require(workloadActionDecisionFieldPolicyRevisionID)
+}
+
+// SetCoverage sets the Coverage field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionDecision) SetCoverage(coverage WorkloadActionDecisionCoverage) {
+	w.Coverage = coverage
+	w.require(workloadActionDecisionFieldCoverage)
+}
+
+func (w *WorkloadActionDecision) UnmarshalJSON(data []byte) error {
+	type unmarshaler WorkloadActionDecision
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*w = WorkloadActionDecision(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *w)
+	if err != nil {
+		return err
+	}
+	w.extraProperties = extraProperties
+	w.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (w *WorkloadActionDecision) MarshalJSON() ([]byte, error) {
+	type embed WorkloadActionDecision
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*w),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, w.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (w *WorkloadActionDecision) String() string {
+	if w == nil {
+		return "<nil>"
+	}
+	if len(w.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(w.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(w); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", w)
+}
+
+type WorkloadActionDecisionCoverage string
+
+const (
+	WorkloadActionDecisionCoveragePreActionSupported WorkloadActionDecisionCoverage = "pre_action_supported"
+)
+
+func NewWorkloadActionDecisionCoverageFromString(s string) (WorkloadActionDecisionCoverage, error) {
+	switch s {
+	case "pre_action_supported":
+		return WorkloadActionDecisionCoveragePreActionSupported, nil
+	}
+	var t WorkloadActionDecisionCoverage
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionDecisionCoverage) Ptr() *WorkloadActionDecisionCoverage {
+	return &w
+}
+
+type WorkloadActionDecisionMode string
+
+const (
+	WorkloadActionDecisionModeMonitor WorkloadActionDecisionMode = "monitor"
+	WorkloadActionDecisionModeEnforce WorkloadActionDecisionMode = "enforce"
+)
+
+func NewWorkloadActionDecisionModeFromString(s string) (WorkloadActionDecisionMode, error) {
+	switch s {
+	case "monitor":
+		return WorkloadActionDecisionModeMonitor, nil
+	case "enforce":
+		return WorkloadActionDecisionModeEnforce, nil
+	}
+	var t WorkloadActionDecisionMode
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionDecisionMode) Ptr() *WorkloadActionDecisionMode {
+	return &w
+}
+
+type WorkloadActionDecisionReasonCode string
+
+const (
+	WorkloadActionDecisionReasonCodeNoMatchingRestriction      WorkloadActionDecisionReasonCode = "no_matching_restriction"
+	WorkloadActionDecisionReasonCodeRuleWouldBlock             WorkloadActionDecisionReasonCode = "rule_would_block"
+	WorkloadActionDecisionReasonCodeRuleBlocked                WorkloadActionDecisionReasonCode = "rule_blocked"
+	WorkloadActionDecisionReasonCodeSupervisedSessionIsolation WorkloadActionDecisionReasonCode = "supervised_session_isolation"
+)
+
+func NewWorkloadActionDecisionReasonCodeFromString(s string) (WorkloadActionDecisionReasonCode, error) {
+	switch s {
+	case "no_matching_restriction":
+		return WorkloadActionDecisionReasonCodeNoMatchingRestriction, nil
+	case "rule_would_block":
+		return WorkloadActionDecisionReasonCodeRuleWouldBlock, nil
+	case "rule_blocked":
+		return WorkloadActionDecisionReasonCodeRuleBlocked, nil
+	case "supervised_session_isolation":
+		return WorkloadActionDecisionReasonCodeSupervisedSessionIsolation, nil
+	}
+	var t WorkloadActionDecisionReasonCode
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionDecisionReasonCode) Ptr() *WorkloadActionDecisionReasonCode {
+	return &w
+}
+
+type WorkloadActionDecisionVerdict string
+
+const (
+	WorkloadActionDecisionVerdictAllow WorkloadActionDecisionVerdict = "allow"
+	WorkloadActionDecisionVerdictBlock WorkloadActionDecisionVerdict = "block"
+)
+
+func NewWorkloadActionDecisionVerdictFromString(s string) (WorkloadActionDecisionVerdict, error) {
+	switch s {
+	case "allow":
+		return WorkloadActionDecisionVerdictAllow, nil
+	case "block":
+		return WorkloadActionDecisionVerdictBlock, nil
+	}
+	var t WorkloadActionDecisionVerdict
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionDecisionVerdict) Ptr() *WorkloadActionDecisionVerdict {
+	return &w
+}
+
+var (
+	workloadOutcomeAckFieldRecorded = big.NewInt(1 << 0)
+)
+
+type WorkloadOutcomeAck struct {
+	Recorded bool `json:"recorded" url:"recorded"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (w *WorkloadOutcomeAck) GetRecorded() bool {
+	if w == nil {
+		return false
+	}
+	return w.Recorded
+}
+
+func (w *WorkloadOutcomeAck) GetExtraProperties() map[string]interface{} {
+	if w == nil {
+		return nil
+	}
+	return w.extraProperties
+}
+
+func (w *WorkloadOutcomeAck) require(field *big.Int) {
+	next := new(big.Int)
+	if w.explicitFields != nil {
+		next.Set(w.explicitFields)
+	}
+	next.Or(next, field)
+	w.explicitFields = next
+}
+
+// SetRecorded sets the Recorded field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadOutcomeAck) SetRecorded(recorded bool) {
+	w.Recorded = recorded
+	w.require(workloadOutcomeAckFieldRecorded)
+}
+
+func (w *WorkloadOutcomeAck) UnmarshalJSON(data []byte) error {
+	type unmarshaler WorkloadOutcomeAck
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*w = WorkloadOutcomeAck(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *w)
+	if err != nil {
+		return err
+	}
+	w.extraProperties = extraProperties
+	w.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (w *WorkloadOutcomeAck) MarshalJSON() ([]byte, error) {
+	type embed WorkloadOutcomeAck
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*w),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, w.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (w *WorkloadOutcomeAck) String() string {
+	if w == nil {
+		return "<nil>"
+	}
+	if len(w.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(w.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(w); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", w)
+}
+
 // input is text on its way into a model; output is text a model produced.
 type GuardrailInteractionDirection string
 
@@ -738,4 +1317,207 @@ func NewGuardrailInteractionDirectionFromString(s string) (GuardrailInteractionD
 
 func (g GuardrailInteractionDirection) Ptr() *GuardrailInteractionDirection {
 	return &g
+}
+
+type WorkloadActionOutcomeSchemaVersion string
+
+const (
+	WorkloadActionOutcomeSchemaVersionActionOutcomeV1 WorkloadActionOutcomeSchemaVersion = "action-outcome.v1"
+)
+
+func NewWorkloadActionOutcomeSchemaVersionFromString(s string) (WorkloadActionOutcomeSchemaVersion, error) {
+	switch s {
+	case "action-outcome.v1":
+		return WorkloadActionOutcomeSchemaVersionActionOutcomeV1, nil
+	}
+	var t WorkloadActionOutcomeSchemaVersion
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionOutcomeSchemaVersion) Ptr() *WorkloadActionOutcomeSchemaVersion {
+	return &w
+}
+
+type WorkloadActionOutcomeStatus string
+
+const (
+	WorkloadActionOutcomeStatusNotDispatched WorkloadActionOutcomeStatus = "not_dispatched"
+	WorkloadActionOutcomeStatusReturned      WorkloadActionOutcomeStatus = "returned"
+	WorkloadActionOutcomeStatusRaised        WorkloadActionOutcomeStatus = "raised"
+	WorkloadActionOutcomeStatusCancelled     WorkloadActionOutcomeStatus = "cancelled"
+)
+
+func NewWorkloadActionOutcomeStatusFromString(s string) (WorkloadActionOutcomeStatus, error) {
+	switch s {
+	case "not_dispatched":
+		return WorkloadActionOutcomeStatusNotDispatched, nil
+	case "returned":
+		return WorkloadActionOutcomeStatusReturned, nil
+	case "raised":
+		return WorkloadActionOutcomeStatusRaised, nil
+	case "cancelled":
+		return WorkloadActionOutcomeStatusCancelled, nil
+	}
+	var t WorkloadActionOutcomeStatus
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionOutcomeStatus) Ptr() *WorkloadActionOutcomeStatus {
+	return &w
+}
+
+type WorkloadActionRequestActionKind string
+
+const (
+	WorkloadActionRequestActionKindToolCall WorkloadActionRequestActionKind = "tool_call"
+)
+
+func NewWorkloadActionRequestActionKindFromString(s string) (WorkloadActionRequestActionKind, error) {
+	switch s {
+	case "tool_call":
+		return WorkloadActionRequestActionKindToolCall, nil
+	}
+	var t WorkloadActionRequestActionKind
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionRequestActionKind) Ptr() *WorkloadActionRequestActionKind {
+	return &w
+}
+
+var (
+	workloadActionRequestResourceFieldKind             = big.NewInt(1 << 0)
+	workloadActionRequestResourceFieldClassification   = big.NewInt(1 << 1)
+	workloadActionRequestResourceFieldDestinationClass = big.NewInt(1 << 2)
+)
+
+type WorkloadActionRequestResource struct {
+	Kind             WorkloadActionLabel       `json:"kind" url:"kind"`
+	Classification   WorkloadActionLabel       `json:"classification" url:"classification"`
+	DestinationClass *WorkloadDestinationClass `json:"destination_class,omitempty" url:"destination_class,omitempty"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (w *WorkloadActionRequestResource) GetKind() WorkloadActionLabel {
+	if w == nil {
+		return ""
+	}
+	return w.Kind
+}
+
+func (w *WorkloadActionRequestResource) GetClassification() WorkloadActionLabel {
+	if w == nil {
+		return ""
+	}
+	return w.Classification
+}
+
+func (w *WorkloadActionRequestResource) GetDestinationClass() *WorkloadDestinationClass {
+	if w == nil {
+		return nil
+	}
+	return w.DestinationClass
+}
+
+func (w *WorkloadActionRequestResource) GetExtraProperties() map[string]interface{} {
+	if w == nil {
+		return nil
+	}
+	return w.extraProperties
+}
+
+func (w *WorkloadActionRequestResource) require(field *big.Int) {
+	next := new(big.Int)
+	if w.explicitFields != nil {
+		next.Set(w.explicitFields)
+	}
+	next.Or(next, field)
+	w.explicitFields = next
+}
+
+// SetKind sets the Kind field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequestResource) SetKind(kind WorkloadActionLabel) {
+	w.Kind = kind
+	w.require(workloadActionRequestResourceFieldKind)
+}
+
+// SetClassification sets the Classification field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequestResource) SetClassification(classification WorkloadActionLabel) {
+	w.Classification = classification
+	w.require(workloadActionRequestResourceFieldClassification)
+}
+
+// SetDestinationClass sets the DestinationClass field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (w *WorkloadActionRequestResource) SetDestinationClass(destinationClass *WorkloadDestinationClass) {
+	w.DestinationClass = destinationClass
+	w.require(workloadActionRequestResourceFieldDestinationClass)
+}
+
+func (w *WorkloadActionRequestResource) UnmarshalJSON(data []byte) error {
+	type unmarshaler WorkloadActionRequestResource
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*w = WorkloadActionRequestResource(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *w)
+	if err != nil {
+		return err
+	}
+	w.extraProperties = extraProperties
+	w.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (w *WorkloadActionRequestResource) MarshalJSON() ([]byte, error) {
+	type embed WorkloadActionRequestResource
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*w),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, w.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (w *WorkloadActionRequestResource) String() string {
+	if w == nil {
+		return "<nil>"
+	}
+	if len(w.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(w.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(w); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", w)
+}
+
+type WorkloadActionRequestSchemaVersion string
+
+const (
+	WorkloadActionRequestSchemaVersionActionV1 WorkloadActionRequestSchemaVersion = "action.v1"
+)
+
+func NewWorkloadActionRequestSchemaVersionFromString(s string) (WorkloadActionRequestSchemaVersion, error) {
+	switch s {
+	case "action.v1":
+		return WorkloadActionRequestSchemaVersionActionV1, nil
+	}
+	var t WorkloadActionRequestSchemaVersion
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadActionRequestSchemaVersion) Ptr() *WorkloadActionRequestSchemaVersion {
+	return &w
 }

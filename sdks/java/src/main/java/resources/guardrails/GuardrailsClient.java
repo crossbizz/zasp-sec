@@ -8,8 +8,13 @@ import ai.zasp.api.core.ClientOptions;
 import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.resources.guardrails.requests.GuardrailInteraction;
 import ai.zasp.api.resources.guardrails.requests.GuardrailPolicyInput;
+import ai.zasp.api.resources.guardrails.requests.WorkloadActionOutcome;
+import ai.zasp.api.resources.guardrails.requests.WorkloadActionRequest;
 import ai.zasp.api.types.GuardrailDecision;
 import ai.zasp.api.types.GuardrailPolicy;
+import ai.zasp.api.types.WorkloadActionDecision;
+import ai.zasp.api.types.WorkloadOutcomeAck;
+import java.lang.String;
 
 public class GuardrailsClient {
   protected final ClientOptions clientOptions;
@@ -26,6 +31,37 @@ public class GuardrailsClient {
    */
   public RawGuardrailsClient withRawResponse() {
     return this.rawClient;
+  }
+
+  /**
+   * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+   */
+  public WorkloadActionDecision decideAction(WorkloadActionRequest request) {
+    return this.rawClient.decideAction(request).body();
+  }
+
+  /**
+   * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+   */
+  public WorkloadActionDecision decideAction(WorkloadActionRequest request,
+      RequestOptions requestOptions) {
+    return this.rawClient.decideAction(request, requestOptions).body();
+  }
+
+  /**
+   * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+   */
+  public WorkloadOutcomeAck recordActionOutcome(String pathActionId,
+      WorkloadActionOutcome request) {
+    return this.rawClient.recordActionOutcome(pathActionId, request).body();
+  }
+
+  /**
+   * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+   */
+  public WorkloadOutcomeAck recordActionOutcome(String pathActionId, WorkloadActionOutcome request,
+      RequestOptions requestOptions) {
+    return this.rawClient.recordActionOutcome(pathActionId, request, requestOptions).body();
   }
 
   /**

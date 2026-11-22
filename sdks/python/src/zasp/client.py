@@ -119,10 +119,11 @@ class Zasp:
         self._integrations: typing.Optional[IntegrationsClient] = None
         self._sensors: typing.Optional[SensorsClient] = None
         self._guardrails: typing.Optional[GuardrailsClient] = None
+        self._tools: typing.Optional[ToolsClient] = None
         self._gateway: typing.Optional[GatewayClient] = None
         self._gateway_traffic: typing.Optional[GatewayTrafficClient] = None
         self._agents: typing.Optional[AgentsClient] = None
-        self._tools: typing.Optional[ToolsClient] = None
+        self._policies: typing.Optional[PoliciesClient] = None
         self._mcp_servers: typing.Optional[McpServersClient] = None
         self._identities: typing.Optional[IdentitiesClient] = None
         self._runtimes: typing.Optional[RuntimesClient] = None
@@ -130,7 +131,6 @@ class Zasp:
         self._findings: typing.Optional[FindingsClient] = None
         self._attack_paths: typing.Optional[AttackPathsClient] = None
         self._search: typing.Optional[SearchClient] = None
-        self._policies: typing.Optional[PoliciesClient] = None
         self._security_agents: typing.Optional[SecurityAgentsClient] = None
         self._security_agent_runs: typing.Optional[SecurityAgentRunsClient] = None
         self._security_agent_approvals: typing.Optional[SecurityAgentApprovalsClient] = None
@@ -173,6 +173,14 @@ class Zasp:
         return self._guardrails
 
     @property
+    def tools(self):
+        if self._tools is None:
+            from .tools.client import ToolsClient  # noqa: E402
+
+            self._tools = ToolsClient(client_wrapper=self._client_wrapper)
+        return self._tools
+
+    @property
     def gateway(self):
         if self._gateway is None:
             from .gateway.client import GatewayClient  # noqa: E402
@@ -197,12 +205,12 @@ class Zasp:
         return self._agents
 
     @property
-    def tools(self):
-        if self._tools is None:
-            from .tools.client import ToolsClient  # noqa: E402
+    def policies(self):
+        if self._policies is None:
+            from .policies.client import PoliciesClient  # noqa: E402
 
-            self._tools = ToolsClient(client_wrapper=self._client_wrapper)
-        return self._tools
+            self._policies = PoliciesClient(client_wrapper=self._client_wrapper)
+        return self._policies
 
     @property
     def mcp_servers(self):
@@ -259,14 +267,6 @@ class Zasp:
 
             self._search = SearchClient(client_wrapper=self._client_wrapper)
         return self._search
-
-    @property
-    def policies(self):
-        if self._policies is None:
-            from .policies.client import PoliciesClient  # noqa: E402
-
-            self._policies = PoliciesClient(client_wrapper=self._client_wrapper)
-        return self._policies
 
     @property
     def security_agents(self):
@@ -436,10 +436,11 @@ class AsyncZasp:
         self._integrations: typing.Optional[AsyncIntegrationsClient] = None
         self._sensors: typing.Optional[AsyncSensorsClient] = None
         self._guardrails: typing.Optional[AsyncGuardrailsClient] = None
+        self._tools: typing.Optional[AsyncToolsClient] = None
         self._gateway: typing.Optional[AsyncGatewayClient] = None
         self._gateway_traffic: typing.Optional[AsyncGatewayTrafficClient] = None
         self._agents: typing.Optional[AsyncAgentsClient] = None
-        self._tools: typing.Optional[AsyncToolsClient] = None
+        self._policies: typing.Optional[AsyncPoliciesClient] = None
         self._mcp_servers: typing.Optional[AsyncMcpServersClient] = None
         self._identities: typing.Optional[AsyncIdentitiesClient] = None
         self._runtimes: typing.Optional[AsyncRuntimesClient] = None
@@ -447,7 +448,6 @@ class AsyncZasp:
         self._findings: typing.Optional[AsyncFindingsClient] = None
         self._attack_paths: typing.Optional[AsyncAttackPathsClient] = None
         self._search: typing.Optional[AsyncSearchClient] = None
-        self._policies: typing.Optional[AsyncPoliciesClient] = None
         self._security_agents: typing.Optional[AsyncSecurityAgentsClient] = None
         self._security_agent_runs: typing.Optional[AsyncSecurityAgentRunsClient] = None
         self._security_agent_approvals: typing.Optional[AsyncSecurityAgentApprovalsClient] = None
@@ -490,6 +490,14 @@ class AsyncZasp:
         return self._guardrails
 
     @property
+    def tools(self):
+        if self._tools is None:
+            from .tools.client import AsyncToolsClient  # noqa: E402
+
+            self._tools = AsyncToolsClient(client_wrapper=self._client_wrapper)
+        return self._tools
+
+    @property
     def gateway(self):
         if self._gateway is None:
             from .gateway.client import AsyncGatewayClient  # noqa: E402
@@ -514,12 +522,12 @@ class AsyncZasp:
         return self._agents
 
     @property
-    def tools(self):
-        if self._tools is None:
-            from .tools.client import AsyncToolsClient  # noqa: E402
+    def policies(self):
+        if self._policies is None:
+            from .policies.client import AsyncPoliciesClient  # noqa: E402
 
-            self._tools = AsyncToolsClient(client_wrapper=self._client_wrapper)
-        return self._tools
+            self._policies = AsyncPoliciesClient(client_wrapper=self._client_wrapper)
+        return self._policies
 
     @property
     def mcp_servers(self):
@@ -576,14 +584,6 @@ class AsyncZasp:
 
             self._search = AsyncSearchClient(client_wrapper=self._client_wrapper)
         return self._search
-
-    @property
-    def policies(self):
-        if self._policies is None:
-            from .policies.client import AsyncPoliciesClient  # noqa: E402
-
-            self._policies = AsyncPoliciesClient(client_wrapper=self._client_wrapper)
-        return self._policies
 
     @property
     def security_agents(self):

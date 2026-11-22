@@ -32,6 +32,243 @@ func NewRawClient(options *core.RequestOptions) *RawClient {
 	}
 }
 
+func (r *RawClient) FetchEndpointPolicy(
+	ctx context.Context,
+	request *zasp.FetchEndpointPolicySensorsRequest,
+	opts ...option.RequestOption,
+) (*core.Response[*zasp.EndpointBundle], error) {
+	options := core.NewRequestOptions(opts...)
+	baseURL := internal.ResolveBaseURL(
+		options.BaseURL,
+		r.baseURL,
+		"",
+	)
+	endpointURL := internal.EncodeURL(
+		baseURL+"/api/v1/devices/%v/policy-bundle",
+		request.ID,
+	)
+	headers := internal.MergeHeaders(
+		r.options.ToHeader(),
+		options.ToHeader(),
+	)
+	headers.Add("X-Zasp-Device-Proof", request.ZaspDeviceProof)
+	headers.Add("X-Zasp-Device-Signature", request.ZaspDeviceSignature)
+	var response *zasp.EndpointBundle
+	raw, err := r.caller.Call(
+		ctx,
+		&internal.CallParams{
+			URL:             endpointURL,
+			Method:          http.MethodGet,
+			Headers:         headers,
+			MaxAttempts:     options.MaxAttempts,
+			DisableRetries:  options.DisableRetries,
+			BodyProperties:  options.BodyProperties,
+			QueryParameters: options.QueryParameters,
+			Client:          options.HTTPClient,
+			Response:        &response,
+			ErrorDecoder:    internal.NewErrorDecoder(zasp.ErrorCodes),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Response[*zasp.EndpointBundle]{
+		StatusCode: raw.StatusCode,
+		Header:     raw.Header,
+		Body:       response,
+	}, nil
+}
+
+func (r *RawClient) ExchangeEndpointEnrollment(
+	ctx context.Context,
+	request *zasp.ExchangeEndpointEnrollmentSensorsRequest,
+	opts ...option.RequestOption,
+) (*core.Response[*zasp.EndpointExchangeReceipt], error) {
+	options := core.NewRequestOptions(opts...)
+	baseURL := internal.ResolveBaseURL(
+		options.BaseURL,
+		r.baseURL,
+		"",
+	)
+	endpointURL := baseURL + "/api/v1/device-enrollments/exchange"
+	headers := internal.MergeHeaders(
+		r.options.ToHeader(),
+		options.ToHeader(),
+	)
+	headers.Add("X-Zasp-Device-Proof", request.ZaspDeviceProof)
+	headers.Add("X-Zasp-Device-Signature", request.ZaspDeviceSignature)
+	headers.Add("Content-Type", "application/json")
+	var response *zasp.EndpointExchangeReceipt
+	raw, err := r.caller.Call(
+		ctx,
+		&internal.CallParams{
+			URL:             endpointURL,
+			Method:          http.MethodPost,
+			Headers:         headers,
+			MaxAttempts:     options.MaxAttempts,
+			DisableRetries:  options.DisableRetries,
+			BodyProperties:  options.BodyProperties,
+			QueryParameters: options.QueryParameters,
+			Client:          options.HTTPClient,
+			Request:         request,
+			Response:        &response,
+			ErrorDecoder:    internal.NewErrorDecoder(zasp.ErrorCodes),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Response[*zasp.EndpointExchangeReceipt]{
+		StatusCode: raw.StatusCode,
+		Header:     raw.Header,
+		Body:       response,
+	}, nil
+}
+
+func (r *RawClient) RecordEndpointHeartbeat(
+	ctx context.Context,
+	request *zasp.EndpointHeartbeat,
+	opts ...option.RequestOption,
+) (*core.Response[*zasp.EndpointRecorded], error) {
+	options := core.NewRequestOptions(opts...)
+	baseURL := internal.ResolveBaseURL(
+		options.BaseURL,
+		r.baseURL,
+		"",
+	)
+	endpointURL := internal.EncodeURL(
+		baseURL+"/api/v1/devices/%v/heartbeat",
+		request.ID,
+	)
+	headers := internal.MergeHeaders(
+		r.options.ToHeader(),
+		options.ToHeader(),
+	)
+	headers.Add("X-Zasp-Device-Proof", request.ZaspDeviceProof)
+	headers.Add("X-Zasp-Device-Signature", request.ZaspDeviceSignature)
+	headers.Add("Content-Type", "application/json")
+	var response *zasp.EndpointRecorded
+	raw, err := r.caller.Call(
+		ctx,
+		&internal.CallParams{
+			URL:             endpointURL,
+			Method:          http.MethodPost,
+			Headers:         headers,
+			MaxAttempts:     options.MaxAttempts,
+			DisableRetries:  options.DisableRetries,
+			BodyProperties:  options.BodyProperties,
+			QueryParameters: options.QueryParameters,
+			Client:          options.HTTPClient,
+			Request:         request,
+			Response:        &response,
+			ErrorDecoder:    internal.NewErrorDecoder(zasp.ErrorCodes),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Response[*zasp.EndpointRecorded]{
+		StatusCode: raw.StatusCode,
+		Header:     raw.Header,
+		Body:       response,
+	}, nil
+}
+
+func (r *RawClient) RecordEndpointInventory(
+	ctx context.Context,
+	request *zasp.EndpointSnapshot,
+	opts ...option.RequestOption,
+) (*core.Response[*zasp.EndpointRecorded], error) {
+	options := core.NewRequestOptions(opts...)
+	baseURL := internal.ResolveBaseURL(
+		options.BaseURL,
+		r.baseURL,
+		"",
+	)
+	endpointURL := internal.EncodeURL(
+		baseURL+"/api/v1/devices/%v/inventory-snapshots",
+		request.ID,
+	)
+	headers := internal.MergeHeaders(
+		r.options.ToHeader(),
+		options.ToHeader(),
+	)
+	headers.Add("X-Zasp-Device-Proof", request.ZaspDeviceProof)
+	headers.Add("X-Zasp-Device-Signature", request.ZaspDeviceSignature)
+	headers.Add("Content-Type", "application/json")
+	var response *zasp.EndpointRecorded
+	raw, err := r.caller.Call(
+		ctx,
+		&internal.CallParams{
+			URL:             endpointURL,
+			Method:          http.MethodPost,
+			Headers:         headers,
+			MaxAttempts:     options.MaxAttempts,
+			DisableRetries:  options.DisableRetries,
+			BodyProperties:  options.BodyProperties,
+			QueryParameters: options.QueryParameters,
+			Client:          options.HTTPClient,
+			Request:         request,
+			Response:        &response,
+			ErrorDecoder:    internal.NewErrorDecoder(zasp.ErrorCodes),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Response[*zasp.EndpointRecorded]{
+		StatusCode: raw.StatusCode,
+		Header:     raw.Header,
+		Body:       response,
+	}, nil
+}
+
+func (r *RawClient) RecordEndpointObservations(
+	ctx context.Context,
+	request *zasp.EndpointObservationBatch,
+	opts ...option.RequestOption,
+) (*core.Response[*zasp.EndpointRecorded], error) {
+	options := core.NewRequestOptions(opts...)
+	baseURL := internal.ResolveBaseURL(
+		options.BaseURL,
+		r.baseURL,
+		"",
+	)
+	endpointURL := baseURL + "/api/v1/runtime/observations"
+	headers := internal.MergeHeaders(
+		r.options.ToHeader(),
+		options.ToHeader(),
+	)
+	headers.Add("X-Zasp-Device-Proof", request.ZaspDeviceProof)
+	headers.Add("X-Zasp-Device-Signature", request.ZaspDeviceSignature)
+	headers.Add("Content-Type", "application/json")
+	var response *zasp.EndpointRecorded
+	raw, err := r.caller.Call(
+		ctx,
+		&internal.CallParams{
+			URL:             endpointURL,
+			Method:          http.MethodPost,
+			Headers:         headers,
+			MaxAttempts:     options.MaxAttempts,
+			DisableRetries:  options.DisableRetries,
+			BodyProperties:  options.BodyProperties,
+			QueryParameters: options.QueryParameters,
+			Client:          options.HTTPClient,
+			Request:         request,
+			Response:        &response,
+			ErrorDecoder:    internal.NewErrorDecoder(zasp.ErrorCodes),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Response[*zasp.EndpointRecorded]{
+		StatusCode: raw.StatusCode,
+		Header:     raw.Header,
+		Body:       response,
+	}, nil
+}
+
 func (r *RawClient) CreateEnrollment(
 	ctx context.Context,
 	request *zasp.SensorInput,
@@ -324,6 +561,53 @@ func (r *RawClient) GetCoverage(
 		return nil, err
 	}
 	return &core.Response[*zasp.SensorCoverage]{
+		StatusCode: raw.StatusCode,
+		Header:     raw.Header,
+		Body:       response,
+	}, nil
+}
+
+func (r *RawClient) RecordBrowserOriginDays(
+	ctx context.Context,
+	request *zasp.BrowserOriginReport,
+	opts ...option.RequestOption,
+) (*core.Response[*zasp.BrowserOriginAck], error) {
+	options := core.NewRequestOptions(opts...)
+	baseURL := internal.ResolveBaseURL(
+		options.BaseURL,
+		r.baseURL,
+		"",
+	)
+	endpointURL := internal.EncodeURL(
+		baseURL+"/api/v1/browser-profiles/%v/observations",
+		request.ID,
+	)
+	headers := internal.MergeHeaders(
+		r.options.ToHeader(),
+		options.ToHeader(),
+	)
+	headers.Add("Content-Type", "application/json")
+	var response *zasp.BrowserOriginAck
+	raw, err := r.caller.Call(
+		ctx,
+		&internal.CallParams{
+			URL:             endpointURL,
+			Method:          http.MethodPost,
+			Headers:         headers,
+			MaxAttempts:     options.MaxAttempts,
+			DisableRetries:  options.DisableRetries,
+			BodyProperties:  options.BodyProperties,
+			QueryParameters: options.QueryParameters,
+			Client:          options.HTTPClient,
+			Request:         request,
+			Response:        &response,
+			ErrorDecoder:    internal.NewErrorDecoder(zasp.ErrorCodes),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Response[*zasp.BrowserOriginAck]{
 		StatusCode: raw.StatusCode,
 		Header:     raw.Header,
 		Body:       response,

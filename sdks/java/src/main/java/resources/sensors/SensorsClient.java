@@ -7,13 +7,23 @@ package ai.zasp.api.resources.sensors;
 import ai.zasp.api.core.ClientOptions;
 import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.core.pagination.SyncPagingIterable;
+import ai.zasp.api.resources.sensors.requests.BrowserOriginReport;
 import ai.zasp.api.resources.sensors.requests.DeleteSensorsRequest;
+import ai.zasp.api.resources.sensors.requests.EndpointHeartbeat;
+import ai.zasp.api.resources.sensors.requests.EndpointObservationBatch;
+import ai.zasp.api.resources.sensors.requests.EndpointSnapshot;
+import ai.zasp.api.resources.sensors.requests.ExchangeEndpointEnrollmentSensorsRequest;
+import ai.zasp.api.resources.sensors.requests.FetchEndpointPolicySensorsRequest;
 import ai.zasp.api.resources.sensors.requests.GetCoverageSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.GetSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.ListSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.RotateTokenSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.SensorInput;
 import ai.zasp.api.resources.sensors.requests.SensorUpdateInput;
+import ai.zasp.api.types.BrowserOriginAck;
+import ai.zasp.api.types.EndpointBundle;
+import ai.zasp.api.types.EndpointExchangeReceipt;
+import ai.zasp.api.types.EndpointRecorded;
 import ai.zasp.api.types.Sensor;
 import ai.zasp.api.types.SensorCoverage;
 import ai.zasp.api.types.SensorEnrollment;
@@ -34,6 +44,82 @@ public class SensorsClient {
    */
   public RawSensorsClient withRawResponse() {
     return this.rawClient;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointBundle fetchEndpointPolicy(String id, FetchEndpointPolicySensorsRequest request) {
+    return this.rawClient.fetchEndpointPolicy(id, request).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointBundle fetchEndpointPolicy(String id, FetchEndpointPolicySensorsRequest request,
+      RequestOptions requestOptions) {
+    return this.rawClient.fetchEndpointPolicy(id, request, requestOptions).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointExchangeReceipt exchangeEndpointEnrollment(
+      ExchangeEndpointEnrollmentSensorsRequest request) {
+    return this.rawClient.exchangeEndpointEnrollment(request).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointExchangeReceipt exchangeEndpointEnrollment(
+      ExchangeEndpointEnrollmentSensorsRequest request, RequestOptions requestOptions) {
+    return this.rawClient.exchangeEndpointEnrollment(request, requestOptions).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointRecorded recordEndpointHeartbeat(String id, EndpointHeartbeat request) {
+    return this.rawClient.recordEndpointHeartbeat(id, request).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointRecorded recordEndpointHeartbeat(String id, EndpointHeartbeat request,
+      RequestOptions requestOptions) {
+    return this.rawClient.recordEndpointHeartbeat(id, request, requestOptions).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointRecorded recordEndpointInventory(String id, EndpointSnapshot request) {
+    return this.rawClient.recordEndpointInventory(id, request).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointRecorded recordEndpointInventory(String id, EndpointSnapshot request,
+      RequestOptions requestOptions) {
+    return this.rawClient.recordEndpointInventory(id, request, requestOptions).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointRecorded recordEndpointObservations(EndpointObservationBatch request) {
+    return this.rawClient.recordEndpointObservations(request).body();
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public EndpointRecorded recordEndpointObservations(EndpointObservationBatch request,
+      RequestOptions requestOptions) {
+    return this.rawClient.recordEndpointObservations(request, requestOptions).body();
   }
 
   public SyncPagingIterable<Sensor> list() {
@@ -129,5 +215,14 @@ public class SensorsClient {
   public SensorCoverage getCoverage(String id, GetCoverageSensorsRequest request,
       RequestOptions requestOptions) {
     return this.rawClient.getCoverage(id, request, requestOptions).body();
+  }
+
+  public BrowserOriginAck recordBrowserOriginDays(String id, BrowserOriginReport request) {
+    return this.rawClient.recordBrowserOriginDays(id, request).body();
+  }
+
+  public BrowserOriginAck recordBrowserOriginDays(String id, BrowserOriginReport request,
+      RequestOptions requestOptions) {
+    return this.rawClient.recordBrowserOriginDays(id, request, requestOptions).body();
   }
 }

@@ -3,7 +3,8 @@
 import type { BaseClientOptions, BaseRequestOptions } from "../../../../BaseClient.js";
 import { normalizeClientOptionsWithAuth, type NormalizedClientOptionsWithAuth } from "../../../../BaseClient.js";
 import * as core from "../../../../core/index.js";
-import { mergeHeaders } from "../../../../core/headers.js";
+import { mergeHeaders, mergeOnlyDefinedHeaders } from "../../../../core/headers.js";
+import { mergeAdditionalBodyParameters } from "../../../../core/requestBody.js";
 import { handleNonStatusCodeError } from "../../../../errors/handleNonStatusCodeError.js";
 import * as errors from "../../../../errors/index.js";
 import * as Zasp from "../../../index.js";
@@ -24,6 +25,151 @@ export class ToolsClient {
     constructor(options: ToolsClient.Options) {
 
         this._options = normalizeClientOptionsWithAuth(options);
+    }
+
+    /**
+     * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+     *
+     * @param {Zasp.AddonCiSignature} request
+     * @param {ToolsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.tools.attestAddonScan({
+     *         id: "id",
+     *         key_id: "key_id",
+     *         repository: "repository",
+     *         commit: "commit",
+     *         signature: "signature"
+     *     })
+     */
+    public attestAddonScan(request: Zasp.AddonCiSignature, requestOptions?: ToolsClient.RequestOptions): core.HttpResponsePromise<Zasp.AddonCiReceipt> {
+        return core.HttpResponsePromise.fromPromise(this.__attestAddonScan(request, requestOptions));
+    }
+
+    private async __attestAddonScan(request: Zasp.AddonCiSignature, requestOptions?: ToolsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.AddonCiReceipt>> {
+        const { id, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), `api/v1/addon-scans/${core.url.encodePathParam(id, errors.ZaspError)}/ci-attestation`),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.AddonCiReceipt, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/addon-scans/{id}/ci-attestation");
+    }
+
+    /**
+     * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+     *
+     * @param {Zasp.AddonScanSubmission} request
+     * @param {ToolsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.tools.submitAddonScan({
+     *         "Idempotency-Key": "Idempotency-Key",
+     *         environment_id: "environment_id",
+     *         schema_version: "zasp-addon-findings.v1",
+     *         ruleset: "zasp-static.v1",
+     *         manifest_method: "addon-manifest.v1",
+     *         completeness: "complete",
+     *         origin: "local",
+     *         findings: [{
+     *                 rule_id: "dependency.unpinned",
+     *                 count: 1
+     *             }],
+     *         skipped_count: 1
+     *     })
+     */
+    public submitAddonScan(request: Zasp.AddonScanSubmission, requestOptions?: ToolsClient.RequestOptions): core.HttpResponsePromise<Zasp.AddonScanReceipt> {
+        return core.HttpResponsePromise.fromPromise(this.__submitAddonScan(request, requestOptions));
+    }
+
+    private async __submitAddonScan(request: Zasp.AddonScanSubmission, requestOptions?: ToolsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.AddonScanReceipt>> {
+        const { "Idempotency-Key": idempotencyKey, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "Idempotency-Key": idempotencyKey }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), "api/v1/addon-scans"),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.AddonScanReceipt, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/addon-scans");
     }
 
     /**

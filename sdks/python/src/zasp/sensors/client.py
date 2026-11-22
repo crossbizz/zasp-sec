@@ -5,8 +5,15 @@ import typing
 from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.pagination import AsyncPager, SyncPager
 from ..core.request_options import RequestOptions
+from ..types.browser_origin_ack import BrowserOriginAck
+from ..types.browser_origin_day import BrowserOriginDay
 from ..types.cursor import Cursor
 from ..types.empty_input import EmptyInput
+from ..types.endpoint_bundle import EndpointBundle
+from ..types.endpoint_empty import EndpointEmpty
+from ..types.endpoint_exchange_receipt import EndpointExchangeReceipt
+from ..types.endpoint_recorded import EndpointRecorded
+from ..types.endpoint_signed import EndpointSigned
 from ..types.product_id import ProductId
 from ..types.sensor import Sensor
 from ..types.sensor_coverage import SensorCoverage
@@ -19,6 +26,9 @@ from .types.create_enrollment_sensors_request_x_zasp_fresh_auth import CreateEnr
 from .types.create_enrollment_sensors_request_x_zasp_sensor_enrollment_schema import (
     CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema,
 )
+from .types.endpoint_heartbeat_adapter import EndpointHeartbeatAdapter
+from .types.endpoint_heartbeat_policy_status import EndpointHeartbeatPolicyStatus
+from .types.endpoint_snapshot_installations_item import EndpointSnapshotInstallationsItem
 from .types.rotate_token_sensors_request_x_zasp_fresh_auth import RotateTokenSensorsRequestXZaspFreshAuth
 from .types.rotate_token_sensors_request_x_zasp_sensor_enrollment_schema import (
     RotateTokenSensorsRequestXZaspSensorEnrollmentSchema,
@@ -42,6 +52,305 @@ class SensorsClient:
         RawSensorsClient
         """
         return self._raw_client
+
+    def fetch_endpoint_policy(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointBundle:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointBundle
+            Retrieve the latest assigned signed policy for this device.
+
+        Examples
+        --------
+        from zasp import Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.sensors.fetch_endpoint_policy(
+            id="id",
+            zasp_device_proof="X-Zasp-Device-Proof",
+            zasp_device_signature="X-Zasp-Device-Signature",
+        )
+        """
+        _response = self._raw_client.fetch_endpoint_policy(
+            id,
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            request_options=request_options,
+        )
+        return _response.data
+
+    def exchange_endpoint_enrollment(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request: EndpointEmpty,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointExchangeReceipt:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request : EndpointEmpty
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointExchangeReceipt
+            Bind a preassigned endpoint key and transport credential.
+
+        Examples
+        --------
+        from zasp import Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.sensors.exchange_endpoint_enrollment(
+            zasp_device_proof="X-Zasp-Device-Proof",
+            zasp_device_signature="X-Zasp-Device-Signature",
+            request={"key": "value"},
+        )
+        """
+        _response = self._raw_client.exchange_endpoint_enrollment(
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            request=request,
+            request_options=request_options,
+        )
+        return _response.data
+
+    def record_endpoint_heartbeat(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        policy_revision: int,
+        policy_status: EndpointHeartbeatPolicyStatus,
+        queued_receipts: int,
+        dropped_receipts: int,
+        adapter: typing.Optional[EndpointHeartbeatAdapter] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointRecorded:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        policy_revision : int
+
+        policy_status : EndpointHeartbeatPolicyStatus
+
+        queued_receipts : int
+
+        dropped_receipts : int
+
+        adapter : typing.Optional[EndpointHeartbeatAdapter]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointRecorded
+            Record this device policy status and queue health.
+
+        Examples
+        --------
+        from zasp import Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.sensors.record_endpoint_heartbeat(
+            id="id",
+            zasp_device_proof="X-Zasp-Device-Proof",
+            zasp_device_signature="X-Zasp-Device-Signature",
+            policy_revision=1,
+            policy_status="verified_cache",
+            queued_receipts=1,
+            dropped_receipts=1,
+        )
+        """
+        _response = self._raw_client.record_endpoint_heartbeat(
+            id,
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            policy_revision=policy_revision,
+            policy_status=policy_status,
+            queued_receipts=queued_receipts,
+            dropped_receipts=dropped_receipts,
+            adapter=adapter,
+            request_options=request_options,
+        )
+        return _response.data
+
+    def record_endpoint_inventory(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        partition_id: str,
+        snapshot_generation: int,
+        complete: bool,
+        installations: typing.Sequence[EndpointSnapshotInstallationsItem],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointRecorded:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        partition_id : str
+
+        snapshot_generation : int
+
+        complete : bool
+
+        installations : typing.Sequence[EndpointSnapshotInstallationsItem]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointRecorded
+            Reconcile a device-scoped inventory partition.
+
+        Examples
+        --------
+        from zasp import Zasp
+        from zasp.sensors import EndpointSnapshotInstallationsItem
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.sensors.record_endpoint_inventory(
+            id="id",
+            zasp_device_proof="X-Zasp-Device-Proof",
+            zasp_device_signature="X-Zasp-Device-Signature",
+            partition_id="partition_id",
+            snapshot_generation=1,
+            complete=True,
+            installations=[
+                EndpointSnapshotInstallationsItem(
+                    installation_id="installation_id",
+                )
+            ],
+        )
+        """
+        _response = self._raw_client.record_endpoint_inventory(
+            id,
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            partition_id=partition_id,
+            snapshot_generation=snapshot_generation,
+            complete=complete,
+            installations=installations,
+            request_options=request_options,
+        )
+        return _response.data
+
+    def record_endpoint_observations(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        receipts: typing.Sequence[EndpointSigned],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointRecorded:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        receipts : typing.Sequence[EndpointSigned]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointRecorded
+            Submit signed local decisions for this device.
+
+        Examples
+        --------
+        from zasp import EndpointSigned, Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.sensors.record_endpoint_observations(
+            zasp_device_proof="X-Zasp-Device-Proof",
+            zasp_device_signature="X-Zasp-Device-Signature",
+            receipts=[
+                EndpointSigned(
+                    payload="payload",
+                    signature="signature",
+                )
+            ],
+        )
+        """
+        _response = self._raw_client.record_endpoint_observations(
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            receipts=receipts,
+            request_options=request_options,
+        )
+        return _response.data
 
     def list(
         self,
@@ -409,6 +718,69 @@ class SensorsClient:
         _response = self._raw_client.get_coverage(id, request_options=request_options)
         return _response.data
 
+    def record_browser_origin_days(
+        self,
+        id: ProductId,
+        *,
+        issued_at: int,
+        nonce: str,
+        days: typing.Sequence[BrowserOriginDay],
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> BrowserOriginAck:
+        """
+        Parameters
+        ----------
+        id : ProductId
+
+        issued_at : int
+            UTC Unix seconds.
+
+        nonce : str
+
+        days : typing.Sequence[BrowserOriginDay]
+
+        signature : str
+            Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        BrowserOriginAck
+            Scoped browser profile response.
+
+        Examples
+        --------
+        import datetime
+
+        from zasp import BrowserOriginDay, Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.sensors.record_browser_origin_days(
+            id="id",
+            issued_at=1000000,
+            nonce="nonce",
+            days=[
+                BrowserOriginDay(
+                    origin="https://claude.ai",
+                    day=datetime.date.fromisoformat(
+                        "2023-01-15",
+                    ),
+                )
+            ],
+            signature="signature",
+        )
+        """
+        _response = self._raw_client.record_browser_origin_days(
+            id, issued_at=issued_at, nonce=nonce, days=days, signature=signature, request_options=request_options
+        )
+        return _response.data
+
 
 class AsyncSensorsClient:
     def __init__(self, *, client_wrapper: AsyncClientWrapper):
@@ -424,6 +796,345 @@ class AsyncSensorsClient:
         AsyncRawSensorsClient
         """
         return self._raw_client
+
+    async def fetch_endpoint_policy(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointBundle:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointBundle
+            Retrieve the latest assigned signed policy for this device.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.sensors.fetch_endpoint_policy(
+                id="id",
+                zasp_device_proof="X-Zasp-Device-Proof",
+                zasp_device_signature="X-Zasp-Device-Signature",
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.fetch_endpoint_policy(
+            id,
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            request_options=request_options,
+        )
+        return _response.data
+
+    async def exchange_endpoint_enrollment(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request: EndpointEmpty,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointExchangeReceipt:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request : EndpointEmpty
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointExchangeReceipt
+            Bind a preassigned endpoint key and transport credential.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.sensors.exchange_endpoint_enrollment(
+                zasp_device_proof="X-Zasp-Device-Proof",
+                zasp_device_signature="X-Zasp-Device-Signature",
+                request={"key": "value"},
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.exchange_endpoint_enrollment(
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            request=request,
+            request_options=request_options,
+        )
+        return _response.data
+
+    async def record_endpoint_heartbeat(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        policy_revision: int,
+        policy_status: EndpointHeartbeatPolicyStatus,
+        queued_receipts: int,
+        dropped_receipts: int,
+        adapter: typing.Optional[EndpointHeartbeatAdapter] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointRecorded:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        policy_revision : int
+
+        policy_status : EndpointHeartbeatPolicyStatus
+
+        queued_receipts : int
+
+        dropped_receipts : int
+
+        adapter : typing.Optional[EndpointHeartbeatAdapter]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointRecorded
+            Record this device policy status and queue health.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.sensors.record_endpoint_heartbeat(
+                id="id",
+                zasp_device_proof="X-Zasp-Device-Proof",
+                zasp_device_signature="X-Zasp-Device-Signature",
+                policy_revision=1,
+                policy_status="verified_cache",
+                queued_receipts=1,
+                dropped_receipts=1,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.record_endpoint_heartbeat(
+            id,
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            policy_revision=policy_revision,
+            policy_status=policy_status,
+            queued_receipts=queued_receipts,
+            dropped_receipts=dropped_receipts,
+            adapter=adapter,
+            request_options=request_options,
+        )
+        return _response.data
+
+    async def record_endpoint_inventory(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        partition_id: str,
+        snapshot_generation: int,
+        complete: bool,
+        installations: typing.Sequence[EndpointSnapshotInstallationsItem],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointRecorded:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        partition_id : str
+
+        snapshot_generation : int
+
+        complete : bool
+
+        installations : typing.Sequence[EndpointSnapshotInstallationsItem]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointRecorded
+            Reconcile a device-scoped inventory partition.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+        from zasp.sensors import EndpointSnapshotInstallationsItem
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.sensors.record_endpoint_inventory(
+                id="id",
+                zasp_device_proof="X-Zasp-Device-Proof",
+                zasp_device_signature="X-Zasp-Device-Signature",
+                partition_id="partition_id",
+                snapshot_generation=1,
+                complete=True,
+                installations=[
+                    EndpointSnapshotInstallationsItem(
+                        installation_id="installation_id",
+                    )
+                ],
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.record_endpoint_inventory(
+            id,
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            partition_id=partition_id,
+            snapshot_generation=snapshot_generation,
+            complete=complete,
+            installations=installations,
+            request_options=request_options,
+        )
+        return _response.data
+
+    async def record_endpoint_observations(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        receipts: typing.Sequence[EndpointSigned],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> EndpointRecorded:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        receipts : typing.Sequence[EndpointSigned]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        EndpointRecorded
+            Submit signed local decisions for this device.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp, EndpointSigned
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.sensors.record_endpoint_observations(
+                zasp_device_proof="X-Zasp-Device-Proof",
+                zasp_device_signature="X-Zasp-Device-Signature",
+                receipts=[
+                    EndpointSigned(
+                        payload="payload",
+                        signature="signature",
+                    )
+                ],
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.record_endpoint_observations(
+            zasp_device_proof=zasp_device_proof,
+            zasp_device_signature=zasp_device_signature,
+            receipts=receipts,
+            request_options=request_options,
+        )
+        return _response.data
 
     async def list(
         self,
@@ -848,4 +1559,74 @@ class AsyncSensorsClient:
         asyncio.run(main())
         """
         _response = await self._raw_client.get_coverage(id, request_options=request_options)
+        return _response.data
+
+    async def record_browser_origin_days(
+        self,
+        id: ProductId,
+        *,
+        issued_at: int,
+        nonce: str,
+        days: typing.Sequence[BrowserOriginDay],
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> BrowserOriginAck:
+        """
+        Parameters
+        ----------
+        id : ProductId
+
+        issued_at : int
+            UTC Unix seconds.
+
+        nonce : str
+
+        days : typing.Sequence[BrowserOriginDay]
+
+        signature : str
+            Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        BrowserOriginAck
+            Scoped browser profile response.
+
+        Examples
+        --------
+        import asyncio
+        import datetime
+
+        from zasp import AsyncZasp, BrowserOriginDay
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.sensors.record_browser_origin_days(
+                id="id",
+                issued_at=1000000,
+                nonce="nonce",
+                days=[
+                    BrowserOriginDay(
+                        origin="https://claude.ai",
+                        day=datetime.date.fromisoformat(
+                            "2023-01-15",
+                        ),
+                    )
+                ],
+                signature="signature",
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.record_browser_origin_days(
+            id, issued_at=issued_at, nonce=nonce, days=days, signature=signature, request_options=request_options
+        )
         return _response.data

@@ -316,3 +316,34 @@ func (u *UnauthorizedError) GetBody() *ProductError {
 	}
 	return u.Body
 }
+
+// Request rejected with a product error.
+type UnprocessableEntityError struct {
+	*core.APIError
+	Body *ProductError
+}
+
+func (u *UnprocessableEntityError) UnmarshalJSON(data []byte) error {
+	var body *ProductError
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	u.StatusCode = 422
+	u.Body = body
+	return nil
+}
+
+func (u *UnprocessableEntityError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.Body)
+}
+
+func (u *UnprocessableEntityError) Unwrap() error {
+	return u.APIError
+}
+
+func (u *UnprocessableEntityError) GetBody() *ProductError {
+	if u == nil {
+		return nil
+	}
+	return u.Body
+}

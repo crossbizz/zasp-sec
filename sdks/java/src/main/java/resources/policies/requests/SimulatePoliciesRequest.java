@@ -5,6 +5,7 @@
 package ai.zasp.api.resources.policies.requests;
 
 import ai.zasp.api.core.ObjectMappers;
+import ai.zasp.api.types.PolicySimulationInput;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -12,15 +13,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
-import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.lang.Object;
 import java.lang.String;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import org.jetbrains.annotations.NotNull;
 
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
 @JsonDeserialize(
@@ -29,11 +29,11 @@ import java.util.Optional;
 public final class SimulatePoliciesRequest {
   private final Optional<String> csrfToken;
 
-  private final Map<String, Object> body;
+  private final PolicySimulationInput body;
 
   private final Map<String, Object> additionalProperties;
 
-  private SimulatePoliciesRequest(Optional<String> csrfToken, Map<String, Object> body,
+  private SimulatePoliciesRequest(Optional<String> csrfToken, PolicySimulationInput body,
       Map<String, Object> additionalProperties) {
     this.csrfToken = csrfToken;
     this.body = body;
@@ -49,7 +49,7 @@ public final class SimulatePoliciesRequest {
   }
 
   @JsonProperty("body")
-  public Map<String, Object> getBody() {
+  public PolicySimulationInput getBody() {
     return body;
   }
 
@@ -78,66 +78,78 @@ public final class SimulatePoliciesRequest {
     return ObjectMappers.stringify(this);
   }
 
-  public static Builder builder() {
+  public static BodyStage builder() {
     return new Builder();
+  }
+
+  public interface BodyStage {
+    _FinalStage body(@NotNull PolicySimulationInput body);
+
+    Builder from(SimulatePoliciesRequest other);
+  }
+
+  public interface _FinalStage {
+    SimulatePoliciesRequest build();
+
+    _FinalStage additionalProperty(String key, Object value);
+
+    _FinalStage additionalProperties(Map<String, Object> additionalProperties);
+
+    /**
+     * <p>Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.</p>
+     */
+    _FinalStage csrfToken(Optional<String> csrfToken);
+
+    _FinalStage csrfToken(String csrfToken);
   }
 
   @JsonIgnoreProperties(
       ignoreUnknown = true
   )
-  public static final class Builder {
-    private Optional<String> csrfToken = Optional.empty();
+  public static final class Builder implements BodyStage, _FinalStage {
+    private PolicySimulationInput body;
 
-    private Map<String, Object> body = new LinkedHashMap<>();
+    private Optional<String> csrfToken = Optional.empty();
 
     private Map<String, Object> additionalProperties = new HashMap<>();
 
     private Builder() {
     }
 
+    @java.lang.Override
     public Builder from(SimulatePoliciesRequest other) {
       csrfToken(other.getCsrfToken());
       body(other.getBody());
       return this;
     }
 
-    /**
-     * <p>Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.</p>
-     */
-    public Builder csrfToken(Optional<String> csrfToken) {
-      this.csrfToken = csrfToken;
+    @java.lang.Override
+    @JsonSetter("body")
+    public _FinalStage body(@NotNull PolicySimulationInput body) {
+      this.body = Objects.requireNonNull(body, "body must not be null");
       return this;
     }
 
-    public Builder csrfToken(String csrfToken) {
+    /**
+     * <p>Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.</p>
+     * @return Reference to {@code this} so that method calls can be chained together.
+     */
+    @java.lang.Override
+    public _FinalStage csrfToken(String csrfToken) {
       this.csrfToken = Optional.ofNullable(csrfToken);
       return this;
     }
 
-    @JsonSetter(
-        value = "body",
-        nulls = Nulls.SKIP
-    )
-    public Builder body(Map<String, Object> body) {
-      this.body.clear();
-      if (body != null) {
-        this.body.putAll(body);
-      }
+    /**
+     * <p>Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.</p>
+     */
+    @java.lang.Override
+    public _FinalStage csrfToken(Optional<String> csrfToken) {
+      this.csrfToken = csrfToken;
       return this;
     }
 
-    public Builder putAllBody(Map<String, Object> body) {
-      if (body != null) {
-        this.body.putAll(body);
-      }
-      return this;
-    }
-
-    public Builder body(String key, Object value) {
-      this.body.put(key, value);
-      return this;
-    }
-
+    @java.lang.Override
     public SimulatePoliciesRequest build() {
       return new SimulatePoliciesRequest(csrfToken, body, additionalProperties);
     }
@@ -150,11 +162,13 @@ public final class SimulatePoliciesRequest {
       this.additionalProperties.put(key, value);
     }
 
+    @java.lang.Override
     public Builder additionalProperty(String key, Object value) {
       this.additionalProperties.put(key, value);
       return this;
     }
 
+    @java.lang.Override
     public Builder additionalProperties(Map<String, Object> additionalProperties) {
       this.additionalProperties.putAll(additionalProperties);
       return this;

@@ -4,7 +4,9 @@
 
 package ai.zasp.api.resources.tools;
 
+import ai.zasp.api.core.BodyProperties;
 import ai.zasp.api.core.ClientOptions;
+import ai.zasp.api.core.MediaTypes;
 import ai.zasp.api.core.ObjectMappers;
 import ai.zasp.api.core.PathSegments;
 import ai.zasp.api.core.QueryStringMapper;
@@ -14,15 +16,25 @@ import ai.zasp.api.core.ZaspApiException;
 import ai.zasp.api.core.ZaspException;
 import ai.zasp.api.core.ZaspHttpResponse;
 import ai.zasp.api.core.pagination.SyncPagingIterable;
+import ai.zasp.api.errors.BadRequestError;
+import ai.zasp.api.errors.ConflictError;
+import ai.zasp.api.errors.ForbiddenError;
+import ai.zasp.api.errors.NotFoundError;
+import ai.zasp.api.errors.ServiceUnavailableError;
 import ai.zasp.api.errors.UnauthorizedError;
+import ai.zasp.api.resources.tools.requests.AddonCiSignature;
+import ai.zasp.api.resources.tools.requests.AddonScanSubmission;
 import ai.zasp.api.resources.tools.requests.GetToolsRequest;
 import ai.zasp.api.resources.tools.requests.ListToolsRequest;
+import ai.zasp.api.types.AddonCiReceipt;
+import ai.zasp.api.types.AddonScanReceipt;
 import ai.zasp.api.types.InventoryDetail;
 import ai.zasp.api.types.InventoryPage;
 import ai.zasp.api.types.InventorySummary;
 import ai.zasp.api.types.ProductError;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.lang.Exception;
 import java.lang.InterruptedException;
 import java.lang.Object;
 import java.lang.Override;
@@ -38,6 +50,7 @@ import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.jetbrains.annotations.NotNull;
@@ -49,41 +62,42 @@ public class AsyncRawToolsClient {
     this.clientOptions = clientOptions;
   }
 
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list() {
-    return list(ListToolsRequest.builder().build());
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public CompletableFuture<ZaspHttpResponse<AddonCiReceipt>> attestAddonScan(String id,
+      AddonCiSignature request) {
+    return attestAddonScan(id,request,null);
   }
 
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list(
-      RequestOptions requestOptions) {
-    return list(ListToolsRequest.builder().build(),requestOptions);
-  }
-
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list(
-      ListToolsRequest request) {
-    return list(request,null);
-  }
-
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list(
-      ListToolsRequest request, RequestOptions requestOptions) {
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public CompletableFuture<ZaspHttpResponse<AddonCiReceipt>> attestAddonScan(String id,
+      AddonCiSignature request, RequestOptions requestOptions) {
     HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-      .addPathSegments("api/v1/tools");if (request.getCursor().isPresent()) {
-        QueryStringMapper.addQueryParameter(httpUrl, "cursor", request.getCursor().get(), false);
-      }
-      if (request.getLimit().isPresent()) {
-        QueryStringMapper.addQueryParameter(httpUrl, "limit", request.getLimit().get(), false);
-      }
-      if (requestOptions != null) {
+      .addPathSegments("api/v1/addon-scans")
+      .addPathSegment(PathSegments.validate(id))
+      .addPathSegments("ci-attestation");if (requestOptions != null) {
         requestOptions.getQueryParameters().forEach((_key, _value) -> {
           httpUrl.addQueryParameter(_key, _value);
         } );
       }
-      Request.Builder _requestBuilder = new Request.Builder()
+      RequestBody body;
+      try {
+        body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+      }
+      catch(JsonProcessingException e) {
+        throw new ZaspException("Failed to serialize request", e);
+      }
+      Request okhttpRequest = new Request.Builder()
         .url(httpUrl.build())
-        .method("GET", null)
+        .method("POST", body)
         .headers(Headers.of(clientOptions.headers(requestOptions)))
-        .addHeader("Accept", "application/json");
-      Request okhttpRequest = _requestBuilder.build();
+        .addHeader("Content-Type", "application/json")
+        .addHeader("Accept", "application/json")
+        .build();
       OkHttpClient client = clientOptions.httpClient();
       if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
         client = clientOptions.httpClientWithTimeout(requestOptions);
@@ -91,7 +105,7 @@ public class AsyncRawToolsClient {
       if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
         okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
       }
-      CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> future = new CompletableFuture<>();
+      CompletableFuture<ZaspHttpResponse<AddonCiReceipt>> future = new CompletableFuture<>();
       RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
       okhttpCall.enqueue(new Callback() {
         @Override
@@ -99,24 +113,22 @@ public class AsyncRawToolsClient {
           try (ResponseBody responseBody = response.body()) {
             String responseBodyString = responseBody != null ? responseBody.string() : "{}";
             if (response.isSuccessful()) {
-              InventoryPage parsedResponse = ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryPage.class);
-              Optional<String> startingAfter = parsedResponse.getPageInfo().getNextCursor();
-              ListToolsRequest nextRequest = ListToolsRequest.builder().from(request).cursor(startingAfter).build();
-              List<InventorySummary> result = parsedResponse.getItems();
-              future.complete(new ZaspHttpResponse<>(new SyncPagingIterable<InventorySummary>(startingAfter.isPresent() && !startingAfter.get().isEmpty(), result, parsedResponse, () -> {
-                    try {
-                      return list(nextRequest, requestOptions).get().body();
-                    }
-                    catch (InterruptedException | ExecutionException e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                  ), response));
+              future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, AddonCiReceipt.class), response));
               return;
             }
             try {
-              if (response.code() == 401) {
-                future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+              switch (response.code()) {
+                case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                return;
+                case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                return;
+                case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                return;
+                case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                return;
+                case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                return;
+                case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                 return;
               }
             }
@@ -148,35 +160,40 @@ public class AsyncRawToolsClient {
       return future;
     }
 
-    public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id) {
-      return get(id,GetToolsRequest.builder().build());
+    /**
+     * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+     */
+    public CompletableFuture<ZaspHttpResponse<AddonScanReceipt>> submitAddonScan(
+        AddonScanSubmission request) {
+      return submitAddonScan(request,null);
     }
 
-    public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id,
-        RequestOptions requestOptions) {
-      return get(id,GetToolsRequest.builder().build(),requestOptions);
-    }
-
-    public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id,
-        GetToolsRequest request) {
-      return get(id,request,null);
-    }
-
-    public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id,
-        GetToolsRequest request, RequestOptions requestOptions) {
+    /**
+     * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+     */
+    public CompletableFuture<ZaspHttpResponse<AddonScanReceipt>> submitAddonScan(
+        AddonScanSubmission request, RequestOptions requestOptions) {
       HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-        .addPathSegments("api/v1/tools")
-        .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+        .addPathSegments("api/v1/addon-scans");if (requestOptions != null) {
           requestOptions.getQueryParameters().forEach((_key, _value) -> {
             httpUrl.addQueryParameter(_key, _value);
           } );
         }
+        RequestBody body;
+        try {
+          body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+        }
+        catch(Exception e) {
+          throw new RuntimeException(e);
+        }
         Request.Builder _requestBuilder = new Request.Builder()
           .url(httpUrl.build())
-          .method("GET", null)
+          .method("POST", body)
           .headers(Headers.of(clientOptions.headers(requestOptions)))
+          .addHeader("Content-Type", "application/json")
           .addHeader("Accept", "application/json");
+        _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
         Request okhttpRequest = _requestBuilder.build();
         OkHttpClient client = clientOptions.httpClient();
         if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -185,7 +202,7 @@ public class AsyncRawToolsClient {
         if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
           okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
         }
-        CompletableFuture<ZaspHttpResponse<InventoryDetail>> future = new CompletableFuture<>();
+        CompletableFuture<ZaspHttpResponse<AddonScanReceipt>> future = new CompletableFuture<>();
         RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
         okhttpCall.enqueue(new Callback() {
           @Override
@@ -193,12 +210,22 @@ public class AsyncRawToolsClient {
             try (ResponseBody responseBody = response.body()) {
               String responseBodyString = responseBody != null ? responseBody.string() : "{}";
               if (response.isSuccessful()) {
-                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryDetail.class), response));
+                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, AddonScanReceipt.class), response));
                 return;
               }
               try {
-                if (response.code() == 401) {
-                  future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                switch (response.code()) {
+                  case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                  return;
+                  case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                  return;
+                  case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                  return;
+                  case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                  return;
+                  case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                  return;
+                  case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                   return;
                 }
               }
@@ -229,4 +256,185 @@ public class AsyncRawToolsClient {
         });
         return future;
       }
-    }
+
+      public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list() {
+        return list(ListToolsRequest.builder().build());
+      }
+
+      public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list(
+          RequestOptions requestOptions) {
+        return list(ListToolsRequest.builder().build(),requestOptions);
+      }
+
+      public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list(
+          ListToolsRequest request) {
+        return list(request,null);
+      }
+
+      public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> list(
+          ListToolsRequest request, RequestOptions requestOptions) {
+        HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+          .addPathSegments("api/v1/tools");if (request.getCursor().isPresent()) {
+            QueryStringMapper.addQueryParameter(httpUrl, "cursor", request.getCursor().get(), false);
+          }
+          if (request.getLimit().isPresent()) {
+            QueryStringMapper.addQueryParameter(httpUrl, "limit", request.getLimit().get(), false);
+          }
+          if (requestOptions != null) {
+            requestOptions.getQueryParameters().forEach((_key, _value) -> {
+              httpUrl.addQueryParameter(_key, _value);
+            } );
+          }
+          Request.Builder _requestBuilder = new Request.Builder()
+            .url(httpUrl.build())
+            .method("GET", null)
+            .headers(Headers.of(clientOptions.headers(requestOptions)))
+            .addHeader("Accept", "application/json");
+          Request okhttpRequest = _requestBuilder.build();
+          OkHttpClient client = clientOptions.httpClient();
+          if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+            client = clientOptions.httpClientWithTimeout(requestOptions);
+          }
+          if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+            okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+          }
+          CompletableFuture<ZaspHttpResponse<SyncPagingIterable<InventorySummary>>> future = new CompletableFuture<>();
+          RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+          okhttpCall.enqueue(new Callback() {
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+              try (ResponseBody responseBody = response.body()) {
+                String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                if (response.isSuccessful()) {
+                  InventoryPage parsedResponse = ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryPage.class);
+                  Optional<String> startingAfter = parsedResponse.getPageInfo().getNextCursor();
+                  ListToolsRequest nextRequest = ListToolsRequest.builder().from(request).cursor(startingAfter).build();
+                  List<InventorySummary> result = parsedResponse.getItems();
+                  future.complete(new ZaspHttpResponse<>(new SyncPagingIterable<InventorySummary>(startingAfter.isPresent() && !startingAfter.get().isEmpty(), result, parsedResponse, () -> {
+                        try {
+                          return list(nextRequest, requestOptions).get().body();
+                        }
+                        catch (InterruptedException | ExecutionException e) {
+                          throw new RuntimeException(e);
+                        }
+                      }
+                      ), response));
+                  return;
+                }
+                try {
+                  if (response.code() == 401) {
+                    future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                    return;
+                  }
+                }
+                catch (JsonProcessingException ignored) {
+                  // unable to map error response, throwing generic error
+                }
+                Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                return;
+              }
+              catch (JsonProcessingException e) {
+                future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+              }
+              catch (IOException e) {
+                future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+              }
+            }
+
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+              future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+            }
+          });
+          future.whenComplete((result_, throwable_) -> {
+            if (future.isCancelled()) {
+              okhttpCall.cancel();
+            }
+          });
+          return future;
+        }
+
+        public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id) {
+          return get(id,GetToolsRequest.builder().build());
+        }
+
+        public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id,
+            RequestOptions requestOptions) {
+          return get(id,GetToolsRequest.builder().build(),requestOptions);
+        }
+
+        public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id,
+            GetToolsRequest request) {
+          return get(id,request,null);
+        }
+
+        public CompletableFuture<ZaspHttpResponse<InventoryDetail>> get(String id,
+            GetToolsRequest request, RequestOptions requestOptions) {
+          HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+            .addPathSegments("api/v1/tools")
+            .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+              requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                httpUrl.addQueryParameter(_key, _value);
+              } );
+            }
+            Request.Builder _requestBuilder = new Request.Builder()
+              .url(httpUrl.build())
+              .method("GET", null)
+              .headers(Headers.of(clientOptions.headers(requestOptions)))
+              .addHeader("Accept", "application/json");
+            Request okhttpRequest = _requestBuilder.build();
+            OkHttpClient client = clientOptions.httpClient();
+            if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+              client = clientOptions.httpClientWithTimeout(requestOptions);
+            }
+            if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+              okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+            }
+            CompletableFuture<ZaspHttpResponse<InventoryDetail>> future = new CompletableFuture<>();
+            RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+            okhttpCall.enqueue(new Callback() {
+              @Override
+              public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                try (ResponseBody responseBody = response.body()) {
+                  String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                  if (response.isSuccessful()) {
+                    future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryDetail.class), response));
+                    return;
+                  }
+                  try {
+                    if (response.code() == 401) {
+                      future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                      return;
+                    }
+                  }
+                  catch (JsonProcessingException ignored) {
+                    // unable to map error response, throwing generic error
+                  }
+                  Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                  future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                  return;
+                }
+                catch (JsonProcessingException e) {
+                  future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                }
+                catch (IOException e) {
+                  future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                }
+              }
+
+              @Override
+              public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+              }
+            });
+            future.whenComplete((result_, throwable_) -> {
+              if (future.isCancelled()) {
+                okhttpCall.cancel();
+              }
+            });
+            return future;
+          }
+        }

@@ -8,13 +8,23 @@ import ai.zasp.api.core.ClientOptions;
 import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.core.ZaspHttpResponse;
 import ai.zasp.api.core.pagination.SyncPagingIterable;
+import ai.zasp.api.resources.sensors.requests.BrowserOriginReport;
 import ai.zasp.api.resources.sensors.requests.DeleteSensorsRequest;
+import ai.zasp.api.resources.sensors.requests.EndpointHeartbeat;
+import ai.zasp.api.resources.sensors.requests.EndpointObservationBatch;
+import ai.zasp.api.resources.sensors.requests.EndpointSnapshot;
+import ai.zasp.api.resources.sensors.requests.ExchangeEndpointEnrollmentSensorsRequest;
+import ai.zasp.api.resources.sensors.requests.FetchEndpointPolicySensorsRequest;
 import ai.zasp.api.resources.sensors.requests.GetCoverageSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.GetSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.ListSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.RotateTokenSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.SensorInput;
 import ai.zasp.api.resources.sensors.requests.SensorUpdateInput;
+import ai.zasp.api.types.BrowserOriginAck;
+import ai.zasp.api.types.EndpointBundle;
+import ai.zasp.api.types.EndpointExchangeReceipt;
+import ai.zasp.api.types.EndpointRecorded;
 import ai.zasp.api.types.Sensor;
 import ai.zasp.api.types.SensorCoverage;
 import ai.zasp.api.types.SensorEnrollment;
@@ -37,6 +47,156 @@ public class AsyncSensorsClient {
    */
   public AsyncRawSensorsClient withRawResponse() {
     return this.rawClient;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointBundle> fetchEndpointPolicy(String id,
+      FetchEndpointPolicySensorsRequest request) {
+    CompletableFuture<ZaspHttpResponse<EndpointBundle>> rawFuture = this.rawClient.fetchEndpointPolicy(id, request);
+    CompletableFuture<EndpointBundle> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointBundle> fetchEndpointPolicy(String id,
+      FetchEndpointPolicySensorsRequest request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<EndpointBundle>> rawFuture = this.rawClient.fetchEndpointPolicy(id, request, requestOptions);
+    CompletableFuture<EndpointBundle> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointExchangeReceipt> exchangeEndpointEnrollment(
+      ExchangeEndpointEnrollmentSensorsRequest request) {
+    CompletableFuture<ZaspHttpResponse<EndpointExchangeReceipt>> rawFuture = this.rawClient.exchangeEndpointEnrollment(request);
+    CompletableFuture<EndpointExchangeReceipt> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointExchangeReceipt> exchangeEndpointEnrollment(
+      ExchangeEndpointEnrollmentSensorsRequest request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<EndpointExchangeReceipt>> rawFuture = this.rawClient.exchangeEndpointEnrollment(request, requestOptions);
+    CompletableFuture<EndpointExchangeReceipt> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointRecorded> recordEndpointHeartbeat(String id,
+      EndpointHeartbeat request) {
+    CompletableFuture<ZaspHttpResponse<EndpointRecorded>> rawFuture = this.rawClient.recordEndpointHeartbeat(id, request);
+    CompletableFuture<EndpointRecorded> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointRecorded> recordEndpointHeartbeat(String id,
+      EndpointHeartbeat request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<EndpointRecorded>> rawFuture = this.rawClient.recordEndpointHeartbeat(id, request, requestOptions);
+    CompletableFuture<EndpointRecorded> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointRecorded> recordEndpointInventory(String id,
+      EndpointSnapshot request) {
+    CompletableFuture<ZaspHttpResponse<EndpointRecorded>> rawFuture = this.rawClient.recordEndpointInventory(id, request);
+    CompletableFuture<EndpointRecorded> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointRecorded> recordEndpointInventory(String id,
+      EndpointSnapshot request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<EndpointRecorded>> rawFuture = this.rawClient.recordEndpointInventory(id, request, requestOptions);
+    CompletableFuture<EndpointRecorded> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointRecorded> recordEndpointObservations(
+      EndpointObservationBatch request) {
+    CompletableFuture<ZaspHttpResponse<EndpointRecorded>> rawFuture = this.rawClient.recordEndpointObservations(request);
+    CompletableFuture<EndpointRecorded> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<EndpointRecorded> recordEndpointObservations(
+      EndpointObservationBatch request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<EndpointRecorded>> rawFuture = this.rawClient.recordEndpointObservations(request, requestOptions);
+    CompletableFuture<EndpointRecorded> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
   }
 
   public CompletableFuture<SyncPagingIterable<Sensor>> list() {
@@ -272,6 +432,30 @@ public class AsyncSensorsClient {
       RequestOptions requestOptions) {
     CompletableFuture<ZaspHttpResponse<SensorCoverage>> rawFuture = this.rawClient.getCoverage(id, request, requestOptions);
     CompletableFuture<SensorCoverage> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  public CompletableFuture<BrowserOriginAck> recordBrowserOriginDays(String id,
+      BrowserOriginReport request) {
+    CompletableFuture<ZaspHttpResponse<BrowserOriginAck>> rawFuture = this.rawClient.recordBrowserOriginDays(id, request);
+    CompletableFuture<BrowserOriginAck> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  public CompletableFuture<BrowserOriginAck> recordBrowserOriginDays(String id,
+      BrowserOriginReport request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<BrowserOriginAck>> rawFuture = this.rawClient.recordBrowserOriginDays(id, request, requestOptions);
+    CompletableFuture<BrowserOriginAck> future = rawFuture.thenApply(response -> response.body());
     future.whenComplete((result_, throwable_) -> {
       if (future.isCancelled()) {
         rawFuture.cancel(true);

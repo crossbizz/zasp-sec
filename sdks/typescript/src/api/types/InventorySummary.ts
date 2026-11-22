@@ -13,6 +13,7 @@ export interface InventorySummary {
     /** For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind. */
     last_activity_at: string | null;
     activity_state: Zasp.InventoryActivityState;
+    attribution?: Zasp.InventoryAttribution | undefined;
     owner: string;
     team: string;
     tags: string[];

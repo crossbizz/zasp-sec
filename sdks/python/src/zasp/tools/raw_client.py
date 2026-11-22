@@ -11,19 +11,333 @@ from ..core.pagination import AsyncPager, SyncPager
 from ..core.parse_error import ParsingError
 from ..core.pydantic_utilities import parse_obj_as
 from ..core.request_options import RequestOptions
+from ..core.serialization import convert_and_respect_annotation_metadata
+from ..errors.bad_request_error import BadRequestError
+from ..errors.conflict_error import ConflictError
+from ..errors.forbidden_error import ForbiddenError
+from ..errors.not_found_error import NotFoundError
+from ..errors.service_unavailable_error import ServiceUnavailableError
 from ..errors.unauthorized_error import UnauthorizedError
+from ..types.addon_ci_receipt import AddonCiReceipt
+from ..types.addon_finding_count import AddonFindingCount
+from ..types.addon_scan_receipt import AddonScanReceipt
 from ..types.cursor import Cursor
 from ..types.inventory_detail import InventoryDetail
 from ..types.inventory_page import InventoryPage
 from ..types.inventory_summary import InventorySummary
 from ..types.product_error import ProductError
 from ..types.product_id import ProductId
+from .types.addon_scan_submission_completeness import AddonScanSubmissionCompleteness
+from .types.addon_scan_submission_manifest_method import AddonScanSubmissionManifestMethod
+from .types.addon_scan_submission_origin import AddonScanSubmissionOrigin
+from .types.addon_scan_submission_private_upload import AddonScanSubmissionPrivateUpload
+from .types.addon_scan_submission_ruleset import AddonScanSubmissionRuleset
+from .types.addon_scan_submission_schema_version import AddonScanSubmissionSchemaVersion
 from pydantic import ValidationError
+
+# this is used as the default value for optional parameters
+OMIT = typing.cast(typing.Any, ...)
 
 
 class RawToolsClient:
     def __init__(self, *, client_wrapper: SyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    def attest_addon_scan(
+        self,
+        id: ProductId,
+        *,
+        key_id: str,
+        repository: str,
+        commit: str,
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[AddonCiReceipt]:
+        """
+        Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        key_id : str
+
+        repository : str
+
+        commit : str
+
+        signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[AddonCiReceipt]
+            Attach a protected CI signature to one complete scan.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"api/v1/addon-scans/{encode_path_param(id)}/ci-attestation",
+            method="POST",
+            json={
+                "key_id": key_id,
+                "repository": repository,
+                "commit": commit,
+                "signature": signature,
+            },
+            headers={
+                "content-type": "application/json",
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    AddonCiReceipt,
+                    parse_obj_as(
+                        type_=AddonCiReceipt,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def submit_addon_scan(
+        self,
+        *,
+        idempotency_key: str,
+        environment_id: ProductId,
+        schema_version: AddonScanSubmissionSchemaVersion,
+        ruleset: AddonScanSubmissionRuleset,
+        manifest_method: AddonScanSubmissionManifestMethod,
+        completeness: AddonScanSubmissionCompleteness,
+        origin: AddonScanSubmissionOrigin,
+        findings: typing.Sequence[AddonFindingCount],
+        skipped_count: int,
+        private_upload: typing.Optional[AddonScanSubmissionPrivateUpload] = OMIT,
+        manifest_digest: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[AddonScanReceipt]:
+        """
+        The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+
+        Parameters
+        ----------
+        idempotency_key : str
+            Caller-generated key binding an exact workflow mutation and its durable response.
+
+        environment_id : ProductId
+
+        schema_version : AddonScanSubmissionSchemaVersion
+
+        ruleset : AddonScanSubmissionRuleset
+
+        manifest_method : AddonScanSubmissionManifestMethod
+
+        completeness : AddonScanSubmissionCompleteness
+
+        origin : AddonScanSubmissionOrigin
+
+        findings : typing.Sequence[AddonFindingCount]
+
+        skipped_count : int
+
+        private_upload : typing.Optional[AddonScanSubmissionPrivateUpload]
+
+        manifest_digest : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[AddonScanReceipt]
+            Submit a private findings-only report.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "api/v1/addon-scans",
+            method="POST",
+            json={
+                "private_upload": convert_and_respect_annotation_metadata(
+                    object_=private_upload, annotation=AddonScanSubmissionPrivateUpload, direction="write"
+                ),
+                "environment_id": environment_id,
+                "schema_version": schema_version,
+                "ruleset": ruleset,
+                "manifest_method": manifest_method,
+                "manifest_digest": manifest_digest,
+                "completeness": completeness,
+                "origin": origin,
+                "findings": convert_and_respect_annotation_metadata(
+                    object_=findings, annotation=typing.Sequence[AddonFindingCount], direction="write"
+                ),
+                "skipped_count": skipped_count,
+            },
+            headers={
+                "content-type": "application/json",
+                "Idempotency-Key": str(idempotency_key) if idempotency_key is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    AddonScanReceipt,
+                    parse_obj_as(
+                        type_=AddonScanReceipt,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     def list(
         self,
@@ -154,6 +468,302 @@ class RawToolsClient:
 class AsyncRawToolsClient:
     def __init__(self, *, client_wrapper: AsyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    async def attest_addon_scan(
+        self,
+        id: ProductId,
+        *,
+        key_id: str,
+        repository: str,
+        commit: str,
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[AddonCiReceipt]:
+        """
+        Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        key_id : str
+
+        repository : str
+
+        commit : str
+
+        signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[AddonCiReceipt]
+            Attach a protected CI signature to one complete scan.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"api/v1/addon-scans/{encode_path_param(id)}/ci-attestation",
+            method="POST",
+            json={
+                "key_id": key_id,
+                "repository": repository,
+                "commit": commit,
+                "signature": signature,
+            },
+            headers={
+                "content-type": "application/json",
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    AddonCiReceipt,
+                    parse_obj_as(
+                        type_=AddonCiReceipt,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def submit_addon_scan(
+        self,
+        *,
+        idempotency_key: str,
+        environment_id: ProductId,
+        schema_version: AddonScanSubmissionSchemaVersion,
+        ruleset: AddonScanSubmissionRuleset,
+        manifest_method: AddonScanSubmissionManifestMethod,
+        completeness: AddonScanSubmissionCompleteness,
+        origin: AddonScanSubmissionOrigin,
+        findings: typing.Sequence[AddonFindingCount],
+        skipped_count: int,
+        private_upload: typing.Optional[AddonScanSubmissionPrivateUpload] = OMIT,
+        manifest_digest: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[AddonScanReceipt]:
+        """
+        The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+
+        Parameters
+        ----------
+        idempotency_key : str
+            Caller-generated key binding an exact workflow mutation and its durable response.
+
+        environment_id : ProductId
+
+        schema_version : AddonScanSubmissionSchemaVersion
+
+        ruleset : AddonScanSubmissionRuleset
+
+        manifest_method : AddonScanSubmissionManifestMethod
+
+        completeness : AddonScanSubmissionCompleteness
+
+        origin : AddonScanSubmissionOrigin
+
+        findings : typing.Sequence[AddonFindingCount]
+
+        skipped_count : int
+
+        private_upload : typing.Optional[AddonScanSubmissionPrivateUpload]
+
+        manifest_digest : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[AddonScanReceipt]
+            Submit a private findings-only report.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "api/v1/addon-scans",
+            method="POST",
+            json={
+                "private_upload": convert_and_respect_annotation_metadata(
+                    object_=private_upload, annotation=AddonScanSubmissionPrivateUpload, direction="write"
+                ),
+                "environment_id": environment_id,
+                "schema_version": schema_version,
+                "ruleset": ruleset,
+                "manifest_method": manifest_method,
+                "manifest_digest": manifest_digest,
+                "completeness": completeness,
+                "origin": origin,
+                "findings": convert_and_respect_annotation_metadata(
+                    object_=findings, annotation=typing.Sequence[AddonFindingCount], direction="write"
+                ),
+                "skipped_count": skipped_count,
+            },
+            headers={
+                "content-type": "application/json",
+                "Idempotency-Key": str(idempotency_key) if idempotency_key is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    AddonScanReceipt,
+                    parse_obj_as(
+                        type_=AddonScanReceipt,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     async def list(
         self,

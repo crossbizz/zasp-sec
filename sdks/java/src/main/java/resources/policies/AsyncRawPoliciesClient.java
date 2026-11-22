@@ -34,6 +34,7 @@ import ai.zasp.api.types.Policy;
 import ai.zasp.api.types.PolicyPage;
 import ai.zasp.api.types.PolicyRollout;
 import ai.zasp.api.types.PolicySimulation;
+import ai.zasp.api.types.PolicySimulationInput;
 import ai.zasp.api.types.ProductError;
 import ai.zasp.api.types.RuntimeDecisionPage;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,7 +47,6 @@ import java.lang.RuntimeException;
 import java.lang.String;
 import java.lang.Void;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -572,12 +572,12 @@ public class AsyncRawPoliciesClient {
               }
 
               public CompletableFuture<ZaspHttpResponse<PolicySimulation>> simulate(String id,
-                  Map<String, Object> body) {
+                  PolicySimulationInput body) {
                 return simulate(id, SimulatePoliciesRequest.builder().body(body).build());
               }
 
               public CompletableFuture<ZaspHttpResponse<PolicySimulation>> simulate(String id,
-                  Map<String, Object> body, RequestOptions requestOptions) {
+                  PolicySimulationInput body, RequestOptions requestOptions) {
                 return simulate(id, SimulatePoliciesRequest.builder().body(body).build(), requestOptions);
               }
 

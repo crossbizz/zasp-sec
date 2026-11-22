@@ -5,12 +5,24 @@ import typing
 from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.pagination import AsyncPager, SyncPager
 from ..core.request_options import RequestOptions
+from ..types.addon_ci_receipt import AddonCiReceipt
+from ..types.addon_finding_count import AddonFindingCount
+from ..types.addon_scan_receipt import AddonScanReceipt
 from ..types.cursor import Cursor
 from ..types.inventory_detail import InventoryDetail
 from ..types.inventory_page import InventoryPage
 from ..types.inventory_summary import InventorySummary
 from ..types.product_id import ProductId
 from .raw_client import AsyncRawToolsClient, RawToolsClient
+from .types.addon_scan_submission_completeness import AddonScanSubmissionCompleteness
+from .types.addon_scan_submission_manifest_method import AddonScanSubmissionManifestMethod
+from .types.addon_scan_submission_origin import AddonScanSubmissionOrigin
+from .types.addon_scan_submission_private_upload import AddonScanSubmissionPrivateUpload
+from .types.addon_scan_submission_ruleset import AddonScanSubmissionRuleset
+from .types.addon_scan_submission_schema_version import AddonScanSubmissionSchemaVersion
+
+# this is used as the default value for optional parameters
+OMIT = typing.cast(typing.Any, ...)
 
 
 class ToolsClient:
@@ -27,6 +39,158 @@ class ToolsClient:
         RawToolsClient
         """
         return self._raw_client
+
+    def attest_addon_scan(
+        self,
+        id: ProductId,
+        *,
+        key_id: str,
+        repository: str,
+        commit: str,
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AddonCiReceipt:
+        """
+        Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        key_id : str
+
+        repository : str
+
+        commit : str
+
+        signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AddonCiReceipt
+            Attach a protected CI signature to one complete scan.
+
+        Examples
+        --------
+        from zasp import Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.tools.attest_addon_scan(
+            id="id",
+            key_id="key_id",
+            repository="repository",
+            commit="commit",
+            signature="signature",
+        )
+        """
+        _response = self._raw_client.attest_addon_scan(
+            id,
+            key_id=key_id,
+            repository=repository,
+            commit=commit,
+            signature=signature,
+            request_options=request_options,
+        )
+        return _response.data
+
+    def submit_addon_scan(
+        self,
+        *,
+        idempotency_key: str,
+        environment_id: ProductId,
+        schema_version: AddonScanSubmissionSchemaVersion,
+        ruleset: AddonScanSubmissionRuleset,
+        manifest_method: AddonScanSubmissionManifestMethod,
+        completeness: AddonScanSubmissionCompleteness,
+        origin: AddonScanSubmissionOrigin,
+        findings: typing.Sequence[AddonFindingCount],
+        skipped_count: int,
+        private_upload: typing.Optional[AddonScanSubmissionPrivateUpload] = OMIT,
+        manifest_digest: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AddonScanReceipt:
+        """
+        The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+
+        Parameters
+        ----------
+        idempotency_key : str
+            Caller-generated key binding an exact workflow mutation and its durable response.
+
+        environment_id : ProductId
+
+        schema_version : AddonScanSubmissionSchemaVersion
+
+        ruleset : AddonScanSubmissionRuleset
+
+        manifest_method : AddonScanSubmissionManifestMethod
+
+        completeness : AddonScanSubmissionCompleteness
+
+        origin : AddonScanSubmissionOrigin
+
+        findings : typing.Sequence[AddonFindingCount]
+
+        skipped_count : int
+
+        private_upload : typing.Optional[AddonScanSubmissionPrivateUpload]
+
+        manifest_digest : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AddonScanReceipt
+            Submit a private findings-only report.
+
+        Examples
+        --------
+        from zasp import AddonFindingCount, Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.tools.submit_addon_scan(
+            idempotency_key="Idempotency-Key",
+            environment_id="environment_id",
+            schema_version="zasp-addon-findings.v1",
+            ruleset="zasp-static.v1",
+            manifest_method="addon-manifest.v1",
+            completeness="complete",
+            origin="local",
+            findings=[
+                AddonFindingCount(
+                    rule_id="dependency.unpinned",
+                    count=1,
+                )
+            ],
+            skipped_count=1,
+        )
+        """
+        _response = self._raw_client.submit_addon_scan(
+            idempotency_key=idempotency_key,
+            environment_id=environment_id,
+            schema_version=schema_version,
+            ruleset=ruleset,
+            manifest_method=manifest_method,
+            completeness=completeness,
+            origin=origin,
+            findings=findings,
+            skipped_count=skipped_count,
+            private_upload=private_upload,
+            manifest_digest=manifest_digest,
+            request_options=request_options,
+        )
+        return _response.data
 
     def list(
         self,
@@ -113,6 +277,174 @@ class AsyncToolsClient:
         AsyncRawToolsClient
         """
         return self._raw_client
+
+    async def attest_addon_scan(
+        self,
+        id: ProductId,
+        *,
+        key_id: str,
+        repository: str,
+        commit: str,
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AddonCiReceipt:
+        """
+        Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        key_id : str
+
+        repository : str
+
+        commit : str
+
+        signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AddonCiReceipt
+            Attach a protected CI signature to one complete scan.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.tools.attest_addon_scan(
+                id="id",
+                key_id="key_id",
+                repository="repository",
+                commit="commit",
+                signature="signature",
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.attest_addon_scan(
+            id,
+            key_id=key_id,
+            repository=repository,
+            commit=commit,
+            signature=signature,
+            request_options=request_options,
+        )
+        return _response.data
+
+    async def submit_addon_scan(
+        self,
+        *,
+        idempotency_key: str,
+        environment_id: ProductId,
+        schema_version: AddonScanSubmissionSchemaVersion,
+        ruleset: AddonScanSubmissionRuleset,
+        manifest_method: AddonScanSubmissionManifestMethod,
+        completeness: AddonScanSubmissionCompleteness,
+        origin: AddonScanSubmissionOrigin,
+        findings: typing.Sequence[AddonFindingCount],
+        skipped_count: int,
+        private_upload: typing.Optional[AddonScanSubmissionPrivateUpload] = OMIT,
+        manifest_digest: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AddonScanReceipt:
+        """
+        The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+
+        Parameters
+        ----------
+        idempotency_key : str
+            Caller-generated key binding an exact workflow mutation and its durable response.
+
+        environment_id : ProductId
+
+        schema_version : AddonScanSubmissionSchemaVersion
+
+        ruleset : AddonScanSubmissionRuleset
+
+        manifest_method : AddonScanSubmissionManifestMethod
+
+        completeness : AddonScanSubmissionCompleteness
+
+        origin : AddonScanSubmissionOrigin
+
+        findings : typing.Sequence[AddonFindingCount]
+
+        skipped_count : int
+
+        private_upload : typing.Optional[AddonScanSubmissionPrivateUpload]
+
+        manifest_digest : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AddonScanReceipt
+            Submit a private findings-only report.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AddonFindingCount, AsyncZasp
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.tools.submit_addon_scan(
+                idempotency_key="Idempotency-Key",
+                environment_id="environment_id",
+                schema_version="zasp-addon-findings.v1",
+                ruleset="zasp-static.v1",
+                manifest_method="addon-manifest.v1",
+                completeness="complete",
+                origin="local",
+                findings=[
+                    AddonFindingCount(
+                        rule_id="dependency.unpinned",
+                        count=1,
+                    )
+                ],
+                skipped_count=1,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.submit_addon_scan(
+            idempotency_key=idempotency_key,
+            environment_id=environment_id,
+            schema_version=schema_version,
+            ruleset=ruleset,
+            manifest_method=manifest_method,
+            completeness=completeness,
+            origin=origin,
+            findings=findings,
+            skipped_count=skipped_count,
+            private_upload=private_upload,
+            manifest_digest=manifest_digest,
+            request_options=request_options,
+        )
+        return _response.data
 
     async def list(
         self,

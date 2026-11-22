@@ -28,6 +28,353 @@ export class SensorsClient {
     }
 
     /**
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+     *
+     * @param {Zasp.FetchEndpointPolicySensorsRequest} request
+     * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.sensors.fetchEndpointPolicy({
+     *         "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+     *         "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+     *         id: "id"
+     *     })
+     */
+    public fetchEndpointPolicy(request: Zasp.FetchEndpointPolicySensorsRequest, requestOptions?: SensorsClient.RequestOptions): core.HttpResponsePromise<Zasp.EndpointBundle> {
+        return core.HttpResponsePromise.fromPromise(this.__fetchEndpointPolicy(request, requestOptions));
+    }
+
+    private async __fetchEndpointPolicy(request: Zasp.FetchEndpointPolicySensorsRequest, requestOptions?: SensorsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.EndpointBundle>> {
+        const { id, "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), `api/v1/devices/${core.url.encodePathParam(id, errors.ZaspError)}/policy-bundle`),
+            method: "GET",
+            headers: _headers,
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.EndpointBundle, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "GET", "/api/v1/devices/{id}/policy-bundle");
+    }
+
+    /**
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+     *
+     * @param {Zasp.ExchangeEndpointEnrollmentSensorsRequest} request
+     * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.sensors.exchangeEndpointEnrollment({
+     *         "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+     *         "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+     *         body: {
+     *             "key": "value"
+     *         }
+     *     })
+     */
+    public exchangeEndpointEnrollment(request: Zasp.ExchangeEndpointEnrollmentSensorsRequest, requestOptions?: SensorsClient.RequestOptions): core.HttpResponsePromise<Zasp.EndpointExchangeReceipt> {
+        return core.HttpResponsePromise.fromPromise(this.__exchangeEndpointEnrollment(request, requestOptions));
+    }
+
+    private async __exchangeEndpointEnrollment(request: Zasp.ExchangeEndpointEnrollmentSensorsRequest, requestOptions?: SensorsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.EndpointExchangeReceipt>> {
+        const { "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature, body: _body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), "api/v1/device-enrollments/exchange"),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.EndpointExchangeReceipt, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/device-enrollments/exchange");
+    }
+
+    /**
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+     *
+     * @param {Zasp.EndpointHeartbeat} request
+     * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.sensors.recordEndpointHeartbeat({
+     *         "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+     *         "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+     *         id: "id",
+     *         policy_revision: 1,
+     *         policy_status: "verified_cache",
+     *         queued_receipts: 1,
+     *         dropped_receipts: 1
+     *     })
+     */
+    public recordEndpointHeartbeat(request: Zasp.EndpointHeartbeat, requestOptions?: SensorsClient.RequestOptions): core.HttpResponsePromise<Zasp.EndpointRecorded> {
+        return core.HttpResponsePromise.fromPromise(this.__recordEndpointHeartbeat(request, requestOptions));
+    }
+
+    private async __recordEndpointHeartbeat(request: Zasp.EndpointHeartbeat, requestOptions?: SensorsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.EndpointRecorded>> {
+        const { id, "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), `api/v1/devices/${core.url.encodePathParam(id, errors.ZaspError)}/heartbeat`),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.EndpointRecorded, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/devices/{id}/heartbeat");
+    }
+
+    /**
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+     *
+     * @param {Zasp.EndpointSnapshot} request
+     * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.sensors.recordEndpointInventory({
+     *         "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+     *         "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+     *         id: "id",
+     *         partition_id: "partition_id",
+     *         snapshot_generation: 1,
+     *         complete: true,
+     *         installations: [{
+     *                 installation_id: "installation_id"
+     *             }]
+     *     })
+     */
+    public recordEndpointInventory(request: Zasp.EndpointSnapshot, requestOptions?: SensorsClient.RequestOptions): core.HttpResponsePromise<Zasp.EndpointRecorded> {
+        return core.HttpResponsePromise.fromPromise(this.__recordEndpointInventory(request, requestOptions));
+    }
+
+    private async __recordEndpointInventory(request: Zasp.EndpointSnapshot, requestOptions?: SensorsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.EndpointRecorded>> {
+        const { id, "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), `api/v1/devices/${core.url.encodePathParam(id, errors.ZaspError)}/inventory-snapshots`),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.EndpointRecorded, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/devices/{id}/inventory-snapshots");
+    }
+
+    /**
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+     *
+     * @param {Zasp.EndpointObservationBatch} request
+     * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.sensors.recordEndpointObservations({
+     *         "X-Zasp-Device-Proof": "X-Zasp-Device-Proof",
+     *         "X-Zasp-Device-Signature": "X-Zasp-Device-Signature",
+     *         receipts: [{
+     *                 payload: "payload",
+     *                 signature: "signature"
+     *             }]
+     *     })
+     */
+    public recordEndpointObservations(request: Zasp.EndpointObservationBatch, requestOptions?: SensorsClient.RequestOptions): core.HttpResponsePromise<Zasp.EndpointRecorded> {
+        return core.HttpResponsePromise.fromPromise(this.__recordEndpointObservations(request, requestOptions));
+    }
+
+    private async __recordEndpointObservations(request: Zasp.EndpointObservationBatch, requestOptions?: SensorsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.EndpointRecorded>> {
+        const { "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, mergeOnlyDefinedHeaders({ "X-Zasp-Device-Proof": zaspDeviceProof, "X-Zasp-Device-Signature": zaspDeviceSignature }), requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), "api/v1/runtime/observations"),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.EndpointRecorded, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/runtime/observations");
+    }
+
+    /**
      * @param {Zasp.ListSensorsRequest} request
      * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
      *
@@ -461,5 +808,75 @@ export class SensorsClient {
         }
 
         return handleNonStatusCodeError(_response.error, _response.rawResponse, "GET", "/api/v1/sensors/{id}/coverage");
+    }
+
+    /**
+     * @param {Zasp.BrowserOriginReport} request
+     * @param {SensorsClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link Zasp.BadRequestError}
+     * @throws {@link Zasp.UnauthorizedError}
+     * @throws {@link Zasp.ForbiddenError}
+     * @throws {@link Zasp.NotFoundError}
+     * @throws {@link Zasp.ConflictError}
+     * @throws {@link Zasp.ServiceUnavailableError}
+     * @throws {@link errors.ZaspError}
+     * @throws {@link errors.ZaspTimeoutError}
+     *
+     * @example
+     *     await client.sensors.recordBrowserOriginDays({
+     *         id: "id",
+     *         issued_at: 1000000,
+     *         nonce: "nonce",
+     *         days: [{
+     *                 origin: "https://claude.ai",
+     *                 day: "2023-01-15"
+     *             }],
+     *         signature: "signature"
+     *     })
+     */
+    public recordBrowserOriginDays(request: Zasp.BrowserOriginReport, requestOptions?: SensorsClient.RequestOptions): core.HttpResponsePromise<Zasp.BrowserOriginAck> {
+        return core.HttpResponsePromise.fromPromise(this.__recordBrowserOriginDays(request, requestOptions));
+    }
+
+    private async __recordBrowserOriginDays(request: Zasp.BrowserOriginReport, requestOptions?: SensorsClient.RequestOptions): Promise<core.WithRawResponse<Zasp.BrowserOriginAck>> {
+        const { id, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        let _headers: core.Fetcher.Args["headers"] = mergeHeaders(_authRequest.headers, this._options?.headers, requestOptions?.headers);
+        const _response = await core.fetcher({
+            url: core.url.join(await core.Supplier.get(this._options.baseUrl) ?? await core.Supplier.get(this._options.environment), `api/v1/browser-profiles/${core.url.encodePathParam(id, errors.ZaspError)}/observations`),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging
+        });
+        if (_response.ok) {
+            return { data: _response.body as Zasp.BrowserOriginAck, rawResponse: _response.rawResponse };
+        }
+
+        if (_response.error.reason === "status-code") {
+            switch (_response.error.statusCode) {
+                case 400: throw new Zasp.BadRequestError(_response.error.body as unknown, _response.rawResponse);
+                case 401: throw new Zasp.UnauthorizedError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 403: throw new Zasp.ForbiddenError(_response.error.body as unknown, _response.rawResponse);
+                case 404: throw new Zasp.NotFoundError(_response.error.body as unknown, _response.rawResponse);
+                case 409: throw new Zasp.ConflictError(_response.error.body as Zasp.ProductError, _response.rawResponse);
+                case 503: throw new Zasp.ServiceUnavailableError(_response.error.body as unknown, _response.rawResponse);
+                default: throw new errors.ZaspError({
+                    statusCode: _response.error.statusCode,
+                    body: _response.error.body,
+                    rawResponse: _response.rawResponse
+                });
+            }
+        }
+
+        return handleNonStatusCodeError(_response.error, _response.rawResponse, "POST", "/api/v1/browser-profiles/{id}/observations");
     }
 }
