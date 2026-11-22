@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -126,9 +127,10 @@ func TestAWSInstanceCollectionSkipsUnavailableRegionsOnlyForLocalEmulator(t *tes
 	if described, err := collect(mixed, false); !errors.Is(err, awsdiscovery.ErrDenied) || len(described) != 0 {
 		t.Fatalf("production collection = %v, %v; want refusal before any instance read", described, err)
 	}
-	// Emulator: the region is skipped and never read.
+	// The emulator reads each enabled region once. Concurrent calls may arrive in either order.
 	described, err := collect(mixed, true)
-	if err != nil || len(described) != 2 || described[0] != "eu-west-1" || described[1] != "us-east-1" {
+	slices.Sort(described)
+	if err != nil || !slices.Equal(described, []string{"eu-west-1", "us-east-1"}) {
 		t.Fatalf("emulator collection = %v, %v", described, err)
 	}
 	// Every other malformed answer is refused for the emulator too.
