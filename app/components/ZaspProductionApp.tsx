@@ -27,6 +27,7 @@ import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
+import { PrivateAddonScan } from "../features/tools/PrivateAddonScan";
 import { Button, Drawer, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 import { parseActivityLink } from "../domain/activity-links";
@@ -87,7 +88,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} canRemediate={session.hasCapability("security-agents.write")} canReadRuns={session.hasCapability("security-agents.read")} onNavigate={navigate} selectedID={selected?.id} activityScope={session} />;
   if (path === "/red-team/results") return <ProductionRedTeamView selectedID={selected?.kind === "test_run" ? selected.id : undefined} scopeKey={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
   if (path === "/test/attack-lab") return <ProductionAttackLabView key={`${session.principal.id}/${queryGeneration}`} canWrite={session.hasCapability("red-team.write")} selectedID={selected?.kind === "attack_lab_run" ? selected.id : undefined} />;
-  if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
+  if (path === "/policies") return <ProductionPoliciesView initialAgent={selected?.kind === "purpose" ? selected.id : undefined} canWrite={session.hasCapability("policies.write")} />;
   if (path === "/protect/guardrails") return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
@@ -112,7 +113,11 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     getScopeStaleGeneration,
   }} />;
   }
-  return <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
+  const inventory = <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
+  if (path === "/inventory/tools" && session.hasCapability("data-controls.manage")) {
+    return <>{inventory}<PrivateAddonScan key={JSON.stringify([queryScopeKey, queryGeneration])} client={client} environment={session.environmentID} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} /></>;
+  }
+  return inventory;
 }
 
 function ProductionScopeSelector() {

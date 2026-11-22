@@ -916,7 +916,11 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 		_ = projector.close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: projector.close, Metrics: metrics.render}, nil
+	var poller workerProcessor = processor
+	if projector.actionEvidence != nil && config.ProjectionKind == "graph" {
+		poller = discoveryAndActionGraph{discovery: processor, actions: actionEvidenceGraphProcessor{database: database, store: projector.actionEvidence, limit: min(config.BatchSize, 50), leaseSeconds: max(3, min(600, int(config.LeaseDuration/time.Second)))}}
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: poller, ready: ready}, Ready: ready, Close: projector.close, Metrics: metrics.render}, nil
 }
 
 func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (int, error) }, version string, config workerRuntimeConfig, dependencies workerRuntimeDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {

@@ -32,6 +32,7 @@ const outPath = join(root, "fern", "openapi-overrides.yml");
 
 // Sections of the API Reference: SDK group -> [tag, description].
 const GROUPS = {
+  cliAuth: ["CLI sign-in", "Browser-approved, Environment-scoped findings submission sessions for zaspctl."],
   browserSession: ["Browser session", "Sign-in, session bootstrap and scope switching of the web application. Browser only."],
   organization: ["Organization", "The Organization of the caller and the caller's own principal."],
   workspaces: ["Workspaces", "Workspaces of the Organization."],
@@ -73,6 +74,9 @@ const GROUPS = {
 
 // operationId -> [SDK group, SDK method].
 const OPERATIONS = {
+  startCLILogin: ["cliAuth", "start"],
+  approveCLILogin: ["cliAuth", "approve"],
+  exchangeCLILogin: ["cliAuth", "exchange"],
   startSession: ["browserSession", "start"],
   bootstrapSession: ["browserSession", "bootstrap"],
   completeSessionCallback: ["browserSession", "completeCallback"],
@@ -177,7 +181,45 @@ const OPERATIONS = {
   getAgentAccess: ["agents", "getAccess"],
 
   listTools: ["tools", "list"],
+  getWorkloadContainment: ["guardrails", "getContainment"],
+  authorizeWorkloadContainment: ["guardrails", "authorizeContainment"],
+  releaseWorkloadContainment: ["guardrails", "releaseContainment"],
+  getBrowserProfile: ["sensors", "getBrowserProfile"],
+  registerBrowserProfile: ["sensors", "registerBrowserProfile"],
+  retireBrowserProfile: ["sensors", "retireBrowserProfile"],
+  recordBrowserOriginDays: ["sensors", "recordBrowserOriginDays"],
+  getWorkloadCredentialBinding: ["guardrails", "getWorkloadBinding"],
+  bindWorkloadCredential: ["guardrails", "bindWorkload"],
+  getTicketVerification: ["tests", "getTicketVerification"],
+  putTicketVerification: ["tests", "putTicketVerification"],
+  getAgentPurpose: ["agents", "getPurpose"],
+  putAgentPurpose: ["agents", "putPurpose"],
   getTool: ["tools", "get"],
+  registerEndpointDevice: ["sensors", "registerEndpointDevice"],
+  listEndpointDevices: ["sensors", "listEndpointDevices"],
+  getEndpointDevice: ["sensors", "getEndpointDevice"],
+  rotateEndpointCredential: ["sensors", "rotateEndpointCredential"],
+  retireEndpointDevice: ["sensors", "retireEndpointDevice"],
+  publishEndpointPolicy: ["sensors", "publishEndpointPolicy"],
+  exchangeEndpointEnrollment: ["sensors", "exchangeEndpointEnrollment"],
+  recordEndpointHeartbeat: ["sensors", "recordEndpointHeartbeat"],
+  recordEndpointInventory: ["sensors", "recordEndpointInventory"],
+  recordEndpointObservations: ["sensors", "recordEndpointObservations"],
+  fetchEndpointPolicy: ["sensors", "fetchEndpointPolicy"],
+  listAgentSuggestions: ["policies", "listAgentSuggestions"],
+  refreshAgentSuggestions: ["policies", "refreshAgentSuggestions"],
+  reviewAgentSuggestion: ["policies", "reviewAgentSuggestion"],
+  listAddonVersionInstallations: ["tools", "listAddonVersionInstallations"],
+  getAddonScan: ["tools", "getAddonScan"],
+  createPrivateAddonUpload: ["tools", "createPrivateAddonUpload"],
+  attestAddonScan: ["tools", "attestAddonScan"],
+  getAddonCIOrigin: ["tools", "getAddonCIOrigin"],
+  submitAddonScan: ["tools", "submitAddonScan"],
+  getAddonVersion: ["tools", "getAddonVersion"],
+  listAddonVersions: ["tools", "listAddonVersions"],
+  reviewAddonVersion: ["tools", "reviewAddonVersion"],
+  createWorkloadActionDecision: ["guardrails", "decideAction"],
+  recordWorkloadActionOutcome: ["guardrails", "recordActionOutcome"],
   listMCPServers: ["mcpServers", "list"],
   listMCPRegistry: ["mcpServers", "listRegistry"],
   putMCPRegistryEntry: ["mcpServers", "putRegistryEntry"],
@@ -290,6 +332,10 @@ const OPERATIONS = {
 const METHODS = ["get", "post", "put", "patch", "delete"];
 const TOKEN_AUDIENCE = "api-token";
 const BROWSER_ONLY = "Authentication: a browser session only. An API token is refused.";
+const CLI_AUTH_NOTES = {
+  startCLILogin: "Authentication: public start, bound to a CLI PKCE challenge.",
+  exchangeCLILogin: "Authentication: approved CLI request and its PKCE verifier.",
+};
 const NO_AUTH = "Authentication: none. The route is part of the browser sign-in flow.";
 
 function resolve(spec, node) {
@@ -336,7 +382,7 @@ function build() {
       if (acceptsToken) {
         override["x-fern-audiences"] = [TOKEN_AUDIENCE];
       } else {
-        const note = security.length === 0 ? NO_AUTH : BROWSER_ONLY;
+        const note = CLI_AUTH_NOTES[id] ?? (security.length === 0 ? NO_AUTH : BROWSER_ONLY);
         override.description = operation.description ? `${operation.description.trim()}\n\n${note}` : note;
       }
       const page = pagination(spec, pathItem, operation);

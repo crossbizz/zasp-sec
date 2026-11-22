@@ -1,0 +1,82 @@
+name: Agent security V2
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  local-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache-dependency-path: services/endpoint-agent/go.sum
+      - name: Test scanner, CLI and endpoint broker
+        run: |
+          go test -C cmd/zaspctl -race -count=1 ./...
+          go test -C services/endpoint-agent -race -count=1 ./...
+          go test -C services/platform -race -count=1 ./endpointprotocol
+      - name: Test Python tool middleware and reviewed loader
+        run: PYTHONPATH=sdks/python-guardrails/src python3 -m unittest discover -s sdks/python-guardrails/tests
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Test browser collection and managed policy
+        run: node --test extensions/browser-guard/test/guard.test.mjs
+
+  macos-endpoint:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache-dependency-path: services/endpoint-agent/go.sum
+      - name: Compile native Keychain integration and test endpoint policy
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          go test -C services/endpoint-agent -race -count=1 ./...
+          go build -C services/endpoint-agent -o "$RUNNER_TEMP/zasp-endpoint" .
+          plutil -lint deploy/endpoint/ai.zasp.endpoint.plist
+          bash -n deploy/endpoint/package-macos.sh
+  windows-inventory:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache-dependency-path: cmd/zaspctl/go.mod
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Test native Windows CLI and local inventory
+        run: go test -C cmd/zaspctl -count=1 ./...
+      - name: Test native Windows DPAPI, ACLs and signed inventory transport
+        run: go test -C services/endpoint-agent -count=1 ./cmd/zasp-device-windows ./internal/windowsinventory
+      - name: Test Intune staging
+        run: node --test deploy/endpoint/intune-cli/stage.test.mjs
+      - name: Parse the PowerShell installer
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          $files = @(Get-ChildItem 'deploy/endpoint/intune-cli/*.ps1*') + @(Get-ChildItem 'deploy/endpoint/intune-device/*.ps1*')
+          foreach ($file in $files) {
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count) { throw ($parseErrors -join [Environment]::NewLine) }
+          }
+      - name: Verify unsigned Windows device packages cannot be staged
+        shell: pwsh
+        run: |
+          go build -C services/endpoint-agent -o "$env:RUNNER_TEMP/device.exe" ./cmd/zasp-device-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash "$env:RUNNER_TEMP/device.exe").Hash
+          $target = "$env:RUNNER_TEMP/unsigned-stage"
+          $rejected = $false
+          try { & './deploy/endpoint/intune-device/Stage-Device.ps1' -SignedExecutable "$env:RUNNER_TEMP/device.exe" -AgentSHA256 $hash -SignerThumbprint ('0'*40) -NewOutput $target } catch { $rejected = $_.Exception.Message -eq 'Release verification failed.' }
+          if (!$rejected -or (Test-Path $target)) { throw 'Unsigned device package should fail before producing output.' }

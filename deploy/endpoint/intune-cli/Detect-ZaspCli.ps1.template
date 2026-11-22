@@ -1,0 +1,15 @@
+# Intune custom detection runs as the signed-in user. Success requires stdout
+# and exit 0. This script is generated for one signed release.
+$ErrorActionPreference = 'Stop'
+if ([System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) { exit 1 }
+$folder = [Environment]::GetFolderPath('LocalApplicationData')
+foreach ($segment in @('Zasp','CLI','zaspctl.exe')) {
+    $folder = Join-Path $folder $segment
+    if (!(Test-Path -LiteralPath $folder)) { exit 1 }
+    if (((Get-Item -Force -LiteralPath $folder).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { exit 1 }
+}
+if ((Get-FileHash -Algorithm SHA256 -LiteralPath $folder).Hash -ne '__SHA256__') { exit 1 }
+$signature = Get-AuthenticodeSignature -LiteralPath $folder
+if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne '__THUMBPRINT__') { exit 1 }
+Write-Output 'Approved Zasp CLI release detected'
+exit 0

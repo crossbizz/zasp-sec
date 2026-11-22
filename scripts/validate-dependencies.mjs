@@ -46,6 +46,7 @@ const internalModules = new Map([
     target: "services/platform/go.mod",
     replacement: "../platform",
     consumers: new Map([
+      ["services/endpoint-agent/go.mod", false],
       ["services/event-ingest/go.mod", false],
       ["services/gateway-control/go.mod", false],
       ["services/runtime-gateway/go.mod", false],
@@ -67,7 +68,9 @@ const prohibitedLicenses = [
 const requiredManifests = [
   { ecosystem: "npm", path: "apps/web/package.json" },
   { ecosystem: "go", path: "cmd/agentsecctl/go.mod" },
+  { ecosystem: "go", path: "cmd/zaspctl/go.mod" },
   { ecosystem: "npm", path: "package.json" },
+  { ecosystem: "go", path: "services/endpoint-agent/go.mod" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
   { ecosystem: "go", path: "services/gateway-control/go.mod" },
   { ecosystem: "go", path: "services/health/go.mod" },
@@ -144,6 +147,7 @@ for (const [manifest, name, version] of [
   });
 }
 for (const [manifest, name, version, license] of [
+  ["services/endpoint-agent/go.mod", "golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["services/platform/go.mod", "golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["services/platform/go.mod", "go.temporal.io/sdk", "v1.48.0", "MIT"],
   ["services/platform/go.mod", "go.temporal.io/api", "v1.63.4", "MIT"],

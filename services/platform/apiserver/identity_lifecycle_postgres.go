@@ -20,6 +20,7 @@ const (
 	identityPAT
 	identityPostLoginSnapshot
 	identityPostLoginRead
+	identityCLILoginExchange
 )
 
 // This private adapter dispatches only these fixed native entries. It accepts no
@@ -45,6 +46,7 @@ func (d *PostgresJSONDatabase) identityTransaction(ctx context.Context, op ident
 		`SELECT zasp_authorization80_identity.authenticate_pat($1)`,
 		`SELECT zasp_authorization80_identity.post_login_snapshot($1::jsonb)`,
 		`SELECT zasp_authorization80_identity.post_login_read($1::jsonb,$2::jsonb,$3,$4)`,
+		`SELECT zasp_authorization80_identity.cli_exchange($1,$2,$3,$4)`,
 	}
 	if int(op) >= len(queries) {
 		return nil, ErrRepositoryOperation

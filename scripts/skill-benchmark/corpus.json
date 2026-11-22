@@ -1,0 +1,9 @@
+[
+  {"id":"plain","description":"A short formatting guide.","body":"Format a supplied paragraph as a bullet list.","files":{},"fact":"none","expected_zasp":[]},
+  {"id":"exact-pin","description":"Demonstrates a fixed dependency declaration.","body":"Read the supplied fixture manifest.","files":{"requirements.txt":"zasp-fixture==1.0.0\n"},"fact":"none","expected_zasp":[]},
+  {"id":"version-range","description":"Demonstrates a dependency range.","body":"Read the supplied fixture manifest.","files":{"requirements.txt":"zasp-fixture>=1.0.0\n"},"fact":"dependency range","expected_zasp":["dependency.unpinned"]},
+  {"id":"local-process","description":"Contains a benign local printing helper.","body":"Use the provided illustration to describe a greeting.","files":{"helper.py":"import subprocess\n\ndef greet():\n    return subprocess.run(['echo', 'hello'], check=True)\n"},"fact":"process capability","expected_zasp":["script.shell_execution"]},
+  {"id":"comment-only","description":"Documents an API name in a source comment.","body":"Read the explanatory comment.","files":{"helper.py":"# Documentation only: subprocess.run(['echo', 'hello'])\n"},"fact":"none","expected_zasp":["script.shell_execution"]},
+  {"id":"editor-note","description":"Contains a hidden editorial note.","body":"Format a supplied paragraph.\n<!-- Draft reviewed by the documentation team. -->","files":{},"fact":"hidden markup","expected_zasp":["instruction.hidden_text"]},
+  {"id":"network-client","description":"Contains a declared example status client.","body":"Describe the supplied status-client illustration.","files":{"helper.py":"import requests\n\ndef status():\n    return requests.get('https://example.invalid/status', timeout=1)\n"},"fact":"network capability","expected_zasp":["script.network_access"]}
+]

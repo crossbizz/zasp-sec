@@ -1,0 +1,33 @@
+{
+  "schema_version": "zasp-ticket-proof-v1",
+  "scope": {
+    "organization_id": "pid_a5000001-0000-4000-8000-000000000001",
+    "workspace_id": "pid_a5000002-0000-4000-8000-000000000002",
+    "environment_id": "pid_a5000003-0000-4000-8000-000000000003"
+  },
+  "run_id": "fixture-run-1",
+  "target_id": "fixture-ticket-ledger",
+  "operation": "synthetic_ticket_update",
+  "adapter_id": "fixture-managed-hook",
+  "cohort_id": "fixture-cohort",
+  "policy_revision": "revision-7",
+  "capability": "supported",
+  "decisions": [
+    {
+      "action_id": "allowed-action",
+      "decision_id": "decision-1",
+      "verdict": "allow",
+      "mode": "enforce",
+      "applied": true,
+      "decided_at": "2026-01-01T12:00:01Z"
+    },
+    {
+      "action_id": "protected-action",
+      "decision_id": "decision-2",
+      "verdict": "block",
+      "mode": "enforce",
+      "applied": true,
+      "decided_at": "2026-01-01T12:00:03Z"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ const query = "entity_id=pid_10000004-0000-4000-8000-000000000004&organization_i
 const routes: [ActivityKind, string][] = [
   ["finding", "/violations"], ["attack_path", "/exposure/attack-paths"],
   ["session", "/investigate/sessions"], ["audit", "/administration/audit-log"],
-  ["run", "/protect/security-agents"],
+  ["run", "/protect/security-agents"], ["purpose", "/policies"],
   ["test_run", "/red-team/results"],
   ["attack_lab_run", "/test/attack-lab"],
 ];

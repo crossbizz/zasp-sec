@@ -8,6 +8,61 @@ info:
     name: Proprietary
     identifier: LicenseRef-Proprietary
 paths:
+  /api/v1/cli/auth/start:
+    post:
+      operationId: startCLILogin
+      summary: Begin a browser-bound CLI login
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CLIStartInput' } } }
+      responses:
+        '200':
+          description: Begin a browser-bound CLI login.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/CLIStartResult' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/cli/auth/approve:
+    post:
+      operationId: approveCLILogin
+      summary: Approve short-lived CLI access to findings submission
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CLIApproveInput' } } }
+      responses:
+        '200':
+          description: Approve short-lived CLI access to findings submission.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/CLIApproveResult' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/cli/auth/exchange:
+    post:
+      operationId: exchangeCLILogin
+      summary: Consume one approved PKCE grant
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CLIExchangeInput' } } }
+      responses:
+        '200':
+          description: Consume one approved PKCE grant.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/CLIExchangeResult' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/session/start:
     get:
       operationId: startSession
@@ -970,6 +1025,272 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/device-enrollments:
+    post:
+      operationId: registerEndpointDevice
+      summary: Register a preassigned device public key and dedicated transport identity
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointRegistration' } } }
+      responses:
+        '200':
+          description: Register a preassigned device public key and dedicated transport identity.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointDevice' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices:
+    get:
+      operationId: listEndpointDevices
+      summary: List assigned devices and current fleet coverage
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: after_id, in: query, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200':
+          description: List assigned devices and current fleet coverage.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointFleetPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getEndpointDevice
+      summary: Read a managed device and its reported coverage
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Read a managed device and its reported coverage.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointDetail' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices/{id}/credential-rotations:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: rotateEndpointCredential
+      summary: Replace the device key and dedicated transport identity
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointRotation' } } }
+      responses:
+        '200':
+          description: Replace the device key and dedicated transport identity.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointDevice' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices/{id}/retire:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: retireEndpointDevice
+      summary: Revoke this endpoint generation
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointEmpty' } } }
+      responses:
+        '200':
+          description: Revoke this endpoint generation.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointDevice' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices/{id}/policy-bundle:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    put:
+      operationId: publishEndpointPolicy
+      summary: Publish an endpoint-bound signed ticket policy
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointSigned' } } }
+      responses:
+        '200':
+          description: Publish an endpoint-bound signed ticket policy.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointDevice' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    get:
+      operationId: fetchEndpointPolicy
+      summary: Retrieve the latest assigned signed policy for this device
+      security:
+        - ProductAPIToken: []
+      description: Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+      parameters:
+        - { in: header, name: X-Zasp-Device-Proof, required: true, schema: { type: string, maxLength: 2048 } }
+        - { in: header, name: X-Zasp-Device-Signature, required: true, schema: { type: string, maxLength: 86 } }
+      responses:
+        '200':
+          description: Retrieve the latest assigned signed policy for this device.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointBundle' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/device-enrollments/exchange:
+    post:
+      operationId: exchangeEndpointEnrollment
+      summary: Bind a preassigned endpoint key and transport credential
+      security:
+        - ProductAPIToken: []
+      description: Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+      parameters:
+        - { in: header, name: X-Zasp-Device-Proof, required: true, schema: { type: string, maxLength: 2048 } }
+        - { in: header, name: X-Zasp-Device-Signature, required: true, schema: { type: string, maxLength: 86 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointEmpty' } } }
+      responses:
+        '200':
+          description: Bind a preassigned endpoint key and transport credential.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointExchangeReceipt' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices/{id}/heartbeat:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: recordEndpointHeartbeat
+      summary: Record this device policy status and queue health
+      security:
+        - ProductAPIToken: []
+      description: Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+      parameters:
+        - { in: header, name: X-Zasp-Device-Proof, required: true, schema: { type: string, maxLength: 2048 } }
+        - { in: header, name: X-Zasp-Device-Signature, required: true, schema: { type: string, maxLength: 86 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointHeartbeat' } } }
+      responses:
+        '200':
+          description: Record this device policy status and queue health.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointRecorded' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/devices/{id}/inventory-snapshots:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: recordEndpointInventory
+      summary: Reconcile a device-scoped inventory partition
+      security:
+        - ProductAPIToken: []
+      description: Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+      parameters:
+        - { in: header, name: X-Zasp-Device-Proof, required: true, schema: { type: string, maxLength: 2048 } }
+        - { in: header, name: X-Zasp-Device-Signature, required: true, schema: { type: string, maxLength: 86 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointSnapshot' } } }
+      responses:
+        '200':
+          description: Reconcile a device-scoped inventory partition.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointRecorded' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/observations:
+    post:
+      operationId: recordEndpointObservations
+      summary: Submit signed local decisions for this device
+      security:
+        - ProductAPIToken: []
+      description: Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+      parameters:
+        - { in: header, name: X-Zasp-Device-Proof, required: true, schema: { type: string, maxLength: 2048 } }
+        - { in: header, name: X-Zasp-Device-Signature, required: true, schema: { type: string, maxLength: 86 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EndpointObservationBatch' } } }
+      responses:
+        '200':
+          description: Submit signed local decisions for this device.
+          content: { application/json: { schema: { $ref: '#/components/schemas/EndpointRecorded' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/sensors:
     get:
       operationId: listSensors
@@ -1438,6 +1759,409 @@ paths:
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/workload-bindings/{id}/containments/{runId}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { in: path, name: runId, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    put:
+      operationId: authorizeWorkloadContainment
+      summary: Approve extending a verified session isolation to this binding
+      security: [{ BrowserSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [step_id]
+              properties:
+                step_id: { $ref: '#/components/schemas/ProductID' }
+      responses:
+        '200':
+          description: Scoped containment state and applied or release receipt when observed.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadContainment' } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    get:
+      operationId: getWorkloadContainment
+      summary: Read scoped containment and adapter readback
+      security: [{ BrowserSession: [] }]
+      responses:
+        '200':
+          description: Scoped containment state and applied or release receipt when observed.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadContainment' } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: releaseWorkloadContainment
+      summary: Release this workload containment target
+      security: [{ BrowserSession: [] }]
+      responses:
+        '200':
+          description: Scoped containment state and applied or release receipt when observed.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadContainment' } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/workload-bindings/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/ProductID' }, description: Issued dedicated workload token ID. }
+    put:
+      operationId: bindWorkloadCredential
+      summary: Bind one dedicated token to one agent and governed session
+      description: Fresh browser authentication is required. The Environment's active inventory agent is selected by the administrator. An existing binding is immutable.
+      security: [{ BrowserSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [agent_id]
+              properties:
+                agent_id: { $ref: '#/components/schemas/ProductID' }
+      responses:
+        '200':
+          description: Original or newly created credential binding.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadCredentialBinding' } } }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    get:
+      operationId: getWorkloadCredentialBinding
+      summary: Get the agent and governed session assigned to a dedicated token
+      security: [{ BrowserSession: [] }]
+      responses:
+        '200':
+          description: Administrator-assigned workload identity.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadCredentialBinding' } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/browser-profiles/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getBrowserProfile
+      summary: Read the managed browser profile and its latest accepted origin days
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Scoped browser profile response.
+          content: { application/json: { schema: { $ref: '#/components/schemas/BrowserProfile' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        'default': { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: registerBrowserProfile
+      summary: Bind a dedicated profile token to a managed signing key and approved origins
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/BrowserProfileRegistration' } } }
+      responses:
+        '200':
+          description: Scoped browser profile response.
+          content: { application/json: { schema: { $ref: '#/components/schemas/BrowserProfile' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        'default': { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: retireBrowserProfile
+      summary: Permanently retire this profile binding
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '200':
+          description: Scoped browser profile response.
+          content: { application/json: { schema: { $ref: '#/components/schemas/BrowserProfile' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        'default': { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/browser-profiles/{id}/observations:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: recordBrowserOriginDays
+      summary: Submit signed origin days or an empty profile heartbeat
+      security: [{ ProductAPIToken: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/BrowserOriginReport' } } }
+      responses:
+        '200':
+          description: Scoped browser profile response.
+          content: { application/json: { schema: { $ref: '#/components/schemas/BrowserOriginAck' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        'default': { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/action-decisions:
+    post:
+      operationId: createWorkloadActionDecision
+      summary: Check a workload tool action against Environment policy
+      security: [{ ProductAPIToken: [] }]
+      description: A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+      parameters:
+        - { in: header, name: Idempotency-Key, required: true, schema: { $ref: '#/components/schemas/WorkloadActionLabel' } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadActionRequest' } } }
+      responses:
+        '200':
+          description: Recorded authorized result.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadActionDecision' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '422': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/actions/{actionId}/outcomes:
+    post:
+      operationId: recordWorkloadActionOutcome
+      summary: Record what the instrumented tool boundary observed
+      security: [{ ProductAPIToken: [] }]
+      description: The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+      parameters:
+        - { in: path, name: actionId, x-fern-parameter-name: pathActionId, required: true, schema: { $ref: '#/components/schemas/WorkloadActionLabel' } }
+        - { in: header, name: Idempotency-Key, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadActionOutcome' } } }
+      responses:
+        '200':
+          description: Recorded authorized result.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadOutcomeAck' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '422': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-scans/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAddonScan
+      summary: Read a complete or partial findings-only submission receipt
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Bounded findings, coverage and receipt in the authorized Environment.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonScanDetail' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-scans/{id}/ci-attestation:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: attestAddonScan
+      summary: Attach a protected CI signature to one complete scan
+      security:
+        - ProductAPIToken: []
+      description: Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AddonCISignature' } } }
+      responses:
+        '200':
+          description: Attach a protected CI signature to one complete scan.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonCIReceipt' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions/{id}/installations:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: listAddonVersionInstallations
+      summary: List reported endpoint installations matching the exact version digest
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 170 } }
+      responses:
+        '200':
+          description: A scoped page of current or retained inventory evidence.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonInstallationPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions/{id}/ci-origin:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAddonCIOrigin
+      summary: Check a reported version against independently signed CI evidence
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      description: Checks the signed evidence and the current scoped signer. A same_manifest match proves identical content identity. Origin of an individual laptop installation and loaded usage remain separate facts.
+      responses:
+        '200':
+          description: Check a reported version against independently signed CI evidence.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonCIOrigin' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-scan-uploads:
+    post:
+      operationId: createPrivateAddonUpload
+      summary: Authorize a private static scan of one exact ZIP archive
+      description: A fresh Environment data-controls administrator explicitly permits one upload to its configured private TLS worker. Extended collection must be enabled. The worker keeps raw archive bytes only in memory and returns rule counts. The public verification key is for independent operator provisioning.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PrivateAddonUploadRequest' } } }
+      responses:
+        '200':
+          description: Private one-use upload, valid for five minutes.
+          content: { application/json: { schema: { $ref: '#/components/schemas/PrivateAddonUploadGrant' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-scans:
+    post:
+      operationId: submitAddonScan
+      summary: Submit a private findings-only report
+      security:
+        - ProductAPIToken: []
+      description: The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AddonScanSubmission' } } }
+      responses:
+        '200':
+          description: Submit a private findings-only report.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonScanReceipt' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions:
+    get:
+      operationId: listAddonVersions
+      summary: List recent add-on versions in the selected Environment
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: cursor, in: query, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200':
+          description: List recent add-on versions in the selected Environment.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonVersionPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAddonVersion
+      summary: Read the reported findings and current version review
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Read the reported findings and current version review.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonVersionDetail' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions/{id}/review-decisions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: reviewAddonVersion
+      summary: Review an exact version within its reported origin binding
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      description: Requires fresh authentication. An identical authorized retry returns the original receipt. A stale revision or reused key for a different request returns 409.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AddonReviewInput' } } }
+      responses:
+        '200':
+          description: Review an exact version within its reported origin binding.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AddonVersionDetail' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/guardrails/decisions:
@@ -2173,6 +2897,71 @@ paths:
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/suggestions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: listAgentSuggestions
+      parameters:
+        - { name: after_tool_id, in: query, schema: { $ref: '#/components/schemas/ProductID' } }
+      summary: Read persisted suggestions for the current agent purpose
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      responses:
+        '200': { description: Current saved suggestions and observed coverage., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSuggestionPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/suggestions/refresh:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: refreshAgentSuggestions
+      summary: Generate suggestions using scoped indexed runtime tool events
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SuggestionRefresh' } } } }
+      responses:
+        '200': { description: Current saved suggestions and observed coverage., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSuggestionPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/suggestions/{toolId}/decision:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: toolId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    put:
+      operationId: reviewAgentSuggestion
+      summary: Record a draft request or dismissal for this observed tool
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SuggestionDecision' } } } }
+      responses:
+        '200': { description: Current saved suggestions and observed coverage., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSuggestionPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/purpose:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentPurpose
+      summary: Read the current version of the agent's declared purpose
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      responses:
+        '200': { description: Current declaration or revision zero for an active agent without a declaration., content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putAgentPurpose
+      summary: Record the intended tool set for one agent
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - { name: If-Match, in: header, required: true, schema: { type: string, pattern: '^"[0-9]+"$' } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurposeInput' } } } }
+      responses:
+        '200': { description: Recorded purpose revision., content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/capabilities:
@@ -3801,6 +4590,28 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/test-runs/{id}/ticket-verification:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getTicketVerification
+      summary: Read the immutable imported ticket proof for an authorized test run
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      responses:
+        '200': { description: Staging evidence assessment., content: { application/json: { schema: { $ref: '#/components/schemas/TicketVerificationReceipt' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putTicketVerification
+      summary: Import a bounded pair of synthetic staging ticket observations for this run
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TicketVerificationBundle' } } } }
+      responses:
+        '200': { description: Recorded assessment of the supplied evidence., content: { application/json: { schema: { $ref: '#/components/schemas/TicketVerificationReceipt' } } } }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/test-runs/{id}/cancel:
     parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
     post:
@@ -4058,6 +4869,113 @@ components:
       description: Quoted current schedule version, or quoted zero when creating the singleton schedule.
       schema: { type: string, pattern: '^"(?:0|[1-9][0-9]*)"$' }
   schemas:
+    PrivateAddonUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [mode, retention, archive_digest, archive_bytes]
+      properties:
+        mode: { type: string, const: private_upload }
+        retention: { type: string, const: memory_only }
+        archive_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        archive_bytes: { type: integer, minimum: 1, maximum: 8388608 }
+    PrivateAddonUploadGrant:
+      type: object
+      additionalProperties: false
+      required: [id, upload_url, upload_grant, expires_at, retention, result_delivery, verification_key]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        upload_url: { type: string, format: uri, pattern: '^https://' }
+        upload_grant: { type: string, maxLength: 3072 }
+        expires_at: { type: string, format: date-time }
+        retention: { type: string, const: memory_only }
+        result_delivery: { type: string, enum: [browser_only, registry] }
+        verification_key: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+    CLIStartInput:
+      type: object
+      additionalProperties: false
+      required: [client_id, environment_id, code_challenge_method, code_challenge]
+      properties:
+        client_id: { type: string, const: zaspctl }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        code_challenge_method: { type: string, const: S256 }
+        code_challenge: { type: string, pattern: '^[a-zA-Z0-9_-]{43}$' }
+    CLIStartResult:
+      type: object
+      additionalProperties: false
+      required: [request_id, request_proof, expires_at, comparison_code]
+      properties:
+        request_id: { $ref: '#/components/schemas/ProductID' }
+        request_proof: { type: string, minLength: 54, maxLength: 55 }
+        expires_at: { type: string, format: date-time }
+        comparison_code: { type: string, pattern: '^[0-9a-f]{8}$' }
+    CLIApproveInput:
+      type: object
+      additionalProperties: false
+      required: [client_id, environment_id, request_id, request_proof, code_challenge, comparison_code]
+      properties:
+        client_id: { type: string, const: zaspctl }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        request_id: { $ref: '#/components/schemas/ProductID' }
+        request_proof: { type: string, minLength: 54, maxLength: 55 }
+        code_challenge: { type: string, pattern: '^[a-zA-Z0-9_-]{43}$' }
+        comparison_code: { type: string, pattern: '^[0-9a-f]{8}$' }
+    CLIApproveResult:
+      type: object
+      additionalProperties: false
+      required: [approved]
+      properties:
+        approved: { type: boolean, const: true }
+    CLIExchangeInput:
+      type: object
+      additionalProperties: false
+      required: [client_id, request_id, environment_id, code_verifier]
+      properties:
+        client_id: { type: string, const: zaspctl }
+        request_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        code_verifier: { type: string, pattern: '^[a-zA-Z0-9_-]{43}$' }
+    CLIExchangeResult:
+      type: object
+      additionalProperties: false
+      required: [token_type, access_token, environment_id, expires_at, scope]
+      properties:
+        token_type: { type: string, const: Bearer }
+        access_token: { type: string, pattern: '^zasp_cli_[a-zA-Z0-9_-]{43}$' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        expires_at: { type: string, format: date-time }
+        scope: { type: string, const: submit_addon_scans }
+    EndpointDevice:
+      {"type": "object", "additionalProperties": false, "required": ["id", "cohort", "state", "version", "credential_generation", "last_seen", "connection", "policy_revision", "reported_policy_revision", "acknowledged", "queued_receipts", "dropped_receipts"], "properties": {"id": {"$ref": "#/components/schemas/ProductID"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}, "state": {"type": "string", "enum": ["pending", "active", "retired"]}, "version": {"type": "integer", "minimum": 1}, "credential_generation": {"type": "integer", "minimum": 1}, "last_seen": {"type": ["string", "null"], "format": "date-time"}, "connection": {"type": "string", "enum": ["retired", "never_seen", "online", "stale"]}, "policy_revision": {"type": "integer", "minimum": 0}, "reported_policy_revision": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "boolean"}, "queued_receipts": {"type": ["integer", "null"], "minimum": 0}, "dropped_receipts": {"type": ["integer", "null"], "minimum": 0}}}
+    EndpointInstallationDetail:
+      {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}}
+    EndpointPartitionSummary:
+      {"type": "object", "additionalProperties": false, "required": ["partition_id", "generation", "complete", "observed_count", "observed_installations", "last_complete_generation", "confirmed_count", "confirmed_installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "observed_count": {"type": "integer", "minimum": 0}, "observed_installations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/components/schemas/EndpointInstallationDetail"}}, "last_complete_generation": {"type": ["integer", "null"], "minimum": 1}, "confirmed_count": {"type": ["integer", "null"], "minimum": 0}, "confirmed_installations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/components/schemas/EndpointInstallationDetail"}}}}
+    EndpointObservationDetail:
+      {"type": "object", "additionalProperties": false, "required": ["action_id", "session_ref", "credential_generation", "observed_at", "policy_revision", "mode", "verdict", "would_block", "target_class", "skill_usage", "target_effect"], "properties": {"action_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "session_ref": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "credential_generation": {"type": "integer", "minimum": 1}, "observed_at": {"type": "string", "format": "date-time"}, "policy_revision": {"type": "integer", "minimum": 0}, "mode": {"type": "string", "enum": ["monitor", "enforce", ""]}, "verdict": {"type": "string", "enum": ["continue", "deny", "unavailable"]}, "would_block": {"type": "boolean"}, "target_class": {"type": "string", "enum": ["allowed_destination", "outside_allowed_destination", "unknown"]}, "skill_usage": {"type": "string", "enum": ["unknown"]}, "target_effect": {"type": "string", "enum": ["unknown"]}, "graph_evidence_id": {"$ref": "#/components/schemas/ProductID"}, "graph_state": {"type": "string", "enum": ["pending", "projected"]}}}
+    EndpointDetail:
+      {"type": "object", "additionalProperties": false, "required": ["id", "cohort", "state", "version", "credential_generation", "last_seen", "connection", "policy_revision", "reported_policy_revision", "acknowledged", "queued_receipts", "dropped_receipts", "inventory_partitions", "observation_count", "partition_summaries", "recent_observations", "reported_adapter"], "properties": {"id": {"$ref": "#/components/schemas/ProductID"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}, "state": {"type": "string", "enum": ["pending", "active", "retired"]}, "version": {"type": "integer", "minimum": 1}, "credential_generation": {"type": "integer", "minimum": 1}, "last_seen": {"type": ["string", "null"], "format": "date-time"}, "connection": {"type": "string", "enum": ["retired", "never_seen", "online", "stale"]}, "policy_revision": {"type": "integer", "minimum": 0}, "reported_policy_revision": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "boolean"}, "queued_receipts": {"type": ["integer", "null"], "minimum": 0}, "dropped_receipts": {"type": ["integer", "null"], "minimum": 0}, "inventory_partitions": {"type": "integer", "minimum": 0}, "observation_count": {"type": "integer", "minimum": 0}, "partition_summaries": {"type": "array", "maxItems": 8, "items": {"$ref": "#/components/schemas/EndpointPartitionSummary"}}, "recent_observations": {"type": "array", "maxItems": 20, "items": {"$ref": "#/components/schemas/EndpointObservationDetail"}}, "reported_adapter": {"type": "string", "enum": ["unknown", "macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory"]}}}
+    EndpointRotation:
+      {"type": "object", "additionalProperties": false, "required": ["credential_id", "device_public_key"], "properties": {"credential_id": {"$ref": "#/components/schemas/ProductID"}, "device_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}}}
+    EndpointRegistration:
+      {"type": "object", "additionalProperties": false, "required": ["credential_id", "device_public_key", "policy_public_key", "cohort"], "properties": {"credential_id": {"$ref": "#/components/schemas/ProductID"}, "device_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}, "policy_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}}}
+    EndpointFleetPage:
+      {"type": "object", "additionalProperties": false, "required": ["items", "next_after_id", "counts"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/EndpointDevice"}}, "next_after_id": {"type": ["string", "null"]}, "counts": {"type": "object", "additionalProperties": false, "required": ["expected", "enrolled", "online", "acknowledged"], "properties": {"expected": {"type": "integer", "minimum": 0}, "enrolled": {"type": "integer", "minimum": 0}, "online": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "integer", "minimum": 0}}}}}
+    EndpointSigned:
+      {"type": "object", "additionalProperties": false, "required": ["payload", "signature"], "properties": {"payload": {"type": "string", "format": "byte"}, "signature": {"type": "string", "format": "byte"}}}
+    EndpointBundle:
+      {"type": "object", "additionalProperties": false, "required": ["bundle"], "properties": {"bundle": {"oneOf": [{"$ref": "#/components/schemas/EndpointSigned"}, {"type": "null"}]}}}
+    EndpointEmpty:
+      {"type": "object", "additionalProperties": false}
+    EndpointRecorded:
+      {"type": "object", "additionalProperties": false, "required": ["recorded"], "properties": {"recorded": {"type": "boolean", "const": true}}}
+    EndpointHeartbeat:
+      {"type": "object", "additionalProperties": false, "required": ["policy_revision", "policy_status", "queued_receipts", "dropped_receipts"], "properties": {"policy_revision": {"type": "integer", "minimum": 0}, "policy_status": {"type": "string", "enum": ["verified_cache", "policy_expired", "policy_unavailable", "state_unavailable"]}, "queued_receipts": {"type": "integer", "minimum": 0, "maximum": 256}, "dropped_receipts": {"type": "integer", "minimum": 0}, "adapter": {"type": "string", "enum": ["macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory"]}}}
+    EndpointExchangeReceipt:
+      {"type": "object", "additionalProperties": false, "required": ["device_id", "credential_generation", "state"], "properties": {"device_id": {"$ref": "#/components/schemas/ProductID"}, "credential_generation": {"type": "integer", "minimum": 1}, "state": {"type": "string", "const": "active"}}}
+    EndpointSnapshot:
+      {"type": "object", "additionalProperties": false, "required": ["partition_id", "snapshot_generation", "complete", "installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "snapshot_generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "installations": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}}}}}
+    EndpointObservationBatch:
+      {"type": "object", "additionalProperties": false, "required": ["receipts"], "properties": {"receipts": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/components/schemas/EndpointSigned"}}}}
     RecoveryBackupInput:
       type: object
       additionalProperties: false
@@ -5754,13 +6672,24 @@ components:
     ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
     ComplianceExportInput:
       type: object
-      description: What the export captures - the controls of a framework (or one control; every control when both are omitted), or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering.
+      description: What the export captures - the controls of a framework (or one control; every control when both are omitted),, a managed pilot cohort/device or device-bound endpoint session, or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering.
       additionalProperties: false
       properties:
         framework: { $ref: '#/components/schemas/ComplianceFrameworkID' }
         control_id: { $ref: '#/components/schemas/ComplianceControlID' }
         agent_id: { $ref: '#/components/schemas/ProductID' }
-      not: { required: [agent_id], anyOf: [{ required: [framework] }, { required: [control_id] }] }
+        pilot_cohort: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' }
+        device_id: { $ref: '#/components/schemas/ProductID' }
+        endpoint_session_ref: { type: string, pattern: '^[0-9a-f]{64}$', description: Scoped endpoint session reference from a device observation. }
+      allOf:
+        - if: { required: [agent_id] }
+          then: { not: { anyOf: [{ required: [framework] }, { required: [control_id] }, { required: [pilot_cohort] }, { required: [device_id] }, { required: [endpoint_session_ref] }] } }
+        - if: { required: [pilot_cohort] }
+          then: { not: { anyOf: [{ required: [framework] }, { required: [control_id] }, { required: [device_id] }, { required: [endpoint_session_ref] }] } }
+        - if: { required: [device_id] }
+          then: { not: { anyOf: [{ required: [framework] }, { required: [control_id] }] } }
+        - if: { required: [endpoint_session_ref] }
+          then: { required: [device_id] }
     ComplianceExport:
       type: object
       additionalProperties: false
@@ -5968,6 +6897,139 @@ components:
               type: 'null'
             has_more:
               const: false
+    AddonInstallationPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: { type: [string, 'null'], maxLength: 170 }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AddonInstallationObservation' } }
+    AddonInstallationObservation:
+      type: object
+      additionalProperties: false
+      required: [device_id, cohort, device_state, partition_id, installation_id, observation, generation, latest_generation, reported_at, latest_reported_at]
+      properties:
+        device_id: { $ref: '#/components/schemas/ProductID' }
+        cohort: { type: string }
+        device_state: { type: string, enum: [pending, active, retired] }
+        partition_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+        installation_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+        observation: { type: string, enum: [complete, partial, last_complete] }
+        generation: { type: integer, minimum: 1 }
+        latest_generation: { type: integer, minimum: 1 }
+        reported_at: { type: [string, 'null'], format: date-time }
+        latest_reported_at: { type: [string, 'null'], format: date-time }
+    AddonScanDetail:
+      type: object
+      additionalProperties: false
+      required: [scan_id, version_id, manifest_digest, completeness, review_path, origin, ruleset, findings, skipped_count, received_at]
+      properties:
+        scan_id: { $ref: '#/components/schemas/ProductID' }
+        version_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        manifest_digest: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
+        completeness: { type: string, enum: [complete, partial] }
+        review_path: { type: [string, 'null'] }
+        origin: { type: string, enum: [local, ci, private_worker] }
+        ruleset: { type: string, const: zasp-static.v1 }
+        findings: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/AddonFindingCount' } }
+        skipped_count: { type: integer, minimum: 0, maximum: 1000000 }
+        received_at: { type: string, format: date-time }
+    AddonCISignature:
+      type: object
+      additionalProperties: false
+      required: [key_id, repository, commit, signature]
+      properties:
+        key_id: { type: string, pattern: '^[0-9a-f]{64}$' }
+        repository: { type: string, pattern: '^[a-z0-9][a-z0-9.-]{0,38}/[a-z0-9][a-z0-9._-]{0,99}$' }
+        commit: { type: string, pattern: '^([0-9a-f]{40}|[0-9a-f]{64})$' }
+        signature: { type: string, pattern: '^[a-zA-Z0-9_-]{86}$' }
+    AddonCIReceipt:
+      type: object
+      additionalProperties: false
+      required: [scan_id, repository, commit]
+      properties:
+        scan_id: { $ref: '#/components/schemas/ProductID' }
+        repository: { type: string }
+        commit: { type: string }
+    AddonCIOrigin:
+      type: object
+      additionalProperties: false
+      required: [status, match, repository, commit, scan_id]
+      properties:
+        status: { type: string, enum: [unknown, verified] }
+        match: { type: [string, 'null'], enum: [direct, same_manifest, null] }
+        repository: { type: [string, 'null'] }
+        commit: { type: [string, 'null'] }
+        scan_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+    AddonFindingCount:
+      type: object
+      additionalProperties: false
+      required: [rule_id, count]
+      properties:
+        rule_id: { type: string, enum: [dependency.unpinned, script.shell_execution, script.network_access, instruction.hidden_text, mcp.unpinned_launcher, mcp.remote_endpoint] }
+        count: { type: integer, minimum: 1, maximum: 1000000 }
+    AddonScanSubmission:
+      type: object
+      additionalProperties: false
+      required: [environment_id, schema_version, ruleset, manifest_method, manifest_digest, completeness, origin, findings, skipped_count]
+      allOf:
+        - if: { properties: { origin: { const: private_worker } } }
+          then: { required: [private_upload] }
+          else: { not: { required: [private_upload] } }
+      properties:
+        private_upload:
+          type: object
+          additionalProperties: false
+          required: [id, archive_digest, archive_bytes]
+          properties:
+            id: { $ref: '#/components/schemas/ProductID' }
+            archive_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+            archive_bytes: { type: integer, minimum: 1, maximum: 8388608 }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        schema_version: { type: string, const: zasp-addon-findings.v1 }
+        ruleset: { type: string, const: zasp-static.v1 }
+        manifest_method: { type: string, const: addon-manifest.v1 }
+        manifest_digest: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
+        completeness: { type: string, enum: [complete, partial] }
+        origin: { type: string, enum: [local, ci, private_worker] }
+        findings: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/AddonFindingCount' } }
+        skipped_count: { type: integer, minimum: 0, maximum: 1000000 }
+    AddonScanReceipt:
+      type: object
+      additionalProperties: false
+      required: [scan_id, version_id, manifest_digest, completeness, review_path]
+      properties:
+        scan_id: { $ref: '#/components/schemas/ProductID' }
+        version_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        manifest_digest: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
+        completeness: { type: string, enum: [complete, partial] }
+        review_path: { type: [string, 'null'] }
+    AddonVersionDetail:
+      type: object
+      additionalProperties: false
+      required: [id, manifest_digest, origin, provenance, ruleset, findings, review_state, revision]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        manifest_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        origin: { type: string, enum: [local, ci, private_worker] }
+        provenance: { type: string, const: reported }
+        ruleset: { type: string, const: zasp-static.v1 }
+        findings: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/AddonFindingCount' } }
+        review_state: { type: string, enum: [pending, approved, rejected, revoked] }
+        revision: { type: integer, minimum: 0 }
+    AddonVersionPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AddonVersionDetail' } }
+        next_cursor: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+    AddonReviewInput:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state: { type: string, enum: [approved, rejected, revoked] }
     ProductID:
       type: string
       minLength: 40
@@ -6102,6 +7164,10 @@ components:
         - view_compliance
         - manage_data_controls
         - run_tests
+        - decide_actions
+        - submit_addon_scans
+        - sync_endpoint
+        - report_browser_usage
         - decide_guardrails
         - use_gateway
     BuiltInRole:
@@ -7158,6 +8224,130 @@ components:
       type: string
       description: block stops the interaction; redact replaces the matched text (sensitive-data rules only); monitor reports the match and changes nothing; off ignores the rule.
       enum: [block, redact, monitor, 'off']
+    WorkloadContainment:
+      type: object
+      additionalProperties: false
+      required: [credential_id, run_id, step_id, session_id, approval_id, authorized_by, authorized_at, expires_at, state, block_receipt_id, release_receipt_id]
+      properties:
+        credential_id: { $ref: '#/components/schemas/ProductID' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        step_id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        approval_id: { $ref: '#/components/schemas/ProductID' }
+        authorized_by: { $ref: '#/components/schemas/ProductID' }
+        authorized_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        state: { type: string, enum: [pending_readback, adapter_confirmed, released, expired] }
+        block_receipt_id: { type: [string, 'null'] }
+        release_receipt_id: { type: [string, 'null'] }
+    WorkloadCredentialBinding:
+      type: object
+      additionalProperties: false
+      required: [credential_id, agent_id, session_id, source, created_by, created_at]
+      properties:
+        credential_id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        source: { type: string, const: administrator_bound_credential }
+        created_by: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+    BrowserObservedOrigin:
+      type: string
+      enum: ['https://claude.ai', 'https://chatgpt.com']
+    BrowserOriginDay:
+      type: object
+      additionalProperties: false
+      required: [origin, day]
+      properties:
+        origin: { $ref: '#/components/schemas/BrowserObservedOrigin' }
+        day: { type: string, format: date }
+    BrowserProfileRegistration:
+      type: object
+      additionalProperties: false
+      required: [public_key, origins]
+      properties:
+        public_key: { type: string, description: 'Base64 uncompressed P-256 public point in 65-byte SEC1 format.' }
+        origins: { type: array, minItems: 1, maxItems: 2, uniqueItems: true, items: { $ref: '#/components/schemas/BrowserObservedOrigin' } }
+    BrowserOriginReport:
+      type: object
+      additionalProperties: false
+      required: [issued_at, nonce, days, signature]
+      properties:
+        issued_at: { type: integer, format: int64, description: 'UTC Unix seconds.' }
+        nonce: { type: string, pattern: '^[0-9a-f]{32}$' }
+        days: { type: array, maxItems: 60, uniqueItems: true, items: { $ref: '#/components/schemas/BrowserOriginDay' } }
+        signature: { type: string, description: 'Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.' }
+    BrowserOriginAck:
+      type: object
+      additionalProperties: false
+      required: [credential_id, environment_id, accepted]
+      properties:
+        credential_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        accepted: { type: boolean }
+    BrowserProfile:
+      type: object
+      additionalProperties: false
+      required: [credential_id, environment_id, origins, state, expires_at, last_sync, last_observation, observations]
+      properties:
+        credential_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        origins: { type: array, minItems: 1, maxItems: 2, items: { $ref: '#/components/schemas/BrowserObservedOrigin' } }
+        state: { type: string, enum: [awaiting_profile, reporting, stale, revoked, expired] }
+        expires_at: { type: string, format: date-time }
+        last_sync: { type: [string, 'null'], format: date-time }
+        last_observation: { type: [string, 'null'], format: date }
+        observations: { type: array, maxItems: 60, items: { $ref: '#/components/schemas/BrowserOriginDay' } }
+    WorkloadActionLabel:
+      type: string
+      pattern: '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$'
+      maxLength: 128
+    WorkloadActionRequest:
+      type: object
+      additionalProperties: false
+      required: [schema_version, action_id, action_kind, operation, resource]
+      properties:
+        schema_version: { type: string, const: action.v1 }
+        action_id: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        action_kind: { type: string, const: tool_call }
+        operation: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        source_session_ref: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        source_call_ref: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        resource:
+          type: object
+          additionalProperties: false
+          required: [kind, classification]
+          properties:
+            kind: { $ref: '#/components/schemas/WorkloadActionLabel' }
+            classification: { $ref: '#/components/schemas/WorkloadActionLabel' }
+    WorkloadActionDecision:
+      type: object
+      additionalProperties: false
+      required: [action_id, decision_id, mode, verdict, would_block, reason_code, policy_revision_id, coverage]
+      properties:
+        action_id: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        mode: { type: string, enum: [monitor, enforce] }
+        verdict: { type: string, enum: [allow, block] }
+        would_block: { type: boolean }
+        reason_code: { type: string, enum: [no_matching_restriction, rule_would_block, rule_blocked, supervised_session_isolation] }
+        policy_revision_id: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        coverage: { type: string, const: pre_action_supported }
+    WorkloadActionOutcome:
+      type: object
+      additionalProperties: false
+      required: [schema_version, action_id, decision_id, status]
+      properties:
+        schema_version: { type: string, const: action-outcome.v1 }
+        action_id: { $ref: '#/components/schemas/WorkloadActionLabel' }
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, enum: [not_dispatched, returned, raised, cancelled] }
+    WorkloadOutcomeAck:
+      type: object
+      additionalProperties: false
+      required: [recorded]
+      properties:
+        recorded: { type: boolean, const: true }
     GuardrailInteraction:
       type: object
       additionalProperties: false
@@ -7861,6 +9051,67 @@ components:
         status: { type: string, enum: [approved, blocked, unapproved] }
         note: { type: string, maxLength: 512 }
         expected_version: { type: integer, minimum: 0, maximum: 999999 }
+    AgentPurposeInput:
+      type: object
+      additionalProperties: false
+      required: [allowed_tool_ids]
+      properties:
+        allowed_tool_ids: { type: array, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+    SuggestionRefresh:
+      type: object
+      additionalProperties: false
+      required: [purpose_revision, from, to]
+      properties:
+        purpose_revision: { type: integer, minimum: 1, maximum: 1000000 }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+    SuggestionDecision:
+      type: object
+      additionalProperties: false
+      required: [purpose_revision, decision]
+      properties:
+        purpose_revision: { type: integer, minimum: 1, maximum: 1000000 }
+        decision: { type: string, enum: [request_draft, dismiss] }
+    AgentSuggestion:
+      type: object
+      additionalProperties: false
+      required: [tool_id, policy_id, evidence_ids, from, to, state, draft_audit_id]
+      properties:
+        tool_id: { $ref: '#/components/schemas/ProductID' }
+        policy_id: { type: string }
+        draft_audit_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        evidence_ids: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        state: { type: string, enum: [suggested, dismissed, draft_requested, draft_linked] }
+    AgentSuggestionPage:
+      type: object
+      additionalProperties: false
+      required: [agent_id, purpose_revision, items, more, last_scan]
+      properties:
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        purpose_revision: { type: integer, minimum: 0, maximum: 1000000 }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AgentSuggestion' } }
+        more: { type: boolean }
+        last_scan:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [from, to, examined, eligible, truncated]
+          properties:
+            from: { type: string, format: date-time }
+            to: { type: string, format: date-time }
+            examined: { type: integer, minimum: 0, maximum: 100 }
+            eligible: { type: integer, minimum: 0, maximum: 100 }
+            truncated: { type: boolean }
+    AgentPurpose:
+      type: object
+      additionalProperties: false
+      required: [agent_id, revision, allowed_tool_ids, updated_at]
+      properties:
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        revision: { type: integer, minimum: 0, maximum: 1000000 }
+        allowed_tool_ids: { type: array, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+        updated_at: { type: [string, 'null'], format: date-time }
     AgentOwnershipInput:
       type: object
       additionalProperties: false
@@ -8117,6 +9368,119 @@ components:
         last_outcome: { type: [string, 'null'], enum: [queued, rejected, skipped_active, null] }
         last_fired_at: { type: [string, 'null'], format: date-time }
         updated_at: { type: [string, 'null'], format: date-time }
+    TicketOpaqueID: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' }
+    TicketScope:
+      type: object
+      additionalProperties: false
+      required: [organization_id, workspace_id, environment_id]
+      properties:
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+    TicketScenario:
+      type: object
+      additionalProperties: false
+      required: [schema_version, scope, run_id, target_id, operation, adapter_id, cohort_id, policy_revision, environment, credential_class, recorder_id, control_action_id, protected_action_id, window_start, window_end]
+      properties:
+        schema_version: { type: string, const: zasp-ticket-proof-v1 }
+        scope: { $ref: '#/components/schemas/TicketScope' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: synthetic_ticket_update }
+        adapter_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        cohort_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        policy_revision: { $ref: '#/components/schemas/TicketOpaqueID' }
+        environment: { type: string, enum: [development, test, staging] }
+        credential_class: { type: string, const: test_write }
+        recorder_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        control_action_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        protected_action_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+    TicketAdapterEvidence:
+      type: object
+      additionalProperties: false
+      required: [schema_version, scope, run_id, target_id, operation, adapter_id, cohort_id, policy_revision, capability, decisions]
+      properties:
+        schema_version: { type: string, const: zasp-ticket-proof-v1 }
+        scope: { $ref: '#/components/schemas/TicketScope' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: synthetic_ticket_update }
+        adapter_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        cohort_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        policy_revision: { $ref: '#/components/schemas/TicketOpaqueID' }
+        capability: { type: string, enum: [supported, unsupported, unknown] }
+        decisions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/TicketDecision' } }
+    TicketDecision:
+      type: object
+      additionalProperties: false
+      required: [action_id, decision_id, verdict, mode, applied, decided_at]
+      properties:
+        action_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        decision_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        verdict: { type: string, enum: [allow, block] }
+        mode: { type: string, enum: [monitor, enforce] }
+        applied: { type: boolean }
+        decided_at: { type: string, format: date-time }
+    TicketRecorderEvidence:
+      type: object
+      additionalProperties: false
+      required: [schema_version, scope, run_id, target_id, operation, recorder_id, healthy, complete_from, complete_through, writes]
+      properties:
+        schema_version: { type: string, const: zasp-ticket-proof-v1 }
+        scope: { $ref: '#/components/schemas/TicketScope' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, const: synthetic_ticket_update }
+        recorder_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        healthy: { type: boolean }
+        complete_from: { type: string, format: date-time }
+        complete_through: { type: string, format: date-time }
+        writes: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/TicketWrite' } }
+    TicketWrite:
+      type: object
+      additionalProperties: false
+      required: [action_id, receipt_id, recorded_at]
+      properties:
+        action_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        receipt_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        recorded_at: { type: string, format: date-time }
+    TicketVerificationBundle:
+      type: object
+      additionalProperties: false
+      required: [scenario, adapter, recorder]
+      properties:
+        scenario: { $ref: '#/components/schemas/TicketScenario' }
+        adapter: { $ref: '#/components/schemas/TicketAdapterEvidence' }
+        recorder: { $ref: '#/components/schemas/TicketRecorderEvidence' }
+    TicketVerificationResult:
+      type: object
+      additionalProperties: false
+      required: [verification_mode, run_id, verdict, reason]
+      properties:
+        verification_mode: { type: string, const: side_effect_verified }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        verdict: { type: string, enum: [passed, unexpected_effect, inconclusive, unsupported] }
+        reason: { $ref: '#/components/schemas/TicketOpaqueID' }
+        control_decision_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        protected_decision_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        control_receipt_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+        protected_receipt_id: { $ref: '#/components/schemas/TicketOpaqueID' }
+    TicketVerificationReceipt:
+      type: object
+      additionalProperties: false
+      required: [schema_version, evidence_source, definition_version, policy_revision, target_id, submitted_by, submitted_at, evidence_sha256, result]
+      properties:
+        schema_version: { type: integer, const: 1 }
+        evidence_source: { type: string, const: operator_import }
+        definition_version: { type: integer, minimum: 1 }
+        policy_revision: { $ref: '#/components/schemas/TicketOpaqueID' }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        submitted_by: { $ref: '#/components/schemas/ProductID' }
+        submitted_at: { type: string, format: date-time }
+        evidence_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        result: { $ref: '#/components/schemas/TicketVerificationResult' }
     TestRunDetail:
       type: object
       additionalProperties: false
@@ -8317,9 +9681,31 @@ components:
         environment_id: { type: string, minLength: 1, maxLength: 128 }
         metadata: { type: object, maxProperties: 32, additionalProperties: { type: string, minLength: 1, maxLength: 256 } }
     PolicySimulationInput:
+      oneOf:
+        - { type: object, additionalProperties: false, maxProperties: 0 }
+        - $ref: '#/components/schemas/PolicyReplayInput'
+    PolicyReplayInput:
       type: object
       additionalProperties: false
-      maxProperties: 0
+      required: [schema_version, policy_revision, agent_id, from, to]
+      properties:
+        schema_version: { type: integer, const: 2 }
+        policy_revision: { type: integer, minimum: 1 }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        from: { type: string, format: date-time, description: Inclusive start of a replay window of up to thirty days. }
+        to: { type: string, format: date-time, description: Exclusive end of the replay window. }
+    PolicyReplayCoverage:
+      type: object
+      additionalProperties: false
+      required: [policy_revision, agent_id, from, to, evaluated, truncated, coverage]
+      properties:
+        policy_revision: { type: integer, minimum: 1 }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        evaluated: { type: integer, minimum: 0, maximum: 100 }
+        truncated: { type: boolean }
+        coverage: { type: string, const: indexed_events_only }
     PolicySimulation:
       type: object
       additionalProperties: false
@@ -8328,7 +9714,9 @@ components:
         matches: { type: integer, minimum: 0, maximum: 100 }
         would_block: { type: integer, minimum: 0, maximum: 100 }
         example_session_ids: { type: array, maxItems: 5, items: { type: string, minLength: 1, maxLength: 128 } }
+        replay: { $ref: '#/components/schemas/PolicyReplayCoverage' }
     PolicyRolloutInput:
+      description: Promote a current Environment revision from draft to monitor or monitor to enforced. Return an unedited enforced revision to its preceding monitor state with the current If-Match version. Each transition produces a new audited revision.
       type: object
       additionalProperties: false
       required: [state, target_id]

@@ -125,8 +125,11 @@ func (driver *Driver) Ready(ctx context.Context) error {
 }
 
 type historySearchResponse struct {
-	TimedOut bool `json:"timed_out"`
-	Hits     struct {
+	TimedOut *bool `json:"timed_out"`
+	Shards   *struct {
+		Failed *int `json:"failed"`
+	} `json:"_shards,omitempty"`
+	Hits struct {
 		Hits []struct {
 			ID     string                `json:"_id"`
 			Sort   []string              `json:"sort"`
@@ -155,11 +158,29 @@ func (driver *Driver) SearchPolicyActions(ctx context.Context, scope domain.Scop
 	if driver == nil || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || !historyTrigger(trigger) || limit < 1 || limit > 100 {
 		return nil, ErrHistory
 	}
-	body, err := historyQuery(scope, trigger, limit)
+	return driver.search(ctx, scope, trigger, limit, nil)
+}
+
+func (driver *Driver) SearchReplayActions(ctx context.Context, scope domain.Scope, trigger string, window platformpolicy.ReplayWindow) ([]platformpolicy.ActionContext, bool, error) {
+	if driver == nil || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || !historyTrigger(trigger) || !window.Valid() {
+		return nil, false, ErrHistory
+	}
+	events, err := driver.search(ctx, scope, trigger, 101, &window)
+	if len(events) > 100 {
+		return events[:100], true, err
+	}
+	return events, false, err
+}
+
+func (driver *Driver) search(ctx context.Context, scope domain.Scope, trigger string, limit int, window *platformpolicy.ReplayWindow) ([]platformpolicy.ActionContext, error) {
+	body, err := historyQueryForWindow(scope, trigger, limit, window)
 	if err != nil {
 		return nil, ErrHistory
 	}
 	query := url.Values{"filter_path": {"hits.hits._id,hits.hits._source,hits.hits.sort,timed_out"}}
+	if window != nil {
+		query.Set("filter_path", query.Get("filter_path")+",_shards.failed")
+	}
 	response, err := driver.request(ctx, "/"+historyIndex+"/_search?"+query.Encode(), body)
 	if err != nil {
 		return nil, ErrHistory
@@ -175,7 +196,7 @@ func (driver *Driver) SearchPolicyActions(ctx context.Context, scope domain.Scop
 	var decoded historySearchResponse
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&decoded) != nil || decoder.Decode(&struct{}{}) != io.EOF || decoded.TimedOut || len(decoded.Hits.Hits) > limit {
+	if decoder.Decode(&decoded) != nil || decoder.Decode(&struct{}{}) != io.EOF || decoded.TimedOut != nil && *decoded.TimedOut || len(decoded.Hits.Hits) > limit || window != nil && (decoded.TimedOut == nil || decoded.Shards == nil || decoded.Shards.Failed == nil || *decoded.Shards.Failed != 0 || decoded.Hits.Hits == nil) {
 		return nil, ErrHistory
 	}
 	values := make([]platformpolicy.ActionContext, len(decoded.Hits.Hits))
@@ -184,7 +205,7 @@ func (driver *Driver) SearchPolicyActions(ctx context.Context, scope domain.Scop
 	previousID := ""
 	for index, hit := range decoded.Hits.Hits {
 		value, instant, ok := actionContext(scope, trigger, hit.ID, hit.Sort, hit.Source)
-		if !ok || index > 0 && (instant.After(previousTime) || instant.Equal(previousTime) && hit.ID <= previousID) {
+		if !ok || window != nil && (value.AgentID != window.AgentID || instant.Before(window.From) || !instant.Before(window.To)) || index > 0 && (instant.After(previousTime) || instant.Equal(previousTime) && hit.ID <= previousID) {
 			return nil, ErrHistory
 		}
 		if _, exists := seen[hit.ID]; exists {
@@ -206,18 +227,26 @@ func validJSONMediaType(value string) bool {
 }
 
 func historyQuery(scope domain.Scope, trigger string, limit int) ([]byte, error) {
+	return historyQueryForWindow(scope, trigger, limit, nil)
+}
+
+func historyQueryForWindow(scope domain.Scope, trigger string, limit int, window *platformpolicy.ReplayWindow) ([]byte, error) {
+	filters := []any{
+		map[string]any{"term": map[string]string{"organization_id": scope.OrganizationID().String()}},
+		map[string]any{"term": map[string]string{"workspace_id": scope.WorkspaceID().String()}},
+		map[string]any{"term": map[string]string{"environment_id": scope.EnvironmentID().String()}},
+		map[string]any{"term": map[string]string{"record_type": "runtime_event"}},
+		map[string]any{"term": map[string]string{"event_class": trigger}},
+		map[string]any{"exists": map[string]string{"field": "agent_id"}},
+		map[string]any{"exists": map[string]string{"field": "session_id"}},
+	}
+	if window != nil {
+		filters = append(filters, map[string]any{"term": map[string]string{"agent_id": window.AgentID}}, map[string]any{"range": map[string]any{"event_time": map[string]string{"gte": window.From.UTC().Format(time.RFC3339Nano), "lt": window.To.UTC().Format(time.RFC3339Nano)}}})
+	}
 	return json.Marshal(map[string]any{
 		"_source": []string{"organization_id", "workspace_id", "environment_id", "record_type", "event_id", "event_class", "action", "agent_id", "session_id", "tool_id", "workload_id", "source_event_id", "event_time"},
-		"query": map[string]any{"bool": map[string]any{"filter": []any{
-			map[string]any{"term": map[string]string{"organization_id": scope.OrganizationID().String()}},
-			map[string]any{"term": map[string]string{"workspace_id": scope.WorkspaceID().String()}},
-			map[string]any{"term": map[string]string{"environment_id": scope.EnvironmentID().String()}},
-			map[string]any{"term": map[string]string{"record_type": "runtime_event"}},
-			map[string]any{"term": map[string]string{"event_class": trigger}},
-			map[string]any{"exists": map[string]string{"field": "agent_id"}},
-			map[string]any{"exists": map[string]string{"field": "session_id"}},
-		}}},
-		"size": limit, "sort": []any{map[string]any{"event_time": map[string]string{"order": "desc"}}, map[string]any{"document_id": map[string]string{"order": "asc"}}}, "track_total_hits": false,
+		"query":   map[string]any{"bool": map[string]any{"filter": filters}},
+		"size":    limit, "sort": []any{map[string]any{"event_time": map[string]string{"order": "desc"}}, map[string]any{"document_id": map[string]string{"order": "asc"}}}, "track_total_hits": false,
 	})
 }
 
@@ -274,7 +303,7 @@ func actionContext(scope domain.Scope, trigger, documentID string, sortValues []
 	if resource == "" {
 		resource = source.SourceEventID
 	}
-	value := platformpolicy.ActionContext{PrincipalID: source.AgentID, AgentID: source.AgentID, SessionID: source.SessionID, Action: source.EventClass, Resource: resource, EnvironmentID: source.EnvironmentID, Metadata: map[string]string{"action": source.Action, "resource": resource, "principal_id": source.AgentID, "agent_id": source.AgentID, "session_id": source.SessionID, "environment_id": source.EnvironmentID}}
+	value := platformpolicy.ActionContext{EventID: source.EventID, ToolID: source.ToolID, PrincipalID: source.AgentID, AgentID: source.AgentID, SessionID: source.SessionID, Action: source.EventClass, Resource: resource, EnvironmentID: source.EnvironmentID, Metadata: map[string]string{"action": source.Action, "resource": resource, "principal_id": source.AgentID, "agent_id": source.AgentID, "session_id": source.SessionID, "environment_id": source.EnvironmentID}}
 	if _, err := platformpolicy.NormalizeActionContext(value); err != nil {
 		return platformpolicy.ActionContext{}, time.Time{}, false
 	}

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^mcp__pilot__update_ticket$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/libexec/zasp-endpoint claude-pre-tool --on-unavailable continue",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

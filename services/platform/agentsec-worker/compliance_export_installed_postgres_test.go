@@ -495,8 +495,49 @@ func TestComplianceExportOnInstalledBaselinePostgres(t *testing.T) {
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_compliance_export_jobs WHERE export_id IN($1,$2) AND state='completed' AND storage_state='verified' AND snapshot IS NOT NULL AND receipt_version IS NOT NULL AND retrieval_expires_at>clock_timestamp()`, frameworkExport, packExport).Scan(&retainedJobs); err != nil || retainedJobs != 2 {
 		t.Fatalf("retained jobs = %d %v", retainedJobs, err)
 	}
-	// A requester whose membership ended cannot read the export any more.
-	if _, err := admin.Exec(ctx, `UPDATE zasp_identity_memberships SET active=false WHERE (organization_id,principal_id)=($1,$2)`, o, actor); err != nil {
+	t.Run("managed pilot selection and retained worker download", func(t *testing.T) {
+		var supported bool
+		if err := admin.QueryRow(ctx, `SELECT to_regprocedure('zasp_authorization80.pilot_export_pack(text,text,text,jsonb,timestamptz)') IS NOT NULL`).Scan(&supported); err != nil {
+			t.Fatal(err)
+		}
+		if !supported {
+			t.Skip("installed baseline predates managed pilot exports")
+		}
+		device, other := id(), id()
+		ref, action := strings.Repeat("a", 64), strings.Repeat("b", 64)
+		_, err := admin.Exec(ctx, `INSERT INTO public.zasp_endpoint_devices(organization_id,workspace_id,environment_id,id,credential_id,device_key,policy_key,cohort) VALUES($1,$2,$3,$4,$5,'fixture','fixture','export-test'),($1,$2,$3,$6,$7,'fixture','fixture','other-group')`, o, w, e, device, id(), other, id())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			admin.Exec(context.Background(), `DELETE FROM public.zasp_endpoint_observations WHERE (organization_id,workspace_id,environment_id,device_id)=($1,$2,$3,$4)`, o, w, e, device)
+			admin.Exec(context.Background(), `DELETE FROM public.zasp_endpoint_devices WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) AND id IN($4,$5)`, o, w, e, device, other)
+		})
+		_, err = admin.Exec(ctx, `INSERT INTO public.zasp_endpoint_observations(organization_id,workspace_id,environment_id,device_id,credential_generation,action_id,observation) VALUES($1,$2,$3,$4,1,$5,jsonb_build_object('session_ref',$6::text,'policy_revision',4,'mode','monitor','verdict','continue','would_block',true,'local_uid',909))`, o, w, e, device, action, ref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, bad := range []string{`{"pilot_cohort":"absent"}`, `{"device_id":"` + other + `","endpoint_session_ref":"` + ref + `"}`, `{"pilot_cohort":"export-test","agent_id":"` + agent + `"}`} {
+			if _, err := checked(createSQL, o, w, e, actor, session[:], "bad-pilot", bad, checksum, fingerprint); err == nil {
+				t.Fatalf("accepted inaccessible selector %s", bad)
+			}
+		}
+		export := create("pilot-managed-export", `{"device_id":"`+device+`","endpoint_session_ref":"`+ref+`"}`)
+		packageValue := run(export)
+		var pack pilotPack
+		if err := json.Unmarshal(packageValue.JSON, &pack); err != nil || pack.Selection.Session != ref || len(pack.Devices) != 1 || pack.Devices[0].ID != device ||
+			len(pack.Actions) != 1 || pack.Actions[0].Action != action || pack.External != "unknown" || pack.Effect != "unknown" || pack.Usage != "unknown" ||
+			strings.Contains(string(packageValue.JSON), "local_uid") || !strings.Contains(packageValue.Human, "target effects and skill usage are unknown") || !strings.Contains(packageValue.CSV, action) {
+			t.Fatalf("unexpected retained pilot report: %v %s", err, packageValue.JSON)
+		}
+	})
+	// End fixture membership using the registered migration principal. The
+	// installed write guard checks both session_user and current_user.
+	var migrationPrincipal string
+	if err := admin.QueryRow(ctx, `SELECT principal_name FROM public.zasp_discovery_principal_bindings WHERE authority_role='zasp_discovery_authority'`).Scan(&migrationPrincipal); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := login(migrationPrincipal).Exec(ctx, `UPDATE zasp_identity_memberships SET active=false WHERE (organization_id,principal_id)=($1,$2)`, o, actor); err != nil {
 		t.Fatal(err)
 	}
 	if status, err := checked(getSQL, o, w, e, actor, session[:], packExport, checksum, fingerprint); err == nil {

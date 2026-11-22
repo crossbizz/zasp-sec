@@ -30,9 +30,10 @@ type PolicyDecisionHistory interface {
 }
 
 type PolicyPublicHTTPConfig struct {
-	Workflows workflowRepository
-	History   PolicyActionHistory
-	Decisions PolicyDecisionHistory
+	EvidenceDB JSONDatabase
+	Workflows  workflowRepository
+	History    PolicyActionHistory
+	Decisions  PolicyDecisionHistory
 }
 
 type PolicyPublicHTTPHandler struct{ config PolicyPublicHTTPConfig }
@@ -65,6 +66,10 @@ func (handler *PolicyPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
+	if isSuggestionOperation(routed.OperationID) {
+		handler.suggestions(writer, request, identity, routed)
+		return
+	}
 	policyID := routed.PathParameters["id"]
 	if !policyIDPattern.MatchString(policyID) {
 		writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -81,7 +86,18 @@ func (handler *PolicyPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, re
 }
 
 func (handler *PolicyPublicHTTPHandler) simulate(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, policyID string) {
-	if request.Method != http.MethodPost || request.URL.RawQuery != "" || decodeEmptyInput(request) != nil {
+	var raw json.RawMessage
+	if request.Method != http.MethodPost || request.URL.RawQuery != "" || decodeProductionJSON(request, &raw) != nil {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	var input struct {
+		SchemaVersion  int   `json:"schema_version"`
+		PolicyRevision int64 `json:"policy_revision"`
+		platformpolicy.ReplayWindow
+	}
+	legacy := len(raw) > 0 && raw[0] == '{' && exactJSONFields(raw)
+	if !legacy && (!exactJSONFields(raw, "schema_version", "policy_revision", "agent_id", "from", "to") || json.Unmarshal(raw, &input) != nil || input.SchemaVersion != 2 || input.PolicyRevision <= 0 || !input.ReplayWindow.Valid() || input.To.After(time.Now())) {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
@@ -95,14 +111,31 @@ func (handler *PolicyPublicHTTPHandler) simulate(writer http.ResponseWriter, req
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	events, err := handler.config.History.SearchPolicyActions(request.Context(), identity.Scope, policyValue.Trigger, 100)
+	var events []platformpolicy.ActionContext
+	var truncated bool
+	if legacy {
+		events, err = handler.config.History.SearchPolicyActions(request.Context(), identity.Scope, policyValue.Trigger, 100)
+	} else {
+		if value.Version != input.PolicyRevision {
+			writeProductionError(writer, request, ErrRepositoryConflict)
+			return
+		}
+		reader, ok := handler.config.History.(interface {
+			SearchReplayActions(context.Context, domain.Scope, string, platformpolicy.ReplayWindow) ([]platformpolicy.ActionContext, bool, error)
+		})
+		if !ok {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		events, truncated, err = reader.SearchReplayActions(request.Context(), identity.Scope, policyValue.Trigger, input.ReplayWindow)
+	}
 	if err != nil || len(events) > 100 || request.Context().Err() != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
 	for _, event := range events {
 		normalized, normalizeErr := platformpolicy.NormalizeActionContext(event)
-		if normalizeErr != nil || normalized.EnvironmentID != identity.Scope.EnvironmentID().String() || normalized.Action != policyValue.Trigger {
+		if normalizeErr != nil || normalized.EnvironmentID != identity.Scope.EnvironmentID().String() || normalized.Action != policyValue.Trigger || !legacy && normalized.AgentID != input.AgentID {
 			writeProductionError(writer, request, ErrRepositoryUnavailable)
 			return
 		}
@@ -120,7 +153,11 @@ func (handler *PolicyPublicHTTPHandler) simulate(writer http.ResponseWriter, req
 			return
 		}
 	}
-	writeJSONValue(writer, request, http.StatusOK, map[string]any{"matches": result.Matches, "would_block": result.WouldBlock, "example_session_ids": result.Examples}, nil)
+	response := map[string]any{"matches": result.Matches, "would_block": result.WouldBlock, "example_session_ids": result.Examples}
+	if !legacy {
+		response["replay"] = map[string]any{"policy_revision": value.Version, "from": input.From, "to": input.To, "agent_id": input.AgentID, "evaluated": len(events), "truncated": truncated, "coverage": "indexed_events_only"}
+	}
+	writeJSONValue(writer, request, http.StatusOK, response, nil)
 }
 
 func (handler *PolicyPublicHTTPHandler) decisions(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, policyID string) {

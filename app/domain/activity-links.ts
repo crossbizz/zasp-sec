@@ -1,9 +1,10 @@
 export type ActivityScope = Readonly<{ organizationID: string; workspaceID: string; environmentID: string }>;
-export type ActivityKind = "finding" | "attack_path" | "session" | "audit" | "run" | "test_run" | "attack_lab_run";
+export type ActivityKind = "finding" | "attack_path" | "session" | "audit" | "run" | "test_run" | "attack_lab_run" | "purpose";
 export type ActivityTarget = Readonly<{ kind: ActivityKind; id: string }>;
 export type ActivityLinkResult = { state: "none" | "invalid" | "scope_mismatch" } | { state: "selected"; target: ActivityTarget };
 
 const routes: Record<ActivityKind, string> = {
+  purpose: "/policies",
   finding: "/violations",
   attack_path: "/exposure/attack-paths",
   session: "/investigate/sessions",

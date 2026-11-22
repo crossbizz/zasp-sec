@@ -82,7 +82,8 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
     <PageHeader title="Guardrails" eyebrow="Protect" description="Decide what the hosted gateway, or a gateway you already run, blocks, redacts or lets through. Detection is deterministic: patterns, phrase lists and checksums, with no model call." />
     {error && <div className="error-banner" role="alert">{error}</div>}
     {notice && <div className="success-banner" role="status">{notice}</div>}
-    <div className="page-tabs"><Tabs active={section} onChange={setSection} tabs={[{ id: "rules", label: "Rules" }, ...(gatewayAPI ? [{ id: "gateway", label: "Hosted gateway" }, { id: "activity", label: "Activity" }] : []), { id: "setup", label: "Set up" }]} /></div>
+    <div className="page-tabs"><Tabs active={section} onChange={setSection} tabs={[{ id: "rules", label: "Rules" }, ...(gatewayAPI ? [{ id: "gateway", label: "Hosted gateway" }, { id: "activity", label: "Activity" }] : []), ...(onNavigate ? [{ id: "suggestions", label: "Suggestions" }] : []), { id: "setup", label: "Set up" }]} /></div>
+    {onNavigate && <div role="tabpanel" aria-label="Suggestions" hidden={section !== "suggestions"}><Card title="Agent purpose and runtime policy"><p>Review observed tool access against an agent’s intended tools. An authorized reviewer can save a draft rule and replay it against scoped runtime history.</p><Button onClick={() => onNavigate("/policies")}>Open runtime policies</Button></Card></div>}
     <div role="tabpanel" aria-label="Rules" hidden={section !== "rules"}>
     <Card title={<h2>Policy for this Environment</h2>} action={policy ? <Badge tone={policy.version === 0 ? "neutral" : "brand"}>{policy.version === 0 ? "Defaults" : `Version ${policy.version}`}</Badge> : undefined}>
       {load.status === "loading" && <LoadingState label="Loading guardrail policy…" />}

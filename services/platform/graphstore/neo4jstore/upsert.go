@@ -5,10 +5,22 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 )
+
+// A lock on the existing scoped evidence node serializes concurrent replays.
+// Metadata lives on a separate node so established graph readers keep their
+// strict six-property node schema. Drift makes the entire transaction roll back.
+const attachActionEvidenceQuery = `MATCH (n:ZaspGraphNode {organization_id:$organization_id, workspace_id:$workspace_id, environment_id:$environment_id, node_id:$evidence_id})
+SET n.kind=n.kind
+WITH n WHERE n.kind=$event_type
+MERGE (n)-[:ZASP_HAS_ACTION_EVIDENCE]->(f:ZaspActionEvidence)
+ON CREATE SET f.evidence_id=$evidence_id, f.source=$source, f.event_type=$event_type, f.observed_at=$observed_at, f.verdict=$verdict
+WITH f WHERE f.evidence_id=$evidence_id AND f.source=$source AND f.event_type=$event_type AND f.observed_at=$observed_at AND f.verdict=$verdict
+RETURN count(f) AS matched`
 
 const (
 	maximumUpsertNodes = 1_000
@@ -22,6 +34,27 @@ const (
 var adapterKindPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
 func (adapter *Adapter) Upsert(ctx context.Context, projection graphstore.DriverProjection) (graphstore.DriverUpserted, error) {
+	return adapter.upsert(ctx, projection, nil)
+}
+
+func (adapter *Adapter) UpsertActionEvidence(ctx context.Context, projection graphstore.DriverProjection, fact graphstore.ActionEvidence) (graphstore.DriverUpserted, error) {
+	if !fact.Valid() {
+		return graphstore.DriverUpserted{}, ErrUpsert
+	}
+	rootPresent := false
+	for _, node := range projection.Nodes {
+		if node.NodeID == fact.EvidenceID.String() && node.Kind == fact.EventType {
+			rootPresent = true
+			break
+		}
+	}
+	if !rootPresent {
+		return graphstore.DriverUpserted{}, ErrUpsert
+	}
+	return adapter.upsert(ctx, projection, &fact)
+}
+
+func (adapter *Adapter) upsert(ctx context.Context, projection graphstore.DriverProjection, fact *graphstore.ActionEvidence) (graphstore.DriverUpserted, error) {
 	if adapter == nil || ctx == nil || nilInterface(adapter.provider) || adapter.database != databaseName || ctx.Err() != nil {
 		return graphstore.DriverUpserted{}, ErrUpsert
 	}
@@ -35,6 +68,13 @@ func (adapter *Adapter) Upsert(ctx context.Context, projection graphstore.Driver
 		}
 		if !runMatched(ctx, transaction, upsertEdgesQuery, parameters, int64(len(expected.EdgeIDs))) {
 			return ErrUpsert
+		}
+		if fact != nil {
+			evidence := map[string]any{"organization_id": parameters["organization_id"], "workspace_id": parameters["workspace_id"], "environment_id": parameters["environment_id"],
+				"evidence_id": fact.EvidenceID.String(), "event_type": fact.EventType, "source": fact.Source, "observed_at": fact.ObservedAt.UTC().Format(time.RFC3339Nano), "verdict": fact.Verdict}
+			if !runMatched(ctx, transaction, attachActionEvidenceQuery, evidence, 1) {
+				return ErrUpsert
+			}
 		}
 		result, runErr := transaction.Run(ctx, readbackUpsertQuery, parameters)
 		if runErr != nil || nilInterface(result) {

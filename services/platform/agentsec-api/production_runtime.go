@@ -594,7 +594,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}
-	policyHandler, err := apiserver.NewPolicyPublicHTTPHandler(apiserver.PolicyPublicHTTPConfig{Workflows: repository, History: policyHistory, Decisions: policyDecisions})
+	policyHandler, err := apiserver.NewPolicyPublicHTTPHandler(apiserver.PolicyPublicHTTPConfig{EvidenceDB: tracedDatabase, Workflows: repository, History: policyHistory, Decisions: policyDecisions})
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}

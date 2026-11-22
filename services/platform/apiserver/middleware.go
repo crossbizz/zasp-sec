@@ -114,6 +114,15 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 			return
 		}
 
+		if request.Method == http.MethodPost && (request.URL.Path == "/api/v1/cli/auth/start" || request.URL.Path == "/api/v1/cli/auth/exchange") {
+			// Native public clients present no ambient browser or bearer credentials.
+			if len(request.Header.Values("Origin")) != 0 || len(request.Header.Values("Cookie")) != 0 || len(request.Header.Values("Authorization")) != 0 {
+				writeProductError(writer, http.StatusForbidden, "request_forbidden", "Request forbidden", correlationID)
+				return
+			}
+			next.ServeHTTP(writer, request)
+			return
+		}
 		if request.URL.Path == "/api/v1/session/start" && request.Method == http.MethodGet {
 			next.ServeHTTP(writer, request)
 			return
@@ -201,6 +210,10 @@ func validPermissions(values []string) bool {
 	for _, value := range values {
 		switch value {
 		case "view", "manage_findings", "manage_workflows", "manage_identity", "manage_api_tokens", "view_audit", "investigate_sessions", "revoke_sessions", "view_compliance", "manage_data_controls", "run_tests":
+		case permissionBrowserUsage:
+		case "sync_endpoint":
+		case permissionSubmitAddonScans:
+		case permissionDecideActions:
 		case PermissionDecideGuardrails, PermissionUseGateway:
 		default:
 			return false

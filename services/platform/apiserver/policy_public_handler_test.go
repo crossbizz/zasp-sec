@@ -149,3 +149,68 @@ func containsText(value, target string) bool {
 	}
 	return false
 }
+
+type replayHistoryStub struct {
+	policyActionHistoryStub
+	window    platformpolicy.ReplayWindow
+	truncated bool
+}
+
+func (stub *replayHistoryStub) SearchReplayActions(_ context.Context, scope domain.Scope, trigger string, window platformpolicy.ReplayWindow) ([]platformpolicy.ActionContext, bool, error) {
+	stub.calls++
+	stub.scope = scope
+	stub.trigger = trigger
+	stub.window = window
+	return stub.events, stub.truncated, stub.err
+}
+
+func TestPolicyPublicHandlerReplaysPinnedAgentWindow(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	const agent = "pid_70000001-0000-4000-8000-000000000001"
+	const policyID = "policy-replay"
+	stored := WorkflowValue{Version: 3, Body: json.RawMessage(`{"id":"policy-replay","name":"Tool boundary","scope":"environment","trigger":"tool","conditions":[{"field":"resource","operator":"equals","value":"ticket-send"}],"action":"block","rollout":"draft","failure_mode":"open"}`)}
+	for _, tc := range []struct {
+		name                    string
+		revision                int
+		from, to, returnedAgent string
+		want                    int
+	}{
+		{"pinned window", 3, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 200},
+		{"stale revision", 2, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 409},
+		{"unbounded window", 3, "2025-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 400},
+		{"foreign agent response", 3, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", "pid_70000004-0000-4000-8000-000000000004", 503},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			history := &replayHistoryStub{}
+			history.events = []platformpolicy.ActionContext{{PrincipalID: tc.returnedAgent, AgentID: tc.returnedAgent, SessionID: "ticket-session", Action: "tool", Resource: "ticket-send", EnvironmentID: identity.Scope.EnvironmentID().String(), Metadata: map[string]string{"resource": "ticket-send"}}}
+			handler, err := NewPolicyPublicHTTPHandler(PolicyPublicHTTPConfig{Workflows: &workflowRepositoryStub{value: stored}, History: history, Decisions: &policyDecisionHistoryStub{}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, _ := json.Marshal(map[string]any{"schema_version": 2, "agent_id": agent, "policy_revision": tc.revision, "from": tc.from, "to": tc.to})
+			req := workflowRequest(t, identity, testCorrelationID, "simulatePolicy", map[string]string{"id": policyID}, http.MethodPost, "/api/v1/policies/"+policyID+"/simulate", string(raw))
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+			if recorder.Code != tc.want {
+				t.Fatalf("HTTP %d: %s", recorder.Code, recorder.Body)
+			}
+			if tc.want == 200 {
+				var result struct {
+					Matches    int `json:"matches"`
+					WouldBlock int `json:"would_block"`
+					Replay     struct {
+						Evaluated      int    `json:"evaluated"`
+						Coverage       string `json:"coverage"`
+						PolicyRevision int    `json:"policy_revision"`
+						AgentID        string `json:"agent_id"`
+					} `json:"replay"`
+				}
+				if json.Unmarshal(recorder.Body.Bytes(), &result) != nil || result.Matches != 1 || result.WouldBlock != 1 || result.Replay.Evaluated != 1 || result.Replay.Coverage != "indexed_events_only" || result.Replay.PolicyRevision != 3 || result.Replay.AgentID != agent || history.scope != identity.Scope || history.window.AgentID != agent {
+					t.Fatalf("incorrect replay %s", recorder.Body)
+				}
+			} else if tc.want != 503 && history.calls != 0 {
+				t.Fatal("invalid scope performed history I/O")
+			}
+		})
+	}
+}

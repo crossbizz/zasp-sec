@@ -20,7 +20,7 @@ func (surface *policyWorkflowSurface) ServeHTTP(writer http.ResponseWriter, requ
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if routed.OperationID == "simulatePolicy" || routed.OperationID == "listPolicyDecisions" {
+	if routed.OperationID == "simulatePolicy" || routed.OperationID == "listPolicyDecisions" || isSuggestionOperation(routed.OperationID) {
 		surface.policy.ServeHTTP(writer, request)
 		return
 	}

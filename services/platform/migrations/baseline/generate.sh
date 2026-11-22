@@ -182,13 +182,13 @@ fi
 if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
   predicates reference > "$WORK/reference.predicates"
   echo "baseline: applying the product completion"
-  { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  { echo "BEGIN;"; cat "$HERE/completion.sql" "$HERE/feature_v2.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 else
   # A kept installation already carries the completion. It is re-applied (the
   # file is re-runnable) and the predicates recorded before it are reused.
   [ -s "$WORK/reference.predicates" ] || fail "the kept installation has the completion but no recorded predicates; remove the kept containers"
-  { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  { echo "BEGIN;"; cat "$HERE/completion.sql" "$HERE/feature_v2.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 fi
 dump "$CONTAINER-reference" "$REFERENCE_PORT" pg_dumpall --roles-only --no-role-passwords > "$WORK/roles.raw"

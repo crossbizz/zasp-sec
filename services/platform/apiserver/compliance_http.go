@@ -80,9 +80,9 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			writeComplianceError(w, r, ErrComplianceForbidden)
 			return
 		}
-		object, valid := complianceClosedObject(body, []string{"framework", "control_id", "agent_id"})
+		object, valid := complianceClosedObject(body, []string{"framework", "control_id", "agent_id", "pilot_cohort", "device_id", "endpoint_session_ref"})
 		var input ComplianceExportRequest
-		if !valid || decodeStrictDiscovery(body, &input) != nil || !complianceFilterFields(object) || len(r.Header.Values("Idempotency-Key")) != 1 {
+		if !valid || decodeStrictDiscovery(body, &input) != nil || hasEmptyPilotSelector(object) || !complianceFilterFields(object) || len(r.Header.Values("Idempotency-Key")) != 1 {
 			writeComplianceError(w, r, ErrRepositoryOperation)
 			return
 		}
@@ -169,6 +169,14 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	default:
 		writeComplianceError(w, r, ErrRepositoryNotFound)
 	}
+}
+func hasEmptyPilotSelector(object map[string]json.RawMessage) bool {
+	for _, key := range []string{"pilot_cohort", "device_id", "endpoint_session_ref"} {
+		if raw, ok := object[key]; ok && string(raw) == `""` {
+			return true
+		}
+	}
+	return false
 }
 func complianceFilterFields(o map[string]json.RawMessage) bool {
 	for _, raw := range o {

@@ -21,8 +21,12 @@ manifests:
     path: apps/web/package.json
   - ecosystem: go
     path: cmd/agentsecctl/go.mod
+  - ecosystem: go
+    path: cmd/zaspctl/go.mod
   - ecosystem: npm
     path: package.json
+  - ecosystem: go
+    path: services/endpoint-agent/go.mod
   - ecosystem: go
     path: services/event-ingest/go.mod
   - ecosystem: go
@@ -98,6 +102,14 @@ dependencies:
     version: 1.0.0-beta.2
     license: MIT
     owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/endpoint-agent/go.mod
+    name: golang.org/x/sys
+    version: v0.47.0
+    license: BSD-3-Clause
+    owner: platform-data
     scope: runtime
     review: approved
   - ecosystem: go

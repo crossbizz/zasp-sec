@@ -3,6 +3,7 @@ package opensearchhistory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
 func TestDriverSearchesOnlyBoundedTenantTriggerHistory(t *testing.T) {
@@ -145,4 +147,52 @@ func historyID(t *testing.T) domain.ProductID {
 		t.Fatal(err)
 	}
 	return value
+}
+
+func TestDriverScopesReplayAndDisclosesTruncation(t *testing.T) {
+	scope := historyScope(t)
+	id := historyID(t).String()
+	other := historyID(t).String()
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	window := platformpolicy.ReplayWindow{AgentID: id, From: base, To: base.Add(time.Hour)}
+	for _, tc := range []struct {
+		name          string
+		size          int
+		agent         string
+		offset        time.Duration
+		shardFailures int
+		valid         bool
+	}{
+		{"empty", 0, id, 0, 0, true}, {"at limit", 100, id, 0, 0, true}, {"more indexed", 101, id, 0, 0, true}, {"foreign agent", 1, other, 0, 0, false}, {"exclusive end", 1, id, time.Hour, 0, false}, {"partial search", 1, id, 0, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transport := historyDoerFunc(func(req *http.Request) (*http.Response, error) {
+				body, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, want := range []string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), `"agent_id":"` + id + `"`, `"gte":"2026-01-01T00:00:00Z"`, `"lt":"2026-01-01T01:00:00Z"`, `"size":101`} {
+					if !strings.Contains(string(body), want) {
+						t.Fatal(string(body))
+					}
+				}
+				stamp := base.Add(tc.offset).Format("2006-01-02T15:04:05.000Z")
+				hits := make([]any, 0, tc.size)
+				for i := 0; i < tc.size; i++ {
+					doc := fmt.Sprintf("evt_%064x", i+1)
+					hits = append(hits, map[string]any{"_id": doc, "sort": []string{stamp, doc}, "_source": historyStoredDocument{OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), RecordType: "runtime_event", EventID: historyID(t).String(), EventClass: "tool", Action: "invoke", AgentID: tc.agent, SessionID: other, ToolID: "send", SourceEventID: "source", EventTime: stamp}})
+				}
+				reply, _ := json.Marshal(map[string]any{"timed_out": false, "_shards": map[string]any{"failed": tc.shardFailures}, "hits": map[string]any{"hits": hits}})
+				return historyResponse(200, string(reply)), nil
+			})
+			driver, err := newWithClient(Config{Endpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", Region: "us-west-2", RequestTimeout: time.Second, MaximumResponseBytes: 1 << 20}, historyCredentials{}, historySigner{}, transport, historyReady{}, func() time.Time { return base })
+			if err != nil {
+				t.Fatal(err)
+			}
+			values, truncated, err := driver.SearchReplayActions(t.Context(), scope, "tool", window)
+			if (err == nil) != tc.valid || tc.valid && (len(values) != min(tc.size, 100) || truncated != (tc.size > 100)) {
+				t.Fatalf("len %d, truncated %v, error %v", len(values), truncated, err)
+			}
+		})
+	}
 }

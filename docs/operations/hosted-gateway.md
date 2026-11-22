@@ -154,6 +154,22 @@ Protect, Guardrails. The guardrail rules decide what is blocked and redacted in 
 
 To start in observation mode, set every guardrail rule to `monitor`, leave the gateway policy at its defaults, and read the activity.
 
+## Bind a dedicated credential to a governed session
+
+An administrator can reserve a Zasp API token for one active inventory agent and one governed session. Use a dedicated token whose permissions are `use_gateway`, `decide_actions`, or both. While freshly authenticated in the Zasp browser session, send `PUT /api/v1/runtime/workload-bindings/{tokenId}` with the selected inventory agent in `{"agent_id":"<product ID>"}`. Use the application's normal browser scope and CSRF headers. The response includes the issuing administrator, agent, credential ID and the assigned session ID. Repeating the same assignment returns the same binding. Use a new dedicated credential for another session. Revoking the API token stops new authenticated requests.
+
+For subsequent hosted model/MCP requests, the gateway takes agent identity from this binding even if a caller supplies a different `X-Zasp-Agent-Id`. The existing Sessions projection records the decision under the governed session after the scheduler runs. This identifies traffic using the dedicated credential. A deployment using it across multiple provider conversations will see those conversations combined in its governed session. Unbound credentials keep their existing agent-header and daily activity view.
+
+The Python companion can also use a dedicated credential to evaluate rules based on the governed `agent_id` and `session_id`. Its optional source session and call references remain adapter-supplied evidence. [Python tool guard](../../sdks/python-guardrails/README.md)
+
+### Extend an approved isolation to a workload
+
+Use this for a Python workload whose governed session is also the exact session in a supervised runtime gateway `isolate_session` approval. A fresh browser user holding `revoke_sessions` calls `PUT /api/v1/runtime/workload-bindings/{tokenId}/containments/{runId}` with the exact `step_id`. The source approval must match the signed plan, session and device. Its application must already be verified and unexpired. The added target inherits the source deadline. The credential owner cannot use their machine token to approve containment.
+
+The initial status is `pending_readback`. An ensuing SDK admission returns `supervised_session_isolation` and prevents dispatch. When the SDK confirms `not_dispatched`, the scoped GET of the same path returns `adapter_confirmed` and the decision ID. Independent observation of a downstream side effect remains a separate staging check. Existing work already in flight continues under its original admission.
+
+Send DELETE to the same path with fresh authorization to release this workload target. Expiry or verified cleanup of the source also ends the control. GET distinguishes released/expired and reports a post-release decision receipt once the workload makes another observed attempt. Another active control can still block that attempt. Existing runtime gateway approvals retain their original targets until an authorized operator opts in each matching workload.
+
 ## Where upstream credentials are
 
 The gateway stores none. This was a decision: the product keeps secrets as references to a secret store that belongs to a connector (an OAuth connection at Nango, a secret in AWS Secrets Manager), each written by an authorization flow of its own. An MCP server's bearer token or a provider key has no such flow, and adding one would have put a new class of customer secret into the platform for no gain in control: the agent already holds the credential today. So the agent keeps it and sends it per request in `X-Zasp-Upstream-Authorization`.

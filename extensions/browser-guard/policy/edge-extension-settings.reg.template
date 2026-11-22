@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\3rdparty\extensions\REPLACE_WITH_EDGE_STORE_ID\policy]
+"Enabled"=dword:00000001
+"CentralReportingEnabled"=dword:00000000
+"RetentionDays"=dword:00000007
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\3rdparty\extensions\REPLACE_WITH_EDGE_STORE_ID\policy\AllowedOrigins]
+"1"="https://claude.ai"

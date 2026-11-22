@@ -215,12 +215,15 @@ func GetPolicyBundle(cache *BundleCache, environmentID, runtimeEnvironmentID str
 }
 
 type MemoryStore struct {
-	mu       sync.RWMutex
-	values   map[string]Policy
-	rollouts []RolloutRecord
+	mu                     sync.RWMutex
+	values                 map[string]Policy
+	rollouts               []RolloutRecord
+	monitorRollbackTargets map[string]string
 }
 
-func NewMemoryStore() *MemoryStore { return &MemoryStore{values: map[string]Policy{}} }
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{values: map[string]Policy{}, monitorRollbackTargets: map[string]string{}}
+}
 func (store *MemoryStore) Create(ctx context.Context, value Policy, capabilities Capabilities) error {
 	if store == nil || ctx == nil || ctx.Err() != nil || Validate(value, capabilities) != nil {
 		return ErrRejected

@@ -56,50 +56,7 @@ func TestHostedGatewayOnInstalledBaselinePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatalf("product repository on the installed baseline: %v", err)
 	}
-	// Token administration needs the deployment's two identity verifiers; a
-	// bare installation gets a pair here, registered by the operator login.
-	if registered := baseline.text(`SELECT count(*)::text FROM zasp_authorization80_identity.verifiers`); registered == "0" {
-		seed := bytes.Repeat([]byte{0x63}, 32)
-		session, sessionErr := authorization.NewIdentitySessionKey(seed)
-		webhook, webhookErr := authorization.NewIdentityWebhookKey(seed)
-		if sessionErr != nil || webhookErr != nil {
-			t.Fatal(sessionErr, webhookErr)
-		}
-		operator := baseline.login("zasp_operator")
-		audience := sha256.Sum256([]byte("https://zasp.test.invalid"))
-		for statement, key := range map[string][2]any{
-			`SELECT zasp_authorization80_identity.register_session($1,$2,$3,$4,$5,$6)`: {session.Version(), session.Verifier()},
-			`SELECT zasp_authorization80_identity.register_webhook($1,$2,$3,$4,$5,$6)`: {webhook.Version(), webhook.Verifier()},
-		} {
-			if _, err := operator.Exec(ctx, statement, key[0], key[1], hex.EncodeToString(audience[:]), "project-test-installed", "zasp_svc_api", ""); err != nil {
-				t.Fatalf("register identity verifier: %v", err)
-			}
-		}
-	}
-	rawTokens := map[string]string{}
-	token := func(name string, permissions string) installedPrincipal {
-		t.Helper()
-		raw := "zasp_pat_" + strings.ReplaceAll(baseline.id()[4:], "-", "") + strings.Repeat("A", 11)
-		mutation := administrationMutation{Operation: "createAPIToken", ID: baseline.id(), Name: name, WorkspaceID: baseline.w, EnvironmentID: baseline.e, Permissions: json.RawMessage(permissions), ExpiresAt: time.Now().UTC().Add(time.Hour),
-			IdempotencyKey: "create-token-" + strings.ReplaceAll(name, " ", "-") + "-" + baseline.e[4:12], GrantID: baseline.id(), AuditID: baseline.id(), revealKey: bytes.Repeat([]byte{0x52}, 32)}
-		if err := prepareAPITokenReveal(administrator.identity, &mutation, mutation.Operation, raw, time.Now().UTC()); err != nil {
-			t.Fatal(err)
-		}
-		checked, err := baseline.checked(administrator, RoutedOperation{OperationID: "createAPIToken", PathParameters: map[string]string{"id": mutation.ID}})
-		if err != nil {
-			t.Fatalf("authorize createAPIToken: %v", err)
-		}
-		created, err := repository.MutateAdministration(checked, administrator.identity, mutation)
-		if err != nil || !bytes.Contains(created, []byte(mutation.ID)) || bytes.Contains(created, []byte(raw)) {
-			t.Fatalf("create token %s with %s: %s %v", name, permissions, created, err)
-		}
-		identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: raw})
-		if err != nil || identity.CredentialKind != CredentialBearerToken || identity.PrincipalID != administrator.identity.PrincipalID || identity.Scope != baseline.scope {
-			t.Fatalf("authenticate token %s: %+v %v", name, identity, err)
-		}
-		rawTokens[name] = raw
-		return installedPrincipal{identity: identity, binding: identity.credentialBinding}
-	}
+	token, rawTokens := installedWorkloadTokenIssuer(t, baseline, repository, administrator)
 	agentToken := token("Support agent gateway", `["use_gateway"]`)
 	reader := token("Inventory reader", `["view"]`)
 	decider := token("Decision gateway", `["decide_guardrails"]`)
@@ -851,4 +808,56 @@ func gatewayLocalProcessEnvironment() []string {
 		environment = append(environment, entry)
 	}
 	return append(environment, "NO_PROXY=127.0.0.1,localhost")
+}
+
+// installedWorkloadTokenIssuer creates scoped workload PATs through the signed-in
+// administration path and authenticates them like production middleware.
+func installedWorkloadTokenIssuer(t *testing.T, baseline *installedBaseline, repository *PostgresRepository, administrator installedPrincipal) (func(string, string) installedPrincipal, map[string]string) {
+	t.Helper()
+	ctx := baseline.ctx
+	// Token administration needs the deployment's two identity verifiers; a
+	// bare installation gets a pair here, registered by the operator login.
+	if registered := baseline.text(`SELECT count(*)::text FROM zasp_authorization80_identity.verifiers`); registered == "0" {
+		seed := bytes.Repeat([]byte{0x63}, 32)
+		session, sessionErr := authorization.NewIdentitySessionKey(seed)
+		webhook, webhookErr := authorization.NewIdentityWebhookKey(seed)
+		if sessionErr != nil || webhookErr != nil {
+			t.Fatal(sessionErr, webhookErr)
+		}
+		operator := baseline.login("zasp_operator")
+		audience := sha256.Sum256([]byte("https://zasp.test.invalid"))
+		for statement, key := range map[string][2]any{
+			`SELECT zasp_authorization80_identity.register_session($1,$2,$3,$4,$5,$6)`: {session.Version(), session.Verifier()},
+			`SELECT zasp_authorization80_identity.register_webhook($1,$2,$3,$4,$5,$6)`: {webhook.Version(), webhook.Verifier()},
+		} {
+			if _, err := operator.Exec(ctx, statement, key[0], key[1], hex.EncodeToString(audience[:]), "project-test-installed", "zasp_svc_api", ""); err != nil {
+				t.Fatalf("register identity verifier: %v", err)
+			}
+		}
+	}
+	rawTokens := map[string]string{}
+	token := func(name string, permissions string) installedPrincipal {
+		t.Helper()
+		raw := "zasp_pat_" + strings.ReplaceAll(baseline.id()[4:], "-", "") + strings.Repeat("A", 11)
+		mutation := administrationMutation{Operation: "createAPIToken", ID: baseline.id(), Name: name, WorkspaceID: baseline.w, EnvironmentID: baseline.e, Permissions: json.RawMessage(permissions), ExpiresAt: time.Now().UTC().Add(time.Hour),
+			IdempotencyKey: "create-token-" + strings.ReplaceAll(name, " ", "-") + "-" + baseline.e[4:12], GrantID: baseline.id(), AuditID: baseline.id(), revealKey: bytes.Repeat([]byte{0x52}, 32)}
+		if err := prepareAPITokenReveal(administrator.identity, &mutation, mutation.Operation, raw, time.Now().UTC()); err != nil {
+			t.Fatal(err)
+		}
+		checked, err := baseline.checked(administrator, RoutedOperation{OperationID: "createAPIToken", PathParameters: map[string]string{"id": mutation.ID}})
+		if err != nil {
+			t.Fatalf("authorize createAPIToken: %v", err)
+		}
+		created, err := repository.MutateAdministration(checked, administrator.identity, mutation)
+		if err != nil || !bytes.Contains(created, []byte(mutation.ID)) || bytes.Contains(created, []byte(raw)) {
+			t.Fatalf("create token %s with %s: %s %v", name, permissions, created, err)
+		}
+		identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: raw})
+		if err != nil || identity.CredentialKind != CredentialBearerToken || identity.PrincipalID != administrator.identity.PrincipalID || identity.Scope != baseline.scope {
+			t.Fatalf("authenticate token %s: %+v %v", name, identity, err)
+		}
+		rawTokens[name] = raw
+		return installedPrincipal{identity: identity, binding: identity.credentialBinding}
+	}
+	return token, rawTokens
 }

@@ -6,6 +6,9 @@ import { RadioTower, RotateCw, Trash2 } from "lucide-react";
 import type { Sensor, SensorCoverage, SensorEnrollment, SensorInput, SensorMode, SensorUpdateInput } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, MetricGrid, Modal, PageHeader, Select } from "../../components/ui";
+import { SectionTabs } from "../../components/section-tabs";
+import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
+import { DeviceFleet } from "./DeviceFleet";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
 
@@ -14,9 +17,21 @@ type Feedback = Readonly<{ role: "status" | "alert"; message: string }> | null;
 export { type SensorsAPI } from "./api";
 
 export function ProductionSensorSurface({ canWrite, fresh, onReauthenticate }: { canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
-  const { client } = useAPI();
+  const { client, queryScopeKey, queryGeneration } = useAPI();
+  const [section,setSection] = useState("sensors");
+  const [linkedDevice,setLinkedDevice] = useState("");
+  useEffect(() => {
+    const values = new URLSearchParams(window.location.search).getAll("device");
+    if (values.length === 1 && /^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(values[0])) {
+      setLinkedDevice(values[0]); setSection("devices");
+    }
+  }, []);
+  const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
-  return <ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} />;
+  return <SectionTabs active={section} onChange={setSection} sections={[
+    { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
+    { id:"devices", label:"Devices", content:section==="devices" && <DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} initialID={linkedDevice} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/> },
+  ]} />;
 }
 
 export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }: { api: SensorsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {

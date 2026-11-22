@@ -155,6 +155,10 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		// The guardrail decision API and the Environment's guardrail policy
 		// are served from the same surface.
 		if surface, composed := workflowSurface.(*discoveryWorkflowSurface); composed {
+			surface.evidenceDB = repository.database
+			surface.addons = &addonReviewHandler{database: repository.database, newProductID: newWorkflowProductID}
+			surface.actions = &workloadActionHandler{database: repository.database, newProductID: newWorkflowProductID}
+			surface.fleet = &endpointFleetHandler{database: repository.database, clock: cookie.Clock, newID: newWorkflowProductID}
 			surface.guardrail = &guardrailHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}
 			// The hosted gateway: its management always, its traffic routes
 			// where the deployment hosts them.
@@ -540,6 +544,19 @@ type identityHTTPHandler struct {
 }
 
 func (handler *identityHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if route, ok := RoutedOperationFromRequest(request); ok && route.OperationID == "createPrivateAddonUpload" {
+		handler.servePrivateAddonUpload(writer, request)
+		return
+	}
+	if route, ok := RoutedOperationFromRequest(request); ok && stringIn(route.OperationID, "startCLILogin", "approveCLILogin", "exchangeCLILogin") {
+		repository, supported := handler.repository.(*PostgresRepository)
+		if !supported {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		handler.serveCLILogin(writer, request, route.OperationID, repository)
+		return
+	}
 	bound := *handler
 	bound.signingKey = authorizationCursorKey(request.Context(), handler.signingKey)
 	handler = &bound

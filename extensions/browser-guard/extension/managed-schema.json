@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "Enabled": {
+      "type": "boolean",
+      "description": "Permit local origin-level collection in this managed browser profile."
+    },
+    "AllowedOrigins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "https://claude.ai",
+          "https://chatgpt.com"
+        ]
+      },
+      "description": "Exact HTTPS origins enabled by the administrator."
+    },
+    "RetentionDays": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30,
+      "description": "Keep origin and UTC day locally for this many calendar days, including today. Defaults to 7."
+    },
+    "CentralReportingEnabled": {
+      "type": "boolean",
+      "description": "Allow this profile to enroll separately for daily origin reporting to the packaged control plane."
+    }
+  }
+}

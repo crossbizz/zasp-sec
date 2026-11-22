@@ -92,6 +92,17 @@ describe("API Access product surface", () => {
     await waitFor(() => expect(revokeToken).toHaveBeenCalledWith("pid_token", 1));
   });
 
+  it.each(["submit_addon_scans", "sync_endpoint", "decide_actions", "report_browser_usage"])("issues a dedicated %s credential without read access", async (permission) => {
+    const user = userEvent.setup();
+    const createToken = vi.fn(fixtureAPI().createToken);
+    renderAuthenticated(fixtureAPI({ createToken }));
+    await screen.findByText("CI scanner");
+    await user.type(screen.getByLabelText("Token name"), "Dedicated binding");
+    await user.selectOptions(screen.getByLabelText("Token use"), permission);
+    await user.click(screen.getByRole("button", { name: "Create API token" }));
+    await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ permissions: [permission] }), expect.any(String)));
+  });
+
   it("creates a token for guardrail decisions only when that use is chosen", async () => {
     const user = userEvent.setup();
     const createToken = vi.fn(fixtureAPI().createToken);

@@ -734,7 +734,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 190);
+    assert.equal(operations.size, 231);
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -763,8 +763,8 @@ describe("production workflow concurrency contract", () => {
     assert.equal(operations.get("listPolicyDecisions").method, "get");
     assert.deepEqual(policyDecisions.parameters.find((parameter) => parameter.name === "limit")?.schema, { type: "integer", minimum: 1, maximum: 100, default: 100 });
     assert.deepEqual(policyDecisions.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/RuntimeDecisionPage" });
-    assert.equal(document.components.schemas.PolicySimulationInput.additionalProperties, false);
-    assert.equal(document.components.schemas.PolicySimulationInput.maxProperties, 0);
+    assert.deepEqual(document.components.schemas.PolicySimulationInput.oneOf, [{ type: "object", additionalProperties: false, maxProperties: 0 }, { $ref: "#/components/schemas/PolicyReplayInput" }]);
+    assert.deepEqual(new Set(document.components.schemas.PolicyReplayInput.required), new Set(["schema_version", "policy_revision", "agent_id", "from", "to"]));
 
     for (const operationId of ["listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun"]) {
       assert.ok(operations.has(operationId), operationId);

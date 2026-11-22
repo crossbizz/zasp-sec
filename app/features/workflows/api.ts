@@ -37,6 +37,7 @@ import type {
   PolicyRollout,
   PolicyRolloutInput,
 	PolicySimulation,
+  PolicyReplayInput,
 	RuntimeDecision,
   WorkflowMutationReceipt,
 } from "../../../apps/web/api/generated";
@@ -261,6 +262,12 @@ export function createPoliciesAPI(client: APIClient) {
     },
     async disablePolicy(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<PolicyRollout>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/policies/{id}/disable", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: {} }), decodePolicyRollout), attempt);
+    },
+    async replayPolicy(id: string, input: PolicyReplayInput): Promise<PolicySimulation> {
+      const value = requireAPIData(await client.POST("/api/v1/policies/{id}/simulate", { params: { path: { id } }, body: input }), decodePolicySimulation);
+      const replay = value.replay;
+      if (!replay || replay.policy_revision !== input.policy_revision || replay.agent_id !== input.agent_id || Date.parse(replay.from) !== Date.parse(input.from) || Date.parse(replay.to) !== Date.parse(input.to)) throw new APITransportError("invalid_response", "The replay evidence does not match the requested scope");
+      return value;
     },
 		async simulatePolicy(id: string): Promise<PolicySimulation> {
 			return requireAPIData(await client.POST("/api/v1/policies/{id}/simulate", { params: { path: { id } }, body: {} }), decodePolicySimulation);

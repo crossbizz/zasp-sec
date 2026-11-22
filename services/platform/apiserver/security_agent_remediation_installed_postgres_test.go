@@ -138,6 +138,18 @@ func (baseline *installedBaseline) database(login string) *PostgresJSONDatabase 
 // sections of this workstream twice, refreshes the seal and creates a tenant.
 func startInstalledBaseline(t *testing.T) *installedBaseline {
 	t.Helper()
+	return startInstalledDatabase(t, true)
+}
+
+// V2 release tests exercise the functions actually shipped in the sealed
+// artifact. Setup must never repair an incomplete installation from source.
+func startInstalledV2Baseline(t *testing.T) *installedBaseline {
+	t.Helper()
+	return startInstalledDatabase(t, false)
+}
+
+func startInstalledDatabase(t *testing.T, rehearseLegacySection bool) *installedBaseline {
+	t.Helper()
 	dsn := os.Getenv("ZASP_BASELINE_RELEASE_TEST_DSN")
 	if dsn == "" {
 		t.Skip("ZASP_BASELINE_RELEASE_TEST_DSN is not set")
@@ -153,20 +165,22 @@ func startInstalledBaseline(t *testing.T) *installedBaseline {
 	if installed := baseline.text(`SELECT (to_regnamespace('zasp_authorization80') IS NOT NULL AND zasp_baseline.intact())::text`); installed != "true" {
 		t.Fatalf("no intact installed baseline: %s", installed)
 	}
-	section := remediationSection(t)
-	for pass := 0; pass < 2; pass++ {
-		if _, err := admin.Exec(ctx, "BEGIN;\n"+section+"\nCOMMIT;", pgx.QueryExecModeSimpleProtocol); err != nil {
-			_, _ = admin.Exec(ctx, `ROLLBACK`)
-			t.Fatalf("sections pass %d: %v", pass+1, err)
+	if rehearseLegacySection {
+		section := remediationSection(t)
+		for pass := 0; pass < 2; pass++ {
+			if _, err := admin.Exec(ctx, "BEGIN;\n"+section+"\nCOMMIT;", pgx.QueryExecModeSimpleProtocol); err != nil {
+				_, _ = admin.Exec(ctx, `ROLLBACK`)
+				t.Fatalf("sections pass %d: %v", pass+1, err)
+			}
 		}
-	}
-	// The baseline seals its whole catalog, so a section applied to an
-	// installed database breaks the seal by design. The sections reach a real
-	// installation inside a rebuilt baseline, which is sealed with them; the
-	// seal is refreshed here with the superuser's rights to stand for that.
-	baseline.exec(`UPDATE zasp_baseline.seal SET content=zasp_baseline.content(),marker=zasp_baseline.marker()`)
-	if intact := baseline.text(`SELECT zasp_baseline.intact()::text`); intact != "true" {
-		t.Fatal("the sections left the catalog not intact")
+		// The baseline seals its whole catalog, so a section applied to an
+		// installed database breaks the seal by design. The sections reach a real
+		// installation inside a rebuilt baseline, which is sealed with them; the
+		// seal is refreshed here with the superuser's rights to stand for that.
+		baseline.exec(`UPDATE zasp_baseline.seal SET content=zasp_baseline.content(),marker=zasp_baseline.marker()`)
+		if intact := baseline.text(`SELECT zasp_baseline.intact()::text`); intact != "true" {
+			t.Fatal("the sections left the catalog not intact")
+		}
 	}
 	// The attestation key of this API server, registered by the operator.
 	key, err := authorization.NewAttestationKey(bytes.Repeat([]byte{0x47}, 32))
