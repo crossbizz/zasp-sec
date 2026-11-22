@@ -15,7 +15,7 @@ async function show(input = { kind: "local-status" }) {
     unavailable: "Managed settings unavailable. Collection is paused.",
     enabled: "Local app usage collection enabled.",
   };
-  const result = await chrome.runtime.sendMessage(input);
+  const result = await globalThis.chrome.runtime.sendMessage(input);
   if (!result?.policy) throw new Error("status unavailable");
   const { policy, observations, central } = result;
   const remote = central && !["local_only", "removed"].includes(central.state);

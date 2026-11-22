@@ -2,6 +2,7 @@ import { createGuard } from "./guard.mjs";
 
 import { createReporting } from "./reporting.mjs";
 
+const { chrome } = globalThis;
 const guard = createGuard(chrome);
 const reporting = createReporting();
 let pending = Promise.resolve();

@@ -112,7 +112,11 @@ try {
     console.log(version.product + ": loaded real extension, policy-off popup, empty storage, fixture-rule registration and removal");
   }
 } finally {
-  try { await send("Browser.close"); } catch {}
+  try {
+    await send("Browser.close");
+  } catch {
+    // Chromium can close the debugging socket before acknowledging shutdown.
+  }
   if (browser.exitCode === null && !browser.signalCode) {
     await Promise.race([closed, delay(500)]);
     if (browser.exitCode === null && !browser.signalCode) browser.kill("SIGKILL");

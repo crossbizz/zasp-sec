@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { RadioTower, RotateCw, Trash2 } from "lucide-react";
 
 import type { Sensor, SensorCoverage, SensorEnrollment, SensorInput, SensorMode, SensorUpdateInput } from "../../../apps/web/api/generated";
@@ -17,16 +17,26 @@ type Feedback = Readonly<{ role: "status" | "alert"; message: string }> | null;
 
 export { type SensorsAPI } from "./api";
 
-export function ProductionSensorSurface({ canWrite, fresh, onReauthenticate }: { canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
+type SensorSurfaceProps = { canWrite: boolean; fresh: boolean; onReauthenticate(): void };
+
+function subscribeToNavigation(notify: () => void) {
+  window.addEventListener("popstate", notify);
+  return () => window.removeEventListener("popstate", notify);
+}
+
+function linkedDeviceFromLocation() {
+  const values = new URLSearchParams(window.location.search).getAll("device");
+  return values.length === 1 && /^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(values[0]) ? values[0] : "";
+}
+
+export function ProductionSensorSurface(props: SensorSurfaceProps) {
+  const linkedDevice = useSyncExternalStore(subscribeToNavigation, linkedDeviceFromLocation, () => "");
+  return <SensorSections key={linkedDevice} {...props} linkedDevice={linkedDevice} />;
+}
+
+function SensorSections({ canWrite, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
-  const [section,setSection] = useState("sensors");
-  const [linkedDevice,setLinkedDevice] = useState("");
-  useEffect(() => {
-    const values = new URLSearchParams(window.location.search).getAll("device");
-    if (values.length === 1 && /^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(values[0])) {
-      setLinkedDevice(values[0]); setSection("devices");
-    }
-  }, []);
+  const [section, setSection] = useState(linkedDevice ? "devices" : "sensors");
   const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
   return <SectionTabs active={section} onChange={setSection} sections={[
