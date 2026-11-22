@@ -71,10 +71,18 @@ func checked(path string, directory bool, assigned *windows.SID) (*os.File, erro
 		return nil, err
 	}
 	flags := uint32(windows.FILE_FLAG_OPEN_REPARSE_POINT)
+	share := uint32(windows.FILE_SHARE_READ)
 	if directory {
 		flags |= windows.FILE_FLAG_BACKUP_SEMANTICS
+		// The trusted broker and sync task both update children of this protected
+		// directory. Pin its identity against deletion without denying those writes.
+		share |= windows.FILE_SHARE_WRITE
+	} else if assigned == nil {
+		// Replacing a trusted, immutable file publishes a new object. This handle
+		// continues reading the originally checked object until Close.
+		share |= windows.FILE_SHARE_DELETE
 	}
-	h, err := windows.CreateFile(name, windows.GENERIC_READ|windows.READ_CONTROL, windows.FILE_SHARE_READ, nil, windows.OPEN_EXISTING, flags, 0)
+	h, err := windows.CreateFile(name, windows.GENERIC_READ|windows.READ_CONTROL, share, nil, windows.OPEN_EXISTING, flags, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +164,24 @@ func storeSecretIn(root, staging, name string, raw []byte) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(f.Name(), filepath.Join(root, name))
+	from, e := windows.UTF16PtrFromString(f.Name())
+	if e != nil {
+		return e
+	}
+	to, e := windows.UTF16PtrFromString(filepath.Join(root, name))
+	if e != nil {
+		return e
+	}
+	// OS indexing and scanning may briefly hold the just-written staging file.
+	// Only retry sharing violations; never unlink an acknowledged previous copy.
+	deadline := time.Now().Add(400 * time.Millisecond)
+	for {
+		e = windows.MoveFileEx(from, to, windows.MOVEFILE_REPLACE_EXISTING|windows.MOVEFILE_WRITE_THROUGH)
+		if !errors.Is(e, windows.ERROR_SHARING_VIOLATION) || time.Now().After(deadline) {
+			return e
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 func run(command string, stdin io.Reader, stdout io.Writer) error {
 	if command == "claude-pretool" || command == "claude-pretool-open" {

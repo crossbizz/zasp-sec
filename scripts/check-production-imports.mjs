@@ -18,6 +18,7 @@ const allowedExactSources = new Set([
   "app/features/sensors/ProductionSensorView.tsx",
   "app/features/sensors/DeviceFleet.tsx",
   "app/features/sensors/TicketCohort.tsx",
+  "app/features/sensors/EndpointPolicyCohort.tsx",
   "app/features/sensors/api.ts",
   // API-backed production views that live beside the demo views of the same
   // feature. Each imports only the API client, decoders and shared UI.
@@ -30,6 +31,8 @@ const allowedExactSources = new Set([
   // The download view reads the release metadata staged by the operator.
   "app/features/tools/CLIReleaseDownloads.tsx",
   "app/features/tools/cli-release-pin.json",
+  // Public release surface IDs and labels shared by catalog review and the UI.
+  "services/platform/compliancemap/surfaces.json",
 ]);
 const allowedBrowserStorageSources = new Set([
   // Metadata-only, identity-checked resume for a server-owned export job.

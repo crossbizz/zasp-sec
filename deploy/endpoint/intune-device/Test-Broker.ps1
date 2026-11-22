@@ -36,7 +36,7 @@ try {
  Register-ScheduledTask -TaskName $id -Action $action -Principal $principal -Force|Out-Null
  $registered=$true
  Start-ScheduledTask -TaskName $id
- & $exe -test.v -test.timeout=40s '-test.run=^TestNativeManagedPretoolPipe$' '-zasp-test-pipe-role=employee' "-zasp-test-pipe-root=$root"
+ & $exe '-test.v' '-test.timeout=40s' '-test.run=^TestNativeManagedPretoolPipe$' '-zasp-test-pipe-role=employee' "-zasp-test-pipe-root=$root"
  if ($LASTEXITCODE) { throw "Employee broker fixture failed ($LASTEXITCODE)." }
  $until=(Get-Date).AddSeconds(60)
  do { Start-Sleep -Milliseconds 250; $job=Get-ScheduledTask -TaskName $id } while ($job.State -eq 'Running' -and (Get-Date) -lt $until)
