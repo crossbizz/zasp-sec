@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 	"io"
 	"io/fs"
 	"os"
@@ -39,6 +40,9 @@ func readGitObject(ctx context.Context, repository string, limit int, args ...st
 	return raw, nil
 }
 func scanCommit(ctx context.Context, repository, bundle, commit string) (addons.Report, error) {
+	return scanCommitWithRuleset(ctx, repository, bundle, commit, addonevidence.CurrentRuleset)
+}
+func scanCommitWithRuleset(ctx context.Context, repository, bundle, commit, ruleset string) (addons.Report, error) {
 	var empty addons.Report
 	if !ciCommitID.MatchString(commit) || !fs.ValidPath(bundle) || bundle == "." || strings.ContainsAny(bundle, "\\:\n\r") || strings.Contains(bundle, ".git/") {
 		return empty, errReport
@@ -111,7 +115,7 @@ func scanCommit(ctx context.Context, repository, bundle, commit string) (addons.
 			return empty, errReport
 		}
 	}
-	report := addons.Scan(dir)
+	report := addons.ScanWithRuleset(dir, ruleset)
 	if report.Status != "complete" {
 		return empty, errReport
 	}

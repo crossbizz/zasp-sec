@@ -2,7 +2,12 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,5 +127,46 @@ func TestCLIRejectsInvalidExportsAndProvidesHelp(t *testing.T) {
 		if code := run(files, &stdout, &stderr, now); code != want {
 			t.Fatalf("%q produced %d, wanted %d", data[:min(len(data), 32)], code, want)
 		}
+	}
+}
+
+func TestSourceSignerUsesOneLocalExportAndPrivateKey(t *testing.T) {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPath := filepath.Join(t.TempDir(), "private.pem")
+	if os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: encoded}), 0600) != nil {
+		t.Fatal("key setup")
+	}
+	var scenario redteam.TicketScenario
+	if readExport("testdata/scenario.json", &scenario) != nil {
+		t.Fatal("fixture")
+	}
+	for _, role := range []string{"adapter", "recorder"} {
+		args := []string{"sign-source", role, "test-key", keyPath, "testdata/scenario.json", "testdata/" + role + ".json"}
+		var out bytes.Buffer
+		if code := run(args, &out, io.Discard, scenario.WindowEnd); code != 0 {
+			t.Fatal(role, code)
+		}
+		var source redteam.TicketAttestation
+		if redteam.DecodeTicketExport(out.Bytes(), &source) != nil || source.KeyID != "test-key" {
+			t.Fatal(out.String())
+		}
+		args[len(args)-1] = "testdata/scenario.json"
+		out.Reset()
+		if code := run(args, &out, io.Discard, scenario.WindowEnd); code != 2 || out.Len() != 0 {
+			t.Fatal("signed wrong local document")
+		}
+	}
+	if err := os.Chmod(keyPath, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := privateTicketKey(keyPath); err == nil {
+		t.Fatal("accepted shared private key")
 	}
 }

@@ -18,9 +18,10 @@ func DecodeTicketExport(data []byte, output any) error {
 }
 
 type TicketProofBundle struct {
-	Scenario TicketScenario         `json:"scenario"`
-	Adapter  TicketAdapterEvidence  `json:"adapter"`
-	Recorder TicketRecorderEvidence `json:"recorder"`
+	Scenario     TicketScenario         `json:"scenario"`
+	Adapter      TicketAdapterEvidence  `json:"adapter"`
+	Recorder     TicketRecorderEvidence `json:"recorder"`
+	Attestations *TicketAttestations    `json:"attestations,omitempty"`
 }
 
 func uniqueKeys(decoder *json.Decoder, depth int) bool {
@@ -57,6 +58,9 @@ func uniqueKeys(decoder *json.Decoder, depth int) bool {
 // bound target. Missing evidence can be represented by an empty decisions or
 // writes array, unknown capability, an unhealthy recorder or a missing watermark.
 func (b TicketProofBundle) Archivable() bool {
+	if b.Attestations != nil && (!b.Attestations.Adapter.wellFormed() || !b.Attestations.Recorder.wellFormed() || b.Attestations.Adapter.KeyID == b.Attestations.Recorder.KeyID || b.Scenario.Environment != "staging") {
+		return false
+	}
 	s := b.Scenario
 	a := b.Adapter
 	r := b.Recorder

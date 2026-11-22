@@ -10,18 +10,21 @@ import (
 	"fmt"
 	"net"
 	"os"
-
+	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 	"golang.org/x/sys/unix"
 )
 
 type configuration struct {
+	Adapter         string        `json:"adapter,omitempty"`
 	Remote          *remoteConfig `json:"control_plane,omitempty"`
 	Binding         Binding       `json:"binding"`
 	UID             *int          `json:"allowed_uid"`
@@ -52,6 +55,9 @@ func loadConfig(path string) (configuration, error) {
 	}
 	data, err := readFile(path, 16<<10)
 	if err != nil || strictJSON(data, &c) != nil || !c.Binding.valid() || c.UID == nil || *c.UID < 0 || len(c.PolicyKey) != ed25519.PublicKeySize {
+		return c, errInvalid
+	}
+	if c.Adapter != "" && (!endpointprotocol.PretoolAdapter(c.Adapter) || !(runtime.GOOS == "linux" && c.Adapter == "linux_claude_pretool_v2_test" || runtime.GOOS == "darwin" && (c.Adapter == "macos_claude_pretool_v2" || c.Adapter == "macos_codex_pretool_v2"))) {
 		return c, errInvalid
 	}
 	for _, setting := range []string{c.PolicyFile, c.StateDir, c.Socket} {
@@ -96,6 +102,7 @@ func deviceKey(c configuration) (ed25519.PrivateKey, error) {
 }
 
 type request struct {
+	Harness   string            `json:"harness,omitempty"`
 	Project   string            `json:"project,omitempty"`
 	Operation string            `json:"operation"`
 	Hook      json.RawMessage   `json:"hook,omitempty"`
@@ -166,7 +173,20 @@ func (b *broker) process(req request, uid int) response {
 		b.wakeSync()
 		return response{}
 	case "pre-tool":
-		value, err := b.evaluate(req.Hook)
+		if req.Harness != "" && req.Harness != "claude" && req.Harness != "codex" {
+			return response{Error: "unsupported_harness"}
+		}
+		adapter := b.adapter
+		// A supervised Mac can install both managed hook entry points. Each
+		// receipt identifies the calling shim; the UID is checked separately.
+		if adapter == "macos_claude_pretool_v2" || adapter == "macos_codex_pretool_v2" {
+			if req.Harness == "codex" {
+				adapter = "macos_codex_pretool_v2"
+			} else if req.Harness == "claude" {
+				adapter = "macos_claude_pretool_v2"
+			}
+		}
+		value, err := b.evaluateForAdapter(req.Hook, adapter)
 		if err != nil {
 			return response{Error: "unavailable"}
 		}
@@ -216,7 +236,11 @@ func serve(ctx context.Context, configPath string) error {
 	if err != nil {
 		return err
 	}
-	b := broker{binding: config.Binding, uid: *config.UID, key: key, policyKey: config.PolicyKey, policyFile: config.PolicyFile, store: st, now: time.Now}
+	home := ""
+	if peer, err := user.LookupId(strconv.Itoa(*config.UID)); err == nil && filepath.IsAbs(peer.HomeDir) {
+		home = peer.HomeDir
+	}
+	b := broker{adapter: config.Adapter, home: home, binding: config.Binding, uid: *config.UID, key: key, policyKey: config.PolicyKey, policyFile: config.PolicyFile, store: st, now: time.Now}
 	if info, statErr := os.Lstat(config.Socket); statErr == nil {
 		if info.Mode()&os.ModeSocket == 0 {
 			return errInvalid

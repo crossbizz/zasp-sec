@@ -85,12 +85,32 @@ if [[ -z "$fresh_catalog" || "$fresh_catalog" != "$upgraded_catalog" ]]; then
 fi
 echo "The populated upgrade preserves the fixture and matches the fresh catalog."
 
+# Exercise the intermediate managed-agent release as an independently sealed
+# predecessor too. Keep one existing reviewed skill visible across the upgrade.
+framework_previous=840fd1f0293a875d35403e37b37f56810d557e2c
+mkdir "$fixture_dir/managed"
+git -C "$repo_dir" archive "$framework_previous" services/platform services/health | tar -x -C "$fixture_dir/managed"
+go build -C "$fixture_dir/managed/services/platform" -o "$fixture_dir/managed-migrate" ./agentsec-migrate
+"$pg_bin/createdb" -O zasp_operator -T template0 managed_upgrade
+managed_dsn="postgres://zasp_operator@/managed_upgrade?host=$socket_dir&sslmode=disable"
+ZASP_POSTGRES_DSN="$managed_dsn" "$fixture_dir/managed-migrate" install-baseline
+"$pg_bin/psql" -X -v ON_ERROR_STOP=1 -d managed_upgrade <<'SQL'
+INSERT INTO public.zasp_addon_versions
+ (organization_id,workspace_id,environment_id,id,manifest_digest,origin,origin_credential,ruleset,findings,review_state)
+VALUES ('org','workspace','staging','pid_10000001-0000-4000-8000-000000000001','sha256:'||repeat('b',64),
+ 'local','staging-credential','zasp-static.v1','[]','approved');
+SQL
+ZASP_POSTGRES_DSN="$managed_dsn" "$fixture_dir/current-migrate" upgrade-feature-v2
+ZASP_POSTGRES_DSN="$managed_dsn" "$fixture_dir/current-migrate" verify-baseline
+[[ "$("$pg_bin/psql" -XAt "$managed_dsn" -c "SELECT zasp_baseline.content()")" == "$fresh_catalog" ]]
+[[ "$("$pg_bin/psql" -XAt -d managed_upgrade -c "SELECT review_state FROM public.zasp_addon_versions WHERE origin_credential='staging-credential'")" == "approved" ]]
+
 if [[ "$upgrade_only" == true ]]; then exit 0; fi
 
 # Exercise the installed public authorization and data paths, including compiled
 # CLI and endpoint clients. The release fixture runs only in this throwaway DB.
 export ZASP_BASELINE_RELEASE_TEST_DSN="postgres://postgres@/v2_fresh?host=$socket_dir&sslmode=disable"
 go test -C "$repo_dir/services/platform" -count=1 -timeout=20m -v -run \
-  '^Test(Addon|AgentPurpose|AgentActionAnalysis|TicketCohort|AgentSuggestions|CLILogin|EndpointFleet|ManagedBrowserProfile|ImportedTicketProof|TicketCohort|Pilot|PrivateAddon|Workload).*OnInstalledBaselinePostgres$' ./apiserver
+  '^Test(Addon|AgentPurpose|AgentActionAnalysis|TicketCohort|AgentSuggestions|CLILogin|EndpointFleet|ManagedBrowserProfile|ImportedTicketProof|EndpointPolicy|EndpointPretool|Pretool|ClaudeEnterpriseHook|Framework|Intent|PolicyReplay|Pilot|PrivateAddon|Workload).*OnInstalledBaselinePostgres$' ./apiserver
 go test -C "$repo_dir/services/platform" -count=1 -timeout=10m -v \
   -run '^TestComplianceExportOnInstalledBaselinePostgres$' ./agentsec-worker

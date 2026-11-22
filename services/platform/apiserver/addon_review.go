@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 )
 
 // Findings submissions contain a closed rule catalog and aggregate counts only.
@@ -80,7 +82,7 @@ func (s *addonSubmission) UnmarshalJSON(raw []byte) error {
 }
 
 func (s addonSubmission) valid() bool {
-	if s.SchemaVersion != "zasp-addon-findings.v1" || s.Ruleset != "zasp-static.v1" || s.ManifestMethod != "addon-manifest.v1" || !stringIn(s.Origin, "local", "ci", "private_worker") || s.SkippedCount == nil || *s.SkippedCount < 0 || *s.SkippedCount > 1000000 || !stringIn(s.Completeness, "complete", "partial") || s.Findings == nil || len(s.Findings) > 6 {
+	if s.SchemaVersion != "zasp-addon-findings.v1" || addonevidence.Rules(s.Ruleset) == nil || s.ManifestMethod != "addon-manifest.v1" || !stringIn(s.Origin, "local", "ci", "private_worker") || s.SkippedCount == nil || *s.SkippedCount < 0 || *s.SkippedCount > 1000000 || !stringIn(s.Completeness, "complete", "partial") || s.Findings == nil || len(s.Findings) > len(addonevidence.Rules(s.Ruleset)) {
 		return false
 	}
 	if s.Origin == "private_worker" && (s.Upload == nil || !validProductID(s.Upload.ID) || !addonDigest.MatchString(s.Upload.Digest) || s.Upload.Size < 1 || s.Upload.Size > 8<<20) {
@@ -91,7 +93,7 @@ func (s addonSubmission) valid() bool {
 	}
 	seen := map[string]bool{}
 	for _, f := range s.Findings {
-		if !stringIn(f.Rule, "dependency.unpinned", "script.shell_execution", "script.network_access", "instruction.hidden_text", "mcp.unpinned_launcher", "mcp.remote_endpoint") || seen[f.Rule] || f.Count < 1 || f.Count > 1000000 {
+		if !stringIn(f.Rule, addonevidence.Rules(s.Ruleset)...) || seen[f.Rule] || f.Count < 1 || f.Count > 1000000 {
 			return false
 		}
 		seen[f.Rule] = true
@@ -228,6 +230,13 @@ func (h *addonReviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, r
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
+	if route.OperationID == "getAddonVersion" {
+		raw, err = addonVersionWithFrameworkEvidence(raw, id)
+		if err != nil {
+			writeProductionError(w, r, err)
+			return
+		}
+	}
 	writeProductionResponse(w, r, http.StatusOK, raw, nil)
 }
 
@@ -243,4 +252,31 @@ func init() {
 	}}
 	productStatementRules[addonVersionSQL] = productStatementRule{operations: []string{"getAddonVersion"}, arguments: 4, scope: 1, object: 4, browserOnly: true, check: addonEnvAllowed}
 	productStatementRules[addonReviewSQL] = productStatementRule{operations: []string{"reviewAddonVersion"}, arguments: 8, scope: 1, actor: 4, object: 5, browserOnly: true, fresh: true, check: addonEnvAllowed}
+}
+
+// Work only from the version row admitted through the current Environment
+// fence. The share protocol accepts aggregate rule counts and no mappings.
+func addonVersionWithFrameworkEvidence(raw json.RawMessage, expectedID string) (json.RawMessage, error) {
+	var row struct {
+		ID       string              `json:"id"`
+		Digest   string              `json:"manifest_digest"`
+		Ruleset  string              `json:"ruleset"`
+		Findings []addonFindingCount `json:"findings"`
+	}
+	if json.Unmarshal(raw, &row) != nil || row.ID != expectedID || !addonDigest.MatchString(row.Digest) || row.Findings == nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	refs := []addonevidence.Reference{}
+	for _, f := range row.Findings {
+		if f.Count < 1 {
+			return nil, ErrRepositoryUnavailable
+		}
+		refs = append(refs, addonevidence.References(f.Rule, row.Ruleset)...)
+	}
+	var response map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &response); err != nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	response["framework_evidence"], _ = json.Marshal(refs)
+	return json.Marshal(response)
 }

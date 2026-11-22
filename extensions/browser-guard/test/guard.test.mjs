@@ -34,7 +34,7 @@ function sender(origin, extra = {}) {
 test("package grants exact origins, isolates scripts and forbids remote connections", async () => {
   const manifest = JSON.parse(await read("manifest.json"));
   assert.equal(manifest.incognito, "not_allowed");
-  assert.deepEqual(manifest.permissions.toSorted(), ["alarms", "scripting", "storage"]);
+  assert.deepEqual(manifest.permissions.toSorted(), ["alarms", "declarativeNetRequestWithHostAccess", "scripting", "storage"]);
   assert.deepEqual(manifest.host_permissions.toSorted(), [chatGPT + "/*", claude + "/*"]);
   assert.match(manifest.content_security_policy.extension_pages, /connect-src 'none'/);
   assert.equal(manifest.content_scripts, undefined);
@@ -159,4 +159,43 @@ test("managed package pins the control plane and a nonextractable profile key ve
   assert.equal((await client.sync(policy)).state, "authorization_required");
   await client.sync(policy); assert.equal(requests.length, 3);
   await client.sync({}); assert.equal(bound, undefined);
+});
+
+test("upload blocking requires a managed exact route; changing policy clears only owned session rules", async () => {
+  const { approvedUploadRoutes, reconcileUploadRules } = await import("../extension/upload-rules.mjs");
+  const file = chatGPT + "/backend-api/files";
+  const tenantFile = claude + "/api/organizations/12345678-1234-4123-8123-123456789abc/upload";
+  const routes = [file, tenantFile].sort();
+  const policy = { Enabled: true, AllowedOrigins: [claude, chatGPT], UploadBlockingEnabled: true, UploadBlockingRoutes: routes };
+  assert.equal(parsePolicy({ ...policy, Enabled: false }).uploadRoutes, undefined);
+  assert.equal(parsePolicy({ ...policy, UploadBlockingEnabled: false }).uploadRoutes, undefined);
+  assert.deepEqual(parsePolicy(policy).uploadRoutes, routes);
+  for (const invalid of [[file, file], [file + "?name=private"], [file + "#fragment"], [file + "/"], [file.toUpperCase()], [file + "*"], ["https://other.example/upload"], [claude + "/api/organizations/*/upload"], [chatGPT + "/backend-api/conversation"]]) {
+    assert.deepEqual(approvedUploadRoutes({ ...policy, UploadBlockingRoutes: invalid }, policy.AllowedOrigins), []);
+  }
+  assert.deepEqual(parsePolicy({ ...policy, AllowedOrigins: [claude] }).uploadRoutes, []);
+  const state = new Map([[5, { id: 5, action: { type: "allow" } }]]);
+  const dnr = {
+    getSessionRules: async () => [...state.values()],
+    updateSessionRules: async ({ removeRuleIds, addRules = [] }) => {
+      for (const id of removeRuleIds) state.delete(id);
+      for (const r of addRules) state.set(r.id, r);
+    },
+  };
+  const { guard, state: fixtureState, api } = fixture();
+  api.declarativeNetRequest = dnr;
+  fixtureState.policy = policy;
+  const enabled = await guard.refresh();
+  assert.deepEqual(enabled.uploads, { status: "active", count: 2 });
+  assert.equal("uploadRoutes" in enabled.policy, false);
+  const active = [...state.values()].filter(rule => rule.id !== 5);
+  for (const rule of active) {
+    assert.deepEqual(rule.condition.requestMethods, ["post"]);
+    assert.deepEqual(rule.condition.resourceTypes, ["xmlhttprequest"]);
+    assert.deepEqual(rule.condition.initiatorDomains, [new URL(rule.condition.urlFilter.slice(1, -1)).hostname]);
+  }
+  fixtureState.policy = { ...policy, UploadBlockingEnabled: false };
+  assert.deepEqual((await guard.refresh()).uploads, { status: "disabled", count: 0 });
+  assert.deepEqual([...state.keys()], [5]);
+  assert.equal((await reconcileUploadRules({ ...dnr, updateSessionRules: async () => { throw Error(); } }, routes)).status, "unavailable");
 });

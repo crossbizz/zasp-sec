@@ -1,0 +1,60 @@
+# Apply in a dedicated staging namespace with the configured network-policy
+# provider. Replace the image with the exact signed attack-lab-runner digest.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zasp-synthetic-skill
+spec:
+  podSelector:
+    matchLabels: {app: zasp-synthetic-skill}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: zasp-synthetic-skill-
+spec:
+  activeDeadlineSeconds: 60
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels: {app: zasp-synthetic-skill}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: fixture
+          image: REPLACE_WITH_RELEASED_ATTACK_LAB_RUNNER_AT_SHA256
+          args: ["--run-synthetic-skill-mounted"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 100m, memory: 32Mi, ephemeral-storage: 8Mi}
+            limits: {cpu: 500m, memory: 128Mi, ephemeral-storage: 16Mi}
+          env:
+            - name: ZASP_SKILL_FIXTURE_SCOPE
+              valueFrom: {configMapKeyRef: {name: zasp-skill-fixture-trust, key: scope}}
+            - name: ZASP_SKILL_FIXTURE_PUBLIC_KEY
+              valueFrom: {configMapKeyRef: {name: zasp-skill-fixture-trust, key: public-key}}
+          volumeMounts:
+            - {name: handoff, mountPath: /var/run/zasp-skill, readOnly: true}
+            - {name: scratch, mountPath: /tmp}
+      volumes:
+        - name: handoff
+          secret:
+            secretName: zasp-skill-fixture-handoff
+            items: [{key: handoff.json, path: handoff.json}]
+        - name: scratch
+          emptyDir: {medium: Memory, sizeLimit: 8Mi}

@@ -1,0 +1,35 @@
+name: Production promotion evidence
+on: workflow_dispatch
+permissions: {contents: read}
+jobs:
+  reviewed-ref:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require the default release branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"
+  promotion:
+    needs: reviewed-ref
+    runs-on: [self-hosted, linux, zasp-release]
+    environment: production-promotion
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: 'off'
+      GOSUMDB: 'off'
+      GOWORK: 'off'
+      ZASP_RELEASE_EVIDENCE_DIR: /var/lib/zasp/release-evidence/${{ github.sha }}
+      ZASP_RELEASE_BUILD_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_BUILD_PUBLIC_KEY }}
+      ZASP_RELEASE_INTAKE_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_INTAKE_PUBLIC_KEY }}
+      ZASP_RELEASE_SCANNER_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_SCANNER_PUBLIC_KEY }}
+      ZASP_RELEASE_APPSEC_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_APPSEC_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install exact dependencies from the private runner cache
+        run: npm ci --offline --no-audit --no-fund
+      - name: Verify the candidate and approve this promotion
+        run: npm run production:release:gate

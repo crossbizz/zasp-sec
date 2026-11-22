@@ -41,6 +41,7 @@ type complianceFrozenSnapshot struct {
 	// has no controls.
 	AgentEvidencePack json.RawMessage `json:"agent_evidence_pack"`
 	PilotEvidencePack json.RawMessage `json:"pilot_evidence_pack"`
+	FrameworkCoverage json.RawMessage `json:"framework_coverage"`
 }
 
 // renderAgentEvidencePackPackage renders the package of an export that names
@@ -90,6 +91,12 @@ func renderComplianceExportPackage(ctx context.Context, l complianceExportLease,
 	d.DisallowUnknownFields()
 	if d.Decode(&snapshot) != nil || d.Decode(new(any)) != io.EOF || snapshot.Revision != "product-evidence-v1" || snapshot.At.IsZero() || snapshot.Organization != l.Scope.OrganizationID().String() || snapshot.Workspace != l.Scope.WorkspaceID().String() || snapshot.Environment != l.Scope.EnvironmentID().String() || len(snapshot.Controls) > 500 {
 		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	if snapshot.FrameworkCoverage != nil {
+		if len(snapshot.Controls) != 0 || snapshot.AgentEvidencePack != nil || snapshot.PilotEvidencePack != nil {
+			return compliancePreparedArtifact{}, errWorkerExecution
+		}
+		return renderFrameworkReport(l, snapshot)
 	}
 	if snapshot.PilotEvidencePack != nil {
 		if snapshot.AgentEvidencePack != nil || len(snapshot.Controls) > 0 {

@@ -196,14 +196,25 @@ EOF
 
 # Installs or upgrades the chart. --wait is not used: on a first install the
 # workloads cannot be ready before the DSNs and the first organization exist.
-aws_install_release() {
+aws_install_release() { aws_release_action apply "$@"; }
+
+aws_release_action() {
+  local release_action="$1"
+  shift
   aws_require_file ZASP_AWS_VALUES "your copy of deploy/production/values-production.example.yaml"
   require_tool helm
   [ -f "$AWS_WORK/values-terraform.json" ] || aws_terraform_values
   local files=(-f "$AWS_WORK/values-terraform.json")
   [ ! -f "$AWS_WORK/values-images.yaml" ] || files+=(-f "$AWS_WORK/values-images.yaml")
   files+=(-f "$ZASP_AWS_VALUES")
-  run "${AWS_HELM[@]}" upgrade --install "$AWS_RELEASE" "$AWS_CHART" --create-namespace "${files[@]}" --timeout 20m "$@" || die "helm upgrade failed"
+  if [ "${ZASP_DRY_RUN:-0}" = "1" ]; then
+    say "would verify signed advisory evidence and compare the Helm render and hook set before applying"
+    run "${AWS_HELM[@]}" upgrade --install "$AWS_RELEASE" "$AWS_CHART" --create-namespace "${files[@]}" --timeout 20m "$@"
+    return
+  fi
+  require_tool node
+  node "$ZASP_ROOT/scripts/release-security/deploy.mjs" "$release_action" "$AWS_RELEASE" "$AWS_NAMESPACE" "${files[@]}" --timeout 20m "$@" ||
+    die "verified production release failed"
 }
 
 # Sets a password on each service login and stores its DSN in Secrets
@@ -375,6 +386,9 @@ aws_bootstrap_admin() {
     say "would run: helm upgrade --install ... --set schema.registerIdentityVerifiers=true"
     return 0
   fi
+  # Check the exact registration-phase render and bootstrap image before a
+  # container receives operator credentials or changes the first organization.
+  ZASP_BOOTSTRAP_CHECK_IMAGE="$image" aws_release_action check --set schema.registerIdentityVerifiers=true
   staging="$(mktemp -d)" || die "could not create a temporary directory"
   chmod 700 "$staging"
   (

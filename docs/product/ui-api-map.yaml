@@ -288,6 +288,12 @@ screens:
       - id: register_endpoint_device
         operation_id: registerEndpointDevice
         availability: available
+      - id: read_pretool_policy
+        operation_id: getEndpointPolicyCohort
+        availability: available
+      - id: edit_pretool_policy
+        operation_id: updateEndpointPolicyCohort
+        availability: available
       - id: review_ticket_cohort
         operation_id: getTicketCohort
         availability: available
@@ -672,6 +678,15 @@ screens:
   - id: compliance
     label: Compliance
     actions:
+      - id: view_framework_editions
+        operation_id: listComplianceEditions
+        availability: available
+      - id: view_framework_coverage
+        operation_id: listComplianceCoverage
+        availability: available
+      - id: view_framework_coverage_evidence
+        operation_id: listComplianceCoverageEvidence
+        availability: available
       - id: view_compliance_controls
         operation_id: listComplianceControls
         availability: available
@@ -711,6 +726,9 @@ screens:
       - id: get_workload_credential_binding
         operation_id: getWorkloadCredentialBinding
         availability: available
+      - id: receive_claude_enterprise_hook
+        operation_id: evaluateClaudeEnterpriseHook
+        availability: api_available
       - id: decide_workload_action
         operation_id: createWorkloadActionDecision
         availability: api_available

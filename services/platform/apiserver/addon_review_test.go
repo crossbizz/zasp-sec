@@ -3,6 +3,7 @@ package apiserver
 import (
 	"encoding/json"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -18,7 +19,10 @@ func TestAddonFindingAdmission(t *testing.T) {
 		name, raw string
 		ok        bool
 	}{
-		{"complete", report, true}, {"missing complete bytes", strings.Replace(report, digest, "null", 1), false},
+		{"complete", report, true},
+		{"v2 executable", strings.ReplaceAll(strings.Replace(report, "zasp-static.v1", "zasp-static.v2", 1), "script.network_access", "script.remote_exec_pipe"), true},
+		{"v2 rule on historical v1", strings.ReplaceAll(report, "script.network_access", "script.remote_exec_pipe"), false},
+		{"unsupported ruleset", strings.Replace(report, "zasp-static.v1", "zasp-static.v20", 1), false}, {"missing complete bytes", strings.Replace(report, digest, "null", 1), false},
 		{"partial with digest", strings.Replace(report, "complete\"", "partial\"", 1), false},
 		{"uncounted", strings.Replace(report, `"count":1`, `"count":0`, 1), false},
 		{"contaminated report", strings.Replace(report, `"ruleset":`, `"raw_source":"anything","ruleset":`, 1), false},
@@ -52,7 +56,7 @@ func TestAddonRegistryOnInstalledBaselinePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	issue, _ := installedWorkloadTokenIssuer(t, b, repo, admin)
+	issue, rawTokens := installedWorkloadTokenIssuer(t, b, repo, admin)
 	machine := issue("Local addon report", `["submit_addon_scans"]`)
 	surface := &discoveryWorkflowSurface{addons: &addonReviewHandler{database: b.product, newProductID: func() (string, error) { return b.id(), nil }}}
 	digest := `"sha256:` + strings.Repeat("a", 64) + `"`
@@ -79,6 +83,17 @@ func TestAddonRegistryOnInstalledBaselinePostgres(t *testing.T) {
 		t.Fatal("retry issued a new receipt")
 	}
 	post(machine, key, strings.Replace(input, "script.network_access", "dependency.unpinned", 1), 409)
+	// A fresh idempotency key must not replace or silently contradict the
+	// immutable findings for this origin, credential, ruleset and digest.
+	mismatchKey := "conflicting-projection-" + b.id()
+	post(machine, mismatchKey, strings.Replace(input, `"count":1`, `"count":2`, 1), 409)
+	matched := post(machine, mismatchKey, input, 200)
+	if matched["version_id"] != id || matched["scan_id"] == v["scan_id"] {
+		t.Fatal("identical new report lost exact version identity")
+	}
+	if replay := post(machine, mismatchKey, input, 200); replay["scan_id"] != matched["scan_id"] {
+		t.Fatal("matching report lost its idempotency receipt")
+	}
 	post(machine, "bad-environment-"+b.id(), strings.Replace(input, b.e, b.id(), 1), 400)
 	post(machine, "bad-privacy-fields-"+b.id(), strings.Replace(input, `"origin":`, `"raw_source":"fake","origin":`, 1), 400)
 	partial := strings.Replace(strings.Replace(input, digest, "null", 1), `"complete"`, `"partial"`, 1)
@@ -122,10 +137,25 @@ func TestAddonRegistryOnInstalledBaselinePostgres(t *testing.T) {
 	review(expected, "revoked", 409)
 	expected["If-Match"] = "\"1\""
 	review(expected, "revoked", 200)
-	edited := post(machine, "edited-addon-bytes-"+b.id(), strings.Replace(input, strings.Repeat("a", 64), strings.Repeat("b", 64), 1), 200)
+	editedInput := strings.Replace(input, strings.Repeat("a", 64), strings.Repeat("b", 64), 1)
+	editedInput = strings.Replace(editedInput, "script.network_access", "dependency.unpinned", 1)
+	edited := post(machine, "edited-addon-bytes-"+b.id(), editedInput, 200)
 	if edited["version_id"] == id {
 		t.Fatal("edited bytes retained the previous approval")
 	}
+	editedID := edited["version_id"].(string)
+	exact := check(admin, "getAddonVersion", "GET", "/api/v1/addon-versions/"+editedID, map[string]string{"id": editedID}, "", nil, 200)
+	foundReference := false
+	for _, rawRef := range exact["framework_evidence"].([]any) {
+		ref := rawRef.(map[string]any)
+		if ref["framework"] == "owasp_agentic_top10" && ref["edition"] == "2026" && ref["upstream_id"] == "ASI04" && ref["rule_id"] == "dependency.unpinned" && ref["rule_version"] == "zasp-static.v1" && ref["evidence_kind"] == "static_scan" {
+			foundReference = true
+		}
+	}
+	if !foundReference || exact["manifest_digest"] != edited["manifest_digest"] || exact["review_state"] != "pending" {
+		t.Fatalf("edited version lacks protected static evidence: %v", exact)
+	}
+	post(machine, "forged-addon-mapping-"+b.id(), strings.Replace(editedInput, `"count":1`, `"count":1,"framework_evidence":["ASI04"]`, 1), 400)
 	page := check(admin, "listAddonVersions", "GET", "/api/v1/addon-versions?limit=1", nil, "", nil, 200)
 	cursor, _ := page["next_cursor"].(string)
 	if cursor != edited["version_id"] {
@@ -146,4 +176,8 @@ func TestAddonRegistryOnInstalledBaselinePostgres(t *testing.T) {
 	if _, err := b.fenced("zasp_svc_api", admin, RoutedOperation{OperationID: "getAddonVersion", PathParameters: route}, addonVersionSQL, b.o, b.w, b.id(), id); installedSQLState(err) != "42501" {
 		t.Fatalf("cross-Environment read returned %v", err)
 	}
+	if runtime.GOOS == "linux" {
+		exerciseAddonCLIReview(t, b, repo, surface, admin, rawTokens["Local addon report"])
+	}
+
 }

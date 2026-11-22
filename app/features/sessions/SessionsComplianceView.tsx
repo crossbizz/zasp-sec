@@ -83,10 +83,10 @@ export async function hydrateSessionEvents(
   return hydrated;
 }
 
-type ViewProps = { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean } & Pick<ComplianceViewProps, "complianceBoundary" | "selectedSource" | "onNavigate">;
+type ViewProps = { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean } & Pick<ComplianceViewProps, "complianceBoundary" | "selectedSource" | "selectedCatalog" | "onNavigate">;
 export function SessionsComplianceView(props: ViewProps) {
   const api = useMemo(() => props.api ?? (props.client ? createSessionsComplianceAPI(props.client) : null), [props.api, props.client]);
-  if (props.surface === "compliance") return <ComplianceEvidenceView api={api} client={props.client} complianceBoundary={props.complianceBoundary} selectedSource={props.selectedSource} onNavigate={props.onNavigate} />;
+  if (props.surface === "compliance") return <ComplianceEvidenceView api={api} client={props.client} complianceBoundary={props.complianceBoundary} selectedSource={props.selectedSource} selectedCatalog={props.selectedCatalog} onNavigate={props.onNavigate} />;
   return <SessionsAdministrationView {...props} />;
 }
 function SessionsAdministrationView({ surface, api: suppliedAPI, client, canMutate = false }: ViewProps) {

@@ -12,7 +12,7 @@ import (
 type complianceReadSurface struct{ handler *complianceHTTPHandler }
 
 func complianceReadOperation(operation string) bool {
-	return stringIn(operation, "listComplianceControls", "listComplianceEvidence", "getComplianceEvidence")
+	return stringIn(operation, "listComplianceControls", "listComplianceEvidence", "getComplianceEvidence", "listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence")
 }
 
 func (s *complianceReadSurface) ServeHTTP(w http.ResponseWriter, r *http.Request) {

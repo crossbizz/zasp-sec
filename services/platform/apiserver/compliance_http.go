@@ -62,6 +62,10 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 	digest := sha256.Sum256([]byte(credential.Value))
 	if r.Method == http.MethodGet {
+		if stringIn(route.OperationID, "listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence") {
+			h.frameworkReport(w, r, identity, route.OperationID)
+			return
+		}
 		h.get(w, r, identity, digest[:], route)
 		return
 	}
@@ -80,7 +84,7 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			writeComplianceError(w, r, ErrComplianceForbidden)
 			return
 		}
-		object, valid := complianceClosedObject(body, []string{"framework", "control_id", "agent_id", "pilot_cohort", "device_id", "endpoint_session_ref"})
+		object, valid := complianceClosedObject(body, []string{"framework", "control_id", "agent_id", "pilot_cohort", "device_id", "endpoint_session_ref", "edition", "upstream_id", "evidence_kind"})
 		var input ComplianceExportRequest
 		if !valid || decodeStrictDiscovery(body, &input) != nil || hasEmptyPilotSelector(object) || !complianceFilterFields(object) || len(r.Header.Values("Idempotency-Key")) != 1 {
 			writeComplianceError(w, r, ErrRepositoryOperation)

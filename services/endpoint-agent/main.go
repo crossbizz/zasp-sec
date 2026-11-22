@@ -20,12 +20,16 @@ type permissionResponse struct {
 }
 
 func hook(socket, failureMode string, input io.Reader, out io.Writer, diag io.Writer) error {
+	return hookVia("claude", socket, failureMode, input, out, diag)
+}
+func hookVia(harness, socket, failureMode string, input io.Reader, out, diag io.Writer) error {
 	data, err := boundedRead(input, wireLimit)
 	var r response
 	if err == nil && json.Valid(data) {
-		r, err = call(socket, request{Operation: "pre-tool", Hook: data})
+		r, err = call(socket, request{Operation: "pre-tool", Hook: data, Harness: harness})
 	}
 	reason := ""
+	message := ""
 	if err != nil || r.Decision == nil || r.Decision.Verdict == "unavailable" {
 		fmt.Fprintln(diag, "Zasp endpoint control unavailable. Run zasp-endpoint status.")
 		if failureMode == "deny" {
@@ -33,17 +37,26 @@ func hook(socket, failureMode string, input io.Reader, out io.Writer, diag io.Wr
 		}
 	} else if r.Decision.Verdict == "deny" {
 		reason = "Zasp stopped the configured ticket action. Use an approved destination or contact your endpoint administrator."
+		if r.Decision.Revision > 0 {
+			detail, _ := json.Marshal(map[string]any{"action_id": r.Decision.ReceiptID, "rule_id": r.Decision.RuleID, "policy_revision": r.Decision.Revision, "reason_code": r.Decision.Reason, "next_step_hint": r.Decision.NextStep})
+			reason = string(detail)
+			message = fmt.Sprintf("Zasp stopped this action under endpoint policy revision %d (%s). Contact your endpoint administrator.", r.Decision.Revision, r.Decision.Reason)
+		}
 		if r.Decision.Reason == "action_id_conflict" || r.Decision.Reason == "action_replayed" {
 			reason = "Zasp stopped a reused action identifier. Start a new action."
 		}
-		if r.Decision.ReceiptID != "" {
+		if r.Decision.Revision == 0 && r.Decision.ReceiptID != "" {
 			reason += " Decision " + r.Decision.ReceiptID + "."
 		}
 	} else if r.Decision.Verdict != "continue" {
 		return errInvalid
 	}
 	if reason != "" {
-		return json.NewEncoder(out).Encode(map[string]any{"hookSpecificOutput": permissionResponse{Event: "PreToolUse", Decision: "deny", Reason: reason}})
+		reply := map[string]any{"hookSpecificOutput": permissionResponse{Event: "PreToolUse", Decision: "deny", Reason: reason}}
+		if message != "" {
+			reply["systemMessage"] = message
+		}
+		return json.NewEncoder(out).Encode(reply)
 	}
 	// Empty output lets the harness apply its normal permission checks.
 	return json.NewEncoder(out).Encode(struct{}{})
@@ -76,7 +89,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, diag io.Writer) 
 			return errInvalid
 		}
 		return serve(ctx, *path)
-	case "claude-pre-tool", "status", "export", "archive", "inventory", "sync-now":
+	case "codex-pre-tool", "claude-pre-tool", "status", "export", "archive", "inventory", "sync-now":
 		socket := f.String("socket", defaultSocket, "endpoint socket path")
 		fail := f.String("on-unavailable", "continue", "continue or deny if the decision is unavailable")
 		project := f.String("project", "", "absolute project root used for this inventory")
@@ -84,8 +97,12 @@ func run(ctx context.Context, args []string, in io.Reader, out, diag io.Writer) 
 		if err := f.Parse(args[1:]); err != nil || f.NArg() != 0 || (*fail != "continue" && *fail != "deny") {
 			return errInvalid
 		}
-		if args[0] == "claude-pre-tool" {
-			return hook(*socket, *fail, in, out, diag)
+		if args[0] == "claude-pre-tool" || args[0] == "codex-pre-tool" {
+			harness := "claude"
+			if args[0] == "codex-pre-tool" {
+				harness = "codex"
+			}
+			return hookVia(harness, *socket, *fail, in, out, diag)
 		}
 		if args[0] == "archive" {
 			return archiveReceipts(*socket, *archive)

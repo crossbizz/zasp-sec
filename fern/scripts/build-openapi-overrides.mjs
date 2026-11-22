@@ -197,6 +197,9 @@ const OPERATIONS = {
   getAgentPurpose: ["agents", "getPurpose"],
   putAgentPurpose: ["agents", "putPurpose"],
   getTool: ["tools", "get"],
+  getEndpointPolicyCohort: ["sensors", "getEndpointPolicyCohort"],
+  updateEndpointPolicyCohort: ["sensors", "updateEndpointPolicyCohort"],
+  evaluateClaudeEnterpriseHook: ["guardrails", "evaluateClaudeEnterpriseHook"],
   getTicketCohort: ["sensors", "getTicketCohort"],
   publishTicketCohort: ["sensors", "publishTicketCohort"],
   registerEndpointDevice: ["sensors", "registerEndpointDevice"],
@@ -292,6 +295,9 @@ const OPERATIONS = {
   listSessionEvents: ["sessions", "listEvents"],
   getSessionEvent: ["sessions", "getEvent"],
 
+  listComplianceEditions: ["compliance", "listEditions"],
+  listComplianceCoverage: ["compliance", "listCoverage"],
+  listComplianceCoverageEvidence: ["compliance", "listCoverageEvidence"],
   listComplianceControls: ["compliance", "listControls"],
   listComplianceEvidence: ["compliance", "listEvidence"],
   getComplianceEvidence: ["compliance", "getEvidence"],
@@ -336,7 +342,8 @@ const OPERATIONS = {
 const METHODS = ["get", "post", "put", "patch", "delete"];
 const TOKEN_AUDIENCE = "api-token";
 const BROWSER_ONLY = "Authentication: a browser session only. An API token is refused.";
-const CLI_AUTH_NOTES = {
+const OPERATION_AUTH_NOTES = {
+  evaluateClaudeEnterpriseHook: "The provider authenticates with a signed webhook delivery.",
   startCLILogin: "Authentication: public start, bound to a CLI PKCE challenge.",
   exchangeCLILogin: "Authentication: approved CLI request and its PKCE verifier.",
 };
@@ -386,7 +393,7 @@ function build() {
       if (acceptsToken) {
         override["x-fern-audiences"] = [TOKEN_AUDIENCE];
       } else {
-        const note = CLI_AUTH_NOTES[id] ?? (security.length === 0 ? NO_AUTH : BROWSER_ONLY);
+        const note = OPERATION_AUTH_NOTES[id] ?? (security.length === 0 ? NO_AUTH : BROWSER_ONLY);
         override.description = operation.description ? `${operation.description.trim()}\n\n${note}` : note;
       }
       const page = pagination(spec, pathItem, operation);

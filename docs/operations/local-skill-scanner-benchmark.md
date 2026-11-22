@@ -1,5 +1,21 @@
 # Offline skill scanner benchmark
 
+## V2 first-party regression gate
+
+`zasp-static.v2` runs on 40 labeled synthetic skills, split evenly between benign and adverse cases. The scanner reads each fixture without running it inside an isolated network namespace. The CLI and namespace startup are included in timings. The release gate requires the primary adverse indicator in at least 18 of 20 cases, at most one alerted benign case, zero findings for the comment-only Python case, and median latency below 150 ms. Wrong rule IDs, a falsely complete symlink scan, unstable findings and unexpected additional alerts fail separately. Package hygiene notices are reported separately from findings.
+
+On November 22, 2026 the local Linux run with three repetitions detected 20 of 20 adverse shapes and alerted on one of 20 benign fixtures. Median scan time was 32 ms. The benign fixture passes a local echo command to a process API, which is an actual capability with a harmless intended use. The symlink case counts only when the scanner reports that it skipped the link and withholds the manifest digest. This curated benchmark measures static pattern detection on its fixtures. Fleet performance, adversarial generalization and exploitation require separate evidence.
+
+```sh
+go build -C cmd/zaspctl -mod=readonly -o /tmp/zaspctl .
+python3 scripts/skill-benchmark/run.py --zasp /tmp/zaspctl --repeats 3
+```
+
+[40-case corpus](../../scripts/skill-benchmark/corpus.json) · [CI job](../../.github/workflows/feature-v2.yml)
+
+## Historical V1 cross-vendor baseline
+
+
 This experiment measures which review signals three local scanners surface on seven small, synthetic skill bundles. A capability label means a reviewer can point to the relevant file declaration, call or markup. Every fixture is benign. Use these results to choose detectors for a developer's first scan and to decide what to display separately as package hygiene or incomplete coverage.
 
 ## Inputs and reproducibility
@@ -16,18 +32,18 @@ Build ZASP at the repository root. On a Linux machine with working `bwrap --unsh
 
 ```sh
 go build -C cmd/zaspctl -o /tmp/zaspctl .
-python3 scripts/skill-benchmark/run.py --zasp /tmp/zaspctl --repeats 5
+python3 scripts/skill-benchmark/run.py --legacy --zasp /tmp/zaspctl --repeats 5
 
 uv venv /tmp/zasp-scanner-bench
 uv pip install --python /tmp/zasp-scanner-bench/bin/python \
   cisco-ai-skill-scanner==2.3.2 \
   'skillspector @ git+https://github.com/NVIDIA/SkillSpector.git@e2674da339b0bddc6e565d059c0577c6d9cd25da'
-python3 scripts/skill-benchmark/run.py --zasp /tmp/zaspctl \
+python3 scripts/skill-benchmark/run.py --legacy --zasp /tmp/zaspctl \
   --cisco /tmp/zasp-scanner-bench/bin/skill-scanner \
   --nvidia /tmp/zasp-scanner-bench/bin/skillspector --repeats 1
 ```
 
-The reference run used CPython 3.12.14 and a single isolated virtual environment for the two vendor tools. Its shared 132-package installation occupied about 590 MiB. This is the installed size of this combination, including optional capabilities pulled into default vendor dependency trees. Third-party transitive dependencies can change between installations. The bundled corpus SHA-256 was `9c7dc7473918f49fd325514536dc5d792bf684a0173896ae4b0481c52dfc0a77`. [Labeled fixtures](../../scripts/skill-benchmark/corpus.json) · [Runner](../../scripts/skill-benchmark/run.py)
+The reference run used CPython 3.12.14 and a single isolated virtual environment for the two vendor tools. Its shared 132-package installation occupied about 590 MiB. This is the installed size of this combination, including optional capabilities pulled into default vendor dependency trees. Third-party transitive dependencies can change between installations. The bundled corpus SHA-256 was `9c7dc7473918f49fd325514536dc5d792bf684a0173896ae4b0481c52dfc0a77`. [Labeled fixtures](../../scripts/skill-benchmark/corpus-v1.json) · [Runner](../../scripts/skill-benchmark/run.py)
 
 ## Run results
 

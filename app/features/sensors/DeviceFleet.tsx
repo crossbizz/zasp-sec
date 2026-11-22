@@ -1,5 +1,7 @@
 "use client";
 
+import { endpointAdapterLabels } from "../../../apps/web/api/endpoint-fleet";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EndpointFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import type { EndpointRegistration } from "../../../apps/web/api/generated";
@@ -285,12 +287,7 @@ function DeviceDetail({
             <dt>Last reported adapter</dt>
             <dd>
               {
-                {
-                  unknown: "Unknown",
-                  macos_claude_ticket: "macOS · Claude Code ticket hook",
-                  linux_claude_ticket_test: "Linux · ticket hook test adapter",
-                  windows_inventory: "Windows · inventory only",
-                }[row.reported_adapter]
+                endpointAdapterLabels[row.reported_adapter]
               }
             </dd>
             <dt>Receipt queue / dropped</dt>
@@ -328,8 +325,7 @@ function DeviceDetail({
           <section aria-label="Local action receipts">
             <h3>Local action receipts</h3>
             <p>
-              Showing {row.recent_observations.length} of {row.observation_count} device-reported Claude Code
-              ticket actions. Skill use and target outcome are unknown.
+              Showing {row.recent_observations.length} of {row.observation_count} device-reported agent actions. Skill use and target outcome are unknown.
             </p>
             {row.recent_observations.map((receipt) => (
               <details key={receipt.credential_generation + receipt.action_id}>
@@ -344,6 +340,10 @@ function DeviceDetail({
                         : "Continued"}
                 </summary>
                 <dl>
+                  {receipt.adapter && <><dt>Adapter</dt><dd>{endpointAdapterLabels[receipt.adapter as keyof typeof endpointAdapterLabels]}</dd></>}
+                  {receipt.tool_class && <><dt>Tool class</dt><dd>{receipt.tool_class}</dd></>}
+                  {receipt.rule_id && <><dt>Rule</dt><dd>{receipt.rule_id}</dd></>}
+                  {receipt.reason_code && <><dt>Decision reason</dt><dd>{receipt.reason_code.replaceAll("_"," ")}</dd></>}
                   {receipt.graph_state && (
                     <>
                       <dt>Evidence graph</dt>

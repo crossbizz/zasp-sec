@@ -144,6 +144,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PUT", "/api/v1/browser-profiles/{id}", "registerBrowserProfile", "manage_api_tokens", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/browser-profiles/{id}", "retireBrowserProfile", "manage_api_tokens", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/browser-profiles/{id}/observations", "recordBrowserOriginDays", "report_browser_usage", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/device-cohorts/{cohort}/pretool-policy", "getEndpointPolicyCohort", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/device-cohorts/{cohort}/pretool-policy", "updateEndpointPolicyCohort", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/device-cohorts/{cohort}/ticket-rollout", "getTicketCohort", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/device-cohorts/{cohort}/ticket-rollout", "publishTicketCohort", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/device-enrollments", "registerEndpointDevice", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
@@ -411,7 +413,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "registerBrowserProfile", "retireBrowserProfile":
 		return true
-	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "publishTicketCohort":
+	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "publishTicketCohort", "updateEndpointPolicyCohort":
 		return true
 	case "reviewAddonVersion", "approveCLILogin", "createPrivateAddonUpload":
 		return true

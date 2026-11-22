@@ -59,9 +59,15 @@ func readable(report localReport) string {
 	if scan := report.Result; scan != nil {
 		fmt.Fprintf(&text, "Ruleset: %s\nAdvisory coverage: %s\n", scan.Ruleset, scan.AdvisoryStatus)
 		if a := scan.AdvisoryCoverage; a != nil {
-			fmt.Fprintf(&text, "Catalog age: %d days. Declarations evaluated: %d. Unresolved: %d.\n", a.AgeDays, a.Evaluated, a.Unknown)
+			fmt.Fprintf(&text, "Catalog age: %d days. Verified by: %s. Declarations evaluated: %d. Unresolved versions: %d. Absent releases: %d.\n", a.AgeDays, a.Authentication, a.Evaluated, a.Unresolved, a.MissingReleases)
+			if a.SignerSHA256 != "" {
+				fmt.Fprintf(&text, "Signer %s · %s at %s\n", a.SignerSHA256, a.Source, a.SourceRevision)
+			}
 			for _, m := range a.Matches {
 				fmt.Fprintf(&text, "%s %s: %s@%s (%s)\n", m.Severity, m.ID, m.Dependency.Name, m.Dependency.Version, m.Dependency.Path)
+				if m.FixedVersion != "" {
+					fmt.Fprintf(&text, "  Reviewed fix: %s\n", m.FixedVersion)
+				}
 			}
 		}
 		if scan.ManifestDigest != "" {
@@ -72,6 +78,12 @@ func readable(report localReport) string {
 		}
 		for _, f := range scan.Findings {
 			fmt.Fprintf(&text, "%s %s in %s: %s %s\n", f.Severity, f.RuleID, strconv.Quote(f.Path), f.Message, f.Remediation)
+			for _, ref := range f.FrameworkEvidence {
+				fmt.Fprintf(&text, "  %s %s · %s %s (%s)\n", ref.Framework, ref.Edition, ref.UpstreamID, ref.Title, ref.EvidenceKind)
+			}
+		}
+		for _, n := range scan.Notices {
+			fmt.Fprintf(&text, "Notice %s: %s\n", n.ID, n.Message)
 		}
 		for _, s := range scan.Skipped {
 			fmt.Fprintf(&text, "Skipped %s: %s\n", strconv.Quote(s.Path), s.Reason)
@@ -108,10 +120,10 @@ var htmlTemplate = template.Must(template.New("local").Parse(`<!doctype html>
 <title>Zasp local {{.Command}}</title></head><body>
 <h1>Zasp local {{.Command}}</h1><p>Coverage: <strong>{{.Status}}</strong>. Usage unknown. No data uploaded.</p>
 {{if .Result}}{{with .Result}}<p>Ruleset: {{.Ruleset}}. Advisory coverage: {{.AdvisoryStatus}}.</p>
-{{with .AdvisoryCoverage}}<p>Catalog age {{.AgeDays}} days. Declarations evaluated {{.Evaluated}}. Unresolved {{.Unknown}}.</p>
-{{if .Matches}}<ul>{{range .Matches}}<li>{{.Severity}} {{.ID}} in {{.Dependency.Name}}@{{.Dependency.Version}} ({{.Dependency.Path}})</li>{{end}}</ul>{{end}}{{end}}
+{{with .AdvisoryCoverage}}<p>Catalog age {{.AgeDays}} days. Verified by {{.Authentication}}. Declarations evaluated {{.Evaluated}}. Unresolved versions {{.Unresolved}}. Releases absent {{.MissingReleases}}.{{if .SignerSHA256}} Signer <code>{{.SignerSHA256}}</code>. {{.Source}} at <code>{{.SourceRevision}}</code>.{{end}}</p>
+{{if .Matches}}<ul>{{range .Matches}}<li>{{.Severity}} {{.ID}} in {{.Dependency.Name}}@{{.Dependency.Version}} ({{.Dependency.Path}}){{with .FixedVersion}}. Reviewed fix: {{.}}{{end}}</li>{{end}}</ul>{{end}}{{end}}
 {{if .ManifestDigest}}<p>Version: <code>{{.ManifestDigest}}</code></p>{{end}}
-<h2>Static rule findings</h2>{{if .Findings}}<ul>{{range .Findings}}<li><strong>{{.Severity}} · {{.RuleID}}</strong> in <code>{{.Path}}</code>. {{.Message}} {{.Remediation}}</li>{{end}}</ul>{{else}}<p>No static rule findings.</p>{{end}}
+{{if .Notices}}<h2>Package and coverage notices</h2><ul>{{range .Notices}}<li>{{.ID}} · {{.Message}}</li>{{end}}</ul>{{end}}<h2>Static rule findings</h2>{{if .Findings}}<ul>{{range .Findings}}<li><strong>{{.Severity}} · {{.RuleID}}</strong> in <code>{{.Path}}</code>. {{.Message}} {{.Remediation}}{{if .FrameworkEvidence}}<ul>{{range .FrameworkEvidence}}<li>{{.Framework}} {{.Edition}} · {{.UpstreamID}} {{.Title}} ({{.EvidenceKind}})</li>{{end}}</ul>{{end}}</li>{{end}}</ul>{{else}}<p>No static rule findings.</p>{{end}}
 {{if .Skipped}}<h2>Skipped files</h2><ul>{{range .Skipped}}<li><code>{{.Path}}</code> — {{.Reason}}</li>{{end}}</ul>{{end}}
 {{end}}{{else}}
 <h2>Locations checked</h2><ul>{{range .Coverage.Roots}}<li>{{.Harness}} · {{.Scope}} <code>{{.Path}}</code> — {{.Status}} {{.Reason}}</li>{{end}}</ul>

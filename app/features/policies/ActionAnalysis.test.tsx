@@ -88,3 +88,19 @@ it("previews a bounded declaration, then submits it only with the current revisi
   );
   expect(await screen.findByText("Saved action analysis revision 2.")).toBeVisible();
 });
+
+it("shows bounded draft recommendations and requires a separate opt-in change", async () => {
+  const data = { ...initial, intent_drafts: [{ decision_id: decision, recommendation: "review_destination", occurred_at: "2026-01-01T00:00:00Z" }] };
+  const put = vi.fn(async (_path: string, params: { body: AgentActionAnalysis["settings"] }) => ok({ ...data, settings: params.body, revision: 2 }));
+  render(<APIProvider client={{ GET: async () => ok(data), PUT: put } as unknown as APIClient}><ActionAnalysis agent={agent} canManage disabled={false} /></APIProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Inspect workload action analysis" }));
+  const toggle = await screen.findByRole("checkbox", { name: "Enable draft intent recommendations for this agent" });
+  expect(toggle).not.toBeChecked();
+  expect(screen.getByRole("heading", { name: "Draft intent recommendations" })).toBeVisible();
+  expect(screen.getByText("Review the permitted destinations")).toBeVisible();
+  expect(put).not.toHaveBeenCalled();
+  fireEvent.click(toggle);
+  fireEvent.click(screen.getByRole("button", { name: "Save analysis settings" }));
+  await waitFor(() => expect(put).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({body: expect.objectContaining({classifier_opt_in: true})})));
+  expect(() => readAnalysis({...data, intent_drafts: [{...data.intent_drafts[0], recommendation:"block"}]},agent)).toThrow();
+});

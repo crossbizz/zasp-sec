@@ -470,6 +470,19 @@ paths:
       x-fern-sdk-group-name: integrations
       x-fern-sdk-method-name: acknowledgeMutationReceipt
       description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/device-cohorts/{cohort}/pretool-policy:
+    get:
+      tags:
+        - Sensors
+      x-fern-sdk-group-name: sensors
+      x-fern-sdk-method-name: getEndpointPolicyCohort
+      description: 'Authentication: a browser session only. An API token is refused.'
+    put:
+      tags:
+        - Sensors
+      x-fern-sdk-group-name: sensors
+      x-fern-sdk-method-name: updateEndpointPolicyCohort
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/device-cohorts/{cohort}/ticket-rollout:
     get:
       tags:
@@ -1784,6 +1797,27 @@ paths:
 
 
         Authentication: a browser session only. An API token is refused.
+  /api/v1/compliance/editions:
+    get:
+      tags:
+        - Compliance
+      x-fern-sdk-group-name: compliance
+      x-fern-sdk-method-name: listEditions
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/compliance/coverage:
+    get:
+      tags:
+        - Compliance
+      x-fern-sdk-group-name: compliance
+      x-fern-sdk-method-name: listCoverage
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/compliance/coverage/evidence:
+    get:
+      tags:
+        - Compliance
+      x-fern-sdk-group-name: compliance
+      x-fern-sdk-method-name: listCoverageEvidence
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/compliance/controls:
     get:
       tags:
@@ -2086,3 +2120,15 @@ paths:
       x-fern-sdk-method-name: rerunRun
       x-fern-audiences:
         - api-token
+  /api/v1/runtime/provider-hooks/claude-enterprise/{integrationId}:
+    post:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: evaluateClaudeEnterpriseHook
+      description: >-
+        The configured provider sends its original signed JSON. Prompt frames use runtime policies. One verdict covers all tool requests in a tool frame. A
+        delivery receipt records the Zasp decision. Provider shadow and failure settings determine enforcement.
+
+
+        The provider authenticates with a signed webhook delivery.

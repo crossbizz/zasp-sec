@@ -21,13 +21,13 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/cmd/zaspctl/internal/addons"
 	"github.com/zasp-ai/zasp-sec/cmd/zaspctl/internal/cliauth"
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 )
 
 const maxReportBytes = 8 << 20
 
 var productID = regexp.MustCompile("^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 var digestID = regexp.MustCompile("^sha256:[0-9a-f]{64}$")
-var rules = []string{"dependency.unpinned", "instruction.hidden_text", "mcp.remote_endpoint", "mcp.unpinned_launcher", "script.network_access", "script.shell_execution"}
 
 type finding struct {
 	RuleID string `json:"rule_id"`
@@ -69,7 +69,8 @@ func project(reader io.Reader, environment, origin string) (submission, error) {
 		return submission{}, errReport
 	}
 	r := local.Result
-	if r.SchemaVersion != "zasp-addon-scan.v1" || r.ManifestMethod != "addon-manifest.v1" || r.Ruleset != "zasp-static.v1" || r.Status != local.Status || (r.Status != "complete" && r.Status != "partial") || r.Skipped == nil || r.Findings == nil {
+	rules := addonevidence.Rules(r.Ruleset)
+	if r.SchemaVersion != "zasp-addon-scan.v1" || r.ManifestMethod != "addon-manifest.v1" || rules == nil || r.Status != local.Status || (r.Status != "complete" && r.Status != "partial") || r.Skipped == nil || r.Findings == nil {
 		return submission{}, errReport
 	}
 	out := submission{SchemaVersion: "zasp-addon-findings.v1", EnvironmentID: environment, Origin: origin, Ruleset: r.Ruleset, ManifestMethod: r.ManifestMethod, Completeness: r.Status, SkippedCount: len(r.Skipped), Findings: []finding{}}

@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
 	"github.com/zasp-ai/zasp-sec/services/platform/privatearchive"
+	"github.com/zasp-ai/zasp-sec/services/platform/skillfixture"
 	"io"
 	"net"
 	"net/http"
@@ -101,10 +102,11 @@ func awsBackend(ctx context.Context, scope string) (privatearchive.Backend, erro
 }
 
 type service struct {
-	journal *privatearchive.Journal
-	origin  string
-	key     ed25519.PublicKey
-	seats   chan struct{}
+	fixtureSigner ed25519.PrivateKey
+	journal       *privatearchive.Journal
+	origin        string
+	key           ed25519.PublicKey
+	seats         chan struct{}
 }
 
 func send(w http.ResponseWriter, v any) {
@@ -156,6 +158,24 @@ func (s service) administer(w http.ResponseWriter, r *http.Request) {
 	id, ok := strings.CutPrefix(r.URL.Path, "/v1/grants/")
 	if !ok || r.URL.RawQuery != "" || r.Header.Get("X-Zasp-Scope") != s.journal.Scope {
 		http.Error(w, "Not found", 404)
+		return
+	}
+	if strings.HasSuffix(id, "/synthetic-fixture") {
+		if r.Method != http.MethodPost || len(s.fixtureSigner) != ed25519.PrivateKeySize || r.ContentLength != 0 {
+			http.Error(w, "Unavailable", 404)
+			return
+		}
+		rec, err := s.journal.Verify(r.Context(), strings.TrimSuffix(id, "/synthetic-fixture"))
+		if err != nil {
+			http.Error(w, "Retained fixture unavailable", 404)
+			return
+		}
+		handoff, err := skillfixture.Sign(s.fixtureSigner, rec, time.Now())
+		if err != nil {
+			http.Error(w, "Retained fixture unavailable", 404)
+			return
+		}
+		send(w, handoff)
 		return
 	}
 	var rec privatearchive.Record
@@ -282,7 +302,16 @@ func serve(ctx context.Context) error {
 		return e
 	}
 	j := &privatearchive.Journal{Root: journal, Now: time.Now, Scope: scope, Store: store}
-	s := service{j, u.String(), key, make(chan struct{}, 2)}
+	s := service{journal: j, origin: u.String(), key: key, seats: make(chan struct{}, 2)}
+	if path := env("FIXTURE_SIGNING_SEED_FILE"); path != "" {
+		seed, err := fileKey(path)
+		if err != nil {
+			return err
+		}
+		s.fixtureSigner = ed25519.NewKeyFromSeed(seed)
+		clear(seed)
+		defer clear(s.fixtureSigner)
+	}
 	upload, e := socket(dir, "uploads.sock", 0660)
 	if e != nil {
 		return e
@@ -328,7 +357,9 @@ func operator(ctx context.Context, args []string) error {
 		return privatearchive.ErrRejected
 	}
 	method := "GET"
-	if args[0] == "delete" {
+	if args[0] == "prepare-fixture" {
+		method = "POST"
+	} else if args[0] == "delete" {
 		method = "DELETE"
 	} else if args[0] != "status" && args[0] != "verify" {
 		return privatearchive.ErrRejected
@@ -352,6 +383,9 @@ func operator(ctx context.Context, args []string) error {
 	target := "http://localhost/v1/grants/" + *id
 	if args[0] == "verify" {
 		target += "/verify"
+	}
+	if args[0] == "prepare-fixture" {
+		target += "/synthetic-fixture"
 	}
 	req, e := http.NewRequestWithContext(ctx, method, target, nil)
 	if e != nil {

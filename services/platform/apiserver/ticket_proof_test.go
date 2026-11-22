@@ -1,9 +1,13 @@
 package apiserver
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -83,4 +87,62 @@ func TestImportedTicketProofOnInstalledBaselinePostgres(t *testing.T) {
 	if _, err := b.fenced("zasp_svc_api", admin, RoutedOperation{OperationID: "getTicketVerification", PathParameters: params}, ticketProofGetSQL, b.o, b.w, b.id(), run); installedSQLState(err) != "42501" {
 		t.Fatalf("unfenced ticket proof %v", err)
 	}
+	// Use an independently pinned source per role on a second queued run.
+	// Existing immutable operator imports retain their original classification.
+	if !strings.Contains(receipt, `"evidence_qualification":"tested_control"`) {
+		t.Fatal(receipt)
+	}
+	bundle.Recorder.Healthy = true
+	run = b.id()
+	bundle.Scenario.RunID, bundle.Adapter.RunID, bundle.Recorder.RunID = run, run, run
+	b.seed(func() {
+		b.exec(`INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,input_digest,queued_at) VALUES($1,$2,$3,$4,$5,1,$6,decode(repeat('bc',32),'hex'),$7)`, b.o, b.w, b.e, run, def, admin.identity.PrincipalID.String(), start.Add(-time.Minute))
+	})
+	path = "/api/v1/test-runs/" + run + "/ticket-verification"
+	params = map[string]string{"id": run}
+	trustPath := installTestTicketAttestations(t, &bundle, end)
+	t.Setenv("ZASP_TICKET_ATTESTATION_TRUST_FILE", trustPath)
+	data, _ = json.Marshal(bundle)
+	signed := request("putTicketVerification", http.MethodPut, string(data), 200)
+	if !strings.Contains(signed, `"evidence_qualification":"verified_prevention"`) || request("getTicketVerification", "GET", "", 200) != signed {
+		t.Fatal(signed)
+	}
+	bundle.Attestations.Recorder = bundle.Attestations.Adapter
+	data, _ = json.Marshal(bundle)
+	request("putTicketVerification", http.MethodPut, string(data), 400)
+	t.Setenv("ZASP_TICKET_ATTESTATION_TRUST_FILE", "")
+	if missing := request("getTicketVerification", "GET", "", 200); !strings.Contains(missing, `"evidence_qualification":"unknown"`) {
+		t.Fatal(missing)
+	}
+}
+
+// installTestTicketAttestations is local staging test infrastructure. Both
+// ephemeral private keys leave scope before the HTTP request is sent.
+func installTestTicketAttestations(t *testing.T, bundle *redteam.TicketProofBundle, issued time.Time) string {
+	t.Helper()
+	s := bundle.Scenario
+	trust := redteam.TicketTrust{}
+	sign := func(role, id string, source any) redteam.TicketAttestation {
+		pub, private, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		key := redteam.TicketVerificationKey{KeyID: role + "-fixture-key", AuthorityID: role + "-fixture-source", Role: role, Scope: s.Scope, TargetID: s.TargetID, SourceID: id, PublicKey: base64.StdEncoding.EncodeToString(pub), ValidFrom: s.WindowStart.Add(-time.Hour), ValidUntil: issued.Add(time.Hour)}
+		trust.Keys = append(trust.Keys, key)
+		a, err := redteam.SignTicketSource(s, role, key.KeyID, issued, source, private)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+	bundle.Attestations = &redteam.TicketAttestations{Adapter: sign("adapter", s.AdapterID, bundle.Adapter), Recorder: sign("recorder", s.RecorderID, bundle.Recorder)}
+	raw, err := json.Marshal(trust)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "trusted-public-keys.json")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

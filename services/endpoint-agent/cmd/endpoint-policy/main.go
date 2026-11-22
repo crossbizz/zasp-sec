@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/json"
@@ -22,7 +21,6 @@ import (
 const maxSafeInteger = (1 << 53) - 1
 
 var cohortLabel = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
-var policyField = regexp.MustCompile(`^[a-z_]+$`)
 
 type planItem struct {
 	Version uint64                  `json:"expected_device_version"`
@@ -74,48 +72,7 @@ func readFile(path string, limit int64, private bool) ([]byte, error) {
 
 // encoding/json matches case-insensitively and accepts repeated keys. Critical
 // scope, device, mode and version fields must have one exact interpretation.
-func exactJSON(raw []byte, out any) bool {
-	if !endpointprotocol.Strict(raw, out) {
-		return false
-	}
-	d := json.NewDecoder(bytes.NewReader(raw))
-	var value func(int) bool
-	value = func(depth int) bool {
-		token, err := d.Token()
-		if err != nil || depth > 12 {
-			return false
-		}
-		switch token {
-		case json.Delim('{'):
-			seen := map[string]bool{}
-			for d.More() {
-				k, err := d.Token()
-				name, ok := k.(string)
-				if err != nil || !ok || !policyField.MatchString(name) || seen[name] {
-					return false
-				}
-				seen[name] = true
-				if !value(depth + 1) {
-					return false
-				}
-			}
-			end, err := d.Token()
-			return err == nil && end == json.Delim('}')
-		case json.Delim('['):
-			for d.More() {
-				if !value(depth + 1) {
-					return false
-				}
-			}
-			end, err := d.Token()
-			return err == nil && end == json.Delim(']')
-		default:
-			return true
-		}
-	}
-	return value(0)
-}
-
+func exactJSON(raw []byte, out any) bool { return endpointprotocol.StrictPolicyJSON(raw, out) }
 func signPolicy(p endpointprotocol.Policy, key ed25519.PrivateKey, now time.Time) (endpointprotocol.Signed, error) {
 	var empty endpointprotocol.Signed
 	b := p.Binding
@@ -198,13 +155,29 @@ func produce(args []string, out io.Writer, now time.Time) error {
 		}
 		return json.NewEncoder(out).Encode(result)
 	}
-	raw, err := readFile(*policyFile, 8192, false)
+	raw, err := readFile(*policyFile, 32768, false)
 	if err != nil {
 		return err
 	}
 	var p endpointprotocol.Policy
 	if !exactJSON(raw, &p) {
-		return errors.New("invalid endpoint policy")
+		var v2 endpointprotocol.PolicyV2
+		if !exactJSON(raw, &v2) {
+			return errors.New("invalid endpoint policy")
+		}
+		b := v2.Binding
+		if !endpointprotocol.Label.MatchString(b.Organization) || !endpointprotocol.Label.MatchString(b.Workspace) || !endpointprotocol.Label.MatchString(b.Environment) || !endpointprotocol.Label.MatchString(b.Device) || b.Generation == 0 {
+			return errors.New("invalid endpoint policy binding")
+		}
+		canonical, err := json.Marshal(v2)
+		if err != nil {
+			return err
+		}
+		signed := endpointprotocol.Signed{Payload: canonical, Signature: ed25519.Sign(key, canonical)}
+		if _, ok := signed.PolicyV2For(key.Public().(ed25519.PublicKey), b, now); !ok {
+			return errors.New("invalid pre-tool policy settings, scope or validity")
+		}
+		return json.NewEncoder(out).Encode(signed)
 	}
 	signed, err := signPolicy(p, key, now)
 	if err != nil {

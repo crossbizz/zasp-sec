@@ -98,5 +98,5 @@ func serveTicketProof(db JSONDatabase, w http.ResponseWriter, r *http.Request, r
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
-	writeJSONValue(w, r, 200, map[string]any{"evidence_source": "operator_import", "schema_version": 1, "result": result, "definition_version": record.DefinitionRevision, "submitted_at": record.At, "submitted_by": record.Actor, "evidence_sha256": record.Digest, "policy_revision": record.Bundle.Scenario.PolicyRevision, "target_id": record.Bundle.Scenario.TargetID}, nil)
+	writeJSONValue(w, r, 200, map[string]any{"evidence_source": "operator_import", "evidence_qualification": ticketProofQualification(record.Bundle, record.At), "schema_version": 1, "result": result, "definition_version": record.DefinitionRevision, "submitted_at": record.At, "submitted_by": record.Actor, "evidence_sha256": record.Digest, "policy_revision": record.Bundle.Scenario.PolicyRevision, "target_id": record.Bundle.Scenario.TargetID}, nil)
 }

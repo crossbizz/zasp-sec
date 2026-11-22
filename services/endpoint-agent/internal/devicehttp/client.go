@@ -53,8 +53,12 @@ func Send(ctx context.Context, client *http.Client, origin, op, method, path, to
 		return ErrUnavailable
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(res.Body, (16<<10)+1))
-	if err != nil || len(body) > 16<<10 || res.StatusCode != http.StatusOK || !endpointprotocol.Strict(body, output) {
+	limit := int64(16 << 10)
+	if op == "fetchEndpointPolicy" {
+		limit = 48 << 10
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if err != nil || int64(len(body)) > limit || res.StatusCode != http.StatusOK || !endpointprotocol.Strict(body, output) {
 		return ErrUnavailable
 	}
 	return nil

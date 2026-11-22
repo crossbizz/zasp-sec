@@ -165,9 +165,42 @@ def attempt(target):
 attempt("internal")
 attempt("restricted")
 assert writes==["internal"], writes
+
+import hashlib, sqlite3, tempfile
+from pathlib import Path
+from zasp_guardrails.context import SQLiteContext, RecordApproval, ContextDenied
+with tempfile.TemporaryDirectory() as tmp:
+    path=Path(tmp)/"context.db"
+    key=os.urandom(32)
+    def adapter(tenant):
+        return SQLiteContext(path,g,tenant=tenant,principal="reader",session="sqlite-demo",approval_key=key)
+    record=RecordApproval("one","collection","doc","reader",("reader",),1,4102444800,
+                          "document",hashlib.sha256(b"known value").hexdigest())
+    adapter("one").put(record,record.sign(key),b"known value")
+    assert adapter("one").grounded_value("collection","doc",b"known value")==b"known value"
+    try:
+        adapter("two").retrieve("collection","doc")
+        raise AssertionError("unexpected cross-tenant retrieval")
+    except ContextDenied:
+        pass
+    with sqlite3.connect(path) as inspector:
+        print(",".join(x[0] for x in inspector.execute("SELECT action FROM context_receipts ORDER BY rowid")))
 `)
 	command.Env = append(os.Environ(), "PYTHONPATH="+src, "ACTION_TEST_ORIGIN="+server.URL, "ACTION_TEST_TOKEN="+tokens["First workload"])
-	if result, err := command.CombinedOutput(); err != nil {
+	result, err := command.CombinedOutput()
+	if err != nil {
 		t.Fatalf("Python guard E2E: %v %s", err, result)
+	}
+	ids := strings.Split(strings.TrimSpace(string(result)), ",")
+	if len(ids) != 3 {
+		t.Fatalf("context adapter receipts: %s", result)
+	}
+	for index, actionID := range ids {
+		var contextResult string
+		err := b.admin.QueryRow(b.ctx, "SELECT outcome#>>'{context_evidence,result}' FROM public.zasp_workload_actions WHERE action_id=$1", actionID).Scan(&contextResult)
+		expected := []string{"allowed", "allowed", "rejected"}[index]
+		if err != nil || contextResult != expected {
+			t.Fatalf("local receipt %d versus authenticated outcome: %v %q", index, err, contextResult)
+		}
 	}
 }

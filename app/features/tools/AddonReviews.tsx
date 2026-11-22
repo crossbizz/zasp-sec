@@ -11,11 +11,22 @@ import {
   type AddonVersion,
   type ReviewDecision,
 } from "../../../apps/web/api/addon-reviews";
+import { catalogLink } from "../../domain/coverage-links";
+import { frameworkNames, type CatalogFramework } from "../../../apps/web/api/framework-coverage";
+import { useOptionalSession } from "../../auth/SessionProvider";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Button, Card } from "../../components/ui";
 
 const originLabels: Record<AddonVersion["origin"], string> = {local: "local", ci: "CI", private_worker: "Private scanner"};
+
+const staticRemediation: Readonly<Record<string, string>> = {
+  "dependency.unpinned": "Pin the approved release and check the lockfile.",
+  "instruction.override": "Inspect the directive in its surrounding instructions.",
+  "script.credential_path_access": "Review the credential read and the permissions it needs.",
+  "script.remote_exec_pipe": "Inspect and verify the fixed artifact before execution.",
+  "mcp.unpinned_exec": "Check the launcher’s exact release and use an authenticated encrypted destination.",
+};
 
 export function addonFromSearch(search: string) {
   const ids = new URLSearchParams(search).getAll("addon");
@@ -191,6 +202,7 @@ function VersionReview({
   const mutation = useRef<AbortController | null>(null);
   useEffect(() => () => mutation.current?.abort(), []);
   const { invalidate } = useAPI();
+  const session = useOptionalSession();
   const confirm = async () => {
     if (!intent || mutation.current || !canReview) return;
     const controller = new AbortController();
@@ -224,7 +236,7 @@ function VersionReview({
       if (!controller.signal.aborted) setBusy(false);
     }
   };
-  const row = query.data;
+  const row = query.status === "forbidden" ? undefined : query.data;
   return (
     <Card
       title="Add-on version"
@@ -286,7 +298,20 @@ function VersionReview({
             <ul>
               {row.findings.map((f) => (
                 <li key={f.rule_id}>
-                  {f.rule_id} · {f.count}
+                  <strong>{f.rule_id}</strong> · {f.count}
+                  {staticRemediation[f.rule_id] && <p>{staticRemediation[f.rule_id]} The file and its digest are available in the submitter’s local scan.</p>}
+                  {row.framework_evidence?.some((ref) => ref.rule_id === f.rule_id) && (
+                    <ul aria-label={`Framework references for ${f.rule_id}`}>
+                      {row.framework_evidence.filter((ref) => ref.rule_id === f.rule_id).map((ref) => (
+                        <li key={`${ref.framework}/${ref.edition}/${ref.upstream_id}`}>
+                          {session?.status === "authenticated" && session.hasCapability("compliance.read") && Object.hasOwn(frameworkNames, ref.framework)
+                            ? <a href={catalogLink({ framework: ref.framework as CatalogFramework, edition: ref.edition, upstream_id: ref.upstream_id }, session)}>
+                              {ref.framework} · {ref.edition} · {ref.upstream_id} · {ref.title} · Static scan</a>
+                            : <>{ref.framework} · {ref.edition} · {ref.upstream_id} · {ref.title} · Static scan</>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               ))}
             </ul>

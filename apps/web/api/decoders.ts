@@ -375,7 +375,7 @@ export function decodeAgentSuggestions(value: unknown, agent: string): import(".
   if (page.last_scan !== null) {
     const scan = exactRecord(page.last_scan, ["from", "to", "examined", "eligible", "truncated"]);
     dateTime(scan.from); dateTime(scan.to);
-    boundedInteger(scan.examined, 0, 100); boundedInteger(scan.eligible, 0, scan.examined as number);
+    boundedInteger(scan.examined, 0, 5000); boundedInteger(scan.eligible, 0, scan.examined as number);
     if (typeof scan.truncated !== "boolean") fail();
   }
   return value as import("./generated").AgentSuggestionPage;
@@ -440,11 +440,20 @@ export function decodeTicketVerification(value: unknown, runID: string): import(
 
 export function decodePolicySimulation(value: unknown): PolicySimulation {
   const record = exactRecord(value, ["matches", "would_block", "example_session_ids"], ["replay"]);
-  boundedInteger(record.matches, 0, 100); boundedInteger(record.would_block, 0, 100); stringArray(record.example_session_ids, 5);
+  boundedInteger(record.matches, 0, 5000); boundedInteger(record.would_block, 0, 5000); stringArray(record.example_session_ids, 5);
   if (record.replay !== undefined) {
-    const replay = exactRecord(record.replay, ["policy_revision", "agent_id", "from", "to", "evaluated", "truncated", "coverage"]);
-    positiveInteger(replay.policy_revision); productID(replay.agent_id); dateTime(replay.from); dateTime(replay.to); boundedInteger(replay.evaluated, 0, 100);
-    if (typeof replay.truncated !== "boolean" || replay.coverage !== "indexed_events_only" || replay.truncated && replay.evaluated !== 100 || (record.would_block as number) > (record.matches as number) || (record.matches as number) > (replay.evaluated as number)) fail();
+    const replay = exactRecord(record.replay, ["policy_revision", "agent_id", "from", "to", "evaluated", "truncated", "coverage"], ["examined_count", "eligible_count", "next_window_to", "next_before_event_id", "would_block_rate"]);
+    positiveInteger(replay.policy_revision); productID(replay.agent_id); dateTime(replay.from); dateTime(replay.to); boundedInteger(replay.evaluated, 0, 5000);
+    if (replay.examined_count !== undefined) {
+      boundedInteger(replay.examined_count, 0, 5000); boundedInteger(replay.eligible_count, 0, replay.examined_count as number);
+      if (replay.eligible_count !== replay.evaluated) fail();
+      const rates = exactRecord(replay.would_block_rate, [], ["tool","runtime","network","file","credential"]);
+      for (const rate of Object.values(rates)) if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 || rate > 1) fail();
+      if (replay.next_window_to !== null) dateTime(replay.next_window_to);
+      if (replay.next_before_event_id !== null) productID(replay.next_before_event_id);
+      if ((replay.next_window_to === null) !== (replay.next_before_event_id === null) || !replay.truncated && replay.next_window_to !== null) fail();
+    } else if (["eligible_count","next_window_to","next_before_event_id","would_block_rate"].some(key => key in replay)) fail();
+    if (typeof replay.truncated !== "boolean" || replay.coverage !== "indexed_events_only" || replay.truncated && replay.examined_count === undefined && replay.evaluated !== 100 || (record.would_block as number) > (record.matches as number) || (record.matches as number) > (replay.evaluated as number)) fail();
   }
   return value as PolicySimulation;
 }

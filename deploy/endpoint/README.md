@@ -1,4 +1,8 @@
-# Managed ticket-action pilot
+# Managed endpoint hooks
+
+For employee Claude Code and Codex CLI coverage, see [managed pre-tool policies](pretool-policy.md) for deployment, the rules editor, device-bound signing and receipt readback.
+
+## Ticket-action pilot
 
 The endpoint broker evaluates a signed policy for Claude Code's named `mcp__pilot__update_ticket` tool on a local Unix socket. The managed process owns the device key, policy cache and encrypted receipt queue. The hook uses Claude Code's `PreToolUse` permission-decision response. On a permitted call it emits `{}`, preserving the harness's own permission prompts. Triggering the hook produces an adapter decision. Target effect and skill usage are both recorded as unknown.
 
@@ -53,7 +57,7 @@ Configure the job to surface the CLI's partial exit status as well as the broker
 
 For rotation provision a fresh device key and independently issued transport credential, then use the browser-authorized `/devices/{id}/credential-rotations` mutation with the prior version. After exchanging the new generation, publish a higher policy revision bound to that generation. Once the old identity has been retired or rotated its future uploads fail, including buffered historical observations. Archive any required local evidence before rotation. Retiring a device through the control plane preserves its audit history. MDM package removal requires a separate step.
 
-For Windows managed inventory, see [the LocalSystem and Intune deployment instructions](intune-device/README.md). Windows reports installation metadata and cannot acknowledge a ticket-hook policy.
+The Windows base deployment sends signed installation metadata. An optional managed Claude Code pre-tool assignment evaluates independently signed V2 rules and queues signed decisions. Ticket-canary prevention evidence uses its own adapter. See [Windows enrollment and broker deployment](intune-device/README.md).
 
 ## Sign a ticket cohort rollout
 

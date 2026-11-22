@@ -143,3 +143,17 @@ it("validates bounded device evidence and preserves uncertainty", () => {
     ),
   ).toThrow();
 });
+
+it("reads redacted pre-tool decisions and rejects raw paths in rule evidence", () => {
+  const v2 = {
+    ...device.recent_observations[0],
+    adapter: "macos_codex_pretool_v2",
+    reason_code: "mcp_tool_restricted",
+    rule_id: "support-tools",
+    tool_class: "mcp",
+  };
+  const entry = { ...device, reported_adapter: "macos_codex_pretool_v2", recent_observations: [v2] };
+  expect(decodeDetail(entry, device.id).recent_observations[0]).toMatchObject(v2);
+  expect(() => decodeDetail({ ...entry, reported_adapter: "unspecified_runtime" }, device.id)).toThrow();
+  expect(() => decodeDetail({ ...entry, recent_observations: [{...v2, rule_id:"/home/person/file"}] }, device.id)).toThrow();
+});

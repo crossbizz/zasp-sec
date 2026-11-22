@@ -9,12 +9,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/inventoryreport"
 	"math"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/inventoryreport"
+	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/pretool"
 	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 )
 
@@ -136,6 +137,7 @@ func (s *store) commit(next diskState) error {
 }
 
 type broker struct {
+	adapter, home    string
 	syncRequested    chan struct{}
 	inventoryEnabled bool
 	remoteState      string
@@ -150,11 +152,11 @@ type broker struct {
 
 func (b *broker) policy(now time.Time) (Policy, string) {
 	previous, previousErr := b.store.state.Policy.policy(b.policyKey, b.binding, now)
-	input, err := readFile(b.policyFile, 16<<10)
+	input, err := readFile(b.policyFile, 48<<10)
 	var candidate Signed
 	if err == nil && strictJSON(input, &candidate) == nil {
 		policy, verifyErr := candidate.policy(b.policyKey, b.binding, now)
-		if verifyErr == nil && (previousErr != nil || policy.Revision > previous.Revision) && policy.ExpiresAt.After(now) {
+		if verifyErr == nil && (policy.pretool == nil || endpointprotocol.PretoolAdapter(b.adapter)) && (previousErr != nil || policy.Revision > previous.Revision) && policy.ExpiresAt.After(now) {
 			next := b.store.state
 			next.Policy = candidate
 			next.Latest = now
@@ -164,7 +166,7 @@ func (b *broker) policy(now time.Time) (Policy, string) {
 			previous, previousErr = policy, nil
 		}
 	}
-	if previousErr != nil {
+	if previousErr != nil || previous.pretool != nil && !endpointprotocol.PretoolAdapter(b.adapter) {
 		return Policy{}, "policy_unavailable"
 	}
 	if !previous.ExpiresAt.After(now) {
@@ -181,25 +183,35 @@ func (b *broker) policy(now time.Time) (Policy, string) {
 }
 
 type result struct {
+	RuleID    string `json:"rule_id,omitempty"`
+	Revision  uint64 `json:"policy_revision,omitempty"`
+	NextStep  string `json:"next_step_hint,omitempty"`
 	Verdict   string `json:"verdict"`
 	Reason    string `json:"reason"`
 	ReceiptID string `json:"receipt_id,omitempty"`
 }
 
 func (b *broker) evaluate(raw []byte) (result, error) {
+	return b.evaluateForAdapter(raw, b.adapter)
+}
+func (b *broker) evaluateForAdapter(raw []byte, adapter string) (result, error) {
 	event, target, err := parseHook(raw)
 	if err != nil {
 		return result{}, err
-	}
-	if event.Tool != ticketTool {
-		return result{Verdict: "continue", Reason: "out_of_scope"}, nil
 	}
 	now := b.now().UTC()
 	if now.Before(b.store.state.Latest) {
 		now = b.store.state.Latest
 	}
 	policy, status := b.policy(now)
+	v2 := policy.pretool != nil || (policy.Audience == "" && endpointprotocol.PretoolAdapter(adapter))
+	if !v2 && event.Tool != ticketTool {
+		return result{Verdict: "continue", Reason: "out_of_scope"}, nil
+	}
 	action := inventoryreport.OpaqueID(b.key.Seed(), "action", event.Session, event.Call)
+	if v2 {
+		action = inventoryreport.OpaqueID(b.key.Seed(), "pretool-action", adapter, event.Session, event.Call)
+	}
 	// Canonicalize object order so transport formatting alone cannot cause conflicts.
 	var fields any
 	d := json.NewDecoder(bytes.NewReader(event.Input))
@@ -212,21 +224,55 @@ func (b *broker) evaluate(raw []byte) (result, error) {
 		return result{}, errInvalid
 	}
 	inputDigest := inventoryreport.OpaqueID(b.key.Seed(), "input", event.Tool, string(canonical))
+	if v2 {
+		inputDigest = inventoryreport.OpaqueID(b.key.Seed(), "pretool-input", event.Tool, event.CWD, string(canonical))
+	}
 	if stored, exists := b.store.state.Decisions[action]; exists {
 		if stored.InputDigest != inputDigest {
 			return result{Verdict: "deny", Reason: "action_id_conflict"}, nil
 		}
+		var cached result
 		var old Observation
-		if strictJSON(stored.Receipt.Payload, &old) != nil {
+		var revision uint64
+		if strictJSON(stored.Receipt.Payload, &old) == nil && old.Audience == receiptAudience {
+			cached = result{Verdict: old.Verdict, Reason: old.Reason, ReceiptID: action}
+			revision = old.PolicyRevision
+		} else if receipt, ok := (endpointprotocol.Signed(stored.Receipt)).ObservationV2For(b.key.Public().(ed25519.PublicKey), endpointprotocol.Binding(b.binding), now); ok {
+			cached = pretoolResult(receipt)
+			revision = receipt.PolicyRevision
+		} else {
 			return result{}, errUnavailable
 		}
-		if old.Verdict == "continue" && (status != "verified_cache" || old.PolicyRevision != policy.Revision) {
-			return result{Verdict: "deny", Reason: "action_replayed", ReceiptID: old.Action}, nil
+		if cached.Verdict == "continue" && (status != "verified_cache" || revision != policy.Revision) {
+			return result{Verdict: "deny", Reason: "action_replayed", ReceiptID: action}, nil
 		}
-		return result{Verdict: old.Verdict, Reason: old.Reason, ReceiptID: old.Action}, nil
+		return cached, nil
 	}
 	if until, ok := b.store.state.Archived[action]; ok && until.After(now) {
 		return result{Verdict: "deny", Reason: "action_replayed"}, nil
+	}
+	if v2 {
+		obs := endpointprotocol.ObservationV2{Audience: endpointprotocol.ReceiptAudienceV2, Binding: endpointprotocol.Binding(b.binding), Action: action, Session: inventoryreport.OpaqueID(b.key.Seed(), "pretool-session", adapter, event.Session), ObservedAt: now, PolicyRevision: policy.Revision, Mode: policy.Mode, Adapter: adapter, Tool: endpointprotocol.ToolClass(event.Tool), TargetClass: "unknown", TargetEffect: "unknown", SkillUsage: "unknown", Verdict: "unavailable", Reason: status}
+		if !endpointprotocol.PretoolAdapter(adapter) {
+			return result{}, errUnavailable
+		}
+		if policy.pretool != nil {
+			obs.Verdict = "continue"
+			if status == "verified_cache" {
+				match := pretool.Evaluate(*policy.pretool, event.Tool, event.Input, b.home, event.CWD)
+				obs.RuleID, obs.Reason, obs.WouldBlock = match.RuleID, match.ReasonCode, match.WouldBlock
+				if match.Unavailable {
+					obs.WouldBlock = policy.Mode == "enforce" && policy.pretool.FailureMode == "closed"
+				}
+			} else {
+				obs.WouldBlock = policy.Mode == "enforce" && policy.pretool.FailureMode == "closed"
+			}
+			if obs.WouldBlock && policy.Mode == "enforce" {
+				obs.Verdict = "deny"
+			}
+		}
+		decision := pretoolResult(obs)
+		return b.recordDecision(now, action, inputDigest, obs, decision, policy.pretool)
 	}
 	o := Observation{Audience: receiptAudience, Binding: b.binding, PeerUID: b.uid, Action: action, Session: inventoryreport.OpaqueID(b.key.Seed(), "session", event.Session), ObservedAt: now, PolicyRevision: policy.Revision, Mode: policy.Mode, Tool: ticketTool, TargetClass: "unknown", Verdict: "unavailable", Reason: status, SkillUsage: "unknown", TargetEffect: "unknown"}
 	if status == "verified_cache" {
@@ -247,6 +293,37 @@ func (b *broker) evaluate(raw []byte) (result, error) {
 			o.Verdict = "deny"
 		}
 	}
+	return b.recordDecision(now, action, inputDigest, o, result{Verdict: o.Verdict, Reason: o.Reason, ReceiptID: action}, nil)
+}
+
+func pretoolResult(o endpointprotocol.ObservationV2) result {
+	hint := ""
+	if o.RuleID != "" {
+		hint = "review_endpoint_policy"
+	} else if o.Reason != "within_scope" {
+		hint = "contact_endpoint_admin"
+	}
+	return result{Verdict: o.Verdict, Reason: o.Reason, ReceiptID: o.Action, RuleID: o.RuleID, Revision: o.PolicyRevision, NextStep: hint}
+}
+func (b *broker) recordDecision(now time.Time, action, inputDigest string, o any, decision result, policy *endpointprotocol.PolicyV2) (result, error) {
+	recordingFailed := func(reason string) (result, error) {
+		decision.ReceiptID = ""
+		if policy != nil {
+			if decision.Verdict != "deny" {
+				decision.Reason = reason
+				decision.NextStep = "contact_endpoint_admin"
+				if policy.Mode == "enforce" && policy.FailureMode == "closed" {
+					decision.Verdict = "deny"
+				}
+			}
+			return decision, nil
+		}
+		if decision.Verdict == "deny" {
+			decision.Reason = "destination_not_approved_" + reason
+			return decision, nil
+		}
+		return result{Verdict: "unavailable", Reason: reason}, nil
+	}
 	next := b.store.state
 	next.Latest = now
 	if len(next.Decisions) >= maxReceipts {
@@ -254,13 +331,9 @@ func (b *broker) evaluate(raw []byte) (result, error) {
 			next.Gaps++
 		}
 		if err := b.store.commit(next); err != nil {
-			return result{}, err
+			return recordingFailed("evidence_unavailable")
 		}
-		// Preserve already decided denials even if recording stops.
-		if o.Verdict == "deny" {
-			return result{Verdict: "deny", Reason: "destination_not_approved_spool_full"}, nil
-		}
-		return result{Verdict: "unavailable", Reason: "spool_full"}, nil
+		return recordingFailed("spool_full")
 	}
 	receipt, err := sign(o, b.key)
 	if err != nil {
@@ -272,10 +345,7 @@ func (b *broker) evaluate(raw []byte) (result, error) {
 	}
 	next.Decisions[action] = storedDecision{InputDigest: inputDigest, Receipt: receipt}
 	if err = b.store.commit(next); err != nil {
-		if o.Verdict == "deny" {
-			return result{Verdict: "deny", Reason: "destination_not_approved_evidence_unavailable"}, nil
-		}
-		return result{}, err
+		return recordingFailed("evidence_unavailable")
 	}
-	return result{Verdict: o.Verdict, Reason: o.Reason, ReceiptID: action}, nil
+	return decision, nil
 }

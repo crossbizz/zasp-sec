@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { open, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { basename, relative, resolve, sep } from "node:path";
+import { basename, posix, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { JSON_SCHEMA, load } from "js-yaml";
 
@@ -28,12 +28,11 @@ const ignoredProductDirectories = new Set([
   "venv",
   "vendor",
 ]);
-const discoveryEntryLimit = 4096;
+const discoveryEntryLimit = 8192;
 const internalModuleVersion = "v0.0.0";
 const internalModules = new Map([
   ["github.com/zasp-ai/zasp-sec/services/health", {
     target: "services/health/go.mod",
-    replacement: "../health",
     consumers: new Map([
       ["services/event-ingest/go.mod", false],
       ["services/gateway-control/go.mod", true],
@@ -44,8 +43,8 @@ const internalModules = new Map([
   }],
   ["github.com/zasp-ai/zasp-sec/services/platform", {
     target: "services/platform/go.mod",
-    replacement: "../platform",
     consumers: new Map([
+      ["cmd/zaspctl/go.mod", false],
       ["services/endpoint-agent/go.mod", false],
       ["services/event-ingest/go.mod", false],
       ["services/gateway-control/go.mod", false],
@@ -348,7 +347,8 @@ function collectGoDependencies(path, text, files) {
     if (/^replace\b/.test(line)) {
       let matchedModule = "";
       for (const [name, authority] of internalModules) {
-        if (line === `replace ${name} => ${authority.replacement}`) {
+        const replacement = posix.relative(posix.dirname(path), posix.dirname(authority.target));
+        if (line === `replace ${name} => ${replacement}`) {
           assert(authority.consumers.has(path) && !internalReplacementsSeen.has(name));
           matchedModule = name;
           break;

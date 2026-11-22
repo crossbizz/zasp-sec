@@ -64,7 +64,7 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		surface.fleet.cohort(writer, request, routed)
-	case "registerEndpointDevice", "listEndpointDevices", "getEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "exchangeEndpointEnrollment", "recordEndpointHeartbeat", "recordEndpointInventory", "recordEndpointObservations", "fetchEndpointPolicy":
+	case "getEndpointPolicyCohort", "updateEndpointPolicyCohort", "registerEndpointDevice", "listEndpointDevices", "getEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "exchangeEndpointEnrollment", "recordEndpointHeartbeat", "recordEndpointInventory", "recordEndpointObservations", "fetchEndpointPolicy":
 		if surface.fleet == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return

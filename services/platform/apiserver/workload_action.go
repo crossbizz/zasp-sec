@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
+	"github.com/zasp-ai/zasp-sec/services/platform/providerhooks"
 )
 
 const (
@@ -35,17 +36,59 @@ type workloadActionRequest struct {
 }
 
 func (r workloadActionRequest) valid() bool {
-	return r.SchemaVersion == "action.v1" && r.ActionKind == "tool_call" && workloadLabel.MatchString(r.ActionID) && workloadLabel.MatchString(r.Operation) &&
+	return r.SchemaVersion == "action.v1" && stringIn(r.ActionKind, "tool_call", "provider_prompt", "provider_tool_frame") && workloadLabel.MatchString(r.ActionID) && workloadLabel.MatchString(r.Operation) &&
 		workloadLabel.MatchString(r.Resource.Kind) && workloadLabel.MatchString(r.Resource.Classification) &&
 		(r.Resource.Destination == nil || validAnalysisDestination(*r.Resource.Destination)) &&
 		(r.Session == nil || workloadLabel.MatchString(*r.Session)) && (r.Call == nil || workloadLabel.MatchString(*r.Call))
 }
 
+// Provider frames are constructed by a verified webhook, then authenticated
+// again by the normal workload admission middleware. Neither JSON fields nor
+// an externally supplied bearer token can manufacture this context binding.
+func (a workloadActionRequest) allowedFrom(ctx context.Context, i RequestIdentity) bool {
+	scope, verified := providerhooks.Binding(ctx)
+	if a.ActionKind == "tool_call" {
+		return !verified
+	}
+	binding := i.credentialBinding
+	return verified && binding.Kind == CredentialBearerToken && binding.ID == scope.Credential &&
+		len(binding.PATCeiling) == 1 && binding.PATCeiling[0] == permissionDecideActions &&
+		i.Scope.OrganizationID().String() == scope.Organization && i.Scope.WorkspaceID().String() == scope.Workspace && i.Scope.EnvironmentID().String() == scope.Environment &&
+		a.Resource.Kind == "claude_enterprise" && a.Resource.Destination == nil && a.Call != nil && contextReference.MatchString(*a.Call) &&
+		contextReference.MatchString(a.ActionID) && (a.Session == nil || contextReference.MatchString(*a.Session)) &&
+		((a.ActionKind == "provider_prompt" && a.Operation == "claude.prompt") || (a.ActionKind == "provider_tool_frame" && a.Operation == "claude.tool_frame"))
+}
+
+var contextReference = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// Context is reported by the authenticated workload. Independent verification
+// requires a separate target-side observation.
+type workloadContextEvidence struct {
+	Kind       string `json:"kind"`
+	Collection string `json:"collection_ref"`
+	Record     string `json:"record_ref"`
+	Version    *int64 `json:"version"`
+	Digest     string `json:"digest,omitempty"`
+	Result     string `json:"result"`
+}
+
+func (c *workloadContextEvidence) valid(status string) bool {
+	if c == nil {
+		return true
+	}
+	return stringIn(c.Kind, "memory_write", "memory_recall", "retrieval", "artifact_promotion", "grounded_decision", "hidden_context_check",
+		"workflow_purpose", "workflow_approval", "workflow_handoff", "workflow_child", "workflow_budget") &&
+		contextReference.MatchString(c.Collection) && contextReference.MatchString(c.Record) &&
+		c.Version != nil && *c.Version >= 0 && *c.Version < 1<<53 && ((*c.Version == 0 && c.Digest == "") || (*c.Version > 0 && contextReference.MatchString(c.Digest))) &&
+		((status == "returned" && c.Result == "allowed") || (status == "raised" && c.Result == "rejected"))
+}
+
 type workloadOutcome struct {
-	SchemaVersion string `json:"schema_version"`
-	ActionID      string `json:"action_id"`
-	DecisionID    string `json:"decision_id"`
-	Status        string `json:"status"`
+	Context       *workloadContextEvidence `json:"context_evidence,omitempty"`
+	SchemaVersion string                   `json:"schema_version"`
+	ActionID      string                   `json:"action_id"`
+	DecisionID    string                   `json:"decision_id"`
+	Status        string                   `json:"status"`
 }
 type workloadReceipt struct {
 	ActionID       string `json:"action_id"`
@@ -98,7 +141,7 @@ func (decision workloadReceipt) validFor(actionID string) bool {
 
 func (outcome workloadOutcome) validFor(actionID string) bool {
 	return outcome.SchemaVersion == "action-outcome.v1" && workloadLabel.MatchString(actionID) &&
-		outcome.ActionID == actionID && validProductID(outcome.DecisionID) &&
+		outcome.ActionID == actionID && validProductID(outcome.DecisionID) && outcome.Context.valid(outcome.Status) &&
 		stringIn(outcome.Status, "not_dispatched", "returned", "raised", "cancelled")
 }
 
@@ -141,6 +184,10 @@ func (h *workloadActionHandler) serve(w http.ResponseWriter, r *http.Request, op
 		var action workloadActionRequest
 		if decodeProductionJSON(r, &action) != nil || !action.valid() || r.Header.Get("Idempotency-Key") != action.ActionID {
 			writeProductionError(w, r, ErrRepositoryOperation)
+			return
+		}
+		if !action.allowedFrom(r.Context(), i) {
+			writeProductionStatusError(w, r, http.StatusForbidden, "provider_binding_required", "Verified provider binding required", false)
 			return
 		}
 		h.decide(w, r, i, action)
@@ -229,15 +276,26 @@ func (h *workloadActionHandler) evaluate(ctx context.Context, i RequestIdentity,
 		return result, nil
 	}
 	input := map[string]string{"principal_id": i.PrincipalID.String(), "environment_id": i.Scope.EnvironmentID().String(), "action": a.Operation, "resource": a.Resource.Classification}
+	if a.ActionKind == "provider_prompt" || a.ActionKind == "provider_tool_frame" {
+		// The PAT belongs to the integration, not to the Claude user.
+		delete(input, "principal_id")
+		if s.BoundAgent != "" || s.BoundSession != "" {
+			return workloadReceipt{}, errUnsupportedWorkloadContext
+		}
+	}
 	if s.BoundAgent != "" || s.BoundSession != "" {
 		if !validProductID(s.BoundAgent) || !validProductID(s.BoundSession) {
 			return workloadReceipt{}, ErrRepositoryUnavailable
 		}
 		input["agent_id"], input["session_id"] = s.BoundAgent, s.BoundSession
 	}
+	trigger := "tool"
+	if a.ActionKind == "provider_prompt" {
+		trigger = "runtime"
+	}
 	for _, entry := range s.Policies {
 		var current policy.Policy
-		if entry.Version < 1 || decodePolicyValue(entry.Body, entry.ID, &current) != nil || current.Trigger != "tool" || !stringIn(current.Rollout, "monitor", "enforced") {
+		if entry.Version < 1 || decodePolicyValue(entry.Body, entry.ID, &current) != nil || current.Trigger != trigger || !stringIn(current.Rollout, "monitor", "enforced") {
 			return workloadReceipt{}, ErrRepositoryUnavailable
 		}
 		if current.Rollout == "enforced" && current.Action == policy.ActionBlock {
@@ -246,6 +304,15 @@ func (h *workloadActionHandler) evaluate(ctx context.Context, i RequestIdentity,
 		// An absent identity cannot safely resolve an applicable restriction.
 		// A known, unequal AND condition rules this policy out up front.
 		unknown, disjoint := false, false
+		input["resource"] = a.Resource.Classification
+		if a.ActionKind == "provider_tool_frame" {
+			for _, condition := range current.Conditions {
+				if condition.Field == "resource" && providerhooks.MatchesClass(a.Resource.Classification, condition.Value) {
+					input["resource"] = condition.Value
+					break
+				}
+			}
+		}
 		for _, condition := range current.Conditions {
 			value, known := input[condition.Field]
 			if !known {

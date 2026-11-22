@@ -31,6 +31,7 @@ import { PrivateAddonScan } from "../features/tools/PrivateAddonScan";
 import { Button, Drawer, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 import { parseActivityLink } from "../domain/activity-links";
+import { parseCatalogLink } from "../domain/coverage-links";
 import { parseComplianceLink } from "../domain/compliance-links";
 
 // The sidebar follows the order a security team works in: see what exists,
@@ -68,11 +69,14 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   const { client, auditExports, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
   if (session.status !== "authenticated") return null;
   if (path === "/compliance/evidence") {
-    const compliance = parseComplianceLink(location, session);
+    const catalog = parseCatalogLink(location, session);
+    if (catalog.state === "scope_mismatch") return <div className="page" role="alert">This catalog link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
+    if (catalog.state === "invalid") return <div className="page" role="alert">This catalog link is invalid. Open the framework in Compliance.</div>;
+    const compliance = catalog.state === "selected" ? { state: "none" as const } : parseComplianceLink(location, session);
     if (compliance.state === "scope_mismatch") return <div className="page" role="alert">This compliance link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
     if (compliance.state === "invalid") return <div className="page" role="alert">This compliance link is invalid. Open evidence from the authorized list.</div>;
     const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
-    return <SessionsComplianceView surface="compliance" client={client} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
+    return <SessionsComplianceView surface="compliance" client={client} selectedCatalog={catalog.state === "selected" ? catalog.target : undefined} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
       principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID, generation: queryGeneration,
       permitted: queryScopeKey !== null && session.hasCapability("compliance.read") && ["view", "view_audit", "view_compliance"].every(permission => session.permissions.includes(permission)),
       fresh: session.isFreshAuthenticated, reauthenticate: session.reauthenticate,
@@ -91,7 +95,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/policies") return <ProductionPoliciesView initialAgent={selected?.kind === "purpose" ? selected.id : undefined} canWrite={session.hasCapability("policies.write")} />;
   if (path === "/protect/guardrails") return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
-  if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
+  if (path === "/integrations/sensors") return <ProductionSensorSurface canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" onNavigate={navigate} />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;

@@ -798,3 +798,13 @@ test("the identity provider stand-in answers the four directory requests bootstr
     assert.equal((await call("/v1/b2b/oauth/authenticate", {})).status, 404, "it must not issue sessions");
   } finally { server.close(); }
 });
+
+test("unapproved AWS promotion never calls Helm upgrade", () => {
+  const box = awsBox({terraform:'echo "{}"',helm:'exit 12',kubectl:'exit 12',node:'exec "'+process.execPath+'" "$@"'});
+  try {
+    const result=box.run(["install","release"], {ZASP_RELEASE_EVIDENCE_DIR:""});
+    assert.notEqual(result.status,0);
+    assert.match(result.stderr,/verified production release failed/);
+    assert.equal(box.calls().some(line=>line.includes("upgrade --install")),false);
+  } finally {box.done();}
+});

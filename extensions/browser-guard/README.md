@@ -22,7 +22,24 @@ The profile report signature covers the UTF-8 compact JSON array `["zasp.browser
 4. Use exact origins from `https://claude.ai` or `https://chatgpt.com`. `Enabled=true` and at least one allowed origin are required. Retention defaults to seven UTC calendar days; valid values are 1–30. Review Chrome or Edge’s policy diagnostics and the extension popup. A disabled install is a valid deployment state.
 5. Open an allowed origin twice in the managed profile, a disallowed origin, and a private browsing window. The first two opens should yield one local date/origin row. Revoke that origin and confirm the row disappears. Test store update, rollback and extension removal on the actual managed group.
 
-There is no remote observation ingest or pre-dispatch blocking in this release. Server-side activity, canonical cross-source joins and fleet participation counts require a separately authenticated service integration. The package contains no publish credentials, signed store artifact or customer policy assignments.
+
+
+## Managed upload routes
+
+Use a dedicated managed canary profile. The default is observation only. Set `UploadBlockingEnabled` to `true` and supply `UploadBlockingRoutes` as a list of up to eight exact URLs on origins already in `AllowedOrigins`. A wildcard, query, unsupported route or origin mismatch disables the upload rule set. The supported route shapes are ChatGPT `/backend-api/files` and `/backend-api/files/prepare`, and Claude `/api/organizations/<organization-uuid>/upload` or `/api/<organization-uuid>/upload`. Supply the actual approved organization UUID. The Chrome and Edge example settings leave this feature disabled.
+
+```json
+{
+  "Enabled": true,
+  "AllowedOrigins": ["https://chatgpt.com"],
+  "UploadBlockingEnabled": true,
+  "UploadBlockingRoutes": ["https://chatgpt.com/backend-api/files"]
+}
+```
+
+The browser blocks POST fetch/XHR requests to the selected exact URL from the provider's initiator domain using Declarative Net Request session rules. Method, endpoint and initiator domain determine the decision. The rule can also block another product operation sharing that request route. The extension never reads a prompt, file, body or upload response. The popup shows the number of rules acknowledged by this browser. Enrollment for central usage reporting remains separate and sends no upload outcomes.
+
+Before claiming provider upload coverage, exercise the exact provider version and flow with a harmless staging file. Confirm the upload completes with policy off, enable the route, confirm the control still allows unrelated work and verify the file is absent on the target. Capture the tenant, tested route, browser version and date through your normal pilot evidence process. Recheck when the provider changes its upload endpoints. To roll back, disable the boolean and confirm the popup shows disabled after policy refresh.
 
 ## Verify locally
 
@@ -33,6 +50,8 @@ node --test extensions/browser-guard/test/guard.test.mjs
 node extensions/browser-guard/test/chromium-smoke.mjs --fixture-ui
 node extensions/browser-guard/test/chromium-smoke.mjs
 ```
+
+For a store-signed build assigned through machine-level managed Chrome or Edge policy, run `BROWSER_GUARD_MANAGED_ID=<installed-id> BROWSER_GUARD_UPLOAD_STATE=active CHROMIUM_BIN=<managed-browser> node extensions/browser-guard/test/chromium-smoke.mjs --managed-profile`. This readback uses the actual applied managed settings and the browser’s installed rules in a fresh profile. After disabling upload blocking, repeat with `BROWSER_GUARD_UPLOAD_STATE=disabled`. The test leaves host policy unchanged.
 
 The `--fixture-ui` check renders the packaged popup HTML and script in a real Chromium window with synthetic health data. It requires no extension installation.
 

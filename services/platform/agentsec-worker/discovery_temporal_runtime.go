@@ -144,7 +144,7 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		if err != nil {
 			return failed()
 		}
-		processor = &temporalDiscoveryScheduleProcessor{source: source, reconciler: reconciler, limit: min(cfg.BatchSize, 100), startup: true, gatewayRetentionDays: cfg.GatewayDecisionRetentionDays}
+		processor = &temporalDiscoveryScheduleProcessor{source: source, classifier: configuredIntentClassifier(), reconciler: reconciler, limit: min(cfg.BatchSize, 100), startup: true, gatewayRetentionDays: cfg.GatewayDecisionRetentionDays}
 		readyProduct = source.Ready
 	} else if cfg.Mode == workerModeDiscovery {
 		dependencies, err := newProductionDiscoveryDependenciesWithIO(productionDiscoveryDependenciesConfig(cfg), external.discovery)

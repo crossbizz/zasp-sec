@@ -1071,6 +1071,57 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/compliance/coverage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read edition-qualified framework coverage */
+        readonly get: operations["listComplianceCoverage"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/compliance/coverage/evidence": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read scoped evidence for a category or source */
+        readonly get: operations["listComplianceCoverageEvidence"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/compliance/editions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List available framework editions */
+        readonly get: operations["listComplianceEditions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/compliance/evidence": {
         readonly parameters: {
             readonly query?: never;
@@ -1185,6 +1236,26 @@ export type paths = {
          * @description The grant binds principal, browser session, selected scope, job and format. Expiry never exceeds export retrieval expiry. Keep the token in memory and send it only in the download body, never in URLs or logs.
          */
         readonly post: operations["createComplianceDownloadGrant"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/device-cohorts/{cohort}/pretool-policy": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly cohort: string;
+            };
+            readonly cookie?: never;
+        };
+        /** Read the latest scoped pre-tool policy template */
+        readonly get: operations["getEndpointPolicyCohort"];
+        /** Save the next template revision for independent per-device signing */
+        readonly put: operations["updateEndpointPolicyCohort"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1361,7 +1432,7 @@ export type paths = {
          * @description Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
          */
         readonly get: operations["fetchEndpointPolicy"];
-        /** Publish an endpoint-bound signed ticket policy */
+        /** Publish an endpoint-bound signed ticket or pre-tool policy */
         readonly put: operations["publishEndpointPolicy"];
         readonly post?: never;
         readonly delete?: never;
@@ -2479,6 +2550,26 @@ export type paths = {
          * @description Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
          */
         readonly post: operations["recordEndpointObservations"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/runtime/provider-hooks/claude-enterprise/{integrationId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Evaluate an authenticated Claude Enterprise inference frame
+         * @description The configured provider sends its original signed JSON. Prompt frames use runtime policies. One verdict covers all tool requests in a tool frame. A delivery receipt records the Zasp decision. Provider shadow and failure settings determine enforcement.
+         */
+        readonly post: operations["evaluateClaudeEnterpriseHook"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -3708,6 +3799,8 @@ export type components = {
                 readonly from: components["schemas"]["WorkloadActionLabel"];
                 readonly to: components["schemas"]["WorkloadActionLabel"];
             }[];
+            /** @description Permit asynchronous classification of redacted action features. */
+            readonly classifier_opt_in?: boolean;
         };
         readonly AddonCIOrigin: {
             readonly commit: string | null;
@@ -3732,7 +3825,17 @@ export type components = {
         readonly AddonFindingCount: {
             readonly count: number;
             /** @enum {string} */
-            readonly rule_id: "dependency.unpinned" | "script.shell_execution" | "script.network_access" | "instruction.hidden_text" | "mcp.unpinned_launcher" | "mcp.remote_endpoint";
+            readonly rule_id: "dependency.unpinned" | "script.shell_execution" | "script.network_access" | "instruction.hidden_text" | "mcp.unpinned_launcher" | "mcp.remote_endpoint" | "instruction.override" | "script.credential_path_access" | "script.remote_exec_pipe" | "mcp.unpinned_exec";
+        };
+        readonly AddonFrameworkEvidence: {
+            readonly edition: string;
+            /** @constant */
+            readonly evidence_kind: "static_scan";
+            readonly framework: string;
+            readonly rule_id: string;
+            readonly rule_version: string;
+            readonly title: string;
+            readonly upstream_id: string;
         };
         readonly AddonInstallationObservation: {
             readonly cohort: string;
@@ -3768,8 +3871,8 @@ export type components = {
             /** Format: date-time */
             readonly received_at: string;
             readonly review_path: string | null;
-            /** @constant */
-            readonly ruleset: "zasp-static.v1";
+            /** @enum {string} */
+            readonly ruleset: "zasp-static.v1" | "zasp-static.v2";
             readonly scan_id: components["schemas"]["ProductID"];
             readonly skipped_count: number;
             readonly version_id: components["schemas"]["ProductID"] | null;
@@ -3797,14 +3900,15 @@ export type components = {
                 readonly archive_digest: string;
                 readonly id: components["schemas"]["ProductID"];
             };
-            /** @constant */
-            readonly ruleset: "zasp-static.v1";
+            /** @enum {string} */
+            readonly ruleset: "zasp-static.v1" | "zasp-static.v2";
             /** @constant */
             readonly schema_version: "zasp-addon-findings.v1";
             readonly skipped_count: number;
         } & unknown;
         readonly AddonVersionDetail: {
             readonly findings: readonly components["schemas"]["AddonFindingCount"][];
+            readonly framework_evidence?: readonly components["schemas"]["AddonFrameworkEvidence"][];
             readonly id: components["schemas"]["ProductID"];
             readonly manifest_digest: string;
             /** @enum {string} */
@@ -3814,8 +3918,8 @@ export type components = {
             /** @enum {string} */
             readonly review_state: "pending" | "approved" | "rejected" | "revoked";
             readonly revision: number;
-            /** @constant */
-            readonly ruleset: "zasp-static.v1";
+            /** @enum {string} */
+            readonly ruleset: "zasp-static.v1" | "zasp-static.v2";
         };
         readonly AddonVersionPage: {
             readonly items: readonly components["schemas"]["AddonVersionDetail"][];
@@ -3873,6 +3977,13 @@ export type components = {
             readonly agent_id: components["schemas"]["ProductID"];
             readonly analyzed: number;
             readonly findings: readonly components["schemas"]["ActionAnalysisFinding"][];
+            readonly intent_drafts?: readonly {
+                readonly decision_id: components["schemas"]["ProductID"];
+                /** Format: date-time */
+                readonly occurred_at: string;
+                /** @enum {string} */
+                readonly recommendation: "review_purpose" | "review_destination" | "review_sequence" | "review_data_access";
+            }[];
             readonly pending: number;
             /** Format: int64 */
             readonly revision: number;
@@ -4678,11 +4789,14 @@ export type components = {
             readonly agent_id?: components["schemas"]["ProductID"];
             readonly control_id?: components["schemas"]["ComplianceControlID"];
             readonly device_id?: components["schemas"]["ProductID"];
+            readonly edition?: string;
             /** @description Scoped endpoint session reference from a device observation. */
             readonly endpoint_session_ref?: string;
-            readonly framework?: components["schemas"]["ComplianceFrameworkID"];
+            readonly evidence_kind?: components["schemas"]["CoverageEvidenceKind"];
+            readonly framework?: components["schemas"]["ComplianceFrameworkID"] | components["schemas"]["CoverageFramework"];
             readonly pilot_cohort?: string;
-        } & (unknown & unknown & unknown & unknown);
+            readonly upstream_id?: string;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown);
         /** @enum {string} */
         readonly ComplianceFrameworkID: "soc2_security" | "hipaa" | "owasp_agentic_top10_2026" | "owasp_llm_top10_2025" | "mitre_atlas" | "nist_ai_rmf_1_0" | "iso_iec_42001_2023" | "eu_ai_act";
         readonly CompliancePageInfo: {
@@ -4735,6 +4849,91 @@ export type components = {
         readonly ConsoleSessionPage: {
             readonly items: readonly components["schemas"]["Session"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly CoverageCatalogEntry: {
+            /** @enum {string} */
+            readonly applicability: "applicable" | "unassessed" | "out_of_scope";
+            readonly attribution: string;
+            /** @enum {string} */
+            readonly digest_basis: "upstream_bytes" | "reviewed_index";
+            readonly edition: string;
+            readonly framework: string;
+            /** @enum {string} */
+            readonly kind: "risk" | "technique" | "subtechnique" | "mitigation";
+            readonly license: string;
+            readonly owner: string;
+            readonly parent_id?: string;
+            readonly rationale: string;
+            readonly scope: string;
+            readonly source_digest: string;
+            readonly source_url: string;
+            /** @enum {string} */
+            readonly status: "active" | "retired";
+            readonly title: string;
+            readonly upstream_id: string;
+        };
+        readonly CoverageControl: {
+            readonly control: components["schemas"]["CoverageCatalogEntry"];
+            readonly evidence_counts: {
+                readonly [key: string]: number;
+            };
+            /** Format: date-time */
+            readonly last_verified_at: string | null;
+        };
+        readonly CoverageControlPage: {
+            /** Format: date-time */
+            readonly collected_at: string;
+            readonly edition: string;
+            readonly framework: components["schemas"]["CoverageFramework"];
+            readonly items: readonly components["schemas"]["CoverageControl"][];
+            readonly matched_controls: number;
+            readonly next_after: string | null;
+            readonly source_digest: string;
+            readonly summary: components["schemas"]["CoverageSummary"];
+            readonly total_controls: number;
+        };
+        readonly CoverageEdition: {
+            readonly edition: string;
+            readonly framework: components["schemas"]["CoverageFramework"];
+            readonly source_digest: string;
+            readonly total_controls: number;
+        };
+        readonly CoverageEditions: {
+            readonly items: readonly components["schemas"]["CoverageEdition"][];
+        };
+        /** @enum {string} */
+        readonly CoverageEvidenceKind: "posture_finding" | "static_scan" | "observed_event" | "tested_control" | "verified_prevention";
+        readonly CoverageEvidencePage: {
+            readonly items: readonly components["schemas"]["CoverageSource"][];
+            readonly next_after: string | null;
+        };
+        /** @enum {string} */
+        readonly CoverageFramework: "owasp_agentic_top10" | "owasp_llm_top10" | "mitre_atlas" | "mitre_attack_enterprise";
+        readonly CoverageSource: {
+            readonly edition: string;
+            readonly evidence_kind: components["schemas"]["CoverageEvidenceKind"];
+            readonly framework: components["schemas"]["CoverageFramework"];
+            /** @description Immutable add-on version digest for add-on evidence. */
+            readonly manifest_digest?: string;
+            /** Format: date-time */
+            readonly occurred_at: string;
+            readonly rule: string;
+            readonly rule_version: string;
+            readonly session_id?: components["schemas"]["ProductID"];
+            readonly source_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly source_kind: "finding" | "addon_version" | "runtime_action" | "ticket_test";
+            readonly upstream_id: string;
+        };
+        readonly CoverageSummary: {
+            readonly applicable_controls: number;
+            readonly mitigations: number;
+            readonly out_of_scope_controls: number;
+            readonly risks: number;
+            readonly subtechniques: number;
+            readonly techniques: number;
+            readonly unassessed_controls: number;
+            readonly verified_applicable_controls: number;
         };
         /** @description Opaque canonical base64url cursor without padding. */
         readonly Cursor: string;
@@ -4804,7 +5003,7 @@ export type components = {
             readonly queued_receipts: number | null;
             readonly recent_observations: readonly components["schemas"]["EndpointObservationDetail"][];
             /** @enum {string} */
-            readonly reported_adapter: "unknown" | "macos_claude_ticket" | "linux_claude_ticket_test" | "windows_inventory";
+            readonly reported_adapter: "unknown" | "macos_claude_ticket" | "linux_claude_ticket_test" | "windows_inventory" | "macos_claude_pretool_v2" | "macos_codex_pretool_v2" | "linux_claude_pretool_v2_test" | "windows_claude_pretool_v2";
             readonly reported_policy_revision: number;
             /** @enum {string} */
             readonly state: "pending" | "active" | "retired";
@@ -4846,7 +5045,7 @@ export type components = {
         };
         readonly EndpointHeartbeat: {
             /** @enum {string} */
-            readonly adapter?: "macos_claude_ticket" | "linux_claude_ticket_test" | "windows_inventory";
+            readonly adapter?: "macos_claude_ticket" | "linux_claude_ticket_test" | "windows_inventory" | "macos_claude_pretool_v2" | "macos_codex_pretool_v2" | "linux_claude_pretool_v2_test" | "windows_claude_pretool_v2";
             readonly dropped_receipts: number;
             readonly policy_revision: number;
             /** @enum {string} */
@@ -4862,6 +5061,7 @@ export type components = {
         };
         readonly EndpointObservationDetail: {
             readonly action_id: string;
+            readonly adapter?: string;
             readonly credential_generation: number;
             readonly graph_evidence_id?: components["schemas"]["ProductID"];
             /** @enum {string} */
@@ -4871,6 +5071,8 @@ export type components = {
             /** Format: date-time */
             readonly observed_at: string;
             readonly policy_revision: number;
+            readonly reason_code?: string;
+            readonly rule_id?: string;
             readonly session_ref: string;
             /** @enum {string} */
             readonly skill_usage: "unknown";
@@ -4878,6 +5080,8 @@ export type components = {
             readonly target_class: "allowed_destination" | "outside_allowed_destination" | "unknown";
             /** @enum {string} */
             readonly target_effect: "unknown";
+            /** @enum {string} */
+            readonly tool_class?: "mcp" | "file" | "shell" | "web" | "other";
             /** @enum {string} */
             readonly verdict: "continue" | "deny" | "unavailable";
             readonly would_block: boolean;
@@ -4891,6 +5095,32 @@ export type components = {
             readonly observed_count: number;
             readonly observed_installations: readonly components["schemas"]["EndpointInstallationDetail"][];
             readonly partition_id: string;
+        };
+        readonly EndpointPolicyTemplate: {
+            readonly cohort: string;
+            /** @enum {string} */
+            readonly failure_mode: "open" | "closed";
+            /** @enum {string} */
+            readonly mode: "monitor" | "enforce";
+            readonly revision: number;
+            readonly rules: readonly components["schemas"]["EndpointPretoolRule"][];
+        };
+        readonly EndpointPolicyTemplateInput: {
+            readonly expected_revision: number;
+            /** @enum {string} */
+            readonly failure_mode: "open" | "closed";
+            /** @enum {string} */
+            readonly mode: "monitor" | "enforce";
+            readonly rules: readonly components["schemas"]["EndpointPretoolRule"][];
+        };
+        readonly EndpointPretoolRule: {
+            readonly allowed_destinations?: readonly string[];
+            readonly id: string;
+            /** @enum {string} */
+            readonly match?: "allowlist" | "denylist";
+            /** @enum {string} */
+            readonly type: "mcp_tool_policy" | "shell_command_policy" | "file_path_policy" | "destination_domain_policy";
+            readonly values: readonly string[];
         };
         readonly EndpointRecorded: {
             /** @constant */
@@ -5757,16 +5987,27 @@ export type components = {
             readonly agent_id: components["schemas"]["ProductID"];
             /** @constant */
             readonly coverage: "indexed_events_only";
+            readonly eligible_count?: number;
             readonly evaluated: number;
+            readonly examined_count?: number;
             /** Format: date-time */
             readonly from: string;
+            readonly next_before_event_id?: components["schemas"]["ProductID"] | null;
+            /** Format: date-time */
+            readonly next_window_to?: string | null;
             readonly policy_revision: number;
             /** Format: date-time */
             readonly to: string;
             readonly truncated: boolean;
+            /** @description Fraction of eligible indexed events that would block on each evaluated trigger. */
+            readonly would_block_rate?: {
+                readonly [key: string]: number;
+            };
         };
         readonly PolicyReplayInput: {
             readonly agent_id: components["schemas"]["ProductID"];
+            /** @description Resume the same window before this tie-breaker at the returned end timestamp. */
+            readonly before_event_id?: components["schemas"]["ProductID"];
             /**
              * Format: date-time
              * @description Inclusive start of a replay window of up to thirty days.
@@ -7507,6 +7748,12 @@ export type components = {
             /** @constant */
             readonly tool: "mcp__pilot__update_ticket";
         };
+        readonly TicketProofSignature: {
+            readonly key_id: string;
+            readonly signature: string;
+            /** Format: date-time */
+            readonly signed_at: string;
+        };
         readonly TicketRecorderEvidence: {
             /** Format: date-time */
             readonly complete_from: string;
@@ -7553,11 +7800,17 @@ export type components = {
         };
         readonly TicketVerificationBundle: {
             readonly adapter: components["schemas"]["TicketAdapterEvidence"];
+            readonly attestations?: {
+                readonly adapter: components["schemas"]["TicketProofSignature"];
+                readonly recorder: components["schemas"]["TicketProofSignature"];
+            };
             readonly recorder: components["schemas"]["TicketRecorderEvidence"];
             readonly scenario: components["schemas"]["TicketScenario"];
         };
         readonly TicketVerificationReceipt: {
             readonly definition_version: number;
+            /** @enum {string} */
+            readonly evidence_qualification?: "verified_prevention" | "tested_control" | "unknown";
             readonly evidence_sha256: string;
             /** @constant */
             readonly evidence_source: "operator_import";
@@ -7614,6 +7867,7 @@ export type components = {
         readonly WorkloadActionLabel: string;
         readonly WorkloadActionOutcome: {
             readonly action_id: components["schemas"]["WorkloadActionLabel"];
+            readonly context_evidence?: components["schemas"]["WorkloadContextEvidence"];
             readonly decision_id: components["schemas"]["ProductID"];
             /** @constant */
             readonly schema_version: "action-outcome.v1";
@@ -7650,6 +7904,16 @@ export type components = {
             /** @enum {string} */
             readonly state: "pending_readback" | "adapter_confirmed" | "released" | "expired";
             readonly step_id: components["schemas"]["ProductID"];
+        };
+        readonly WorkloadContextEvidence: {
+            readonly collection_ref: string;
+            readonly digest?: string;
+            /** @enum {string} */
+            readonly kind: "memory_write" | "memory_recall" | "retrieval" | "artifact_promotion" | "grounded_decision" | "hidden_context_check" | "workflow_purpose" | "workflow_approval" | "workflow_handoff" | "workflow_child" | "workflow_budget";
+            readonly record_ref: string;
+            /** @enum {string} */
+            readonly result: "allowed" | "rejected";
+            readonly version: number;
         };
         readonly WorkloadCredentialBinding: {
             readonly agent_id: components["schemas"]["ProductID"];
@@ -7745,6 +8009,7 @@ export type AddonCiOrigin = components['schemas']['AddonCIOrigin'];
 export type AddonCiReceipt = components['schemas']['AddonCIReceipt'];
 export type AddonCiSignature = components['schemas']['AddonCISignature'];
 export type AddonFindingCount = components['schemas']['AddonFindingCount'];
+export type AddonFrameworkEvidence = components['schemas']['AddonFrameworkEvidence'];
 export type AddonInstallationObservation = components['schemas']['AddonInstallationObservation'];
 export type AddonInstallationPage = components['schemas']['AddonInstallationPage'];
 export type AddonReviewInput = components['schemas']['AddonReviewInput'];
@@ -7854,6 +8119,16 @@ export type ConnectorManifest = components['schemas']['ConnectorManifest'];
 export type ConnectorSetupField = components['schemas']['ConnectorSetupField'];
 export type ConsoleSessionEventPage = components['schemas']['ConsoleSessionEventPage'];
 export type ConsoleSessionPage = components['schemas']['ConsoleSessionPage'];
+export type CoverageCatalogEntry = components['schemas']['CoverageCatalogEntry'];
+export type CoverageControl = components['schemas']['CoverageControl'];
+export type CoverageControlPage = components['schemas']['CoverageControlPage'];
+export type CoverageEdition = components['schemas']['CoverageEdition'];
+export type CoverageEditions = components['schemas']['CoverageEditions'];
+export type CoverageEvidenceKind = components['schemas']['CoverageEvidenceKind'];
+export type CoverageEvidencePage = components['schemas']['CoverageEvidencePage'];
+export type CoverageFramework = components['schemas']['CoverageFramework'];
+export type CoverageSource = components['schemas']['CoverageSource'];
+export type CoverageSummary = components['schemas']['CoverageSummary'];
 export type Cursor = components['schemas']['Cursor'];
 export type DataControls = components['schemas']['DataControls'];
 export type DataControlsInput = components['schemas']['DataControlsInput'];
@@ -7871,6 +8146,9 @@ export type EndpointInstallationDetail = components['schemas']['EndpointInstalla
 export type EndpointObservationBatch = components['schemas']['EndpointObservationBatch'];
 export type EndpointObservationDetail = components['schemas']['EndpointObservationDetail'];
 export type EndpointPartitionSummary = components['schemas']['EndpointPartitionSummary'];
+export type EndpointPolicyTemplate = components['schemas']['EndpointPolicyTemplate'];
+export type EndpointPolicyTemplateInput = components['schemas']['EndpointPolicyTemplateInput'];
+export type EndpointPretoolRule = components['schemas']['EndpointPretoolRule'];
 export type EndpointRecorded = components['schemas']['EndpointRecorded'];
 export type EndpointRegistration = components['schemas']['EndpointRegistration'];
 export type EndpointRotation = components['schemas']['EndpointRotation'];
@@ -8167,6 +8445,7 @@ export type TicketCohortView = components['schemas']['TicketCohortView'];
 export type TicketDecision = components['schemas']['TicketDecision'];
 export type TicketOpaqueId = components['schemas']['TicketOpaqueID'];
 export type TicketPolicyPayload = components['schemas']['TicketPolicyPayload'];
+export type TicketProofSignature = components['schemas']['TicketProofSignature'];
 export type TicketRecorderEvidence = components['schemas']['TicketRecorderEvidence'];
 export type TicketScenario = components['schemas']['TicketScenario'];
 export type TicketScope = components['schemas']['TicketScope'];
@@ -8182,6 +8461,7 @@ export type WorkloadActionLabel = components['schemas']['WorkloadActionLabel'];
 export type WorkloadActionOutcome = components['schemas']['WorkloadActionOutcome'];
 export type WorkloadActionRequest = components['schemas']['WorkloadActionRequest'];
 export type WorkloadContainment = components['schemas']['WorkloadContainment'];
+export type WorkloadContextEvidence = components['schemas']['WorkloadContextEvidence'];
 export type WorkloadCredentialBinding = components['schemas']['WorkloadCredentialBinding'];
 export type WorkloadDestinationClass = components['schemas']['WorkloadDestinationClass'];
 export type WorkloadOutcomeAck = components['schemas']['WorkloadOutcomeAck'];
@@ -10259,6 +10539,88 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listComplianceCoverage: {
+        readonly parameters: {
+            readonly query: {
+                readonly after?: string;
+                readonly edition: string;
+                readonly evidence_kind?: components["schemas"]["CoverageEvidenceKind"];
+                readonly framework: components["schemas"]["CoverageFramework"];
+                readonly limit?: number;
+                readonly upstream_id?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized result in the selected Environment. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CoverageControlPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listComplianceCoverageEvidence: {
+        readonly parameters: {
+            readonly query?: {
+                readonly after?: string;
+                readonly edition?: string;
+                readonly evidence_kind?: components["schemas"]["CoverageEvidenceKind"];
+                readonly framework?: components["schemas"]["CoverageFramework"];
+                readonly limit?: number;
+                readonly source_id?: components["schemas"]["ProductID"];
+                readonly source_kind?: "finding" | "addon_version" | "runtime_action" | "ticket_test";
+                readonly upstream_id?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized result in the selected Environment. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CoverageEvidencePage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listComplianceEditions: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized result in the selected Environment. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CoverageEditions"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listComplianceEvidence: {
         readonly parameters: {
             readonly query?: {
@@ -10435,6 +10797,63 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getEndpointPolicyCohort: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly cohort: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current template */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EndpointPolicyTemplate"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateEndpointPolicyCohort: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly cohort: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EndpointPolicyTemplateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Saved template */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EndpointPolicyTemplate"];
+                };
+            };
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -10793,7 +11212,7 @@ export interface operations {
             };
         };
         readonly responses: {
-            /** @description Publish an endpoint-bound signed ticket policy. */
+            /** @description Publish an endpoint-bound signed ticket or pre-tool policy. */
             readonly 200: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -13463,6 +13882,116 @@ export interface operations {
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly evaluateClaudeEnterpriseHook: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Signed opaque delivery identifier matching request_id. */
+                readonly "webhook-id": string;
+                /** @description Unix timestamp in seconds with five minutes of clock tolerance. */
+                readonly "webhook-timestamp": string;
+            };
+            readonly path: {
+                readonly integrationId: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly messages?: readonly {
+                        readonly [key: string]: unknown;
+                    }[];
+                    readonly request_id: string;
+                    readonly session_id?: string | null;
+                    readonly source?: {
+                        readonly application?: string;
+                    } & {
+                        readonly [key: string]: unknown;
+                    };
+                    /** @description Must match the configured tenant for ordinary frames. */
+                    readonly tenant_id?: string | null;
+                    /** @description Handles prompt and tool_call. Authenticated unknown frame types receive an allow response without a coverage receipt. */
+                    readonly type: string;
+                } & {
+                    readonly [key: string]: unknown;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description One verdict for this frame. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @constant */
+                        readonly action: "allow";
+                    } | {
+                        /** @constant */
+                        readonly action: "deny";
+                        readonly deny_reason: string;
+                        readonly reference_id: components["schemas"]["ProductID"];
+                    };
+                };
+            };
+            /** @description Malformed frame or delivery identifier mismatch. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            /** @description Provider tenant does not match. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Integration unavailable. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description POST required. */
+            readonly 405: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 413: components["responses"]["ProductErrorResponse"];
+            /** @description Uncompressed application/json required. */
+            readonly 415: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 422: components["responses"]["ProductErrorResponse"];
+            /** @description Workload decision unavailable or callback budget exhausted. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Callback exceeded the decision deadline. */
+            readonly 504: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     readonly getWorkloadCredentialBinding: {

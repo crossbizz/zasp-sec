@@ -10,6 +10,7 @@ export type CLIRelease = {
 const platforms = new Map([
   ["zaspctl-linux-amd64", "Linux x64"],
   ["zaspctl-darwin-arm64", "macOS Apple silicon"],
+  ["zaspctl-darwin-amd64", "macOS Intel"],
   ["zaspctl-windows-amd64.exe", "Windows x64"],
 ]);
 const sha256 = /^[a-f0-9]{64}$/;

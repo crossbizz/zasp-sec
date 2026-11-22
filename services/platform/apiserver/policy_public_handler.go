@@ -97,7 +97,9 @@ func (handler *PolicyPublicHTTPHandler) simulate(writer http.ResponseWriter, req
 		platformpolicy.ReplayWindow
 	}
 	legacy := len(raw) > 0 && raw[0] == '{' && exactJSONFields(raw)
-	if !legacy && (!exactJSONFields(raw, "schema_version", "policy_revision", "agent_id", "from", "to") || json.Unmarshal(raw, &input) != nil || input.SchemaVersion != 2 || input.PolicyRevision <= 0 || !input.ReplayWindow.Valid() || input.To.After(time.Now())) {
+	withBoundary := exactJSONFields(raw, "schema_version", "policy_revision", "agent_id", "from", "to", "before_event_id")
+	shapeOK := withBoundary || exactJSONFields(raw, "schema_version", "policy_revision", "agent_id", "from", "to")
+	if !legacy && (!shapeOK || json.Unmarshal(raw, &input) != nil || input.SchemaVersion != 2 || input.PolicyRevision <= 0 || withBoundary && !validProductID(input.BeforeEventID) || !input.ReplayWindow.Valid() || input.To.After(time.Now())) {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
@@ -129,7 +131,7 @@ func (handler *PolicyPublicHTTPHandler) simulate(writer http.ResponseWriter, req
 		}
 		events, truncated, err = reader.SearchReplayActions(request.Context(), identity.Scope, policyValue.Trigger, input.ReplayWindow)
 	}
-	if err != nil || len(events) > 100 || request.Context().Err() != nil {
+	if err != nil || len(events) > platformpolicy.MaxReplayEvents || legacy && len(events) > 100 || request.Context().Err() != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -155,7 +157,20 @@ func (handler *PolicyPublicHTTPHandler) simulate(writer http.ResponseWriter, req
 	}
 	response := map[string]any{"matches": result.Matches, "would_block": result.WouldBlock, "example_session_ids": result.Examples}
 	if !legacy {
-		response["replay"] = map[string]any{"policy_revision": value.Version, "from": input.From, "to": input.To, "agent_id": input.AgentID, "evaluated": len(events), "truncated": truncated, "coverage": "indexed_events_only"}
+		rate := map[string]float64{}
+		if len(events) > 0 {
+			rate[policyValue.Trigger] = float64(result.WouldBlock) / float64(len(events))
+		}
+		var nextTime *time.Time
+		var nextID *string
+		if truncated && len(events) > 0 {
+			last := events[len(events)-1]
+			if !last.EventTime.IsZero() && validProductID(last.EventID) {
+				nextTime = &last.EventTime
+				nextID = &last.EventID
+			}
+		}
+		response["replay"] = map[string]any{"policy_revision": value.Version, "from": input.From, "to": input.To, "agent_id": input.AgentID, "evaluated": len(events), "examined_count": len(events), "eligible_count": len(events), "would_block_rate": rate, "truncated": truncated, "next_window_to": nextTime, "next_before_event_id": nextID, "coverage": "indexed_events_only"}
 	}
 	writeJSONValue(writer, request, http.StatusOK, response, nil)
 }

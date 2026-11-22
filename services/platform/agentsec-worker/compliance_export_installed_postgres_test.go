@@ -58,14 +58,18 @@ func (d *complianceMemoryDriver) Delete(_ context.Context, locator artifactstore
 
 func installedCompletionBlock(t *testing.T, tag string) string {
 	t.Helper()
-	completion, err := os.ReadFile(filepath.Join("..", "migrations", "baseline", "completion.sql"))
+	filename := "completion.sql"
+	if tag == "ws3_compliance_export_baseline" {
+		filename = "framework_reporting.sql"
+	}
+	completion, err := os.ReadFile(filepath.Join("..", "migrations", "baseline", filename))
 	if err != nil {
 		t.Fatal(err)
 	}
 	opening, closing := "DO $"+tag+"$", "END $"+tag+"$;"
 	start, end := strings.Index(string(completion), opening), strings.Index(string(completion), closing)
 	if start < 0 || end < start || strings.Count(string(completion), opening) != 1 {
-		t.Fatalf("completion.sql does not hold exactly one %s section", tag)
+		t.Fatalf("%s does not hold exactly one %s section", filename, tag)
 	}
 	return string(completion[start : end+len(closing)])
 }

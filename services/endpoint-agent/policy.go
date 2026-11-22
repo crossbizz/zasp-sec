@@ -3,13 +3,14 @@ package main
 import (
 	"bytes"
 	"crypto/ed25519"
-	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/inventoryreport"
-
 	"encoding/json"
 	"errors"
 	"io"
 	"regexp"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/inventoryreport"
+	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 )
 
 var (
+	toolName       = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$`)
 	safeID         = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$`)
 	errInvalid     = errors.New("invalid endpoint input")
 	errUnavailable = errors.New("endpoint control unavailable")
@@ -38,6 +40,7 @@ func (b Binding) valid() bool {
 }
 
 type Policy struct {
+	pretool            *endpointprotocol.PolicyV2
 	Audience           string    `json:"audience"`
 	Binding            Binding   `json:"binding"`
 	Revision           uint64    `json:"revision"`
@@ -63,6 +66,11 @@ func sign(v any, key ed25519.PrivateKey) (Signed, error) {
 
 func (s Signed) policy(key ed25519.PublicKey, binding Binding, now time.Time) (Policy, error) {
 	var p Policy
+	if binding.valid() {
+		if signed, ok := (endpointprotocol.Signed(s)).AuthenticatedPolicyV2For(key, endpointprotocol.Binding(binding), now); ok {
+			return Policy{pretool: &signed, Audience: signed.Audience, Binding: binding, Revision: signed.Revision, IssuedAt: signed.IssuedAt, ExpiresAt: signed.ExpiresAt, Mode: signed.Mode}, nil
+		}
+	}
 	if len(key) != ed25519.PublicKeySize || !ed25519.Verify(key, s.Payload, s.Signature) || strictJSON(s.Payload, &p) != nil {
 		return Policy{}, errInvalid
 	}
@@ -96,6 +104,7 @@ func boundedRead(r io.Reader, limit int64) ([]byte, error) {
 }
 
 type HookEvent struct {
+	CWD     string          `json:"cwd,omitempty"`
 	Name    string          `json:"hook_event_name"`
 	Session string          `json:"session_id"`
 	Tool    string          `json:"tool_name"`
@@ -117,7 +126,10 @@ func parseHook(raw []byte) (HookEvent, string, error) {
 			return e, "", errInvalid
 		}
 	}
-	if e.Name != "PreToolUse" || !safeID.MatchString(e.Session) || !safeID.MatchString(e.Call) || !safeID.MatchString(e.Tool) {
+	if e.Name != "PreToolUse" || !safeID.MatchString(e.Session) || !safeID.MatchString(e.Call) || !toolName.MatchString(e.Tool) {
+		return e, "", errInvalid
+	}
+	if rawCWD, has := envelope["cwd"]; has && (json.Unmarshal(rawCWD, &e.CWD) != nil || len(e.CWD) > 4096) {
 		return e, "", errInvalid
 	}
 	e.Input = envelope["tool_input"]

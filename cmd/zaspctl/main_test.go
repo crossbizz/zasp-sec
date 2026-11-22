@@ -54,6 +54,10 @@ func TestOfflineCLI(t *testing.T) {
 		return stdout.String(), stderr.String()
 	}
 
+	notices, _ := invoke(0, "frameworks", "notices")
+	if !strings.Contains(notices, "MITRE") || !strings.Contains(notices, "OWASP") || !strings.Contains(notices, "Apache License") {
+		t.Fatal("framework attribution missing from shipped binary")
+	}
 	htmlPath := filepath.Join(project, "local-report.html")
 	out, diagnostic := invoke(0, "addons", "inventory", "--project", ".", "--scope", "project", "--local", "--report-html", htmlPath, "--json")
 	inventory := decodeReport(t, out)
@@ -108,6 +112,33 @@ func TestOfflineCLI(t *testing.T) {
 	updated := decodeReport(t, out)
 	if updated.Result.ManifestDigest == skill.ManifestDigest || len(updated.Result.Findings) != 0 {
 		t.Fatal("local uncommitted change did not produce a fresh manifest and findings")
+	}
+	// The offline report retains file evidence and editioned references. The
+	// explicitly shared wire body keeps the existing, counts-only contract.
+	fixtureFile(t, filepath.Join(bundle, "package.json"), `{"dependencies":{"private-demo":"^1.2.0"}}`)
+	out, _ = invoke(0, "addons", "scan", bundle, "--local", "--json")
+	mapped := decodeReport(t, out).Result
+	if mapped.ManifestDigest == updated.Result.ManifestDigest || len(mapped.Findings) != 1 || mapped.Findings[0].FileSHA256 == "" || mapped.Findings[0].Path != "package.json" || len(mapped.Dependencies) != 1 || mapped.Dependencies[0].Version != "" {
+		t.Fatalf("edited manifest or unresolved dependency: %+v", mapped)
+	}
+	found := false
+	for _, ref := range mapped.Findings[0].FrameworkEvidence {
+		if ref.Framework == "owasp_agentic_top10" && ref.Edition == "2026" && ref.UpstreamID == "ASI04" && ref.EvidenceKind == "static_scan" && ref.RuleVersion == "zasp-static.v2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("missing editioned static reference")
+	}
+	fixtureFile(t, reportPath, out)
+	preview, _ = invoke(0, "addons", "submit", reportPath, "--dry-run", "--mode", "findings-only", "--environment", "pid_00000000-0000-4000-8000-000000000001")
+	for _, private := range []string{"private-demo", "package.json", "framework_evidence", "ASI04", mapped.Findings[0].FileSHA256} {
+		if strings.Contains(preview, private) {
+			t.Fatal("leaked local finding field:", private)
+		}
+	}
+	if !strings.Contains(preview, mapped.ManifestDigest) || !strings.Contains(preview, "dependency.unpinned") {
+		t.Fatal("missing exact-version projection")
 	}
 	restrictedProject := filepath.Join(project, "empty")
 	if err := os.Mkdir(restrictedProject, 0700); err != nil {

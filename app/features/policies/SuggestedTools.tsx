@@ -72,7 +72,7 @@ export function SuggestedTools({ agent, revision, tools, onCreate, disabled, can
     {!available && result.status !== "loading" && <p>Saved reviews are unavailable for this purpose revision.</p>}
     {error && <p role="alert">{error}</p>}
     {available && page && <>
-      {page.last_scan ? <p>From {page.last_scan.from} to {page.last_scan.to}, {page.last_scan.eligible} of {page.last_scan.examined} indexed events had an exact agent, session and inventory tool match. {page.last_scan.truncated && "More than 100 events matched. Narrow the window to review older activity."} Unreported activity and adapter coverage are unknown.</p> : <p>No runtime observation window has been reviewed.</p>}
+      {page.last_scan ? <p>From {page.last_scan.from} to {page.last_scan.to}, {page.last_scan.eligible} of {page.last_scan.examined} indexed events had an exact agent, session and inventory tool match. {page.last_scan.truncated && "Additional indexed events matched this window. Narrow the window to review older activity."} Unreported activity and adapter coverage are unknown.</p> : <p>No runtime observation window has been reviewed.</p>}
       {page.last_scan && page.items.length === 0 && <p>No saved deviations on this page.</p>}
       <ul>{page.items.map(item => <li key={item.tool_id}><strong>{label(item.tool_id)}</strong> · {item.state.replaceAll("_", " ")}
         <Button onClick={() => setReview(item.tool_id)}>{item.state === "suggested" ? "Review" : "View evidence for"} {label(item.tool_id)}</Button>

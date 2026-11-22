@@ -113,6 +113,7 @@ class Action:
         self._decision: Decision | None = None
         self._outcome_status: str | None = None
         self._outcome_delivered = False
+        self._context_evidence: dict | None = None
         self._coverage_gap: str | None = None
 
     @property
@@ -158,6 +159,13 @@ class Action:
         if self._decision and self._decision.verdict == "block":
             raise PolicyDenied(self._decision)
 
+    def _record_context(self, evidence: dict) -> None:
+        """Called by the context adapter after its target transaction commits."""
+        with self._lock:
+            if not self._claimed or self._outcome_status is not None:
+                raise RuntimeError("Context receipt outside dispatch")
+            self._context_evidence = dict(evidence)
+
     def retry_outcome(self) -> bool:
         """Deliver the recorded observation if needed. This never executes the tool."""
         with self._lock:
@@ -169,6 +177,8 @@ class Action:
                 "schema_version": "action-outcome.v1", "action_id": self.action_id,
                 "decision_id": self._decision.decision_id, "status": self._outcome_status,
             }
+            if self._context_evidence is not None:
+                payload["context_evidence"] = self._context_evidence
             try:
                 ack = self._transport.post(
                     f"/api/v1/runtime/actions/{self.action_id}/outcomes", payload,

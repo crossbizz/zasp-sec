@@ -43,6 +43,8 @@ export const apiserverFeatureTestFiles = [
   "compliance_ai_frameworks_test.go",
   "compliance_control_evidence_test.go",
   "compliance_export_baseline_test.go",
+  "framework_reporting_test.go",
+  "provider_hook_installed_postgres_test.go",
   "connector_reference_revocation_test.go",
   "endpoint_fleet_test.go",
   "guardrail_handler_test.go",
@@ -71,6 +73,7 @@ export const apiserverFeatureTestFiles = [
   "ticket_cohort_test.go",
   "ticket_proof_test.go",
   "workload_action_test.go",
+  "workload_context_test.go",
   "workload_binding_test.go",
 ];
 

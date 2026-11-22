@@ -68,3 +68,34 @@ instructions = skill.instructions
 The loader uses the CLI's versioned manifest encoding, binds approval to the Environment and origin, and returns immutable bytes. A changed bundle, an expired or revoked version, or an unavailable review raises `AdmissionDenied` before the caller receives instructions. Refresh the deployment-owned registry with higher revisions and hydrate current decisions on every restart. Applications with a durable authenticated policy service can supply its lookup directly. A laptop scan, a self-reported origin and the browser review response each require separate provenance verification before they can authorize admission.
 
 Consume the returned bytes directly. Loading scripts, following references to other files, or importing a module through another path requires another verified boundary. A later revocation applies on the next load. The registry example has process-local scope and does not implement fleet policy distribution.
+
+## Guard a private context store
+
+Use `zasp_guardrails.context.SQLiteContext` when your application stores reviewed memory, reference records, or model and dataset manifests in SQLite. The host supplies the authenticated tenant, principal and session for each request. Keep the database and approval key under the deployment owner's control. The adapter works with one private database file shared by the application's local processes.
+
+```python
+import hashlib
+from zasp_guardrails.context import RecordApproval, SQLiteContext
+
+store = SQLiteContext(db_path, guard, tenant="support", principal="editor",
+                      session=session_ref, approval_key=deployment_key)
+value = b"standard"
+approval = RecordApproval("support", "plans", "ticket-class", "editor",
+                          ("editor", "reviewer"), 1, expires_at_unix, "document",
+                          hashlib.sha256(value).hexdigest())
+# The deployment's approval authority supplies the MAC over this exact record.
+store.put(approval, approval_mac, value)
+reviewed_value = store.grounded_value("plans", "ticket-class", proposed_value)
+```
+
+Use `recall` for an approved memory version and `retrieve` for a document. Both enforce the tenant boundary and per-record readers. Content updates require a new signed version. `grounded_value` compares one proposed field with the authorized canonical bytes before the application uses it. Use `check_synthetic_output` with a host-seeded marker to test the system-prompt and retrieved-context surfaces independently. A rejected operation raises `ContextDenied`. Store only manifests for large models or datasets and validate the artifact bytes against that manifest at the consuming boundary.
+
+The adapter commits a local receipt and the associated mutation atomically. The hosted service receives the action ID, kind, opaque keyed record references, available version and application-reported result. Authorized workflows can correlate a retained local receipt with the runtime action by its ID. Store the local file according to the application's retention policy. Losing the recorder before commit rolls back the write. The service can record that the operation raised while leaving its target outcome unknown.
+
+### Optional asynchronous intent recommendations
+
+An AppSec operator can opt an agent in under its **Workload action analysis** settings. The deployment must also enable the classifier on the API and scheduler with `ZASP_INTENT_CLASSIFIER_ENABLED=true`. Configure `ZASP_INTENT_CLASSIFIER_KEY_FILE` only on the scheduler, pointing to a private 0400 regular file containing the OpenRouter key without a trailing newline. The fixed destination is OpenRouter chat completions using `openai/gpt-5-mini`. The worker requests providers with data collection disabled.
+
+The worker selects one analyzed admission per minute, from the last 24 hours and the latest opted-in settings revision. The provider receives the reported destination class, whether a previous operation exists, and four comparison flags for operation, classification, destination and sequence. The destination is an enumeration. Customer identifiers, operation names, classification labels, message text, origins and arguments stay inside Zasp.
+
+The worker can save four review recommendations or no recommendation. A model response cannot change a policy. In **External Data Flows** the flow appears when the deployment enables the integration. The row shows whether any agent in the selected environment has consented and whether a recent provider attempt completed. An unavailable provider leaves deterministic findings available. A failed claim retries after five minutes for up to three attempts. Saving a new declaration supersedes pending work from the earlier revision. A request already sent may finish, and its result is accepted only while the opted-in revision is current. Published API and UI drafts are limited to 50 over the current analysis window.

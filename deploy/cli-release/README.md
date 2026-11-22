@@ -2,6 +2,14 @@
 
 The console's **Scan this device** panel offers binaries when the deployment includes an explicitly staged, signed release. The repository ships an empty download configuration. Its source build works until the release owner activates a verified bundle.
 
+## Stage all four console downloads
+
+Run **Sign and stage native zaspctl downloads** from the default branch with a version such as `v1.2.3`. The workflow builds the exact commit on native Linux amd64, macOS arm64, macOS amd64 and Windows amd64 runners. It signs and notarizes both Mac builds and verifies the Windows signature and timestamp before sealing the four-file manifest. [Signing workflow](../../.github/workflows/zaspctl-release-sign.yml)
+
+Configure the `zasp-cli-signing` GitHub environment and its protected runners. On macOS, set `ZASP_APPLE_SIGN_IDENTITY`, `ZASP_APPLE_TEAM_ID` and `ZASP_NOTARY_PROFILE` to the approved identity, team ID and preprovisioned Keychain profile. On Windows, set `ZASP_WINDOWS_SIGN_THUMBPRINT` and `ZASP_WINDOWS_TIMESTAMP_HTTPS_URL` and provision the matching certificate in the signing account’s store. On the Linux release runner, set `ZASP_CLI_RELEASE_PRIVATE_KEY_FILE` and `ZASP_CLI_RELEASE_PUBLIC_KEY_FILE` to the release key paths. Keep private key material on its designated runner.
+
+Download `staged-zaspctl-console-<commit>` from that run. The artifact contains the immutable files under `public/downloads/zaspctl` and their console pin at `app/features/tools/cli-release-pin.json`. Include both in the same console deployment. The protected pilot verifier checks the staged artifact and its independently trusted key. [Pilot evidence](../../docs/operations/pilot-verification-evidence.md)
+
 ## Prepare native candidates
 
 Choose the reviewed commit and version. Run the manual **Prepare native zaspctl release candidates** workflow on the corresponding protected ref. It tests the CLI on each native runner, builds the checked-out commit, and stores candidates for ten days as GitHub Actions artifacts. Its token has read-only repository permissions. Download artifacts from the trusted run and extract the approved files into a private directory without renaming them. [Workflow](../../.github/workflows/zaspctl-candidates.yml)
@@ -9,6 +17,7 @@ Choose the reviewed commit and version. Run the manual **Prepare native zaspctl 
 | Candidate filename | Native build |
 | --- | --- |
 | `zaspctl-linux-amd64` | Linux x64 |
+| `zaspctl-darwin-amd64` | macOS Intel with cgo and Keychain support |
 | `zaspctl-darwin-arm64` | macOS Apple silicon with cgo and Keychain support |
 | `zaspctl-windows-amd64.exe` | Windows x64 |
 

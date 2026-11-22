@@ -51,6 +51,28 @@ func TestProductionIssuerAndScopedVerifier(t *testing.T) {
 	if err = produce(args, &out, now.Add(48*time.Hour)); err == nil {
 		t.Fatal("expired issuance")
 	}
+	v2 := endpointprotocol.PolicyV2{Audience: endpointprotocol.PolicyAudienceV2, Binding: p.Binding, Revision: 2, Mode: "enforce", FailureMode: "closed", IssuedAt: p.IssuedAt, ExpiresAt: p.ExpiresAt, Rules: []endpointprotocol.PretoolRule{{ID: "files", Type: "file_path_policy", Values: []string{"dotenv"}}}}
+	raw, _ = json.Marshal(v2)
+	if err = os.WriteFile(file, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err = produce(args, &out, now); err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(out.Bytes(), &signed); err != nil {
+		t.Fatal(err)
+	}
+	if verified, ok := signed.PolicyV2For(pub, p.Binding, now); !ok || verified.Rules[0].ID != "files" {
+		t.Fatal("V2 issuer and verifier contract")
+	}
+	raw = bytes.Replace(raw, []byte(`"failure_mode":"closed"`), []byte(`"failure_mode":"closed","failure_mode":"open"`), 1)
+	if err = os.WriteFile(file, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = produce(args, &out, now); err == nil {
+		t.Fatal("duplicate policy property signed")
+	}
 	if err = os.Chmod(pkcs, 0644); err != nil {
 		t.Fatal(err)
 	}

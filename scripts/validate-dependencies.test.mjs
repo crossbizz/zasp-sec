@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dump } from "js-yaml";
 
@@ -349,7 +349,7 @@ function filesFixture() {
       "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
       "",
     ].join("\n"),
-    "cmd/zaspctl/go.mod": "module example/zaspctl\n\ngo 1.26.0\n\nrequire golang.org/x/sys v0.47.0\nrequire gopkg.in/yaml.v3 v3.0.1\n",
+    "cmd/zaspctl/go.mod": "module example/zaspctl\n\ngo 1.26.0\n\nrequire golang.org/x/sys v0.47.0\nrequire gopkg.in/yaml.v3 v3.0.1\nrequire github.com/zasp-ai/zasp-sec/services/platform v0.0.0\nreplace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform\n",
     "services/endpoint-agent/go.mod": [
       "module github.com/zasp-ai/zasp-sec/services/endpoint-agent",
       "go 1.26.0",
@@ -715,6 +715,9 @@ test("accepts only exact repository-owned module requirements and replacements o
         "module github.com/zasp-ai/zasp-sec/services/platform-copy",
       );
     }],
+    ["CLI platform replacement must be exact", (files) => {
+      files["cmd/zaspctl/go.mod"] = files["cmd/zaspctl/go.mod"].replace("=> ../../services/platform", "=> ../platform");
+    }],
     ["remote replacement", (files) => {
       files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("../health", "github.com/example/health v1.0.0");
     }],
@@ -797,6 +800,36 @@ test("bounds repository file reads and rejects symlinked inputs", async () => {
     await assert.rejects(readBoundedFile(link, 4));
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("checks manifests beyond 4,096 project entries and refuses an over-budget tree", async () => {
+  const root = await mkdtemp(join(tmpdir(), "zasp-manifest-budget-"));
+  try {
+    const all = { ...filesFixture(), "build/dependencies.lock.yaml": dump(lockFixture()) };
+    for (const [path, content] of Object.entries(all)) {
+      const absolute = join(root, path);
+      await mkdir(dirname(absolute), { recursive: true });
+      await writeFile(absolute, content);
+    }
+    const dir = join(root, "apps", "files");
+    await mkdir(dir);
+    const addEntries = async (start, end) => {
+      for (let n = start; n < end; n += 64) {
+        await Promise.all(Array.from({ length: Math.min(64, end - n) },
+          (_, i) => writeFile(join(dir, "source-" + (n + i)), "")));
+      }
+    };
+    await addEntries(0, 4100);
+    assert.ok(await validateRepository(root));
+    const unknown = join(dir, "package.json");
+    await writeFile(unknown, "{}");
+    await assert.rejects(validateRepository(root));
+    await rm(unknown);
+    await addEntries(4100, 8192);
+    await assert.rejects(validateRepository(root));
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

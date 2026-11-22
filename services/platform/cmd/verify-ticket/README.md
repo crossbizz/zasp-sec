@@ -57,3 +57,32 @@ The product verifies the authenticated submission, tenant, saved definition, tar
 
 
 For a cohort canary, use the enrolled device’s reported adapter and decimal policy revision. The scenario’s cohort label and control/protected IDs must match the current canary’s signed action observations. Fleet promotion checks both digests, the device and credential generation, the observation window and the independent recorder result. Consult the [cohort rollout guide](../../../../docs/operations/purpose-and-policy-rollout.md).
+
+## Independently authenticated staging sources
+
+A paired import can earn `verified_prevention` on the existing staging ticket-verification route. Supply one Ed25519 signature from the adapter authority and one from the ticket recorder authority. The recorder must own its target log and independently measure both the permitted write and the entire protected interval. Give the two authorities separate keys and administration. Giving one uploader both signing keys defeats source independence.
+
+The deployment administrator mounts a read-only JSON file and sets `ZASP_TICKET_ATTESTATION_TRUST_FILE` on the API and compliance-reporting processes. The directory and file must be writable only by the deployment administrator. The envelope has a `keys` array. Each entry contains the following fields.
+
+| Field | Value |
+|---|---|
+| key_id, authority_id | Unique rotation key ID and the independently administered source identity |
+| role | `adapter` or `recorder` |
+| scope | Exact organization_id, workspace_id and environment_id |
+| target_id, source_id | Approved staging target and the adapter_id or recorder_id for this role |
+| public_key | Standard padded base64 of the 32 raw Ed25519 public-key bytes |
+| valid_from, valid_until | UTC timestamps covering the experiment and server submission |
+
+Use a PKCS#8 PEM key on each source host with permissions 0600. Each source checks the approved scenario and its own export against the local record. On the adapter host, sign only its locally authenticated decisions. On the independent recorder host, sign only its own target log and coverage window.
+
+```sh
+verify-ticket sign-source adapter adapter-key-1 /private/adapter.pem scenario.json adapter.json > adapter-attestation.json
+```
+
+```sh
+verify-ticket sign-source recorder recorder-key-1 /private/recorder.pem scenario.json recorder.json > recorder-attestation.json
+```
+
+The uploader receives the metadata exports and detached signatures. Add the two signature objects as `attestations.adapter` and `attestations.recorder` beside the existing scenario, adapter and recorder. Submit this bundle as the authorized operator's first PUT to the existing test run. Each signature covers a versioned signing domain, role, key ID, issue time, full scenario and that role's typed local evidence. The source signs after the observation window. The server requires submission within 24 hours of the window closing. A run preserves its first import. A new or corrected experiment needs another eligible staging run.
+
+GET returns `evidence_qualification` beside the original comparison result. Both authenticated sources and a passing independent target comparison are required for `verified_prevention`. An unsigned completed pair, or a valid signed pair that confirms an unintended write, can qualify as `tested_control`. Missing trust, conflicting signatures or incomplete recorder coverage yield `unknown`. The service rereads the public trust file for signed imports and live reports. Keep earlier verification keys in the trust file when rotating. Remove a compromised key to invalidate current evaluations. Previously frozen exports retain their as-of result. The CLI example and installed test exercise a synthetic staging fixture.

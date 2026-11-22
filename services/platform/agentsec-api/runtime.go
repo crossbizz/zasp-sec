@@ -33,6 +33,7 @@ var (
 // for the generic saas provider (every SaaS platform read through the Nango
 // proxy); it also needs the Nango settings.
 type RuntimeConfig struct {
+	ClaudeEnterpriseHookFile        string
 	RuntimeServices                 runtimeservices.Config
 	SecurityAgentOrderedHTTPEnabled bool
 	// HostedGatewayEnabled serves the traffic routes of the hosted gateway
@@ -172,6 +173,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
+		ClaudeEnterpriseHookFile:        getenv("ZASP_CLAUDE_ENTERPRISE_HOOK_FILE"),
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
 		HostedGatewayEnabled:            hostedGatewayEnabled,

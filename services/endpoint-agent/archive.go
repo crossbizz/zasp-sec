@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 )
 
 func signatureID(r Signed) string {
@@ -24,8 +26,11 @@ func archiveReceipts(socket, path string) error {
 	}
 	selected := make(map[string]string, len(reply.Receipts))
 	for _, receipt := range reply.Receipts {
-		var obs Observation
-		if strictJSON(receipt.Payload, &obs) != nil {
+		var obs struct {
+			Action   string `json:"action_id"`
+			Audience string `json:"audience"`
+		}
+		if json.Unmarshal(receipt.Payload, &obs) != nil || !endpointprotocol.Digest.MatchString(obs.Action) || (obs.Audience != receiptAudience && obs.Audience != endpointprotocol.ReceiptAudienceV2) {
 			return errInvalid
 		}
 		selected[obs.Action] = signatureID(receipt)

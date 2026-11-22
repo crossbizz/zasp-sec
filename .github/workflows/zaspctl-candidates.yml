@@ -1,5 +1,5 @@
 name: Prepare native zaspctl release candidates
-on: workflow_dispatch
+on: [workflow_dispatch, workflow_call]
 permissions: { contents: read }
 jobs:
   candidate:
@@ -16,6 +16,9 @@ jobs:
           - runner: macos-15
             target: darwin-arm64
             asset: zaspctl-darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-amd64
+            asset: zaspctl-darwin-amd64
           - runner: windows-2025
             target: windows-amd64
             asset: zaspctl-windows-amd64.exe

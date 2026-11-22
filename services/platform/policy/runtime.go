@@ -31,6 +31,7 @@ type RolloutRecord struct {
 type ActionContext struct {
 	// These source identifiers are used for evidence review only. They never enter policy evaluation.
 	EventID       string            `json:"-"`
+	EventTime     time.Time         `json:"-"`
 	ToolID        string            `json:"-"`
 	PrincipalID   string            `json:"principal_id"`
 	AgentID       string            `json:"agent_id"`
@@ -122,7 +123,7 @@ func (store *MemoryStore) Delete(ctx context.Context, id string) error {
 }
 
 func (store *MemoryStore) Simulate(ctx context.Context, id string, events []ActionContext) (SimulationResult, error) {
-	if len(events) == 0 || len(events) > 100 {
+	if len(events) == 0 || len(events) > MaxReplayEvents {
 		return SimulationResult{}, ErrRejected
 	}
 	value, err := store.Get(ctx, id)

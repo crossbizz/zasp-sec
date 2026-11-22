@@ -15,6 +15,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 )
 
 const (
@@ -26,7 +28,12 @@ const (
 	maxScanTime     = 5 * time.Second
 )
 
+type Notice struct {
+	ID      string `json:"id"`
+	Message string `json:"message"`
+}
 type Report struct {
+	Notices          []Notice          `json:"notices,omitempty"`
 	SchemaVersion    string            `json:"schema_version"`
 	Status           string            `json:"status"`
 	ManifestMethod   string            `json:"manifest_method"`
@@ -52,11 +59,13 @@ type Skip struct {
 	Reason string `json:"reason"`
 }
 type Finding struct {
-	RuleID      string `json:"rule_id"`
-	Severity    string `json:"severity"`
-	Path        string `json:"path"`
-	Message     string `json:"message"`
-	Remediation string `json:"remediation"`
+	FileSHA256        string                    `json:"file_sha256,omitempty"`
+	FrameworkEvidence []addonevidence.Reference `json:"framework_evidence,omitempty"`
+	RuleID            string                    `json:"rule_id"`
+	Severity          string                    `json:"severity"`
+	Path              string                    `json:"path"`
+	Message           string                    `json:"message"`
+	Remediation       string                    `json:"remediation"`
 }
 type Dependency struct {
 	Name      string `json:"name"`
@@ -72,26 +81,34 @@ type observedEntry struct {
 }
 
 type scanner struct {
-	observations []observedEntry
-	issues       map[Skip]bool
-	report       Report
-	seen         int
-	used         int64
-	deadline     time.Time
-	stopped      bool
+	declaredLicense bool
+	observations    []observedEntry
+	issues          map[Skip]bool
+	report          Report
+	seen            int
+	used            int64
+	deadline        time.Time
+	stopped         bool
 }
 
 func newScanner() *scanner {
 	return &scanner{issues: make(map[Skip]bool), deadline: time.Now().Add(maxScanTime), report: Report{
 		SchemaVersion: "zasp-addon-scan.v1", Status: "complete", ManifestMethod: manifestVersion,
-		Ruleset: "zasp-static.v1", Usage: "unknown", AdvisoryStatus: "not_evaluated_no_offline_snapshot",
+		Ruleset: addonevidence.CurrentRuleset, Usage: "unknown", AdvisoryStatus: "not_evaluated_no_offline_snapshot",
 		Files: []File{}, Findings: []Finding{}, Skipped: []Skip{}, Dependencies: []Dependency{},
 	}}
 }
 
 // Scan accepts a skill directory, its SKILL.md, or a supported MCP declaration.
-func Scan(path string) Report {
+func Scan(path string) Report { return ScanWithRuleset(path, addonevidence.CurrentRuleset) }
+
+func ScanWithRuleset(path, version string) Report {
 	s := newScanner()
+	s.report.Ruleset = version
+	if addonevidence.Rules(version) == nil {
+		s.skip(".", "unknown_ruleset")
+		return s.report
+	}
 	if path == "" {
 		s.skip(".", "invalid_path")
 		return s.report
@@ -113,13 +130,15 @@ func Scan(path string) Report {
 		s.skip(".", "invalid_path")
 		return s.report
 	}
-	return ScanIn(r, rel)
+	return scanIn(r, rel, version)
 }
 
 // ScanIn preserves the caller's pinned trust boundary. Every directory component
 // is opened and checked before being used to enumerate or read any contents.
-func ScanIn(root *os.Root, rel string) Report {
+func ScanIn(root *os.Root, rel string) Report { return scanIn(root, rel, addonevidence.CurrentRuleset) }
+func scanIn(root *os.Root, rel, version string) Report {
 	s := newScanner()
+	s.report.Ruleset = version
 	if root == nil || !filepath.IsLocal(rel) || filepath.Clean(rel) != rel {
 		s.skip(".", "invalid_path")
 		return s.report
@@ -450,6 +469,22 @@ func readPinnedFile(root *os.Root, name string, before fs.FileInfo) ([]byte, str
 }
 
 func (s *scanner) finish() {
+	if s.report.Ruleset == addonevidence.CurrentRuleset {
+		var manifest, license bool
+		for _, f := range s.report.Files {
+			name := strings.ToLower(filepath.Base(f.Path))
+			if name == "package.json" || name == "pyproject.toml" {
+				manifest = true
+			}
+			if name == "license" || strings.HasPrefix(name, "license.") || name == "copying" {
+				license = true
+			}
+		}
+		if manifest && !license && !s.declaredLicense {
+			s.report.Notices = append(s.report.Notices, Notice{"package.license_file_absent", "No separate license file was observed in the scanned package."})
+		}
+		s.report.Notices = append(s.report.Notices, Notice{"advisory.not_evaluated", "No offline advisory catalog was evaluated."})
+	}
 	slices.SortFunc(s.report.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
 	slices.SortFunc(s.report.Findings, func(a, b Finding) int {
 		if a.Path != b.Path {

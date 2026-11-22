@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "^(Bash|apply_patch|mcp__.*)$",
+      "hooks": [{ "type": "command", "command": "/usr/local/libexec/zasp-endpoint codex-pre-tool --on-unavailable deny", "timeout": 3 }]
+    }]
+  }
+}

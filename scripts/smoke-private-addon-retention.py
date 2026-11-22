@@ -14,6 +14,7 @@ import io
 import json
 import os
 import secrets
+import shutil
 import socket
 import ssl
 import subprocess
@@ -51,10 +52,14 @@ def command(args, *, timeout=60, **kwargs):
 def binary(override, module, package, output):
     if override:
         return Path(override).resolve(strict=True)
-    command(
-        ["go", "-C", str(REPOSITORY / module), "build", "-o", output, package],
-        timeout=480,
-    )
+    try:
+        command(
+            ["go", "-C", str(REPOSITORY / module), "build", "-o", output, package],
+            timeout=480,
+        )
+    except subprocess.CalledProcessError as exc:
+        message = exc.stderr.decode(errors="replace")[-2048:]
+        raise RuntimeError(f"{module}/{package} did not build: {message}") from exc
     return output
 
 
@@ -145,8 +150,16 @@ def run(args):
                 PREFIX + "VERIFY_KEY": b64url(der[-32:]),
             }
         )
+        fixture_key = root / "fixture-issuer.pem"
+        command(["openssl","genpkey","-algorithm","ED25519","-out",fixture_key])
+        fixture_private = command(["openssl","pkey","-in",fixture_key,"-outform","DER"])
+        fixture_public = command(["openssl","pkey","-in",fixture_key,"-pubout","-outform","DER"])[-32:]
+        fixture_seed = root / "fixture.seed"
+        fixture_seed.write_text(b64url(fixture_private[-32:]))
+        fixture_seed.chmod(0o600)
         sockets = root / "sockets"
         store_env = env | {
+            PREFIX + "FIXTURE_SIGNING_SEED_FILE": str(fixture_seed),
             PREFIX + "RETENTION_BACKEND": "local_encrypted",
             PREFIX + "RETENTION_SOCKET_DIR": str(sockets),
             PREFIX + "RETENTION_JOURNAL_DIR": str(root / "journal"),
@@ -201,7 +214,7 @@ def run(args):
         body = archive.getvalue()
         digest = "sha256:" + hashlib.sha256(body).hexdigest()
 
-        def upload(grant, destination_scope, retained):
+        def upload(grant, destination_scope, retained, payload=body):
             expires = int(time.time()) + 240
             cap = {
                 "version": "private-addon-upload-retained.v1"
@@ -211,8 +224,8 @@ def run(args):
                 "audience": origin,
                 "scope": destination_scope,
                 "actor": pid(),
-                "sha256": digest,
-                "size": len(body),
+                "sha256": "sha256:" + hashlib.sha256(payload).hexdigest(),
+                "size": len(payload),
                 "expires": expires,
             }
             if retained:
@@ -231,7 +244,7 @@ def run(args):
                 conn.request(
                     "PUT",
                     "/v1/uploads/" + grant,
-                    body=body,
+                    body=payload,
                     headers={
                         "Content-Type": "application/zip",
                         "Authorization": "Bearer " + b64url(raw) + "." + b64url(sig),
@@ -314,6 +327,7 @@ def run(args):
             )
         files = objects()
         check(len(files) == 2, "expected two independently scoped retained objects")
+        operator("prepare-fixture",keep,denied=True)  # Retained customer-like bytes never select executable work.
         target = next(f for f in files if remove in f.parts)
         ciphertext = target.read_bytes()
         check(
@@ -367,6 +381,70 @@ def run(args):
             operator("delete", keep)["state"] == "deleted" and not objects(),
             "final retained object still present",
         )
+        runner = binary(args.runner,"services/platform","./attack-lab-runner",root/"fixture-runner")
+        check_env = {"ZASP_SKILL_FIXTURE_PUBLIC_KEY":b64url(fixture_public), "ZASP_SKILL_FIXTURE_SCOPE":scope}
+        invoke = [str(runner), "--run-synthetic-skill"]
+        if args.isolated_container:
+            image = "zasp-skill-fixture:" + uuid4().hex
+            docker = root / "image"
+            docker.mkdir()
+            shutil.copyfile(runner,docker/"runner")
+            (docker/"runner").chmod(0o555)
+            (docker/"mount").mkdir()
+            (docker/"mount"/".keep").touch()
+            (docker/"Dockerfile").write_text('FROM scratch\nCOPY runner /runner\nCOPY mount /var/run/zasp-skill/\nUSER 65532:65532\nENTRYPOINT ["/runner"]\n')
+            command(["docker","build","--network","none","-t",image,str(docker)],timeout=90)
+            tasks.callback(subprocess.run,["docker","image","rm",image],capture_output=True)
+            invoke = ["docker","run","--rm","-i","--network","none","--read-only","--cap-drop","ALL",
+                      "--security-opt","no-new-privileges","--memory","128m","--cpus","0.5","--pids-limit","24",
+                      "--tmpfs","/tmp:rw,nosuid,nodev,noexec,size=8m,mode=1777",
+                      "-e","ZASP_SKILL_FIXTURE_PUBLIC_KEY","-e","ZASP_SKILL_FIXTURE_SCOPE"]
+            # Some Docker clients inject their infrastructure proxy settings.
+            # The job is local-only and its credential check requires a clean environment.
+            for name in ("HTTP_PROXY","HTTPS_PROXY","ALL_PROXY","NO_PROXY","http_proxy","https_proxy","all_proxy","no_proxy"):
+                invoke.extend(["-e",name+"="])
+            invoke.extend([image,"--run-synthetic-skill"])
+        for fixture,status,undeclared in [("declared","matches_declarations",[]),("undeclared-local-socket","declaration_difference",["local_socket.connect"])]:
+            archive = command([runner,"--write-synthetic-skill",fixture])
+            grant = pid()
+            code, _, _ = upload(grant, scope, True, archive)
+            check(code==200,"compiled synthetic archive rejected by retention scanner")
+            operator("prepare-fixture",grant,foreign,denied=True)
+            handoff = operator("prepare-fixture",grant)
+            encoded = json.dumps(handoff).encode()
+            runtime_env = {"PATH":os.environ["PATH"],**check_env}
+            if args.isolated_container and os.environ.get("DOCKER_HOST"):
+                runtime_env["DOCKER_HOST"]=os.environ["DOCKER_HOST"]
+            process=subprocess.run(invoke,input=encoded,env=runtime_env,timeout=65,capture_output=True)
+            check(process.returncode==0,"fixture supervisor failed: "+process.stdout.decode(errors="replace")[:1400]+" "+process.stderr.decode(errors="replace")[:350])
+            output=json.loads(process.stdout)
+            check(output["status"]==status and output["undeclared"]==undeclared and
+                  output["observed"]==["file.read","process.exec","local_socket.connect"] and
+                  output["grant_id"]==grant and output["archive_digest"]=="sha256:"+hashlib.sha256(archive).hexdigest(),
+                  "independent kernel witnesses do not match the synthetic archive")
+            if args.isolated_container and fixture=="declared":
+                # Exercise the hosted Job's read-only mounted-handoff entry point.
+                # Docker cp works even when the daemon has a separate filesystem.
+                volume = "zasp-skill-handoff-" + uuid4().hex
+                command(["docker","volume","create",volume])
+                tasks.callback(subprocess.run,["docker","volume","rm",volume],capture_output=True)
+                mount = "type=volume,source="+volume+",target=/var/run/zasp-skill"
+                carrier = command(["docker","create","--network","none","--mount",mount,image]).decode().strip()
+                try:
+                    mounted = root / "handoff.json"
+                    mounted.write_bytes(encoded)
+                    mounted.chmod(0o444)
+                    command(["docker","cp",str(mounted),carrier+":/var/run/zasp-skill/handoff.json"])
+                finally:
+                    command(["docker","rm",carrier])
+                job = invoke[:-2]+["--mount",mount+",readonly",image,"--run-synthetic-skill-mounted"]
+                rendered = json.loads(command(job,env=runtime_env,timeout=65))
+                check(rendered["grant_id"]==grant and rendered["status"]=="matches_declarations","hosted mounted handoff produced incomplete evidence")
+            wrong = subprocess.run(invoke,input=encoded,env={**runtime_env,"ZASP_SKILL_FIXTURE_SCOPE":foreign},capture_output=True,timeout=65)
+            check(wrong.returncode!=0 and not wrong.stdout,"sandbox accepted foreign scope")
+            operator("delete",grant)
+            operator("prepare-fixture",grant,denied=True)
+        print("PASS: retained exact synthetic ZIP, signed scoped handoff, kernel file/process/Unix-socket witnesses, declared control and missing-declaration comparison")
         print(
             "PASS: TLS worker, memory-only default, AES-256-GCM readback, restart, foreign scope rejection, idempotent exact deletion and unaffected second grant"
         )
@@ -378,4 +456,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--retention", help="prebuilt agentsec-private-retention binary"
     )
+    parser.add_argument("--runner", help="prebuilt statically linked attack-lab runner")
+    parser.add_argument("--isolated-container",action="store_true",help="exercise kernel witnesses in an unprivileged, network-disabled, read-only Docker container")
     run(parser.parse_args())

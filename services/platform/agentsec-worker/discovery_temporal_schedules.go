@@ -256,6 +256,8 @@ type temporalDiscoveryScheduleProcessor struct {
 	lastMaintain         time.Time
 	analyze              func(context.Context, int) (int, error)
 	lastAnalysis         time.Time
+	classifier           IntentClassifier
+	lastIntent           time.Time
 }
 
 // maintainDue looks after the hosted gateway's records when its interval has
@@ -339,6 +341,7 @@ func (p *temporalDiscoveryScheduleProcessor) RunOnce(ctx context.Context) error 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	analysis := p.analyzeDue(ctx)
+	p.classifyDue(ctx)
 	refs, err := p.source.pending(ctx, p.after, p.startup, p.limit)
 	if err != nil {
 		return errors.Join(analysis, err)

@@ -9,6 +9,7 @@ import { Badge, Button, Card, EmptyState, Field, LoadingState, MetricGrid, Modal
 import { SectionTabs } from "../../components/section-tabs";
 import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import { TicketCohort } from "./TicketCohort";
+import { EndpointPolicyCohort } from "./EndpointPolicyCohort";
 import { DeviceFleet } from "./DeviceFleet";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
@@ -17,7 +18,7 @@ type Feedback = Readonly<{ role: "status" | "alert"; message: string }> | null;
 
 export { type SensorsAPI } from "./api";
 
-type SensorSurfaceProps = { canWrite: boolean; fresh: boolean; onReauthenticate(): void };
+type SensorSurfaceProps = { canWrite: boolean; canManagePolicy?: boolean; fresh: boolean; onReauthenticate(): void };
 
 function subscribeToNavigation(notify: () => void) {
   window.addEventListener("popstate", notify);
@@ -34,14 +35,14 @@ export function ProductionSensorSurface(props: SensorSurfaceProps) {
   return <SensorSections key={linkedDevice} {...props} linkedDevice={linkedDevice} />;
 }
 
-function SensorSections({ canWrite, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
+function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
   const [section, setSection] = useState(linkedDevice ? "devices" : "sensors");
   const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
   return <SectionTabs active={section} onChange={setSection} sections={[
     { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
-    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} initialID={linkedDevice} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/></> },
+    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} initialID={linkedDevice} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/><EndpointPolicyCohort key={"pretool"+JSON.stringify([queryScopeKey,queryGeneration])} client={client} canManage={canManagePolicy} fresh={fresh} reauthenticate={onReauthenticate}/></> },
   ]} />;
 }
 

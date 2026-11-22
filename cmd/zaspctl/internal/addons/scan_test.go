@@ -197,7 +197,7 @@ func TestMCPDeclarationIsNeverInvokedAndArgsOmitted(t *testing.T) {
 	cfg := `{"mcpServers":{"service":{"url":"https://example.invalid/private-name"},"local":{"command":"npx","args":["-y","demo","SENTINEL_ARG"]},"pinned":{"command":"uvx","args":["demo==1.2.3"]}}}`
 	write(t, r, ".mcp.json", cfg)
 	report := Scan(filepath.Join(r, ".mcp.json"))
-	if report.Status != "complete" || len(report.Files) != 1 || len(report.Findings) != 2 {
+	if report.Status != "complete" || len(report.Files) != 1 || len(report.Findings) != 3 {
 		t.Fatalf("mcp observations: %+v", report)
 	}
 	text, _ := json.Marshal(report)
@@ -238,7 +238,7 @@ func TestRulesAndBoundedDependencyReports(t *testing.T) {
 	write(t, r, "SKILL.md", "# Guide\n<!-- editor note -->")
 	write(t, r, "helper.py", "import subprocess\nsubprocess.run(['echo','demo'])\n# requests.get('documented example')\n")
 	result := Scan(r)
-	if result.Status != "complete" || len(result.Findings) != 3 {
+	if result.Status != "complete" || len(result.Findings) != 2 {
 		t.Fatalf("static capabilities: %+v", result)
 	}
 	write(t, r, "requirements.txt", strings.Repeat("sample==1.2.3\n", maxDependencies+1))

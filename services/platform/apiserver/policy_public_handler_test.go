@@ -176,6 +176,7 @@ func TestPolicyPublicHandlerReplaysPinnedAgentWindow(t *testing.T) {
 		want                    int
 	}{
 		{"pinned window", 3, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 200},
+		{"null continuation", 3, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 400},
 		{"stale revision", 2, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 409},
 		{"unbounded window", 3, "2025-01-01T00:00:00Z", "2026-01-02T00:00:00Z", agent, 400},
 		{"foreign agent response", 3, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", "pid_70000004-0000-4000-8000-000000000004", 503},
@@ -187,7 +188,11 @@ func TestPolicyPublicHandlerReplaysPinnedAgentWindow(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			raw, _ := json.Marshal(map[string]any{"schema_version": 2, "agent_id": agent, "policy_revision": tc.revision, "from": tc.from, "to": tc.to})
+			request := map[string]any{"schema_version": 2, "agent_id": agent, "policy_revision": tc.revision, "from": tc.from, "to": tc.to}
+			if tc.name == "null continuation" {
+				request["before_event_id"] = nil
+			}
+			raw, _ := json.Marshal(request)
 			req := workflowRequest(t, identity, testCorrelationID, "simulatePolicy", map[string]string{"id": policyID}, http.MethodPost, "/api/v1/policies/"+policyID+"/simulate", string(raw))
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, req)
@@ -199,13 +204,16 @@ func TestPolicyPublicHandlerReplaysPinnedAgentWindow(t *testing.T) {
 					Matches    int `json:"matches"`
 					WouldBlock int `json:"would_block"`
 					Replay     struct {
-						Evaluated      int    `json:"evaluated"`
-						Coverage       string `json:"coverage"`
-						PolicyRevision int    `json:"policy_revision"`
-						AgentID        string `json:"agent_id"`
+						Examined       int                `json:"examined_count"`
+						Eligible       int                `json:"eligible_count"`
+						Rates          map[string]float64 `json:"would_block_rate"`
+						Evaluated      int                `json:"evaluated"`
+						Coverage       string             `json:"coverage"`
+						PolicyRevision int                `json:"policy_revision"`
+						AgentID        string             `json:"agent_id"`
 					} `json:"replay"`
 				}
-				if json.Unmarshal(recorder.Body.Bytes(), &result) != nil || result.Matches != 1 || result.WouldBlock != 1 || result.Replay.Evaluated != 1 || result.Replay.Coverage != "indexed_events_only" || result.Replay.PolicyRevision != 3 || result.Replay.AgentID != agent || history.scope != identity.Scope || history.window.AgentID != agent {
+				if json.Unmarshal(recorder.Body.Bytes(), &result) != nil || result.Matches != 1 || result.WouldBlock != 1 || result.Replay.Evaluated != 1 || result.Replay.Examined != 1 || result.Replay.Eligible != 1 || result.Replay.Rates["tool"] != 1 || result.Replay.Coverage != "indexed_events_only" || result.Replay.PolicyRevision != 3 || result.Replay.AgentID != agent || history.scope != identity.Scope || history.window.AgentID != agent {
 					t.Fatalf("incorrect replay %s", recorder.Body)
 				}
 			} else if tc.want != 503 && history.calls != 0 {

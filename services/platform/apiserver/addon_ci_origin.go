@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -49,7 +50,7 @@ func (v ciEvidence) message() []byte {
 func (v ciEvidence) verified() bool {
 	key, err := hex.DecodeString(v.PublicKey)
 	sig, sigErr := hex.DecodeString(v.Signature)
-	if err != nil || sigErr != nil || len(key) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize || !validProductID(v.EnvironmentID) || !validProductID(v.CredentialID) || !validProductID(v.ScanID) || !ciKeyID.MatchString(v.KeyID) || !ciRepository.MatchString(v.Repository) || !ciCommit.MatchString(v.Commit) || !addonDigest.MatchString(v.ManifestDigest) || v.Ruleset != "zasp-static.v1" {
+	if err != nil || sigErr != nil || len(key) != ed25519.PublicKeySize || len(sig) != ed25519.SignatureSize || !validProductID(v.EnvironmentID) || !validProductID(v.CredentialID) || !validProductID(v.ScanID) || !ciKeyID.MatchString(v.KeyID) || !ciRepository.MatchString(v.Repository) || !ciCommit.MatchString(v.Commit) || !addonDigest.MatchString(v.ManifestDigest) || addonevidence.Rules(v.Ruleset) == nil {
 		return false
 	}
 	digest := sha256.Sum256(key)

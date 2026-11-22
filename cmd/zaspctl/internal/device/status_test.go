@@ -45,3 +45,30 @@ func TestWindowsInventoryDoctor(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowsManagedBrokerStatusIsSeparateFromInventory(t *testing.T) {
+	now := time.Now().UTC()
+	for _, tc := range []struct {
+		status string
+		until  time.Time
+		code   int
+		label  string
+	}{
+		{"verified_cache", now.Add(time.Hour), 0, "verified_cache"},
+		{"verified_cache", now.Add(-time.Second), 3, "policy_expired"},
+		{"state_unavailable", time.Time{}, 3, "state_unavailable"},
+	} {
+		broker := windowsPretool{Broker: "responding", PolicyStatus: tc.status}
+		if !tc.until.IsZero() {
+			broker.Revision = 2
+			broker.Mode = "monitor"
+			broker.ExpiresAt = &tc.until
+		}
+		raw, _ := json.Marshal(map[string]any{"windows_inventory": inventoryHealth{CheckedAt: now, LastContact: &now, State: "connected"}, "windows_pretool": broker})
+		var out bytes.Buffer
+		code := inspect([]string{"doctor", "--json"}, &out, &out, func() ([]byte, error) { return raw, nil })
+		if code != tc.code || !strings.Contains(out.String(), tc.label) || !strings.Contains(out.String(), "windows_inventory_and_managed_pretool") {
+			t.Errorf("%d %s", code, out.String())
+		}
+	}
+}

@@ -7,12 +7,37 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// V2 extends this exact preceding catalog. A later release needs its own
-// reviewed transition. Reject drift before changing any catalog objects.
+// Both supported predecessors have immutable, recorded catalog seals.
 const precedingV2Artifact = "eb705a3d269f2a632327d49514f5a790c29c3595c3a6e67d2f3d6ddd1dcddff9"
+
+const precedingFrameworkArtifact = "44af7b31b098ad0a87dce6db8c3ab09e9204c321f1419140014575a0111e4b8d"
 
 //go:embed feature_v2.sql
 var featureV2DDL string
+
+//go:embed framework_context.sql
+var frameworkContextDDL string
+
+//go:embed framework_addon.sql
+var frameworkAddonDDL string
+
+//go:embed framework_reporting.sql
+var frameworkReportingDDL string
+
+//go:embed framework_provider_hooks.sql
+var frameworkProviderHooksDDL string
+
+//go:embed framework_endpoint.sql
+var frameworkEndpointDDL string
+
+//go:embed intent_classifier.sql
+var intentClassifierDDL string
+
+//go:embed policy_replay.sql
+var policyReplayDDL string
+
+//go:embed provider_readiness.sql
+var providerReadinessDDL string
 
 // UpgradeToV2 applies the same DDL used by the fresh-install generator. The
 // transaction includes temporary privileges, all new objects, the new catalog
@@ -43,7 +68,7 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	var artifact string
 	var intact bool
 	err = tx.QueryRow(ctx, `SELECT coalesce(state->>'artifact',''), coalesce((state->>'intact')::boolean AND (state->>'sealed')::boolean,false) FROM zasp_baseline.state() AS state`).Scan(&artifact, &intact)
-	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != Checksum()) {
+	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != Checksum()) {
 		return refuse(StagePreconditions, "an intact supported baseline is required", err)
 	}
 	if artifact != Checksum() {
@@ -60,8 +85,15 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 		// The operator is a member of the discovery authority and owns the
 		// registry of private scan grants. Running as that principal permits
 		// the explicit owner transitions for both kinds of object.
-		if err = execScript(ctx, conn, featureV2DDL); err != nil {
-			return refuse(StageObjects, "V2 upgrade", err)
+		if artifact == precedingV2Artifact {
+			if err = execScript(ctx, conn, featureV2DDL); err != nil {
+				return refuse(StageObjects, "V2 upgrade", err)
+			}
+		}
+		for _, ddl := range []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL} {
+			if err = execScript(ctx, conn, ddl); err != nil {
+				return refuse(StageObjects, "framework coverage upgrade", err)
+			}
 		}
 		if !alreadyGranted {
 			if _, err = tx.Exec(ctx, `REVOKE CREATE ON SCHEMA public FROM zasp_discovery_authority`); err != nil {

@@ -78,7 +78,7 @@ func TestCLIOriginAttestsReceiptFromGitOverTLS(t *testing.T) {
 			return
 		}
 		sig, _ := base64.RawURLEncoding.Strict().DecodeString(wire["signature"])
-		canonical := strings.Join([]string{"zasp-ci-manifest-attestation.v1", envID, versionID, scanID, kid, repo, rev, report.ManifestDigest, "zasp-static.v1", ""}, "\n")
+		canonical := strings.Join([]string{"zasp-ci-manifest-attestation.v1", envID, versionID, scanID, kid, repo, rev, report.ManifestDigest, report.Ruleset, ""}, "\n")
 		if !ed25519.Verify(public, []byte(canonical), sig) {
 			http.Error(w, "signature", 403)
 			return

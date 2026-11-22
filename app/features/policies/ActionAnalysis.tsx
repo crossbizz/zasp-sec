@@ -11,6 +11,7 @@ import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useOptionalSession } from "../../auth/SessionProvider";
 import { Button, Field } from "../../components/ui";
+import { SourceFrameworkEvidence } from "../sessions/FrameworkCoverage";
 import { activityLink } from "../../domain/activity-links";
 
 const label = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
@@ -22,9 +23,16 @@ const issueLabels = {
   destination_outside_purpose: "Reported destination outside declaration",
   sequence_outside_purpose: "Restricted sequence",
 } as const;
-type Draft = { operations: string; classes: string; dest: readonly WorkloadDestinationClass[]; transitions: string };
+const recommendationLabels = {
+  review_purpose: "Review the declared purpose",
+  review_destination: "Review the permitted destinations",
+  review_sequence: "Review the sequence restriction",
+  review_data_access: "Review access to the reported data class",
+} as const;
+type Draft = { classifier: boolean; operations: string; classes: string; dest: readonly WorkloadDestinationClass[]; transitions: string };
 function fields(s: ActionAnalysisSettings): Draft {
   return {
+    classifier: s.classifier_opt_in === true,
     operations: s.allowed_operations.join("\n"),
     classes: s.allowed_classifications.join("\n"),
     dest: s.allowed_destinations,
@@ -54,6 +62,7 @@ function settingsFrom(d: Draft): ActionAnalysisSettings {
   if (transitions.length > 32 || new Set(transitions.map((t) => JSON.stringify(t))).size !== transitions.length)
     throw new Error("Use up to 32 distinct restricted sequences.");
   return {
+    ...(d.classifier ? { classifier_opt_in: true } : {}),
     allowed_operations: tokens(d.operations),
     allowed_classifications: tokens(d.classes),
     allowed_destinations: [...d.dest].sort(),
@@ -69,6 +78,15 @@ export function readAnalysis(value: unknown, agent: string): AgentActionAnalysis
     ![v.revision, v.pending, v.analyzed, v.unknown_destination].every((n) => Number.isSafeInteger(n) && n >= 0) ||
     typeof v.truncated !== "boolean" ||
     !v.settings ||
+    (v.settings.classifier_opt_in !== undefined && typeof v.settings.classifier_opt_in !== "boolean") ||
+    (v.intent_drafts !== undefined &&
+      (!Array.isArray(v.intent_drafts) ||
+        v.intent_drafts.length > 50 ||
+        !v.intent_drafts.every((draft) =>
+          id.test(draft.decision_id) &&
+          Object.hasOwn(recommendationLabels, draft.recommendation) &&
+          Number.isFinite(Date.parse(draft.occurred_at)),
+        ))) ||
     !Array.isArray(v.findings) ||
     v.findings.length > 50
   )
@@ -202,6 +220,11 @@ export function ActionAnalysis({
           </p>
           <fieldset disabled={disabled || busy || !!attempt || !canManage || query.status !== "success"}>
             <legend>Declared workload use</legend>
+            <label>
+              <input type="checkbox" checked={values.classifier} onChange={(e) => change({ classifier: e.target.checked })} />
+              Enable draft intent recommendations for this agent
+            </label>
+            <p>When your deployment enables OpenRouter, this sends the destination class, whether a previous action was observed, and four purpose-comparison flags. A reviewer decides how to use each recommendation.</p>
             <Field
               multiline
               label="Allowed operations"
@@ -266,9 +289,24 @@ export function ActionAnalysis({
                       <code>{f.session_id}</code>
                     )}
                   </p>
+                  {session?.status === "authenticated" && session.hasCapability("compliance.read") &&
+                    <SourceFrameworkEvidence client={client} scope={session} kind="runtime_action" id={f.decision_id} />}
                 </li>
               ))}
             </ul>
+          )}
+          {(current.intent_drafts?.length ?? 0) > 0 && (
+            <section aria-label="Draft intent recommendations">
+              <h4>Draft intent recommendations</h4>
+              <ul>
+                {current.intent_drafts?.map((draft) => (
+                  <li key={draft.decision_id}>
+                    <strong>{recommendationLabels[draft.recommendation]}</strong> · {draft.occurred_at} · Decision{" "}
+                    <code>{draft.decision_id}</code>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
           {current.truncated && <p>Showing the latest 50 findings for this revision.</p>}
         </>

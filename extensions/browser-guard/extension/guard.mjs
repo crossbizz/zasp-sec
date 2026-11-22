@@ -1,3 +1,5 @@
+import { approvedUploadRoutes, reconcileUploadRules } from "./upload-rules.mjs";
+
 const origins = new Map([
   ["https://claude.ai", "claude"],
   ["https://chatgpt.com", "chatgpt"],
@@ -18,7 +20,8 @@ export function parsePolicy(raw) {
       raw.AllowedOrigins.some((origin) => !origins.has(origin))) {
     return inactive("invalid");
   }
-  return { status: "enabled", origins: [...new Set(raw.AllowedOrigins)].sort(), retentionDays: days, ...(raw.CentralReportingEnabled === true ? { remoteEnabled: true } : {}) };
+  const uploadRoutes = approvedUploadRoutes(raw, raw.AllowedOrigins);
+  return { ...(uploadRoutes !== undefined ? { uploadRoutes } : {}), status: "enabled", origins: [...new Set(raw.AllowedOrigins)].sort(), retentionDays: days, ...(raw.CentralReportingEnabled === true ? { remoteEnabled: true } : {}) };
 }
 
 function day(date) {
@@ -51,7 +54,7 @@ function registration(origin) {
 export function createGuard(api, clock = () => new Date()) {
   async function currentPolicy() {
     try {
-      return parsePolicy(await api.storage.managed.get(["Enabled", "AllowedOrigins", "RetentionDays", "CentralReportingEnabled"]));
+      return parsePolicy(await api.storage.managed.get(["Enabled", "AllowedOrigins", "RetentionDays", "CentralReportingEnabled", "UploadBlockingEnabled", "UploadBlockingRoutes"]));
     } catch {
       return { status: "unavailable", origins: [], retentionDays: 7 };
     }
@@ -87,9 +90,12 @@ export function createGuard(api, clock = () => new Date()) {
 
   async function refresh() {
     const policy = await currentPolicy();
+    const uploads = await reconcileUploadRules(api.declarativeNetRequest, policy.uploadRoutes);
     const observations = await retained(policy);
     await refreshRegistrations(policy);
-    return { policy, observations };
+    // Exact managed tenant paths are only needed by the browser rule engine.
+    const { uploadRoutes: _routes, ...visiblePolicy } = policy;
+    return { policy: visiblePolicy, observations, uploads };
   }
 
   async function observe(sender) {

@@ -6,6 +6,8 @@ import (
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 )
 
 var (
@@ -20,14 +22,25 @@ var (
 const maxDependencies = 2048
 
 func (s *scanner) finding(path, id, severity, message, fix string) {
-	s.report.Findings = append(s.report.Findings, Finding{id, severity, path, message, fix})
+	f := Finding{RuleID: id, Severity: severity, Path: path, Message: message, Remediation: fix,
+		FrameworkEvidence: addonevidence.References(id, s.report.Ruleset)}
+	// Directory and archive scans inspect the bytes just added to Files.
+	if n := len(s.report.Files); n > 0 && s.report.Files[n-1].Path == path {
+		f.FileSHA256 = s.report.Files[n-1].SHA256
+	}
+	s.report.Findings = append(s.report.Findings, f)
 }
 
 func (s *scanner) inspect(p string, data []byte) {
 	n := path.Base(p)
+	current := s.report.Ruleset == addonevidence.CurrentRuleset
+	if current && instructionFile(n) {
+		s.instructionsV2(p, data)
+	}
 	switch {
 	case n == "package.json":
 		var m struct {
+			License     json.RawMessage   `json:"license"`
 			Runtime     map[string]string `json:"dependencies"`
 			Development map[string]string `json:"devDependencies"`
 			Optional    map[string]string `json:"optionalDependencies"`
@@ -36,6 +49,10 @@ func (s *scanner) inspect(p string, data []byte) {
 		if err := json.Unmarshal(data, &m); err != nil || bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 			s.skip(p, "invalid_declaration")
 			return
+		}
+		var license string
+		if json.Unmarshal(m.License, &license) == nil && strings.TrimSpace(license) != "" {
+			s.declaredLicense = true
 		}
 		if len(m.Runtime)+len(m.Optional)+len(m.Peer)+len(m.Development) > maxDependencies-len(s.report.Dependencies) {
 			s.skip(p, "dependency_limit")
@@ -101,6 +118,10 @@ func (s *scanner) inspect(p string, data []byte) {
 			s.finding(p, "instruction.hidden_text", "low", "Instruction file contains hidden markup or text-direction controls.", "Inspect the source text and remove unintended hidden instructions.")
 		}
 	case isScript(n):
+		if current {
+			s.scriptV2(p, data)
+			return
+		}
 		if shellPattern.Match(data) {
 			s.finding(p, "script.shell_execution", "medium", "Script references a process execution API.", "Review the subprocess and the minimum permissions it needs.")
 		}
@@ -130,17 +151,22 @@ func (s *scanner) inspectMCP(p string, data []byte) {
 		s.skip(p, "invalid_mcp_declaration")
 		return
 	}
-	remote, unpinned := false, false
+	remote, unpinned, execRisk := false, false, false
 	bad := false
 	for _, raw := range m.Servers {
 		var server struct {
 			Command string
 			Args    []string
 			URL     string
+			Headers json.RawMessage `json:"headers"`
+			Auth    json.RawMessage `json:"auth"`
 		}
 		if err := json.Unmarshal(raw, &server); err != nil || (server.Command == "" && server.URL == "") {
 			bad = true
 			continue
+		}
+		if s.report.Ruleset == addonevidence.CurrentRuleset && (launcherNeedsPin(server.Command, server.Args) || insecureMCPEndpoint(server.URL, server.Headers, server.Auth)) {
+			execRisk = true
 		}
 		if server.URL != "" {
 			remote = true
@@ -170,6 +196,9 @@ func (s *scanner) inspectMCP(p string, data []byte) {
 	}
 	if bad {
 		s.skip(p, "invalid_mcp_declaration")
+	}
+	if execRisk {
+		s.finding(p, "mcp.unpinned_exec", "high", "A package launcher has no exact release or a plaintext MCP destination has no declared authorization header.", "Pin the reviewed release and use an authenticated encrypted destination.")
 	}
 	if remote {
 		s.finding(p, "mcp.remote_endpoint", "low", "The declaration references a remote MCP service. Its implementation is unverified.", "Review the service owner, permissions and independently observed tool schema.")

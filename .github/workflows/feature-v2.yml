@@ -5,7 +5,7 @@ permissions:
 jobs:
   local-runtime:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
@@ -17,18 +17,54 @@ jobs:
           go test -C cmd/zaspctl -race -count=1 ./...
           go test -C services/endpoint-agent -race -count=1 ./...
           go test -C services/platform -race -count=1 ./endpointprotocol
+      - name: Validate pinned framework catalogs
+        run: python3 -m unittest discover -s scripts/framework-catalog
       - name: Test Python tool middleware and reviewed loader
         run: PYTHONPATH=sdks/python-guardrails/src python3 -m unittest discover -s sdks/python-guardrails/tests
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22.23.1
       - name: Exercise TLS scanner and encrypted archive deletion
-        run: python3 scripts/smoke-private-addon-retention.py
+        run: CGO_ENABLED=0 python3 scripts/smoke-private-addon-retention.py --isolated-container
       - name: Test browser collection and managed policy
         run: node --test extensions/browser-guard/test/guard.test.mjs
 
       - name: Verify CLI release staging and rollback with a disposable key
         run: node --test deploy/cli-release/release.test.mjs
+      - name: Verify synthetic pilot evidence and trust failures offline
+        run: node --test scripts/verify-live-pilot.test.mjs
+
+  skill-scanner-benchmark:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache-dependency-path: cmd/zaspctl/go.sum
+      - name: Benchmark the offline scanner on 40 labeled fixtures
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          go build -C cmd/zaspctl -mod=readonly -o "$RUNNER_TEMP/zaspctl" .
+          python3 scripts/skill-benchmark/run.py --zasp "$RUNNER_TEMP/zaspctl" --repeats 3
+
+  browser-upload-routes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Verify the packaged upload rules in an isolated test browser
+        run: |
+          archive="$RUNNER_TEMP/zasp-chrome.zip"
+          curl --fail --silent --show-error --retry 2 --location 'https://storage.googleapis.com/chrome-for-testing-public/145.0.7632.45/linux64/chrome-linux64.zip?generation=1770164293455913' -o "$archive"
+          echo "6a586dcc9d4676b5f4b421f80a5406256e5687fb0d1b3479ceb9dd4eb37a6548  $archive" | sha256sum -c -
+          unzip -q "$archive" -d "$RUNNER_TEMP/zasp-browser"
+          CHROMIUM_BIN="$RUNNER_TEMP/zasp-browser/chrome-linux64/chrome" BROWSER_GUARD_TEST_NO_SANDBOX=1 node extensions/browser-guard/test/chromium-smoke.mjs
 
   macos-endpoint:
     runs-on: macos-15
@@ -71,7 +107,14 @@ jobs:
         with:
           node-version: 22.23.1
       - name: Test native Windows DPAPI, ACLs and signed inventory transport
-        run: go test -C services/endpoint-agent -count=1 ./cmd/zasp-device-windows ./internal/windowsinventory
+        run: go test -C services/endpoint-agent -count=1 ./cmd/zasp-device-windows ./internal/windowsinventory ./internal/pretool
+      - name: Exercise the Windows broker between SYSTEM and an assigned employee
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'zasp-broker.test.exe'
+          go test -C services/endpoint-agent -c -o $fixture ./cmd/zasp-device-windows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & ./deploy/endpoint/intune-device/Test-Broker.ps1 -TestExecutable $fixture
       - name: Test Intune staging
         run: node --test deploy/endpoint/intune-cli/stage.test.mjs
       - name: Parse the PowerShell installer
@@ -84,6 +127,9 @@ jobs:
             $null = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors)
             if ($parseErrors.Count) { throw ($parseErrors -join [Environment]::NewLine) }
           }
+      - name: Exercise Windows enrollment and optional broker staging
+        shell: pwsh
+        run: ./deploy/endpoint/intune-device/Test-Stage.ps1
       - name: Verify unsigned Windows device packages cannot be staged
         shell: pwsh
         run: |

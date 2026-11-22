@@ -640,6 +640,10 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("public-surface", errRuntimeUnavailable)
 	}
+	publicSurface, err = mountClaudeProvider(publicSurface, product, config.ClaudeEnterpriseHookFile, currentRequired(database))
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("claude-enterprise-hook", errRuntimeUnavailable)
+	}
 	operational, err := newGatewayOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, config.HostedGatewayTimeout, exporter, publicSurface)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("operational-middleware", errRuntimeUnavailable)

@@ -1,0 +1,8 @@
+[
+  {"id":"managed_endpoint","label":"Managed endpoint"},
+  {"id":"addon_supply_chain","label":"Add-on supply chain"},
+  {"id":"governed_action","label":"Governed action"},
+  {"id":"identity_inventory","label":"Identity inventory"},
+  {"id":"context_adapter","label":"Context adapter"},
+  {"id":"model_data_promotion","label":"Model and data promotion"}
+]

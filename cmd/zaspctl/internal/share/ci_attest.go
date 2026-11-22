@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 	"io"
 	"net/http"
 	"net/url"
@@ -69,8 +70,9 @@ func attest(args []string, stdout, stderr io.Writer, transport http.RoundTripper
 	rev := flags.String("commit", "", "full immutable Git commit")
 	dir := flags.String("repo-dir", ".", "local Git clone")
 	bundle := flags.String("bundle", "", "skill directory relative to Git root")
+	ruleset := flags.String("ruleset", addonevidence.CurrentRuleset, "ruleset used for this receipt")
 	keyPath := flags.String("key-file", "", "private Ed25519 PKCS8 PEM file")
-	if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || !productID.MatchString(*env) || !productID.MatchString(*credential) || !ciRepoSlug.MatchString(*repo) || !ciCommitID.MatchString(*rev) || *bundle == "" || *keyPath == "" {
+	if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || addonevidence.Rules(*ruleset) == nil || !productID.MatchString(*env) || !productID.MatchString(*credential) || !ciRepoSlug.MatchString(*repo) || !ciCommitID.MatchString(*rev) || *bundle == "" || *keyPath == "" {
 		fmt.Fprintln(stderr, "Use a registered Environment, credential, repository, full commit, bundle and signing key.")
 		return 2
 	}
@@ -88,7 +90,7 @@ func attest(args []string, stdout, stderr io.Writer, transport http.RoundTripper
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	report, err := scanCommit(ctx, *dir, *bundle, *rev)
+	report, err := scanCommitWithRuleset(ctx, *dir, *bundle, *rev, *ruleset)
 	if err != nil || report.ManifestDigest != *r.ManifestDigest {
 		fmt.Fprintln(stderr, "The immutable Git bundle is incomplete or differs from the submitted manifest.")
 		return 3
@@ -106,7 +108,7 @@ func attest(args []string, stdout, stderr io.Writer, transport http.RoundTripper
 		counts[f.RuleID]++
 	}
 	fields := []string{"zasp-ci-manifest-attestation.v1", *env, *credential, r.ScanID, kid, *repo, *rev, report.ManifestDigest, report.Ruleset}
-	for _, rule := range rules {
+	for _, rule := range addonevidence.Rules(report.Ruleset) {
 		if counts[rule] > 0 {
 			fields = append(fields, rule+"="+strconv.Itoa(counts[rule]))
 		}

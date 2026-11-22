@@ -127,9 +127,24 @@ function decodePartition(row: unknown): EndpointPartitionSummary {
     confirmed_installations: boundedRows(r.confirmed_installations, confirmed ?? 0, 12, decodeInstallation),
   };
 }
+export const endpointAdapterLabels = {
+  unknown: "Unknown",
+  macos_claude_ticket: "macOS · Claude Code ticket hook",
+  linux_claude_ticket_test: "Linux · ticket hook test adapter",
+  windows_inventory: "Windows · inventory only",
+  macos_claude_pretool_v2: "macOS · Claude Code pre-tool hook",
+  macos_codex_pretool_v2: "macOS · Codex pre-tool hook",
+  windows_claude_pretool_v2: "Windows · Claude Code pre-tool hook",
+  linux_claude_pretool_v2_test: "Linux · Claude Code pre-tool test adapter",
+} as const;
+const receiptCode = /^[a-z][a-z0-9._-]{0,63}$/;
 function decodeObservation(row: unknown): EndpointObservationDetail {
   const r = obj(row);
   if (
+    (r.adapter !== undefined && (typeof r.adapter !== "string" || !Object.hasOwn(endpointAdapterLabels,r.adapter))) ||
+    (r.reason_code !== undefined && (typeof r.reason_code !== "string" || !receiptCode.test(r.reason_code))) ||
+    (r.rule_id !== undefined && (typeof r.rule_id !== "string" || r.rule_id !== "" && !receiptCode.test(r.rule_id))) ||
+    (r.tool_class !== undefined && r.tool_class !== "mcp" && r.tool_class !== "file" && r.tool_class !== "shell" && r.tool_class !== "web" && r.tool_class !== "other") ||
     typeof r.observed_at !== "string" ||
     !Number.isFinite(Date.parse(r.observed_at)) ||
     (r.mode !== "" && r.mode !== "monitor" && r.mode !== "enforce") ||
@@ -147,6 +162,10 @@ function decodeObservation(row: unknown): EndpointObservationDetail {
   )
     return invalid();
   return {
+    ...(typeof r.adapter === "string" && { adapter:r.adapter }),
+    ...(typeof r.reason_code === "string" && { reason_code:r.reason_code }),
+    ...(typeof r.rule_id === "string" && { rule_id:r.rule_id }),
+    ...(r.tool_class !== undefined && { tool_class:r.tool_class }),
     action_id: digest(r.action_id),
     session_ref: digest(r.session_ref),
     credential_generation: n(r.credential_generation, 1),
@@ -170,17 +189,14 @@ export function decodeDetail(data: unknown, id: string): EndpointDetail {
     partitions = n(r.inventory_partitions),
     observations = n(r.observation_count);
   if (
-    r.reported_adapter !== "unknown" &&
-    r.reported_adapter !== "macos_claude_ticket" &&
-    r.reported_adapter !== "linux_claude_ticket_test" &&
-    r.reported_adapter !== "windows_inventory"
+    typeof r.reported_adapter !== "string" || !Object.hasOwn(endpointAdapterLabels,r.reported_adapter)
   )
     return invalid();
   return {
     ...decodeDevice(data, id),
     inventory_partitions: partitions,
     observation_count: observations,
-    reported_adapter: r.reported_adapter,
+    reported_adapter: r.reported_adapter as keyof typeof endpointAdapterLabels,
     partition_summaries: boundedRows(r.partition_summaries, partitions, 8, decodePartition),
     recent_observations: boundedRows(r.recent_observations, observations, 20, decodeObservation),
   };

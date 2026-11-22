@@ -91,6 +91,8 @@ func (h *endpointFleetHandler) admin(r *http.Request, op RoutedOperation, i Requ
 		return nil, ErrRepositoryOperation
 	}
 	switch op.OperationID {
+	case "getEndpointPolicyCohort", "updateEndpointPolicyCohort":
+		return h.pretoolCohort(r, op, i)
 	case "listEndpointDevices":
 		query, ok := exactWorkflowQuery(r.URL.RawQuery, map[string]int{"after_id": 128, "limit": 3})
 		if !ok {
@@ -150,7 +152,13 @@ func (h *endpointFleetHandler) admin(r *http.Request, op RoutedOperation, i Requ
 			}
 		case "publishEndpointPolicy":
 			var signed endpointprotocol.Signed
-			if decodeProductionJSON(r, &signed) != nil {
+			// A 32 KiB signed V2 payload expands to roughly 44 KiB in
+			// base64. Bound the complete envelope, including trailing bytes.
+			if r.Body == nil || r.Header.Get("Content-Type") != "application/json" {
+				return nil, ErrRepositoryOperation
+			}
+			envelope, readErr := io.ReadAll(io.LimitReader(r.Body, (48<<10)+1))
+			if readErr != nil || len(envelope) > 48<<10 || !endpointprotocol.StrictPolicyJSON(envelope, &signed) {
 				return nil, ErrRepositoryOperation
 			}
 			keysRaw, err := h.database.QueryJSON(r.Context(), endpointAdminSQL, o, ws, e, a, op.OperationID, id, key, revision, `{"inspect":true}`)
@@ -161,11 +169,15 @@ func (h *endpointFleetHandler) admin(r *http.Request, op RoutedOperation, i Requ
 			if json.Unmarshal(keysRaw, &keys) != nil || keys.Generation == 0 {
 				return nil, ErrRepositoryNotFound
 			}
-			policy, ok := signed.PolicyFor(keys.PolicyKey, endpointprotocol.Binding{Organization: o, Workspace: ws, Environment: e, Device: id, Generation: keys.Generation}, h.clock())
-			if !ok {
+			binding := endpointprotocol.Binding{Organization: o, Workspace: ws, Environment: e, Device: id, Generation: keys.Generation}
+			now := h.clock()
+			if policy, ok := signed.PolicyFor(keys.PolicyKey, binding, now); ok {
+				payload = map[string]any{"bundle": signed, "policy_revision": policy.Revision, "expires_at": policy.ExpiresAt, "generation": keys.Generation}
+			} else if p, ok := signed.PolicyV2For(keys.PolicyKey, binding, now); ok {
+				payload = map[string]any{"bundle": signed, "policy_revision": p.Revision, "expires_at": p.ExpiresAt, "generation": keys.Generation, "pretool_policy_template": map[string]any{"mode": p.Mode, "failure_mode": p.FailureMode, "rules": p.Rules}}
+			} else {
 				return nil, ErrRepositoryOperation
 			}
-			payload = map[string]any{"bundle": signed, "policy_revision": policy.Revision, "expires_at": policy.ExpiresAt, "generation": keys.Generation}
 		}
 	default:
 		return nil, ErrRepositoryAuthorization
@@ -237,13 +249,15 @@ func (h *endpointFleetHandler) machine(r *http.Request, op RoutedOperation, i Re
 		if !endpointprotocol.Strict(body, &batch) || len(batch.Receipts) == 0 || len(batch.Receipts) > 16 {
 			return nil, ErrRepositoryOperation
 		}
-		items := make([]endpointprotocol.Observation, 0, len(batch.Receipts))
+		items := make([]any, 0, len(batch.Receipts))
 		for _, s := range batch.Receipts {
-			obs, ok := s.ObservationFor(keys.DeviceKey, p.Binding, h.clock())
-			if !ok {
+			if obs, ok := s.ObservationFor(keys.DeviceKey, p.Binding, h.clock()); ok {
+				items = append(items, obs)
+			} else if obs, ok := s.ObservationV2For(keys.DeviceKey, p.Binding, h.clock()); ok {
+				items = append(items, obs)
+			} else {
 				return nil, ErrRepositoryOperation
 			}
-			items = append(items, obs)
 		}
 		input = items
 	default:

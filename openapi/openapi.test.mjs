@@ -65,6 +65,12 @@ function verifyDocument(value, rawText) {
 
   assertKeys(value.components, ["securitySchemes", "headers", "parameters", "schemas", "responses"], "components");
   assert.deepEqual(value.components.securitySchemes, {
+    ClaudeWebhookSignature: {
+      type: "apiKey",
+      in: "header",
+      name: "webhook-signature",
+      description: "Standard Webhooks v1 HMAC-SHA256 over webhook-id, webhook-timestamp and the exact raw request body, joined by periods.",
+    },
     BrowserSession: {
       type: "apiKey",
       in: "cookie",
@@ -285,6 +291,23 @@ before(async () => {
 describe("M1-23 strict OpenAPI root", () => {
   it("defines the exact self-contained OpenAPI, auth, pagination, and error boundary", () => {
     verifyDocument(document, documentText);
+  });
+
+  it("binds provider signatures only to the dedicated Claude callback", () => {
+    const path = "/api/v1/runtime/provider-hooks/claude-enterprise/{integrationId}";
+    const hook = document.paths[path].post;
+    assert.equal(hook.operationId, "evaluateClaudeEnterpriseHook");
+    assert.deepEqual(hook.security, [{ ClaudeWebhookSignature: [] }]);
+    // Fern shares status-specific exceptions across SDK methods.
+    for (const code of ["401", "409", "413", "422"]) {
+      assert.equal(hook.responses[code].$ref, "#/components/responses/ProductErrorResponse");
+    }
+    assert.deepEqual(hook.parameters.map(({ name, in: location, required }) => [name, location, required]), [
+      ["integrationId", "path", true], ["webhook-id", "header", true], ["webhook-timestamp", "header", true],
+    ]);
+    for (const [url, methods] of Object.entries(document.paths)) {
+      if (url !== path) assert.equal(JSON.stringify(methods).includes("ClaudeWebhookSignature"), false, url);
+    }
   });
 
   it("uses only the exact pinned local linter command and justified rule exception", () => {
@@ -734,7 +757,8 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 235);
+    assert.equal(operations.size, 241);
+    for (const operation of ["listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence"]) assert.ok(operations.has(operation));
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }

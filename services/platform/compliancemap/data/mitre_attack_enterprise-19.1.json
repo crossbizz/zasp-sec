@@ -1,0 +1,17 @@
+{
+  "framework": "mitre_attack_enterprise",
+  "edition": "19.1",
+  "source_url": "https://raw.githubusercontent.com/mitre/cti/68d2992ea01249fc72e966f569a0d0b663d98581/enterprise-attack/attack-pattern/attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830.json",
+  "source_digest": "sha256:ce26f71840ec8002858a8f2f2db087c2b25ea73c83e6960521e63539126036b9",
+  "digest_basis": "upstream_bytes",
+  "license": "MITRE ATT&CK Terms of Use",
+  "attribution": "© 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation.",
+  "entries": [
+    {
+      "id": "T1059",
+      "title": "Command and Scripting Interpreter",
+      "kind": "technique",
+      "identity": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830"
+    }
+  ]
+}

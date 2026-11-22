@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 const platforms = new Map([
   ["zaspctl-linux-amd64", ["linux", "amd64"]],
   ["zaspctl-darwin-arm64", ["darwin", "arm64"]],
+  ["zaspctl-darwin-amd64", ["darwin", "amd64"]],
   ["zaspctl-windows-amd64.exe", ["windows", "amd64"]],
 ]);
 const pinPath = "app/features/tools/cli-release-pin.json";

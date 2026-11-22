@@ -321,7 +321,7 @@ func (a *OpenFGAAuthorizer) missingTarget(ctx context.Context, identity RequestI
 // source/export contract additionally requires view and view_audit independently.
 func currentRequiredPermissions(operation, primary string) []string {
 	switch operation {
-	case "listComplianceControls", "listComplianceEvidence", "getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport":
+	case "listComplianceControls", "listComplianceEvidence", "getComplianceEvidence", "listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport":
 		return []string{"view", "view_audit", "view_compliance"}
 	default:
 		return []string{primary}

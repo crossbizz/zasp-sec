@@ -118,6 +118,12 @@ func (s *State) Admit(c Config, seed, report []byte) error {
 }
 
 func Sync(ctx context.Context, client *http.Client, c Config, key ed25519.PrivateKey, token string, s State, save func(State) error) error {
+	return SyncWithHeartbeat(ctx, client, c, key, token, s, save, nil)
+}
+
+// SyncWithHeartbeat performs one enrollment and one truthful heartbeat per sync.
+// The optional reporter derives health from the installed, authenticated broker.
+func SyncWithHeartbeat(ctx context.Context, client *http.Client, c Config, key ed25519.PrivateKey, token string, s State, save func(State) error, report func() endpointprotocol.Heartbeat) error {
 	if !c.Valid() || s.Binding != c.Binding || s.Scope != c.Scope || s.AssignedSID != c.AssignedSID || len(key) != ed25519.PrivateKeySize || len(token) < 12 || len(token) > 4096 || strings.ContainsAny(token, " \r\n\t") {
 		return ErrInvalid
 	}
@@ -139,7 +145,14 @@ func Sync(ctx context.Context, client *http.Client, c Config, key ed25519.Privat
 	var ack struct {
 		Recorded bool `json:"recorded"`
 	}
-	if err := send("recordEndpointHeartbeat", base+"/heartbeat", endpointprotocol.Heartbeat{Adapter: "windows_inventory", PolicyStatus: "policy_unavailable"}, &ack); err != nil {
+	beat := endpointprotocol.Heartbeat{Adapter: "windows_inventory", PolicyStatus: "policy_unavailable"}
+	if report != nil {
+		beat = report()
+		if !beat.Valid() {
+			return ErrInvalid
+		}
+	}
+	if err := send("recordEndpointHeartbeat", base+"/heartbeat", beat, &ack); err != nil {
 		return err
 	}
 	if !ack.Recorded {

@@ -28,6 +28,7 @@ if ($Action -eq 'Detect') {
  exit 1
 }
 if ($Action -eq 'Uninstall') {
+ if ((Get-ScheduledTask -TaskName 'Zasp Claude Pretool Broker' -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath (Join-Path $root 'pretool.json'))) { throw 'Remove the optional pre-tool assignment first.' }
  $tasks=@('Zasp Inventory User Scan','Zasp Inventory Device Sync')
  if (!(Test-Path -LiteralPath $exe)) {
   foreach ($task in $tasks) { if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) { throw 'A scheduled task still needs controlled cleanup.' } }
@@ -76,12 +77,22 @@ Set-Acl -LiteralPath $registryPath -AclObject $registryAcl
 $fileAcl.SetSecurityDescriptorSddlForm("O:SYG:SYD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x100002;;;$EmployeeSID)")
 Set-Acl -LiteralPath $report -AclObject $fileAcl
 if (!(Valid-Release $exe)) {
+ $broker=Get-ScheduledTask -TaskName 'Zasp Claude Pretool Broker' -ErrorAction SilentlyContinue
+ $resume=$broker -and $broker.State -eq 'Running'
+ if ($resume) {
+  Stop-ScheduledTask -TaskName 'Zasp Claude Pretool Broker'
+  $until=(Get-Date).AddSeconds(15)
+  while ((Get-ScheduledTask -TaskName 'Zasp Claude Pretool Broker').State -eq 'Running' -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 200 }
+ }
  $tmp=Join-Path $root ([guid]::NewGuid().ToString()+'.tmp')
  try {
   [IO.File]::Copy($src,$tmp,$false)
   if (!(Valid-Release $tmp)) { throw 'Staged executable verification failed.' }
   if (Test-Path -LiteralPath $exe) { [IO.File]::Replace($tmp,$exe,$null) } else { [IO.File]::Move($tmp,$exe) }
- } finally { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp } }
+ } finally {
+  if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp }
+  if ($resume) { Start-ScheduledTask -TaskName 'Zasp Claude Pretool Broker' }
+ }
 }
 $collector=Join-Path $root 'Collect-Inventory.ps1'
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Collect-Inventory.ps1') -Destination $collector -Force

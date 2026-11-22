@@ -24,7 +24,9 @@ describe("AI frameworks on the compliance contract", () => {
   it("names the two product frameworks and the six AI frameworks", () => {
     assert.deepEqual(schemas.ComplianceFrameworkID.enum, frameworks);
     for (const parameter of ["ComplianceFramework", "ComplianceControlFilter"]) assert.match(document.components.parameters[parameter].schema.$ref, /Compliance(FrameworkID|ControlID)$/);
-    assert.deepEqual(schemas.ComplianceExportInput.properties.framework, { $ref: "#/components/schemas/ComplianceFrameworkID" });
+    assert.deepEqual(schemas.ComplianceExportInput.properties.framework.anyOf, [
+      { $ref: "#/components/schemas/ComplianceFrameworkID" }, { $ref: "#/components/schemas/CoverageFramework" },
+    ]);
     assert.deepEqual(schemas.ComplianceExportInput.properties.control_id, { $ref: "#/components/schemas/ComplianceControlID" });
   });
   it("accepts product controls and the frameworks' own control identifiers", () => {
@@ -45,8 +47,8 @@ describe("AI frameworks on the compliance contract", () => {
 describe("retained agent evidence pack on the export request", () => {
   const validate = compile("ComplianceExportInput");
   it("names a framework and control, or one agent alone", () => {
-    for (const accepted of [{}, { framework: "eu_ai_act" }, { framework: "nist_ai_rmf_1_0", control_id: "GOVERN 1.6" }, { agent_id: agent }]) assert.equal(validate(accepted), true, JSON.stringify(accepted));
-    for (const refused of [{ agent_id: "agent" }, { agent_id: agent, framework: "hipaa" }, { agent_id: agent, control_id: "ASI03" }, { agent: agent }]) assert.equal(validate(refused), false, JSON.stringify(refused));
+    for (const accepted of [{}, { framework: "owasp_llm_top10", edition: "2026", upstream_id: "LLM03" }, { framework: "eu_ai_act" }, { framework: "nist_ai_rmf_1_0", control_id: "GOVERN 1.6" }, { agent_id: agent }]) assert.equal(validate(accepted), true, JSON.stringify(accepted));
+    for (const refused of [{ edition: "2026" }, { upstream_id: "LLM01" }, { edition: "2026", framework: "owasp_llm_top10", agent_id: agent }, { agent_id: "agent" }, { agent_id: agent, framework: "hipaa" }, { agent_id: agent, control_id: "ASI03" }, { agent: agent }]) assert.equal(validate(refused), false, JSON.stringify(refused));
   });
 });
 

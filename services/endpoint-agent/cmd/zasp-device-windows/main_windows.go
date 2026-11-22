@@ -135,11 +135,14 @@ func loadSecret(root, name string) ([]byte, error) {
 	return dpapi(raw, name, false)
 }
 func storeSecret(root, name string, raw []byte) error {
+	return storeSecretIn(root, root, name, raw)
+}
+func storeSecretIn(root, staging, name string, raw []byte) error {
 	data, err := dpapi(raw, name, true)
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(root, ".inventory-*")
+	f, err := os.CreateTemp(staging, ".inventory-*")
 	if err != nil {
 		return err
 	}
@@ -156,6 +159,9 @@ func storeSecret(root, name string, raw []byte) error {
 	return os.Rename(f.Name(), filepath.Join(root, name))
 }
 func run(command string, stdin io.Reader, stdout io.Writer) error {
+	if command == "claude-pretool" || command == "claude-pretool-open" {
+		return pipeHook(pipeName, command == "claude-pretool", stdin, stdout)
+	}
 	if !system() {
 		return errors.New("LocalSystem context required")
 	}
@@ -169,6 +175,9 @@ func run(command string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	defer dir.Close()
+	if command == "pretool-broker" {
+		return startBroker(root)
+	}
 	lock, err := os.OpenFile(filepath.Join(root, "inventory.lock"), os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return err
@@ -226,7 +235,12 @@ func run(command string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	if command == "status" {
-		return json.NewEncoder(stdout).Encode(map[string]any{"coverage": "inventory_only", "pending_snapshots": len(s.Pending), "last_contact": s.LastContact, "device_id": c.Binding.Device})
+		coverage := "inventory_only"
+		h := readBrokerHealth(root, c, key)
+		if h != nil {
+			coverage = "inventory_and_managed_pretool"
+		}
+		return json.NewEncoder(stdout).Encode(map[string]any{"coverage": coverage, "windows_pretool": h, "pending_snapshots": len(s.Pending), "last_contact": s.LastContact, "device_id": c.Binding.Device})
 	}
 	if command != "sync" {
 		return invalid
@@ -259,8 +273,20 @@ func run(command string, stdin io.Reader, stdout io.Writer) error {
 	defer cancel()
 	client := devicehttp.New()
 	defer client.CloseIdleConnections()
-	err = windowsinventory.Sync(ctx, client, c, key, string(token), s, save)
-	if statusErr := publishStatus(s, err, reportErr); err == nil && statusErr != nil {
+	var pretoolErr error
+	var h *brokerHealth
+	err = windowsinventory.SyncWithHeartbeat(ctx, client, c, key, string(token), s, save, func() endpointprotocol.Heartbeat {
+		pretoolErr = syncPretool(ctx, client, root, c, key, string(token))
+		h = readBrokerHealth(root, c, key)
+		return windowsBeat(h)
+	})
+	if err != nil && h == nil {
+		h = readBrokerHealth(root, c, key)
+	}
+	if err == nil {
+		err = pretoolErr
+	}
+	if statusErr := publishStatus(s, h, err, reportErr); err == nil && statusErr != nil {
 		return statusErr
 	}
 	if err != nil {
@@ -271,7 +297,7 @@ func run(command string, stdin io.Reader, stdout io.Writer) error {
 
 // The installed HKLM key grants only the assigned SID read access. The CLI
 // opens this fixed 64-bit registry view without running any external program.
-func publishStatus(s windowsinventory.State, syncErr, reportErr error) error {
+func publishStatus(s windowsinventory.State, h *brokerHealth, syncErr, reportErr error) error {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Zasp Inventory Device`, registry.SET_VALUE|registry.WOW64_64KEY)
 	if err != nil {
 		return err
@@ -287,7 +313,7 @@ func publishStatus(s windowsinventory.State, syncErr, reportErr error) error {
 	if !s.LastContact.IsZero() {
 		last = &s.LastContact
 	}
-	raw, err := json.Marshal(map[string]any{"windows_inventory": map[string]any{"checked_at": time.Now().UTC(), "last_contact": last, "pending_snapshots": len(s.Pending), "state": state}})
+	raw, err := json.Marshal(map[string]any{"windows_pretool": h, "windows_inventory": map[string]any{"checked_at": time.Now().UTC(), "last_contact": last, "pending_snapshots": len(s.Pending), "state": state}})
 	if err != nil {
 		return err
 	}
@@ -295,11 +321,11 @@ func publishStatus(s windowsinventory.State, syncErr, reportErr error) error {
 }
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: zasp-device-windows init-device-key|provision-token|sync|status")
+		fmt.Fprintln(os.Stderr, "Usage: zasp-device-windows init-device-key|provision-token|sync|status|pretool-broker|claude-pretool|claude-pretool-open")
 		os.Exit(2)
 	}
 	if err := run(os.Args[1], os.Stdin, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "Managed inventory unsuccessful:", err)
+		fmt.Fprintln(os.Stderr, "Managed endpoint operation unsuccessful:", err)
 		os.Exit(1)
 	}
 }

@@ -86,7 +86,7 @@ func (h *PolicyPublicHTTPHandler) suggestions(w http.ResponseWriter, r *http.Req
 			return
 		}
 		actions, truncated, err := history.SearchReplayActions(r.Context(), scope, "tool", window)
-		if err != nil || len(actions) > 100 {
+		if err != nil || len(actions) > policy.MaxReplayEvents {
 			writeProductionError(w, r, ErrRepositoryUnavailable)
 			return
 		}

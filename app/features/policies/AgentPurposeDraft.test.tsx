@@ -43,7 +43,7 @@ describe("purpose-based policy review", () => {
     fireEvent.click(screen.getByRole("button",{name:"Check runtime observations"}));
     fireEvent.click(await screen.findByRole("button",{name:"Review Send tickets"}));
     expect(screen.getByText(evidence)).toBeVisible();
-    expect(screen.getByText(/2 of 8 indexed events/)).toHaveTextContent("More than 100");
+    expect(screen.getByText(/2 of 8 indexed events/)).toHaveTextContent("Additional indexed events");
     expect(save).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button",{name:"Save as inactive draft"}));
     await waitFor(() => expect(save).toHaveBeenCalledWith({...policy,id:proposed.policy_id,name:"Restrict Send tickets (purpose r1)"}));
@@ -76,18 +76,21 @@ describe("purpose-based policy review", () => {
   });
 
   it("pins revision, agent and UTC window and discloses truncated replay and missing telemetry", async () => {
-    const run = vi.fn(async input => ({ matches: 7, would_block: 7, example_session_ids: [id(5)], replay: { policy_revision: input.policy_revision, agent_id: input.agent_id, from: input.from, to: input.to, evaluated: 100, truncated: true, coverage: "indexed_events_only" as const } }));
+    const run = vi.fn(async input => ({ matches: 7, would_block: 7, example_session_ids: [id(5)], replay: { policy_revision: input.policy_revision, agent_id: input.agent_id, from: input.from, to: input.to, evaluated: 5000, examined_count: 5000, eligible_count: 5000, would_block_rate: { tool: 7 / 5000 }, next_window_to: "2026-01-01T20:30:00.000Z", next_before_event_id: id(43), truncated: true, coverage: "indexed_events_only" as const } }));
     const user = userEvent.setup();
     render(<ScopedReplay policy={policy} version={'"3"'} disabled={false} runReplay={run} />);
     fireEvent.change(screen.getByLabelText("Replay from (UTC)"), { target: { value: "2026-01-01T12:00" } });
     fireEvent.change(screen.getByLabelText("Replay to (UTC, exclusive)"), { target: { value: "2026-01-02T12:00" } });
     await user.click(screen.getByRole("button", { name: "Replay revision 3" }));
     await waitFor(() => expect(run).toHaveBeenCalledWith({ schema_version: 2, agent_id: agent, policy_revision: 3, from: "2026-01-01T12:00:00.000Z", to: "2026-01-02T12:00:00.000Z" }));
-    expect(await screen.findByText(/More than 100 actions/)).toBeVisible();
+    expect(await screen.findByText(/Additional indexed actions/)).toBeVisible();
     expect(screen.getByText(/Unreported activity/)).toBeVisible();
+    expect(screen.getByText("Would block 0.1% of eligible tool actions.")).toBeVisible();
+    await user.click(screen.getByRole("button", {name: "Replay remaining actions"}));
+    await waitFor(() => expect(run).toHaveBeenCalledWith({ schema_version: 2, agent_id: agent, policy_revision: 3, from: "2026-01-01T12:00:00.000Z", to: "2026-01-01T20:30:00.000Z", before_event_id: id(43) }));
     fireEvent.change(screen.getByLabelText("Replay from (UTC)"), { target: { value: "2025-01-01T12:00" } });
     await user.click(screen.getByRole("button", { name: "Replay revision 3" }));
     expect(screen.getByRole("alert")).toHaveTextContent("up to 30 days");
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledTimes(2);
   });
 });

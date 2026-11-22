@@ -121,6 +121,16 @@ The session reference comes from an endpoint observation in the selected device,
 
 Open **Matching device installations** on a reviewed version to see devices that reported the same content digest. Each device link opens its scoped fleet record. A partial snapshot can add observed installations. A prior complete match stays visible with its earlier generation until a newer complete snapshot confirms removal. A revoked review and a confirmed removal have separate statuses.
 
+## Read V2 static findings
+
+New scans use `zasp-static.v2`. Process and network checks skip comments and documentation strings in the supported Python, JavaScript/TypeScript, shell and PowerShell syntax. Four additional findings identify an instruction override, a credential read, a remote/decoded interpreter invocation, and an unresolved package launcher or unprotected plaintext MCP endpoint. Review the matching file and suggested fix. The code was observed statically and its execution is unknown. Package hygiene and unevaluated advisory notices are listed independently and do not trigger `--fail-on`.
+
+A saved v1 receipt keeps its original ruleset, counts and review. Use `zaspctl addons scan PATH --local --ruleset zasp-static.v1` to reproduce a prior scan, or add `--ruleset zasp-static.v1` to `zaspctl addons attest` when attesting an old receipt. V1 and V2 reports for matching bytes have separate reviewed identities. [Measured scope and limits](../operations/local-skill-scanner-benchmark.md)
+
+## Inspect a versioned dependency finding
+
+A local `dependency.unpinned` finding identifies the relative declaration file, its SHA-256, the skill manifest digest when complete, the scanner ruleset, the matching condition and the suggested fix. A range such as `^1.2.0` leaves the exact dependency version unresolved. The offline JSON, terminal and HTML reports show the reviewed framework references including OWASP Agentic 2026 ASI04. For a findings-only submission, inspect the dry run and follow the version link returned by the server. An authorized reviewer sees the declared rule and count, the same framework edition, and the exact manifest digest. Package names, file names, file hashes, advisory matches and source stay local. Run `zaspctl frameworks notices` offline to read the bundled catalog licenses and attribution. A later edit has its own version and review.
+
 ## Check an offline advisory catalog
 
 AppSec can provide a reviewed catalog and its SHA-256 through a trusted channel. Each row names one exact package release in npm or PyPI and the advisories known for that release. This lets an employee or CI runner rescan a private project's declared dependencies without sending package names to a registry. A scan with no catalog reports that advisory checks were unevaluated.
@@ -140,3 +150,18 @@ Example catalog with a synthetic advisory and an explicitly evaluated release wi
 ```
 
 The local report includes catalog digest, age, matches and counts of evaluated and unresolved declarations. An absent version, unpinned dependency or catalog older than 30 days yields incomplete advisory coverage and exit 3. A known advisory meeting the explicit failure threshold yields exit 10 on a complete file scan. The findings-only team submission sends static rule counts and the manifest digest. Package names, advisory IDs and the private catalog stay local. Reissue the catalog with a fresh timestamp and checksum after reviewing updated advisory sources.
+
+### Verify a signed snapshot offline
+
+AppSec can distribute a `zasp-advisories.v2` catalog derived from a pinned revision of the GitHub Advisory Database. Configure the reviewer's Ed25519 public key through a separate trusted channel, such as an IT-managed configuration. A catalog and its detached signature can be distributed together. The scanner verifies the exact file bytes against the configured key and records the signer fingerprint, source repository, source revision, catalog digest, generation time and age in the local report.
+
+```sh
+zaspctl addons scan ./skills/ticket-helper --local --json \
+  --advisory-snapshot ./approved-releases.json \
+  --advisory-signature ./approved-releases.sig \
+  --advisory-key /path/to/company-approved-feed-signer.pem
+```
+
+The v2 catalog uses the same `packages` array as v1. Set `schema_version` to `zasp-advisories.v2`, `source` to `https://github.com/github/advisory-database` and `source_revision` to the reviewed 40-character Git commit. Each advisory may include a reviewed `fixed_version` or `withdrawn: true`. A signer can produce the raw detached signature with `openssl pkeyutl -sign -rawin -inkey reviewer-private.pem -in approved-releases.json -out approved-releases.sig`. Keep the private key on the signing host. The public key uses PEM SubjectPublicKeyInfo format.
+
+An exact package declaration can match an entry in that catalog. The report counts unresolved ranges, exact releases missing from the feed, and withdrawn matches separately. Stale snapshots retain their historical matches and display their age. The signature authenticates the reviewer's assertions. Installed bytes, reachability and transitive dependencies require separate observations.

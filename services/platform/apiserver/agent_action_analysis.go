@@ -19,7 +19,24 @@ type analysisTransition struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 }
+
+// Reject explicit null so the stored consent matches the declared wire type.
+type classifierConsent bool
+
+func (c *classifierConsent) UnmarshalJSON(raw []byte) error {
+	switch string(raw) {
+	case "true":
+		*c = true
+	case "false":
+		*c = false
+	default:
+		return ErrRepositoryOperation
+	}
+	return nil
+}
+
 type analysisSettings struct {
+	ClassifierOptIn classifierConsent    `json:"classifier_opt_in,omitempty"`
 	Operations      []string             `json:"allowed_operations"`
 	Classifications []string             `json:"allowed_classifications"`
 	Destinations    []string             `json:"allowed_destinations"`

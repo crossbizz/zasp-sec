@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
@@ -136,7 +137,11 @@ func TestFrozenCorrelationExecutorRequiresConfiguredCandidateAuthority(t *testin
 
 func TestFrozenCorrelationExecutorContinuesAfterConfirmedLeaseRenewal(t *testing.T) {
 	for _, failures := range []int{0, 1, 2} {
-		t.Run(fmt.Sprint("uncertain-responses-", failures), func(t *testing.T) { proveFrozenExecutionRenewal(t, failures) })
+		t.Run(fmt.Sprint("uncertain-responses-", failures), func(t *testing.T) {
+			// Advance the original expiry and renewed heartbeat on one clock,
+			// independent of scheduling delays while the race suite is running.
+			synctest.Test(t, func(t *testing.T) { proveFrozenExecutionRenewal(t, failures) })
+		})
 	}
 }
 

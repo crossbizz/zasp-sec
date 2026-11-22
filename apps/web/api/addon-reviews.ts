@@ -4,7 +4,7 @@ import { APITransportError, requireAPIData, type APIClient } from "./client";
 export const addonID =
   /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const digest = /^sha256:[0-9a-f]{64}$/;
-const rules = [
+const legacyRules = [
   "dependency.unpinned",
   "instruction.hidden_text",
   "mcp.remote_endpoint",
@@ -12,14 +12,25 @@ const rules = [
   "script.network_access",
   "script.shell_execution",
 ];
+const rules = [...legacyRules, "instruction.override", "script.credential_path_access", "script.remote_exec_pipe", "mcp.unpinned_exec"];
 export type ReviewDecision = "approved" | "rejected" | "revoked";
+export type AddonFrameworkEvidence = Readonly<{
+  rule_id: string;
+  rule_version: string;
+  evidence_kind: "static_scan";
+  framework: string;
+  edition: string;
+  upstream_id: string;
+  title: string;
+}>;
 export type AddonVersion = Readonly<{
   id: string;
   manifest_digest: string;
   origin: "local" | "ci" | "private_worker";
   provenance: "reported";
-  ruleset: "zasp-static.v1";
+  ruleset: "zasp-static.v1" | "zasp-static.v2";
   findings: readonly { rule_id: string; count: number }[];
+  framework_evidence?: readonly AddonFrameworkEvidence[];
   review_state: ReviewDecision | "pending";
   revision: number;
 }>;
@@ -47,7 +58,7 @@ export function decodeAddonVersion(
     !digest.test(row.manifest_digest) ||
     row.provenance !== "reported" ||
     (row.origin !== "local" && row.origin !== "ci" && row.origin !== "private_worker") ||
-    row.ruleset !== "zasp-static.v1" ||
+    (row.ruleset !== "zasp-static.v1" && row.ruleset !== "zasp-static.v2") ||
     (row.review_state !== "pending" &&
       row.review_state !== "approved" &&
       row.review_state !== "rejected" &&
@@ -64,7 +75,7 @@ export function decodeAddonVersion(
     const f = record(item);
     if (
       typeof f.rule_id !== "string" ||
-      !rules.includes(f.rule_id) ||
+      !(row.ruleset === "zasp-static.v1" ? legacyRules : rules).includes(f.rule_id) ||
       seen.has(f.rule_id) ||
       typeof f.count !== "number" ||
       !Number.isSafeInteger(f.count) ||
@@ -74,6 +85,25 @@ export function decodeAddonVersion(
     seen.add(f.rule_id);
     return { rule_id: f.rule_id, count: f.count };
   });
+  let frameworkEvidence: AddonFrameworkEvidence[] | undefined;
+  if (row.framework_evidence !== undefined) {
+    if (!Array.isArray(row.framework_evidence) || row.framework_evidence.length > 64) return invalid();
+    const references = new Set<string>();
+    frameworkEvidence = row.framework_evidence.map((item) => {
+      const ref = record(item);
+      if (typeof ref.rule_id !== "string" || !seen.has(ref.rule_id) ||
+          ref.rule_version !== row.ruleset || ref.evidence_kind !== "static_scan" ||
+          typeof ref.framework !== "string" || !/^[a-z0-9_]{1,64}$/.test(ref.framework) ||
+          typeof ref.edition !== "string" || !/^[A-Za-z0-9._-]{1,64}$/.test(ref.edition) ||
+          typeof ref.upstream_id !== "string" || !/^[A-Za-z0-9._:-]{1,64}$/.test(ref.upstream_id) ||
+          typeof ref.title !== "string" || !ref.title.trim() || ref.title.length > 160) return invalid();
+      const key = [ref.rule_id, ref.framework, ref.edition, ref.upstream_id].join("/");
+      if (references.has(key)) return invalid();
+      references.add(key);
+      return { rule_id: ref.rule_id, rule_version: String(ref.rule_version), evidence_kind: "static_scan",
+        framework: ref.framework, edition: ref.edition, upstream_id: ref.upstream_id, title: ref.title };
+    });
+  }
   return {
     id: row.id,
     manifest_digest: row.manifest_digest,
@@ -81,6 +111,7 @@ export function decodeAddonVersion(
     provenance: row.provenance,
     ruleset: row.ruleset,
     findings,
+    ...(frameworkEvidence !== undefined ? { framework_evidence: frameworkEvidence } : {}),
     review_state: row.review_state,
     revision: row.revision,
   };

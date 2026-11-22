@@ -125,6 +125,25 @@ describe("private add-on review", () => {
       }),
     ).toThrow();
   });
+  it("binds static references to the reviewed ruleset and exact version", async () => {
+    const ref = { rule_id: "dependency.unpinned", rule_version: "zasp-static.v1", evidence_kind: "static_scan" as const,
+      framework: "owasp_agentic_top10", edition: "2026", upstream_id: "ASI04", title: "Agentic Supply Chain Vulnerabilities" };
+    const version = { ...row, findings: [{ rule_id: ref.rule_id, count: 2 }], framework_evidence: [ref] };
+    const registry = { ...api(), get: vi.fn(async () => decodeAddonVersion(version, row.id)) };
+    render(<APIProvider><AddonReviews initialID={row.id} api={registry} canReview={false} /></APIProvider>);
+    const refs = await screen.findByRole("list", { name: "Framework references for dependency.unpinned" });
+    expect(refs).toHaveTextContent("ASI04");
+    expect(refs).toHaveTextContent("2026");
+    expect(refs).toHaveTextContent("Static scan");
+    expect(screen.getByText(row.manifest_digest)).toBeVisible();
+    for (const invalid of [
+      { ...ref, rule_version: "unreviewed" }, { ...ref, evidence_kind: "prevention" },
+      { ...ref, rule_id: "script.network_access" },
+    ]) {
+      expect(() => decodeAddonVersion({ ...version, framework_evidence: [invalid] }, row.id)).toThrow();
+    }
+    expect(() => decodeAddonVersion({ ...version, framework_evidence: [ref, ref] })).toThrow();
+  });
   it("binds response identity and rejects unrecognized attribution and decision data", () => {
     expect(decodeAddonVersion(row, row.id)).toEqual(row);
     for (const variant of [

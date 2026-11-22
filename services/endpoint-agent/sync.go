@@ -126,6 +126,9 @@ func (a *remoteAgent) syncOnce(ctx context.Context, mu *sync.Mutex) string {
 	if runtime.GOOS == "darwin" {
 		adapter = "macos_claude_ticket"
 	}
+	if b.adapter != "" && (p.pretool != nil || p.Audience == "") {
+		adapter = b.adapter
+	}
 	health := endpointprotocol.Heartbeat{Adapter: adapter, Revision: p.Revision, PolicyStatus: status, Queued: len(b.store.state.Decisions), Gaps: b.store.state.Gaps}
 	receipts := make([]Signed, 0, 16)
 	ids := map[string]string{}
@@ -195,7 +198,7 @@ func (b *broker) admitRemote(s Signed) error {
 		now = b.store.state.Latest
 	}
 	p, err := s.policy(b.policyKey, b.binding, now)
-	if err != nil || !p.ExpiresAt.After(now) {
+	if err != nil || !p.ExpiresAt.After(now) || p.pretool != nil && !endpointprotocol.PretoolAdapter(b.adapter) {
 		return errInvalid
 	}
 	old, err := b.store.state.Policy.policy(b.policyKey, b.binding, now)

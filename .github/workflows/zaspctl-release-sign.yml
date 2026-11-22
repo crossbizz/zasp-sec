@@ -1,0 +1,120 @@
+name: Sign and stage native zaspctl downloads
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (vMAJOR.MINOR.PATCH)
+        required: true
+        type: string
+permissions: {contents: read}
+jobs:
+  candidates:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    uses: ./.github/workflows/zaspctl-candidates.yml
+  apple:
+    needs: candidates
+    environment: zasp-cli-signing
+    runs-on: [self-hosted, macOS, zasp-apple-signing]
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: candidate-zaspctl-darwin-${{ matrix.arch }}-${{ github.sha }}
+          path: candidate
+      - name: Sign with Developer ID and verify notarization
+        shell: bash
+        env:
+          SIGN_ID: ${{ vars.ZASP_APPLE_SIGN_IDENTITY }}
+          NOTARY_PROFILE: ${{ vars.ZASP_NOTARY_PROFILE }}
+          EXPECTED_TEAM: ${{ vars.ZASP_APPLE_TEAM_ID }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGN_ID" && test -n "$NOTARY_PROFILE"
+          [[ "$EXPECTED_TEAM" =~ ^[A-Z0-9]{10}$ ]]
+          file="candidate/zaspctl-darwin-$ARCH"
+          chmod 755 "$file"
+          codesign --force --sign "$SIGN_ID" --options runtime --timestamp "$file"
+          codesign --verify --strict "$file"
+          codesign --display --verbose=4 "$file" 2>&1 | grep -Fx "TeamIdentifier=$EXPECTED_TEAM"
+          ditto -c -k --keepParent "$file" "$RUNNER_TEMP/zaspctl-$ARCH.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/zaspctl-$ARCH.zip" --keychain-profile "$NOTARY_PROFILE" --wait --output-format json >"$RUNNER_TEMP/notary-$ARCH.json"
+          /usr/bin/python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["status"]=="Accepted"' "$RUNNER_TEMP/notary-$ARCH.json"
+          spctl --assess --type execute "$file"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-zaspctl-darwin-${{ matrix.arch }}
+          path: candidate/zaspctl-darwin-${{ matrix.arch }}
+          if-no-files-found: error
+  windows:
+    needs: candidates
+    environment: zasp-cli-signing
+    runs-on: [self-hosted, Windows, zasp-windows-signing]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: candidate-zaspctl-windows-amd64.exe-${{ github.sha }}
+          path: candidate
+      - name: Sign and verify Authenticode
+        shell: pwsh
+        env:
+          SIGN_THUMB: ${{ vars.ZASP_WINDOWS_SIGN_THUMBPRINT }}
+          TIMESTAMP_URL: ${{ vars.ZASP_WINDOWS_TIMESTAMP_HTTPS_URL }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:SIGN_THUMB -notmatch '^[a-fA-F0-9]{40}$' -or ([uri]$env:TIMESTAMP_URL).Scheme -ne 'https') { throw 'Missing signing configuration' }
+          $file = 'candidate/zaspctl-windows-amd64.exe'
+          signtool sign /sha1 $env:SIGN_THUMB /fd SHA256 /tr $env:TIMESTAMP_URL /td SHA256 $file
+          if ($LASTEXITCODE -ne 0) { throw 'Signing failed' }
+          $proof = Get-AuthenticodeSignature $file
+          if ($proof.Status -ne 'Valid' -or $proof.SignerCertificate.Thumbprint -ne $env:SIGN_THUMB -or $null -eq $proof.TimeStamperCertificate) { throw 'Invalid signature' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-zaspctl-windows-amd64
+          path: candidate/zaspctl-windows-amd64.exe
+          if-no-files-found: error
+  stage:
+    needs: [apple, windows]
+    environment: zasp-cli-signing
+    runs-on: [self-hosted, linux, zasp-release]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: {node-version: 22.23.1}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with: {go-version: 1.26.8, cache: false}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: signed-zaspctl-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/signed-candidates
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: candidate-zaspctl-linux-amd64-${{ github.sha }}
+          path: ${{ runner.temp }}/signed-candidates
+      - name: Seal all four candidates and stage the console pin
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          RELEASE_KEY: ${{ vars.ZASP_CLI_RELEASE_PRIVATE_KEY_FILE }}
+          TRUSTED_PUB: ${{ vars.ZASP_CLI_RELEASE_PUBLIC_KEY_FILE }}
+        run: |
+          set -euo pipefail
+          for asset in linux-amd64 darwin-amd64 darwin-arm64 windows-amd64.exe; do test -s "$RUNNER_TEMP/signed-candidates/zaspctl-$asset"; done
+          bundle=$(mktemp -d "$RUNNER_TEMP/zasp-bundle.XXXXXXXX")
+          node deploy/cli-release/release.mjs seal "$VERSION" "$GITHUB_SHA" "$RELEASE_KEY" "$RUNNER_TEMP/signed-candidates" "$bundle/sealed"
+          node deploy/cli-release/release.mjs verify "$VERSION" "$GITHUB_SHA" "$TRUSTED_PUB" "$bundle/sealed"
+          node deploy/cli-release/release.mjs stage "$VERSION" "$GITHUB_SHA" "$TRUSTED_PUB" "$bundle/sealed" .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: staged-zaspctl-console-${{ github.sha }}
+          path: |
+            public/downloads/zaspctl
+            app/features/tools/cli-release-pin.json
+          if-no-files-found: error

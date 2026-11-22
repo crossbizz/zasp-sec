@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 	"github.com/zasp-ai/zasp-sec/services/platform/redteam"
 )
 
@@ -40,7 +41,7 @@ func TestExecutableTicketControl(t *testing.T) {
 	defer os.RemoveAll(socketDir)
 	socket := filepath.Join(socketDir, "agent.sock")
 	uid := os.Geteuid()
-	cfg := configuration{Binding: f.b.binding, UID: &uid, PolicyKey: f.b.policyKey, PolicyFile: f.b.policyFile, StateDir: dir, Socket: socket, SeedFile: filepath.Join(dir, "key")}
+	cfg := configuration{Adapter: "linux_claude_pretool_v2_test", Binding: f.b.binding, UID: &uid, PolicyKey: f.b.policyKey, PolicyFile: f.b.policyFile, StateDir: dir, Socket: socket, SeedFile: filepath.Join(dir, "key")}
 	if err := os.WriteFile(cfg.SeedFile, []byte(base64.StdEncoding.EncodeToString(f.b.key.Seed())), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -237,6 +238,57 @@ func TestExecutableTicketControl(t *testing.T) {
 		}
 		if exec.CommandContext(ctx, exe, "prove-ticket", "--out", filepath.Join(dir, "misbound"), "--run-id", bundle.Scenario.RunID).Run() == nil {
 			t.Fatal("isolated fixture accepted a product identity")
+		}
+	})
+
+	t.Run("signed_pretool_codex_and_claude_shims", func(t *testing.T) {
+		pre := endpointprotocol.PolicyV2{Audience: endpointprotocol.PolicyAudienceV2, Binding: endpointprotocol.Binding(f.b.binding), Revision: 4, IssuedAt: f.now.Add(-time.Minute), ExpiresAt: f.now.Add(time.Hour), Mode: "enforce", FailureMode: "closed", Rules: []endpointprotocol.PretoolRule{{ID: "private-config", Type: "file_path_policy", Values: []string{"dotenv"}}}}
+		assigned, e := sign(pre, f.signer)
+		if e != nil {
+			t.Fatal(e)
+		}
+		writeJSON(t, f.b.policyFile, assigned)
+		inputs := []struct {
+			entry, tool string
+			args        map[string]string
+		}{
+			{"codex-pre-tool", "apply_patch", map[string]string{"command": "*** Begin Patch\n*** Add File: .env\n+fixture\n*** End Patch"}},
+			{"claude-pre-tool", "Read", map[string]string{"file_path": "~/.env"}},
+		}
+		for _, in := range inputs {
+			c := exec.CommandContext(ctx, exe, in.entry, "--socket", socket, "--on-unavailable", "deny")
+			raw, _ := json.Marshal(map[string]any{"session_id": "v2-shim", "hook_event_name": "PreToolUse", "tool_use_id": in.tool, "cwd": dir, "tool_name": in.tool, "tool_input": in.args})
+			c.Stdin = bytes.NewReader(raw)
+			out, e := c.Output()
+			var reply struct {
+				Hook *permissionResponse `json:"hookSpecificOutput"`
+			}
+			if e != nil || json.Unmarshal(out, &reply) != nil || reply.Hook == nil || reply.Hook.Decision != "deny" || !bytes.Contains(out, []byte("private-config")) {
+				t.Fatalf("%s failed: %s %v", in.entry, out, e)
+			}
+			var reason struct {
+				Action string `json:"action_id"`
+				Rule   string `json:"rule_id"`
+				Rev    int    `json:"policy_revision"`
+				Code   string `json:"reason_code"`
+				Hint   string `json:"next_step_hint"`
+			}
+			if json.Unmarshal([]byte(reply.Hook.Reason), &reason) != nil || !endpointprotocol.Digest.MatchString(reason.Action) || reason.Rule != "private-config" || reason.Rev != 4 || reason.Code != "dotenv" || reason.Hint != "review_endpoint_policy" {
+				t.Fatalf("structured decision missing for %s", in.entry)
+			}
+		}
+		captured, e := call(socket, request{Operation: "export"})
+		if e != nil {
+			t.Fatal(e)
+		}
+		n := 0
+		for _, rec := range captured.Receipts {
+			if o, ok := (endpointprotocol.Signed(rec)).ObservationV2For(f.b.key.Public().(ed25519.PublicKey), pre.Binding, time.Now()); ok && o.RuleID == "private-config" && o.TargetEffect == "unknown" {
+				n++
+			}
+		}
+		if n != 2 {
+			t.Fatalf("verified V2 receipts=%d", n)
 		}
 	})
 

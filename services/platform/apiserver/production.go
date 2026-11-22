@@ -1279,7 +1279,16 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 		if providerHealthy {
 			state = "healthy"
 		}
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}}, nil)
+		items := []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}
+		intent, err := handler.externalIntentFlow(request)
+		if err != nil {
+			writeProductionError(writer, request, err)
+			return true
+		}
+		if intent != nil {
+			items = append(items, intent)
+		}
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": items}, nil)
 	case "getSystemStatus", "listSystemComponents":
 		now := handler.now().UTC().Truncate(time.Second)
 		databaseHealthy := false

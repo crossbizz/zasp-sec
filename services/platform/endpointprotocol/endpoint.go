@@ -99,7 +99,7 @@ type Heartbeat struct {
 
 func (h Heartbeat) Valid() bool {
 	switch h.Adapter {
-	case "", "macos_claude_ticket", "linux_claude_ticket_test":
+	case "", "macos_claude_ticket", "linux_claude_ticket_test", "macos_claude_pretool_v2", "linux_claude_pretool_v2_test", "macos_codex_pretool_v2", "windows_claude_pretool_v2":
 	case "windows_inventory":
 		if h.Revision != 0 || h.PolicyStatus != "policy_unavailable" || h.Queued != 0 || h.Gaps != 0 {
 			return false

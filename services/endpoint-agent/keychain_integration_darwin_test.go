@@ -10,10 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -89,7 +91,7 @@ func TestDisposableMacKeychainTicketHook(t *testing.T) {
 	}
 	socket := filepath.Join(socketDir, "device.sock")
 	allowed := int(uid)
-	cfg := configuration{Binding: f.b.binding, UID: &allowed, PolicyKey: f.b.policyKey, PolicyFile: f.b.policyFile, StateDir: f.b.store.dir, Socket: socket, KeychainAccount: account}
+	cfg := configuration{Adapter: "macos_claude_pretool_v2", Binding: f.b.binding, UID: &allowed, PolicyKey: f.b.policyKey, PolicyFile: f.b.policyFile, StateDir: f.b.store.dir, Socket: socket, KeychainAccount: account}
 	// newFixture provisioned encrypted state using its own Linux-test seed;
 	// this fresh state directory belongs to the real System Keychain identity.
 	cfg.StateDir = filepath.Join(f.b.store.dir, "native-state")
@@ -148,6 +150,44 @@ func TestDisposableMacKeychainTicketHook(t *testing.T) {
 	for _, r := range export.Receipts {
 		if !ed25519.Verify(key, r.Payload, r.Signature) {
 			t.Fatal("receipt signer differs from System Keychain registration")
+		}
+	}
+	// Upgrade this enrolled Mac in place and invoke both shipping shims as
+	// the managed employee. Both continue to use the same System Keychain key.
+	pre := endpointprotocol.PolicyV2{Audience: endpointprotocol.PolicyAudienceV2, Binding: endpointprotocol.Binding(f.b.binding), Revision: 2, IssuedAt: f.now.Add(-time.Minute), ExpiresAt: f.now.Add(time.Hour), Mode: "enforce", FailureMode: "closed", Rules: []endpointprotocol.PretoolRule{{ID: "native-files", Type: "file_path_policy", Values: []string{"dotenv"}}}}
+	assigned, err := sign(pre, f.signer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJSON(t, f.b.policyFile, assigned)
+	for _, test := range []struct {
+		entry, name string
+		input       map[string]string
+		adapter     string
+	}{
+		{"claude-pre-tool", "Read", map[string]string{"file_path": "~/.env"}, "macos_claude_pretool_v2"},
+		{"codex-pre-tool", "apply_patch", map[string]string{"command": "*** Begin Patch\n*** Add File: .env\n+fixture\n*** End Patch"}, "macos_codex_pretool_v2"},
+	} {
+		event, _ := json.Marshal(map[string]any{"hook_event_name": "PreToolUse", "session_id": "native", "tool_use_id": "shared-call", "tool_name": test.name, "tool_input": test.input, "cwd": "/tmp"})
+		raw, err := user(event, test.entry, "--on-unavailable", "deny")
+		var response struct {
+			Output *permissionResponse `json:"hookSpecificOutput"`
+		}
+		if err != nil || json.Unmarshal(raw, &response) != nil || response.Output == nil || !strings.Contains(response.Output.Reason, "native-files") {
+			t.Fatalf("native v2 decision missing for %s", test.entry)
+		}
+		export, err = call(socket, request{Operation: "export"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, rec := range export.Receipts {
+			if obs, ok := (endpointprotocol.Signed(rec)).ObservationV2For(key, pre.Binding, time.Now()); ok && obs.Adapter == test.adapter && obs.RuleID == "native-files" && obs.Verdict == "deny" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("no authentic native v2 receipt for %s", test.entry)
 		}
 	}
 }

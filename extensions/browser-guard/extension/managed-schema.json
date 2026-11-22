@@ -25,6 +25,17 @@
     "CentralReportingEnabled": {
       "type": "boolean",
       "description": "Allow this profile to enroll separately for daily origin reporting to the packaged control plane."
+    },
+    "UploadBlockingEnabled": {
+      "type": "boolean",
+      "description": "Apply upload controls to explicitly selected supported routes in this managed profile. Defaults to false."
+    },
+    "UploadBlockingRoutes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Exact HTTPS file-upload endpoints for the enabled origins, up to eight. No wildcards or query strings."
     }
   }
 }

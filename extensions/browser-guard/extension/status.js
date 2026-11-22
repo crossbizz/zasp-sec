@@ -37,6 +37,12 @@ async function show(input = { kind: "local-status" }) {
   } else document.getElementById("central-state").textContent = "Collection stays in this browser profile.";
 
   document.getElementById("status").textContent = statuses[policy.status];
+  const uploads = result.uploads;
+  document.getElementById("uploads").textContent = uploads?.status === "active"
+    ? uploads.count + (uploads.count === 1 ? " exact upload route active" : " exact upload routes active") + " in this browser profile."
+    : uploads?.status === "invalid" ? "No upload routes enabled. Check the managed route list."
+    : uploads?.status === "unavailable" ? "Upload rule state unavailable. Recheck the managed profile."
+    : "Upload blocking disabled.";
   list("origins", policy.origins, "None");
   document.getElementById("retention").textContent = policy.status === "enabled"
     ? "Retention: " + policy.retentionDays + " UTC calendar days." : "";

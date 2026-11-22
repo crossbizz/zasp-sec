@@ -30,7 +30,31 @@ func (v *inventoryHealth) valid(now time.Time) bool {
 	return v != nil && v.Pending >= 0 && v.Pending <= 256 && !v.CheckedAt.IsZero() && !v.CheckedAt.After(now.Add(time.Minute)) && (v.LastContact == nil || !v.LastContact.After(v.CheckedAt.Add(time.Minute))) && slices.Contains([]string{"connected", "sync_unavailable", "scan_unavailable"}, v.State)
 }
 
+type windowsPretool struct {
+	Broker       string     `json:"broker"`
+	PolicyStatus string     `json:"policy_status"`
+	Revision     uint64     `json:"policy_revision"`
+	Mode         string     `json:"mode,omitempty"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	Queued       int        `json:"queued_receipts"`
+	Gaps         uint64     `json:"dropped_receipts"`
+}
+
+func (b *windowsPretool) valid() bool {
+	if b == nil || !slices.Contains([]string{"responding", "unavailable"}, b.Broker) || b.Queued < 0 || b.Queued > 256 || b.Gaps > 1<<53 || b.Revision > 1<<53 {
+		return false
+	}
+	switch b.PolicyStatus {
+	case "verified_cache", "policy_expired":
+		return b.Broker == "responding" && b.Revision > 0 && slices.Contains([]string{"monitor", "enforce"}, b.Mode) && b.ExpiresAt != nil && !b.ExpiresAt.IsZero()
+	case "policy_unavailable", "state_unavailable":
+		return b.Revision == 0 && b.Mode == "" && b.ExpiresAt == nil
+	}
+	return false
+}
+
 type result struct {
+	Broker    *windowsPretool  `json:"pretool,omitempty"`
 	Version   string           `json:"schema_version"`
 	Status    string           `json:"status"`
 	Coverage  string           `json:"coverage"`
@@ -56,6 +80,7 @@ func inspect(args []string, out, diag io.Writer, query func() ([]byte, error)) i
 	r := result{Version: "zaspctl.device.v1", Status: "partial", Coverage: "local_unavailable"}
 	raw, err := query()
 	var reply struct {
+		Broker    *windowsPretool  `json:"windows_pretool"`
 		Status    *health          `json:"status"`
 		Inventory *inventoryHealth `json:"windows_inventory"`
 	}
@@ -68,6 +93,22 @@ func inspect(args []string, out, diag io.Writer, query func() ([]byte, error)) i
 			r.Status = "complete"
 		} else {
 			r.Next = []string{"Ask IT to check the assigned-user scan and device sync tasks, then retry after the next five-minute collection."}
+		}
+		if reply.Broker != nil {
+			r.Coverage = "windows_inventory_and_managed_pretool"
+			if !reply.Broker.valid() {
+				r.Status = "partial"
+				r.Next = append(r.Next, "Windows broker status is invalid. Ask IT to check the managed installation.")
+			} else {
+				r.Broker = reply.Broker
+				if r.Broker.PolicyStatus == "verified_cache" && !r.Broker.ExpiresAt.After(now) {
+					r.Broker.PolicyStatus = "policy_expired"
+				}
+				if r.Broker.PolicyStatus != "verified_cache" || r.Broker.Gaps > 0 || r.Broker.Queued > 0 {
+					r.Status = "partial"
+					r.Next = append(r.Next, "Ask IT to check the broker, signed policy and queued receipts.")
+				}
+			}
 		}
 	} else if decoded && reply.Inventory == nil && valid(reply.Status) {
 		r.Local = reply.Status
@@ -98,7 +139,14 @@ func inspect(args []string, out, diag io.Writer, query func() ([]byte, error)) i
 			if r.Inventory.LastContact != nil {
 				last = r.Inventory.LastContact.UTC().Format(time.RFC3339)
 			}
-			_, err = fmt.Fprintf(out, "Windows inventory only. Last confirmed device contact: %s. Pending snapshots: %d.\n", last, r.Inventory.Pending)
+			label := "Windows inventory only."
+			if r.Coverage == "windows_inventory_and_managed_pretool" {
+				label = "Windows inventory and managed Claude pre-tool broker."
+			}
+			_, err = fmt.Fprintf(out, "%s Last confirmed device contact: %s. Pending snapshots: %d.\n", label, last, r.Inventory.Pending)
+			if err == nil && r.Broker != nil {
+				_, err = fmt.Fprintf(out, "Broker at last sync: %s. Policy: %s (revision %d, mode %s). Queued receipts: %d. Dropped: %d.\n", r.Broker.Broker, r.Broker.PolicyStatus, r.Broker.Revision, r.Broker.Mode, r.Broker.Queued, r.Broker.Gaps)
+			}
 		} else if r.Local == nil {
 			_, err = fmt.Fprintln(out, "Local endpoint health is unavailable.")
 		} else {

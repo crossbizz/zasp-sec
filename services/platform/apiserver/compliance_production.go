@@ -10,6 +10,9 @@ import (
 )
 
 var complianceOperations = []OperationDefinition{
+	{Method: "GET", Pattern: "/api/v1/compliance/editions", OperationID: "listComplianceEditions"},
+	{Method: "GET", Pattern: "/api/v1/compliance/coverage", OperationID: "listComplianceCoverage"},
+	{Method: "GET", Pattern: "/api/v1/compliance/coverage/evidence", OperationID: "listComplianceCoverageEvidence"},
 	{Method: "GET", Pattern: "/api/v1/compliance/evidence/{sourceKind}/{id}", OperationID: "getComplianceEvidence"},
 	{Method: "POST", Pattern: "/api/v1/compliance/exports", OperationID: "createComplianceExport"},
 	{Method: "GET", Pattern: "/api/v1/compliance/exports/{id}", OperationID: "getComplianceExport"},

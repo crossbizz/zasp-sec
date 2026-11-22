@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -126,5 +127,102 @@ func TestAgentActionAnalysisOnInstalledBaselinePostgres(t *testing.T) {
 	run()
 	if v := get(); v.Revision != 2 || v.Analyzed != 1 || len(v.Findings) != 1 || v.Findings[0].Previous != "" || len(v.Findings[0].Issues) != 1 {
 		t.Fatal("revision isolation", v)
+	}
+	claim := func() []byte {
+		t.Helper()
+		var raw []byte
+		if err := scheduler.QueryRow(b.ctx, `SELECT public.zasp_claim_intent_draft()`).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	if raw := claim(); string(raw) != "null" {
+		t.Fatalf("unconsented activity reached classifier: %s", raw)
+	}
+	optIn := strings.Replace(settings, "{", `{"classifier_opt_in":true,`, 1)
+	write := func(key, rev, value string) {
+		t.Helper()
+		r := b.serve(surface, admin, "putAgentActionAnalysis", "PUT", path, params, value, map[string]string{"Idempotency-Key": key, "If-Match": rev})
+		if r.Code != 200 {
+			t.Fatal(r.Code, r.Body)
+		}
+	}
+	write("intent-declaration-0001", `"2"`, optIn)
+	id := submit(work, "private.operation", "tenant.confidential", "external")
+	run()
+	raw := claim()
+	var job struct {
+		Lease    string
+		Features map[string]any
+	}
+	if json.Unmarshal(raw, &job) != nil || job.Lease == "" || len(job.Features) != 6 || job.Features["destination"] != "external" || job.Features["operation_mismatch"] != true || strings.Contains(string(raw), "private.operation") || strings.Contains(string(raw), "tenant.confidential") || strings.Contains(string(raw), b.o) || strings.Contains(string(raw), id) {
+		t.Fatalf("unexpected classifier features %s", raw)
+	}
+	if next := claim(); string(next) != "null" {
+		t.Fatalf("leased work delivered twice %s", next)
+	}
+	finish := func(lease, code string) bool {
+		t.Helper()
+		var saved bool
+		if err := scheduler.QueryRow(b.ctx, `SELECT public.zasp_finish_intent_draft($1::text::uuid,$2)`, lease, code).Scan(&saved); err != nil {
+			t.Fatal(err)
+		}
+		return saved
+	}
+	if !finish(job.Lease, "review_destination") || finish(job.Lease, "review_purpose") {
+		t.Fatal("lease allowed duplicate settlement")
+	}
+	r := read()
+	if !strings.Contains(r.Body.String(), `"intent_drafts"`) || !strings.Contains(r.Body.String(), `"review_destination"`) || !strings.Contains(r.Body.String(), id) {
+		t.Fatal("draft not visible", r.Body)
+	}
+	t.Setenv("ZASP_INTENT_CLASSIFIER_ENABLED", "true")
+	flowHandler := &identityHTTPHandler{administration: repo}
+	flow := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		v, err := flowHandler.externalIntentFlow(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write(v)
+	})
+	flowGet := func() string {
+		t.Helper()
+		out := b.serve(flow, admin, "getExternalDataFlows", "GET", "/api/v1/settings/external-data-flows", nil, "", nil)
+		if out.Code != 200 {
+			t.Fatal(out.Code, out.Body)
+		}
+		return out.Body.String()
+	}
+	if value := flowGet(); !strings.Contains(value, `"health": "healthy"`) && !strings.Contains(value, `"health":"healthy"`) {
+		t.Fatal(value)
+	}
+	submit(work, "private.operation", "tenant.confidential", "external")
+	run()
+	if err := json.Unmarshal(claim(), &job); err != nil || job.Lease == "" {
+		t.Fatal(err)
+	}
+	write("intent-declaration-0002", `"3"`, settings)
+	if finish(job.Lease, "review_purpose") || !strings.Contains(read().Body.String(), `"intent_drafts": []`) && !strings.Contains(read().Body.String(), `"intent_drafts":[]`) {
+		t.Fatal("obsolete draft crossed consent revision")
+	}
+	if value := flowGet(); !strings.Contains(value, "disabled") {
+		t.Fatal(value)
+	}
+	if _, err := b.fenced("zasp_svc_api", admin, RoutedOperation{OperationID: "getExternalDataFlows"}, intentFlowSQL, b.o, b.w, b.id()); installedSQLState(err) != "42501" {
+		t.Fatalf("cross-environment classifier flow: %v", err)
+	}
+
+}
+
+func TestClassifierOptInIsExplicit(t *testing.T) {
+	for _, value := range []string{"null", "0", `"true"`} {
+		var cfg analysisSettings
+		if json.Unmarshal([]byte(`{"classifier_opt_in":`+value+`}`), &cfg) == nil {
+			t.Fatal("accepted invalid consent", value)
+		}
+	}
+	var cfg analysisSettings
+	if err := json.Unmarshal([]byte(`{"classifier_opt_in":true}`), &cfg); err != nil || !cfg.ClassifierOptIn {
+		t.Fatal(cfg, err)
 	}
 }

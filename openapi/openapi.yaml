@@ -1026,6 +1026,28 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/device-cohorts/{cohort}/pretool-policy:
+    parameters:
+      - { name: cohort, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' } }
+    get:
+      operationId: getEndpointPolicyCohort
+      summary: Read the latest scoped pre-tool policy template
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      responses:
+        '200': { description: Current template, content: { application/json: { schema: { $ref: '#/components/schemas/EndpointPolicyTemplate' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: updateEndpointPolicyCohort
+      summary: Save the next template revision for independent per-device signing
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EndpointPolicyTemplateInput' } } } }
+      responses:
+        '200': { description: Saved template, content: { application/json: { schema: { $ref: '#/components/schemas/EndpointPolicyTemplate' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/device-cohorts/{cohort}/ticket-rollout:
     parameters:
       - { name: cohort, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' } }
@@ -1175,7 +1197,7 @@ paths:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
     put:
       operationId: publishEndpointPolicy
-      summary: Publish an endpoint-bound signed ticket policy
+      summary: Publish an endpoint-bound signed ticket or pre-tool policy
       security:
         - BrowserSession: []
           BrowserExpectedScope: []
@@ -1188,7 +1210,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/EndpointSigned' } } }
       responses:
         '200':
-          description: Publish an endpoint-bound signed ticket policy.
+          description: Publish an endpoint-bound signed ticket or pre-tool policy.
           content: { application/json: { schema: { $ref: '#/components/schemas/EndpointDevice' } } }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -4184,6 +4206,49 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/editions:
+    get:
+      operationId: listComplianceEditions
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: List available framework editions
+      responses:
+        '200': { description: Authorized result in the selected Environment., content: { application/json: { schema: { $ref: '#/components/schemas/CoverageEditions' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/coverage:
+    get:
+      operationId: listComplianceCoverage
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read edition-qualified framework coverage
+      parameters:
+        - { name: framework, in: query, required: true, schema: { $ref: '#/components/schemas/CoverageFramework' } }
+        - { name: edition, in: query, required: true, schema: { type: string, maxLength: 32 } }
+        - { name: upstream_id, in: query, required: false, schema: { type: string, maxLength: 128 } }
+        - { name: evidence_kind, in: query, required: false, schema: { $ref: '#/components/schemas/CoverageEvidenceKind' } }
+        - { name: after, in: query, required: false, schema: { type: string, maxLength: 2048 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Authorized result in the selected Environment., content: { application/json: { schema: { $ref: '#/components/schemas/CoverageControlPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/coverage/evidence:
+    get:
+      operationId: listComplianceCoverageEvidence
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read scoped evidence for a category or source
+      parameters:
+        - { name: framework, in: query, required: false, schema: { $ref: '#/components/schemas/CoverageFramework' } }
+        - { name: edition, in: query, required: false, schema: { type: string, maxLength: 32 } }
+        - { name: upstream_id, in: query, required: false, schema: { type: string, maxLength: 128 } }
+        - { name: evidence_kind, in: query, required: false, schema: { $ref: '#/components/schemas/CoverageEvidenceKind' } }
+        - { name: source_kind, in: query, required: false, schema: { type: string, enum: [finding, addon_version, runtime_action, ticket_test] } }
+        - { name: source_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: after, in: query, required: false, schema: { type: string, maxLength: 2048 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Authorized result in the selected Environment., content: { application/json: { schema: { $ref: '#/components/schemas/CoverageEvidencePage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/compliance/controls:
     get:
       operationId: listComplianceControls
@@ -4815,12 +4880,70 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/provider-hooks/claude-enterprise/{integrationId}:
+    post:
+      operationId: evaluateClaudeEnterpriseHook
+      summary: Evaluate an authenticated Claude Enterprise inference frame
+      description: The configured provider sends its original signed JSON. Prompt frames use runtime policies. One verdict covers all tool requests in a tool frame. A delivery receipt records the Zasp decision. Provider shadow and failure settings determine enforcement.
+      security:
+        - ClaudeWebhookSignature: []
+      parameters:
+        - { name: integrationId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: webhook-id, in: header, required: true, description: Signed opaque delivery identifier matching request_id., schema: { type: string, minLength: 1, maxLength: 512 } }
+        - { name: webhook-timestamp, in: header, required: true, description: Unix timestamp in seconds with five minutes of clock tolerance., schema: { type: string, pattern: '^[0-9]{1,16}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, request_id]
+              additionalProperties: true
+              properties:
+                type: { type: string, description: Handles prompt and tool_call. Authenticated unknown frame types receive an allow response without a coverage receipt. }
+                request_id: { type: string, minLength: 1, maxLength: 512 }
+                tenant_id: { type: [string, 'null'], description: Must match the configured tenant for ordinary frames. }
+                session_id: { type: [string, 'null'] }
+                source: { type: object, additionalProperties: true, properties: { application: { type: string } } }
+                messages: { type: array, items: { type: object, additionalProperties: true } }
+      responses:
+        '200':
+          description: One verdict for this frame.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { type: object, required: [action], additionalProperties: false, properties: { action: { type: string, const: allow } } }
+                  - type: object
+                    required: [action, deny_reason, reference_id]
+                    additionalProperties: false
+                    properties:
+                      action: { type: string, const: deny }
+                      deny_reason: { type: string, maxLength: 512 }
+                      reference_id: { $ref: '#/components/schemas/ProductID' }
+        '400': { description: Malformed frame or delivery identifier mismatch. }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { description: Provider tenant does not match. }
+        '404': { description: Integration unavailable. }
+        '405': { description: POST required. }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '413': { $ref: '#/components/responses/ProductErrorResponse' }
+        '415': { description: Uncompressed application/json required. }
+        '422': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { description: Workload decision unavailable or callback budget exhausted. }
+        '504': { description: Callback exceeded the decision deadline. }
 security:
   - BrowserSession: []
     BrowserExpectedScope: []
   - ProductAPIToken: []
 components:
   securitySchemes:
+    ClaudeWebhookSignature:
+      type: apiKey
+      in: header
+      name: webhook-signature
+      description: Standard Webhooks v1 HMAC-SHA256 over webhook-id, webhook-timestamp and the exact raw request body, joined by periods.
     BrowserSession:
       type: apiKey
       in: cookie
@@ -5030,15 +5153,44 @@ components:
     EndpointPartitionSummary:
       {"type": "object", "additionalProperties": false, "required": ["partition_id", "generation", "complete", "observed_count", "observed_installations", "last_complete_generation", "confirmed_count", "confirmed_installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "observed_count": {"type": "integer", "minimum": 0}, "observed_installations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/components/schemas/EndpointInstallationDetail"}}, "last_complete_generation": {"type": ["integer", "null"], "minimum": 1}, "confirmed_count": {"type": ["integer", "null"], "minimum": 0}, "confirmed_installations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/components/schemas/EndpointInstallationDetail"}}}}
     EndpointObservationDetail:
-      {"type": "object", "additionalProperties": false, "required": ["action_id", "session_ref", "credential_generation", "observed_at", "policy_revision", "mode", "verdict", "would_block", "target_class", "skill_usage", "target_effect"], "properties": {"action_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "session_ref": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "credential_generation": {"type": "integer", "minimum": 1}, "observed_at": {"type": "string", "format": "date-time"}, "policy_revision": {"type": "integer", "minimum": 0}, "mode": {"type": "string", "enum": ["monitor", "enforce", ""]}, "verdict": {"type": "string", "enum": ["continue", "deny", "unavailable"]}, "would_block": {"type": "boolean"}, "target_class": {"type": "string", "enum": ["allowed_destination", "outside_allowed_destination", "unknown"]}, "skill_usage": {"type": "string", "enum": ["unknown"]}, "target_effect": {"type": "string", "enum": ["unknown"]}, "graph_evidence_id": {"$ref": "#/components/schemas/ProductID"}, "graph_state": {"type": "string", "enum": ["pending", "projected"]}}}
+      {"type": "object", "additionalProperties": false, "required": ["action_id", "session_ref", "credential_generation", "observed_at", "policy_revision", "mode", "verdict", "would_block", "target_class", "skill_usage", "target_effect"], "properties": {"action_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "session_ref": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "credential_generation": {"type": "integer", "minimum": 1}, "observed_at": {"type": "string", "format": "date-time"}, "policy_revision": {"type": "integer", "minimum": 0}, "mode": {"type": "string", "enum": ["monitor", "enforce", ""]}, "verdict": {"type": "string", "enum": ["continue", "deny", "unavailable"]}, "would_block": {"type": "boolean"}, "target_class": {"type": "string", "enum": ["allowed_destination", "outside_allowed_destination", "unknown"]}, "skill_usage": {"type": "string", "enum": ["unknown"]}, "target_effect": {"type": "string", "enum": ["unknown"]}, "graph_evidence_id": {"$ref": "#/components/schemas/ProductID"}, "graph_state": {"type": "string", "enum": ["pending", "projected"]}, "adapter": {"type": "string"}, "tool_class": {"type": "string", "enum": ["mcp", "file", "shell", "web", "other"]}, "rule_id": {"type": "string", "maxLength": 64}, "reason_code": {"type": "string", "maxLength": 64}}}
     EndpointDetail:
-      {"type": "object", "additionalProperties": false, "required": ["id", "cohort", "state", "version", "credential_generation", "last_seen", "connection", "policy_revision", "reported_policy_revision", "acknowledged", "queued_receipts", "dropped_receipts", "inventory_partitions", "observation_count", "partition_summaries", "recent_observations", "reported_adapter"], "properties": {"id": {"$ref": "#/components/schemas/ProductID"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}, "state": {"type": "string", "enum": ["pending", "active", "retired"]}, "version": {"type": "integer", "minimum": 1}, "credential_generation": {"type": "integer", "minimum": 1}, "last_seen": {"type": ["string", "null"], "format": "date-time"}, "connection": {"type": "string", "enum": ["retired", "never_seen", "online", "stale"]}, "policy_revision": {"type": "integer", "minimum": 0}, "reported_policy_revision": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "boolean"}, "queued_receipts": {"type": ["integer", "null"], "minimum": 0}, "dropped_receipts": {"type": ["integer", "null"], "minimum": 0}, "inventory_partitions": {"type": "integer", "minimum": 0}, "observation_count": {"type": "integer", "minimum": 0}, "partition_summaries": {"type": "array", "maxItems": 8, "items": {"$ref": "#/components/schemas/EndpointPartitionSummary"}}, "recent_observations": {"type": "array", "maxItems": 20, "items": {"$ref": "#/components/schemas/EndpointObservationDetail"}}, "reported_adapter": {"type": "string", "enum": ["unknown", "macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory"]}}}
+      {"type": "object", "additionalProperties": false, "required": ["id", "cohort", "state", "version", "credential_generation", "last_seen", "connection", "policy_revision", "reported_policy_revision", "acknowledged", "queued_receipts", "dropped_receipts", "inventory_partitions", "observation_count", "partition_summaries", "recent_observations", "reported_adapter"], "properties": {"id": {"$ref": "#/components/schemas/ProductID"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}, "state": {"type": "string", "enum": ["pending", "active", "retired"]}, "version": {"type": "integer", "minimum": 1}, "credential_generation": {"type": "integer", "minimum": 1}, "last_seen": {"type": ["string", "null"], "format": "date-time"}, "connection": {"type": "string", "enum": ["retired", "never_seen", "online", "stale"]}, "policy_revision": {"type": "integer", "minimum": 0}, "reported_policy_revision": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "boolean"}, "queued_receipts": {"type": ["integer", "null"], "minimum": 0}, "dropped_receipts": {"type": ["integer", "null"], "minimum": 0}, "inventory_partitions": {"type": "integer", "minimum": 0}, "observation_count": {"type": "integer", "minimum": 0}, "partition_summaries": {"type": "array", "maxItems": 8, "items": {"$ref": "#/components/schemas/EndpointPartitionSummary"}}, "recent_observations": {"type": "array", "maxItems": 20, "items": {"$ref": "#/components/schemas/EndpointObservationDetail"}}, "reported_adapter": {"type": "string", "enum": ["unknown", "macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory", "macos_claude_pretool_v2", "macos_codex_pretool_v2", "linux_claude_pretool_v2_test", "windows_claude_pretool_v2"]}}}
     EndpointRotation:
       {"type": "object", "additionalProperties": false, "required": ["credential_id", "device_public_key"], "properties": {"credential_id": {"$ref": "#/components/schemas/ProductID"}, "device_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}}}
     EndpointRegistration:
       {"type": "object", "additionalProperties": false, "required": ["credential_id", "device_public_key", "policy_public_key", "cohort"], "properties": {"credential_id": {"$ref": "#/components/schemas/ProductID"}, "device_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}, "policy_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}}}
     EndpointFleetPage:
       {"type": "object", "additionalProperties": false, "required": ["items", "next_after_id", "counts"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/EndpointDevice"}}, "next_after_id": {"type": ["string", "null"]}, "counts": {"type": "object", "additionalProperties": false, "required": ["expected", "enrolled", "online", "acknowledged"], "properties": {"expected": {"type": "integer", "minimum": 0}, "enrolled": {"type": "integer", "minimum": 0}, "online": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "integer", "minimum": 0}}}}}
+    EndpointPretoolRule:
+      type: object
+      additionalProperties: false
+      required: [id, type, values]
+      properties:
+        id: { type: string, pattern: '^[a-z][a-z0-9._-]{0,63}$' }
+        type: { type: string, enum: [mcp_tool_policy, shell_command_policy, file_path_policy, destination_domain_policy] }
+        match: { type: string, enum: [allowlist, denylist] }
+        values: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, maxLength: 253 } }
+        allowed_destinations: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, maxLength: 253 } }
+    EndpointPolicyTemplate:
+      type: object
+      additionalProperties: false
+      required: [cohort, revision, mode, failure_mode, rules]
+      properties:
+        cohort: { type: string, maxLength: 64 }
+        revision: { type: integer, minimum: 0, maximum: 1000000 }
+        mode: { type: string, enum: [monitor, enforce] }
+        failure_mode: { type: string, enum: [open, closed] }
+        rules: { type: array, minItems: 0, maxItems: 32, items: { $ref: '#/components/schemas/EndpointPretoolRule' } }
+    EndpointPolicyTemplateInput:
+      type: object
+      additionalProperties: false
+      required: [expected_revision, mode, failure_mode, rules]
+      properties:
+        expected_revision: { type: integer, minimum: 0, maximum: 1000000 }
+        mode: { type: string, enum: [monitor, enforce] }
+        failure_mode: { type: string, enum: [open, closed] }
+        rules: { type: array, minItems: 1, maxItems: 32, items: { $ref: '#/components/schemas/EndpointPretoolRule' } }
     EndpointSigned:
       {"type": "object", "additionalProperties": false, "required": ["payload", "signature"], "properties": {"payload": {"type": "string", "format": "byte"}, "signature": {"type": "string", "format": "byte"}}}
     EndpointBundle:
@@ -5048,7 +5200,7 @@ components:
     EndpointRecorded:
       {"type": "object", "additionalProperties": false, "required": ["recorded"], "properties": {"recorded": {"type": "boolean", "const": true}}}
     EndpointHeartbeat:
-      {"type": "object", "additionalProperties": false, "required": ["policy_revision", "policy_status", "queued_receipts", "dropped_receipts"], "properties": {"policy_revision": {"type": "integer", "minimum": 0}, "policy_status": {"type": "string", "enum": ["verified_cache", "policy_expired", "policy_unavailable", "state_unavailable"]}, "queued_receipts": {"type": "integer", "minimum": 0, "maximum": 256}, "dropped_receipts": {"type": "integer", "minimum": 0}, "adapter": {"type": "string", "enum": ["macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory"]}}}
+      {"type": "object", "additionalProperties": false, "required": ["policy_revision", "policy_status", "queued_receipts", "dropped_receipts"], "properties": {"policy_revision": {"type": "integer", "minimum": 0}, "policy_status": {"type": "string", "enum": ["verified_cache", "policy_expired", "policy_unavailable", "state_unavailable"]}, "queued_receipts": {"type": "integer", "minimum": 0, "maximum": 256}, "dropped_receipts": {"type": "integer", "minimum": 0}, "adapter": {"type": "string", "enum": ["macos_claude_ticket", "linux_claude_ticket_test", "windows_inventory", "macos_claude_pretool_v2", "macos_codex_pretool_v2", "linux_claude_pretool_v2_test", "windows_claude_pretool_v2"]}}}
     EndpointExchangeReceipt:
       {"type": "object", "additionalProperties": false, "required": ["device_id", "credential_generation", "state"], "properties": {"device_id": {"$ref": "#/components/schemas/ProductID"}, "credential_generation": {"type": "integer", "minimum": 1}, "state": {"type": "string", "const": "active"}}}
     EndpointSnapshot:
@@ -6749,18 +6901,144 @@ components:
         environment_id: { $ref: '#/components/schemas/ProductID' }
     ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
     ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
+    CoverageFramework: { type: string, enum: [owasp_agentic_top10, owasp_llm_top10, mitre_atlas, mitre_attack_enterprise] }
+    CoverageEvidenceKind: { type: string, enum: [posture_finding, static_scan, observed_event, tested_control, verified_prevention] }
+    CoverageCatalogEntry:
+      type: object
+      additionalProperties: false
+      required: [framework, edition, upstream_id, title, kind, owner, applicability, scope, rationale, source_url, source_digest, license, attribution, status, digest_basis]
+      properties:
+        framework: { type: string }
+        edition: { type: string }
+        upstream_id: { type: string }
+        title: { type: string }
+        kind: { type: string, enum: [risk, technique, subtechnique, mitigation] }
+        parent_id: { type: string }
+        owner: { type: string }
+        applicability: { type: string, enum: [applicable, unassessed, out_of_scope] }
+        scope: { type: string }
+        rationale: { type: string }
+        source_url: { type: string }
+        source_digest: { type: string }
+        license: { type: string }
+        attribution: { type: string }
+        status: { type: string, enum: [active, retired] }
+        digest_basis: { type: string, enum: [upstream_bytes, reviewed_index] }
+    CoverageEdition:
+      type: object
+      additionalProperties: false
+      required: [framework, edition, total_controls, source_digest]
+      properties:
+        framework: { $ref: '#/components/schemas/CoverageFramework' }
+        edition: { type: string }
+        total_controls: { type: integer, minimum: 0 }
+        source_digest: { type: string }
+    CoverageEditions:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CoverageEdition' } }
+    CoverageControl:
+      type: object
+      additionalProperties: false
+      required: [control, evidence_counts, last_verified_at]
+      properties:
+        control: { $ref: '#/components/schemas/CoverageCatalogEntry' }
+        evidence_counts: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        last_verified_at: { type: [string, 'null'], format: date-time }
+    CoverageSummary:
+      type: object
+      additionalProperties: false
+      required: [applicable_controls, verified_applicable_controls, unassessed_controls, out_of_scope_controls, risks, techniques, subtechniques, mitigations]
+      properties:
+        applicable_controls: { type: integer, minimum: 0 }
+        verified_applicable_controls: { type: integer, minimum: 0 }
+        unassessed_controls: { type: integer, minimum: 0 }
+        out_of_scope_controls: { type: integer, minimum: 0 }
+        risks: { type: integer, minimum: 0 }
+        techniques: { type: integer, minimum: 0 }
+        subtechniques: { type: integer, minimum: 0 }
+        mitigations: { type: integer, minimum: 0 }
+    CoverageControlPage:
+      type: object
+      additionalProperties: false
+      required: [framework, edition, source_digest, total_controls, matched_controls, collected_at, summary, items, next_after]
+      properties:
+        framework: { $ref: '#/components/schemas/CoverageFramework' }
+        edition: { type: string }
+        source_digest: { type: string }
+        total_controls: { type: integer, minimum: 0 }
+        matched_controls: { type: integer, minimum: 0 }
+        collected_at: { type: string, format: date-time }
+        summary: { $ref: '#/components/schemas/CoverageSummary' }
+        items: { type: array, items: { $ref: '#/components/schemas/CoverageControl' } }
+        next_after: { type: [string, 'null'] }
+    CoverageSource:
+      type: object
+      additionalProperties: false
+      required: [source_kind, source_id, rule, rule_version, evidence_kind, occurred_at, framework, edition, upstream_id]
+      properties:
+        source_kind: { type: string, enum: [finding, addon_version, runtime_action, ticket_test] }
+        source_id: { $ref: '#/components/schemas/ProductID' }
+        rule: { type: string }
+        rule_version: { type: string }
+        evidence_kind: { $ref: '#/components/schemas/CoverageEvidenceKind' }
+        occurred_at: { type: string, format: date-time }
+        framework: { $ref: '#/components/schemas/CoverageFramework' }
+        edition: { type: string }
+        upstream_id: { type: string }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        manifest_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$', description: Immutable add-on version digest for add-on evidence. }
+    CoverageEvidencePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_after]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CoverageSource' } }
+        next_after: { type: [string, 'null'] }
+    AddonFrameworkEvidence:
+      type: object
+      additionalProperties: false
+      required: [rule_id, rule_version, evidence_kind, framework, edition, upstream_id, title]
+      properties:
+        rule_id: { type: string }
+        rule_version: { type: string }
+        evidence_kind: { type: string, const: static_scan }
+        framework: { type: string }
+        edition: { type: string }
+        upstream_id: { type: string }
+        title: { type: string }
+    WorkloadContextEvidence:
+      type: object
+      additionalProperties: false
+      required: [kind, collection_ref, record_ref, version, result]
+      properties:
+        kind: { type: string, enum: [memory_write, memory_recall, retrieval, artifact_promotion, grounded_decision, hidden_context_check, workflow_purpose, workflow_approval, workflow_handoff, workflow_child, workflow_budget] }
+        collection_ref: { type: string, pattern: '^[a-f0-9]{64}$' }
+        record_ref: { type: string, pattern: '^[a-f0-9]{64}$' }
+        version: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        result: { type: string, enum: [allowed, rejected] }
     ComplianceExportInput:
       type: object
       description: What the export captures - the controls of a framework (or one control; every control when both are omitted),, a managed pilot cohort/device or device-bound endpoint session, or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering.
       additionalProperties: false
       properties:
-        framework: { $ref: '#/components/schemas/ComplianceFrameworkID' }
+        framework: { anyOf: [{ $ref: '#/components/schemas/ComplianceFrameworkID' }, { $ref: '#/components/schemas/CoverageFramework' }] }
+        edition: { type: string, maxLength: 32 }
+        upstream_id: { type: string, maxLength: 128 }
+        evidence_kind: { $ref: '#/components/schemas/CoverageEvidenceKind' }
         control_id: { $ref: '#/components/schemas/ComplianceControlID' }
         agent_id: { $ref: '#/components/schemas/ProductID' }
         pilot_cohort: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' }
         device_id: { $ref: '#/components/schemas/ProductID' }
         endpoint_session_ref: { type: string, pattern: '^[0-9a-f]{64}$', description: Scoped endpoint session reference from a device observation. }
       allOf:
+        - if: { required: [edition] }
+          then: { required: [framework], not: { anyOf: [{ required: [control_id] }, { required: [agent_id] }, { required: [pilot_cohort] }, { required: [device_id] }, { required: [endpoint_session_ref] }] } }
+        - if: { anyOf: [{ required: [upstream_id] }, { required: [evidence_kind] }] }
+          then: { required: [edition] }
         - if: { required: [agent_id] }
           then: { not: { anyOf: [{ required: [framework] }, { required: [control_id] }, { required: [pilot_cohort] }, { required: [device_id] }, { required: [endpoint_session_ref] }] } }
         - if: { required: [pilot_cohort] }
@@ -7009,8 +7287,8 @@ components:
         completeness: { type: string, enum: [complete, partial] }
         review_path: { type: [string, 'null'] }
         origin: { type: string, enum: [local, ci, private_worker] }
-        ruleset: { type: string, const: zasp-static.v1 }
-        findings: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/AddonFindingCount' } }
+        ruleset: { type: string, enum: [zasp-static.v1, zasp-static.v2] }
+        findings: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AddonFindingCount' } }
         skipped_count: { type: integer, minimum: 0, maximum: 1000000 }
         received_at: { type: string, format: date-time }
     AddonCISignature:
@@ -7045,7 +7323,7 @@ components:
       additionalProperties: false
       required: [rule_id, count]
       properties:
-        rule_id: { type: string, enum: [dependency.unpinned, script.shell_execution, script.network_access, instruction.hidden_text, mcp.unpinned_launcher, mcp.remote_endpoint] }
+        rule_id: { type: string, enum: [dependency.unpinned, script.shell_execution, script.network_access, instruction.hidden_text, mcp.unpinned_launcher, mcp.remote_endpoint, instruction.override, script.credential_path_access, script.remote_exec_pipe, mcp.unpinned_exec] }
         count: { type: integer, minimum: 1, maximum: 1000000 }
     AddonScanSubmission:
       type: object
@@ -7066,12 +7344,12 @@ components:
             archive_bytes: { type: integer, minimum: 1, maximum: 8388608 }
         environment_id: { $ref: '#/components/schemas/ProductID' }
         schema_version: { type: string, const: zasp-addon-findings.v1 }
-        ruleset: { type: string, const: zasp-static.v1 }
+        ruleset: { type: string, enum: [zasp-static.v1, zasp-static.v2] }
         manifest_method: { type: string, const: addon-manifest.v1 }
         manifest_digest: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
         completeness: { type: string, enum: [complete, partial] }
         origin: { type: string, enum: [local, ci, private_worker] }
-        findings: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/AddonFindingCount' } }
+        findings: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AddonFindingCount' } }
         skipped_count: { type: integer, minimum: 0, maximum: 1000000 }
     AddonScanReceipt:
       type: object
@@ -7092,8 +7370,9 @@ components:
         manifest_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
         origin: { type: string, enum: [local, ci, private_worker] }
         provenance: { type: string, const: reported }
-        ruleset: { type: string, const: zasp-static.v1 }
-        findings: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/AddonFindingCount' } }
+        ruleset: { type: string, enum: [zasp-static.v1, zasp-static.v2] }
+        framework_evidence: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/AddonFrameworkEvidence' } }
+        findings: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AddonFindingCount' } }
         review_state: { type: string, enum: [pending, approved, rejected, revoked] }
         revision: { type: integer, minimum: 0 }
     AddonVersionPage:
@@ -8389,6 +8668,7 @@ components:
       additionalProperties: false
       required: [allowed_operations, allowed_classifications, allowed_destinations, blocked_transitions]
       properties:
+        classifier_opt_in: { type: boolean, description: Permit asynchronous classification of redacted action features. }
         allowed_operations: { type: array, maxItems: 32, uniqueItems: true, items: { $ref: '#/components/schemas/WorkloadActionLabel' } }
         allowed_classifications: { type: array, maxItems: 32, uniqueItems: true, items: { $ref: '#/components/schemas/WorkloadActionLabel' } }
         allowed_destinations: { type: array, maxItems: 4, uniqueItems: true, items: { $ref: '#/components/schemas/WorkloadDestinationClass' } }
@@ -8431,6 +8711,17 @@ components:
         pending: { type: integer, minimum: 0 }
         analyzed: { type: integer, minimum: 0 }
         unknown_destination: { type: integer, minimum: 0 }
+        intent_drafts:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [decision_id, recommendation, occurred_at]
+            properties:
+              decision_id: { $ref: '#/components/schemas/ProductID' }
+              recommendation: { type: string, enum: [review_purpose, review_destination, review_sequence, review_data_access] }
+              occurred_at: { type: string, format: date-time }
         findings: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/ActionAnalysisFinding' } }
         truncated: { type: boolean }
         source: { type: string, const: bound_workload_reported }
@@ -8474,6 +8765,7 @@ components:
         schema_version: { type: string, const: action-outcome.v1 }
         action_id: { $ref: '#/components/schemas/WorkloadActionLabel' }
         decision_id: { $ref: '#/components/schemas/ProductID' }
+        context_evidence: { $ref: '#/components/schemas/WorkloadContextEvidence' }
         status: { type: string, enum: [not_dispatched, returned, raised, cancelled] }
     WorkloadOutcomeAck:
       type: object
@@ -9233,8 +9525,8 @@ components:
           properties:
             from: { type: string, format: date-time }
             to: { type: string, format: date-time }
-            examined: { type: integer, minimum: 0, maximum: 100 }
-            eligible: { type: integer, minimum: 0, maximum: 100 }
+            examined: { type: integer, minimum: 0, maximum: 5000 }
+            eligible: { type: integer, minimum: 0, maximum: 5000 }
             truncated: { type: boolean }
     AgentPurpose:
       type: object
@@ -9579,11 +9871,26 @@ components:
         action_id: { $ref: '#/components/schemas/TicketOpaqueID' }
         receipt_id: { $ref: '#/components/schemas/TicketOpaqueID' }
         recorded_at: { type: string, format: date-time }
+    TicketProofSignature:
+      type: object
+      additionalProperties: false
+      required: [key_id, signed_at, signature]
+      properties:
+        key_id: { type: string, minLength: 1, maxLength: 128 }
+        signed_at: { type: string, format: date-time }
+        signature: { type: string, minLength: 1, maxLength: 128 }
     TicketVerificationBundle:
       type: object
       additionalProperties: false
       required: [scenario, adapter, recorder]
       properties:
+        attestations:
+          type: object
+          additionalProperties: false
+          required: [adapter, recorder]
+          properties:
+            adapter: { $ref: '#/components/schemas/TicketProofSignature' }
+            recorder: { $ref: '#/components/schemas/TicketProofSignature' }
         scenario: { $ref: '#/components/schemas/TicketScenario' }
         adapter: { $ref: '#/components/schemas/TicketAdapterEvidence' }
         recorder: { $ref: '#/components/schemas/TicketRecorderEvidence' }
@@ -9605,6 +9912,7 @@ components:
       additionalProperties: false
       required: [schema_version, evidence_source, definition_version, policy_revision, target_id, submitted_by, submitted_at, evidence_sha256, result]
       properties:
+        evidence_qualification: { type: string, enum: [verified_prevention, tested_control, unknown] }
         schema_version: { type: integer, const: 1 }
         evidence_source: { type: string, const: operator_import }
         definition_version: { type: integer, minimum: 1 }
@@ -9827,6 +10135,7 @@ components:
         agent_id: { $ref: '#/components/schemas/ProductID' }
         from: { type: string, format: date-time, description: Inclusive start of a replay window of up to thirty days. }
         to: { type: string, format: date-time, description: Exclusive end of the replay window. }
+        before_event_id: { $ref: '#/components/schemas/ProductID', description: Resume the same window before this tie-breaker at the returned end timestamp. }
     PolicyReplayCoverage:
       type: object
       additionalProperties: false
@@ -9836,7 +10145,12 @@ components:
         agent_id: { $ref: '#/components/schemas/ProductID' }
         from: { type: string, format: date-time }
         to: { type: string, format: date-time }
-        evaluated: { type: integer, minimum: 0, maximum: 100 }
+        evaluated: { type: integer, minimum: 0, maximum: 5000 }
+        examined_count: { type: integer, minimum: 0, maximum: 5000 }
+        eligible_count: { type: integer, minimum: 0, maximum: 5000 }
+        next_window_to: { type: [string, 'null'], format: date-time }
+        next_before_event_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        would_block_rate: { type: object, additionalProperties: { type: number, minimum: 0, maximum: 1 }, description: Fraction of eligible indexed events that would block on each evaluated trigger. }
         truncated: { type: boolean }
         coverage: { type: string, const: indexed_events_only }
     PolicySimulation:
@@ -9844,8 +10158,8 @@ components:
       additionalProperties: false
       required: [matches, would_block, example_session_ids]
       properties:
-        matches: { type: integer, minimum: 0, maximum: 100 }
-        would_block: { type: integer, minimum: 0, maximum: 100 }
+        matches: { type: integer, minimum: 0, maximum: 5000 }
+        would_block: { type: integer, minimum: 0, maximum: 5000 }
         example_session_ids: { type: array, maxItems: 5, items: { type: string, minLength: 1, maxLength: 128 } }
         replay: { $ref: '#/components/schemas/PolicyReplayCoverage' }
     PolicyRolloutInput:

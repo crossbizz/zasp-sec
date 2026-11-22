@@ -2,6 +2,7 @@
 <plist version="1.0"><dict>
 <key>Enabled</key><true/>
 <key>AllowedOrigins</key><array><string>https://claude.ai</string></array>
+<key>UploadBlockingEnabled</key><false/>
 <key>CentralReportingEnabled</key><false/>
 <key>RetentionDays</key><integer>7</integer>
 </dict></plist>
