@@ -16,6 +16,25 @@ async function fixture(files) {
   return root;
 }
 
+test("production add-on downloads admit the exact release pin and check transitive imports", async () => {
+  const panel = "app/features/tools/CLIReleaseDownloads.tsx";
+  const pin = "app/features/tools/cli-release-pin.json";
+  const root = await fixture({
+    "app/page.tsx": 'export { Downloads } from "./features/tools/CLIReleaseDownloads";',
+    "app/[...path]/page.tsx": "export {};",
+    [panel]: 'import pin from "./cli-release-pin.json"; export const Downloads = pin;',
+    [pin]: '{"version":"","commit":"","manifest_sha256":"","assets":[]}',
+    "app/features/tools/unapproved.json": "{}",
+    "app/features/tools/ToolViews.tsx": "export const Demo = 1;",
+  });
+  assert.ok((await checkSourceGraph({ root })).files.includes(pin));
+
+  await writeFile(join(root, panel), 'export { default as Downloads } from "./unapproved.json";');
+  await assert.rejects(() => checkSourceGraph({ root }), /unresolved production import.*unapproved\.json/);
+  await writeFile(join(root, panel), 'export { Demo } from "./ToolViews";');
+  await assert.rejects(() => checkSourceGraph({ root }), /demo module.*ToolViews\.tsx/);
+});
+
 test("source graph accepts an API-only production entry", async () => {
   const root = await fixture({
     "app/page.tsx": 'export { App } from "./App";',
