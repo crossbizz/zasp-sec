@@ -134,11 +134,9 @@ describe("tenant recovery operations", () => {
   it("lets an authorized operator reauthenticate at a completed backup before restoring", async () => {
     const reauthenticate = vi.fn();
     const startRestore = vi.fn<RecoveryAPI["startRestore"]>();
-    const storage = memoryStorage({ [`zasp:recovery:v1:${scope}`]: JSON.stringify({
-      version: 1, backup: { id: backupID, retention_days: 30, idempotency_key: "recovery_backup_00000001" }, restore: null,
-    }) });
+    openDetails(false);
     render(<RecoveryOperationsView api={api({ getBackup: async () => succeededBackup, startRestore })}
-      expectedScope={scope} storage={storage} canWrite fresh={false} onReauthenticate={reauthenticate} />);
+      expectedScope={scope} canWrite fresh={false} onReauthenticate={reauthenticate} />);
     await userEvent.click(await screen.findByRole("button", { name: "Reauthenticate to start restore" }));
     expect(reauthenticate).toHaveBeenCalledOnce();
     expect(startRestore).not.toHaveBeenCalled();

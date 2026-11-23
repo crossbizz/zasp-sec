@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { APITransportError, requireAPIData, type APIClient } from "../../apps/web/api/client";
@@ -36,10 +36,10 @@ export function ProductionGlobalSearch({ client, scope, resultsHost, routes, onN
     setState("idle");
     setAsset(null);
   }, []);
-  const closeAndFocus = () => {
+  const closeAndFocus = useCallback(() => {
     dismiss();
     form.current?.querySelector("input")?.focus();
-  };
+  }, [dismiss]);
 
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
@@ -47,13 +47,25 @@ export function ProductionGlobalSearch({ client, scope, resultsHost, routes, onN
     const outside = (event: Event) => {
       if (event.target instanceof Node && !form.current?.contains(event.target) && !resultsHost?.contains(event.target)) dismiss();
     };
+    function navigateResults(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeAndFocus();
+      } else if (event.key === "Tab" && event.shiftKey && event.target === resultsHost?.querySelector("button, a[href]")) {
+        event.preventDefault();
+        form.current?.querySelector<HTMLButtonElement>("button[type=submit]")?.focus();
+      }
+    }
+    resultsHost?.addEventListener("keydown", navigateResults);
     document.addEventListener("pointerdown", outside);
     document.addEventListener("focusin", outside);
     return () => {
+      resultsHost?.removeEventListener("keydown", navigateResults);
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("focusin", outside);
     };
-  }, [asset, dismiss, resultsHost, state]);
+  }, [asset, closeAndFocus, dismiss, resultsHost, state]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -72,26 +84,17 @@ export function ProductionGlobalSearch({ client, scope, resultsHost, routes, onN
     }
   }
 
-  function dismissOnEscape(event: KeyboardEvent) {
+  function dismissOnEscape(event: ReactKeyboardEvent) {
     if (event.key !== "Escape" || state === "idle" && !asset) return;
     event.preventDefault();
     event.stopPropagation();
     closeAndFocus();
   }
-  function submitKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  function submitKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
     dismissOnEscape(event);
     if (event.key !== "Tab" || event.shiftKey) return;
     const first = resultsHost?.querySelector<HTMLElement>("button, a[href]");
     if (first) { event.preventDefault(); first.focus(); }
-  }
-
-  function resultsKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    dismissOnEscape(event);
-    if (event.key !== "Tab" || !event.shiftKey) return;
-    if (event.target === resultsHost?.querySelector("button, a[href]")) {
-      event.preventDefault();
-      form.current?.querySelector<HTMLButtonElement>("button[type=submit]")?.focus();
-    }
   }
 
   function resultControl(result: SearchResult) {
@@ -113,7 +116,7 @@ export function ProductionGlobalSearch({ client, scope, resultsHost, routes, onN
       <SearchBox aria-label="Search product entities" aria-controls="product-search-results" value={query} maxLength={128} placeholder="Search agents, tools, identities, runtimes, and findings" onKeyDown={dismissOnEscape} onChange={event => { dismiss(); setQuery(event.target.value); }} />
       <button type="submit" className="global-search-submit" disabled={state === "loading"} onKeyDown={submitKeyDown}>Search</button>
     </form>
-    {resultsHost && (asset || state !== "idle") && createPortal(<div onKeyDown={resultsKeyDown}>
+    {resultsHost && (asset || state !== "idle") && createPortal(<>
       {asset ? <AssetSearchDetail key={asset.id} asset={asset} client={client} onClose={closeAndFocus} /> :
         <Card className="search-results-inline" title={<h2>Search results</h2>} action={<Button onClick={closeAndFocus}>Dismiss results</Button>}>
           <div aria-live="polite">
@@ -125,7 +128,7 @@ export function ProductionGlobalSearch({ client, scope, resultsHost, routes, onN
             </li>)}</ul>)}
           </div>
         </Card>}
-    </div>, resultsHost)}
+    </>, resultsHost)}
   </>;
 }
 

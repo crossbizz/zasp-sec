@@ -173,7 +173,7 @@ for (theme of ['light', 'dark']) {
   await open('/');
   const search = page.getByRole('search'), input = search.getByRole('searchbox');
   await input.fill('agent'); await input.press('Enter');
-  const results = page.locator('#product-search-results .search-results-inline'), options = results.getByRole('button');
+  const results = page.locator('#product-search-results .search-results-inline'), options = results.locator('li a[href], li button');
   await options.last().waitFor();
   assert.equal(await options.count(),12);
   await options.first().focus();
