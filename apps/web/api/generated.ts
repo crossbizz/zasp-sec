@@ -143,6 +143,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/addon-versions/{id}/deep-scan": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Review reported add-on findings using the qualified model
+         * @description Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+         */
+        readonly post: operations["deepScanAddonVersion"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/addon-versions/{id}/deployment-approvals": {
         readonly parameters: {
             readonly query: {
@@ -610,6 +632,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/discovery/verify": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Review repository discovery evidence using the qualified model
+         * @description Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+         */
+        readonly post: operations["verifyAgentDiscovery"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/evidence-pack": {
         readonly parameters: {
             readonly query?: never;
@@ -665,6 +709,28 @@ export type paths = {
         /** Record the intended tool set for one agent */
         readonly put: operations["putAgentPurpose"];
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/purpose/draft": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Draft an agent purpose from scoped tool evidence
+         * @description Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+         */
+        readonly post: operations["draftAgentPurpose"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -767,6 +833,23 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/workforce": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List registered security agents and their locked purposes */
+        readonly get: operations["listWorkforceInventory"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/ai/qualifications": {
         readonly parameters: {
             readonly query?: never;
@@ -776,6 +859,40 @@ export type paths = {
         };
         /** List model qualifications for this environment */
         readonly get: operations["listModelQualifications"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/ai/qualifications/run": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Request measurement of a registered model deployment */
+        readonly post: operations["runModelQualification"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/ai/qualifications/runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read a qualification job */
+        readonly get: operations["getModelQualificationRun"];
         readonly put?: never;
         readonly post?: never;
         readonly delete?: never;
@@ -1052,6 +1169,74 @@ export type paths = {
         readonly put?: never;
         /** Submit signed origin days or an empty profile heartbeat */
         readonly post: operations["recordBrowserOriginDays"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Queue a redacted calibration export */
+        readonly post: operations["createCalibrationExport"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read calibration export status */
+        readonly get: operations["getCalibrationExport"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports/{id}/download": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Download a frozen calibration snapshot */
+        readonly post: operations["downloadCalibrationExport"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports/{id}/download-grants": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Issue a single-use calibration download grant */
+        readonly post: operations["createCalibrationDownloadGrant"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -4407,6 +4592,22 @@ export type components = {
             readonly last_observed_at: string | null;
             readonly observed_evidence_id: string | null;
             readonly purpose_revision: number;
+            readonly sync_reviews?: readonly components["schemas"]["AgentPostureSyncReview"][];
+        };
+        readonly AgentPostureSyncReview: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly purpose: "agent_discovery_verify" | "agent_purpose_draft";
+            readonly result: null | {
+                readonly evidence_refs: readonly string[];
+                /** @enum {string} */
+                readonly kind: "autonomous_agent" | "simple_llm_app" | "mcp_server" | "skill_addon" | "not_an_agent_fp";
+            } | {
+                readonly allowed_tool_ids: readonly components["schemas"]["ProductID"][];
+                readonly iam_mismatches: readonly string[];
+            };
+            /** @enum {string} */
+            readonly state: "pending" | "reviewed" | "uncertain";
         };
         readonly AgentPurpose: {
             readonly agent_id: components["schemas"]["ProductID"];
@@ -5041,6 +5242,28 @@ export type components = {
             /** Format: date-time */
             readonly occurred_at: string;
             readonly rule_id: string;
+        };
+        readonly CalibrationDownloadGrant: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly grant: string;
+        };
+        readonly CalibrationExportFile: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly filename: string;
+            readonly jsonl: string;
+            readonly sha256: string;
+        };
+        readonly CalibrationExportJob: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly requested_at: string;
+            readonly samples: number;
+            /** @enum {string} */
+            readonly status: "queued" | "writing" | "ready" | "failed";
         };
         readonly CalibrationMetrics: {
             readonly bins: readonly components["schemas"]["CalibrationBin"][];
@@ -6241,6 +6464,25 @@ export type components = {
          */
         readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
+        readonly InventoryReviewReceipt: {
+            readonly coverage_degraded: boolean;
+            /** @enum {string} */
+            readonly purpose: "agent_discovery_verify" | "agent_purpose_draft" | "addon_semantic_audit";
+            readonly result: null | {
+                readonly evidence_refs: readonly string[];
+                /** @enum {string} */
+                readonly kind: "autonomous_agent" | "simple_llm_app" | "mcp_server" | "skill_addon" | "not_an_agent_fp";
+            } | {
+                readonly allowed_tool_ids: readonly components["schemas"]["ProductID"][];
+                readonly iam_mismatches: readonly string[];
+            } | {
+                readonly citations: readonly string[];
+                readonly risk_score: number;
+                readonly tags: readonly string[];
+                readonly threat_score: number;
+            };
+            readonly target_id: components["schemas"]["ProductID"];
+        };
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -6470,6 +6712,25 @@ export type components = {
         };
         readonly ModelQualificationPage: {
             readonly items: readonly components["schemas"]["ModelQualification"][];
+        };
+        readonly ModelQualificationRun: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly finished_at: string | null;
+            readonly id: components["schemas"]["ProductID"];
+            readonly model: string;
+            readonly provider: string;
+            readonly purpose: string;
+            /** Format: date-time */
+            readonly requested_at: string;
+            /** @enum {string} */
+            readonly status: "queued" | "running" | "passed" | "failed";
+        };
+        readonly ModelQualificationSelection: {
+            readonly model: string;
+            /** @enum {string} */
+            readonly provider: "zasp_vpc_slm" | "byoc_self_hosted" | "privatelink_bedrock" | "privatelink_vertex";
+            readonly purpose: string;
         };
         readonly NameInput: {
             readonly name: string;
@@ -7842,9 +8103,11 @@ export type components = {
             readonly security_check_passed: boolean;
             readonly security_receipt_id: string | null;
             /** @enum {string} */
-            readonly state: "open" | "verified_complete";
+            readonly state: "open" | "verified_complete" | "closed_business_task_unverified";
         };
         readonly SecurityCaseVerificationInput: {
+            /** @default false */
+            readonly business_fixture_unavailable: boolean;
             readonly fixture_run_id: components["schemas"]["ProductID"];
         };
         readonly Sensor: {
@@ -7976,6 +8239,7 @@ export type components = {
         readonly SessionID: string;
         readonly SessionIntent: {
             readonly actions: readonly components["schemas"]["SessionIntentAction"][];
+            readonly links: readonly components["schemas"]["SessionIntentLink"][];
             readonly session_id: components["schemas"]["ProductID"];
             readonly truncated: boolean;
         };
@@ -7989,6 +8253,12 @@ export type components = {
             readonly outcome: components["schemas"]["SessionActionOutcome"];
             /** @enum {string} */
             readonly source: "authenticated_workload" | "gateway" | "tetragon" | "otlp";
+        };
+        readonly SessionIntentLink: {
+            /** @enum {string} */
+            readonly reason: "read_then_tool" | "tool_then_activity" | "read_then_activity";
+            readonly source: components["schemas"]["ProductID"];
+            readonly target: components["schemas"]["ProductID"];
         };
         /** @description A console login ID, a correlated runtime session ID, or the explicitly unattributed evidence collection. */
         readonly SessionInvestigationID: components["schemas"]["SessionID"] | components["schemas"]["RuntimeSessionID"];
@@ -8517,6 +8787,24 @@ export type components = {
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
         };
+        readonly WorkforceInventoryAgent: {
+            readonly actions: readonly string[];
+            readonly id: components["schemas"]["ProductID"];
+            readonly mission: string;
+            readonly name: string;
+            readonly read_tools: readonly string[];
+            readonly revision: number;
+            /** @enum {string} */
+            readonly source: "built_in" | "studio";
+            readonly trigger: string;
+            readonly trigger_receipts: number;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly WorkforceInventoryPage: {
+            readonly items: readonly components["schemas"]["WorkforceInventoryAgent"][];
+            readonly next_cursor: string | null;
+        };
         readonly WorkloadActionDecision: {
             readonly action_id: components["schemas"]["WorkloadActionLabel"];
             /** @constant */
@@ -8712,6 +9000,7 @@ export type AgentEvidencePackStatus = components['schemas']['AgentEvidencePackSt
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentPostureSummary = components['schemas']['AgentPostureSummary'];
+export type AgentPostureSyncReview = components['schemas']['AgentPostureSyncReview'];
 export type AgentPurpose = components['schemas']['AgentPurpose'];
 export type AgentPurposeInput = components['schemas']['AgentPurposeInput'];
 export type AgentSession = components['schemas']['AgentSession'];
@@ -8782,6 +9071,9 @@ export type BuiltInRoleName = components['schemas']['BuiltInRoleName'];
 export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
 export type CalibrationBin = components['schemas']['CalibrationBin'];
 export type CalibrationDecision = components['schemas']['CalibrationDecision'];
+export type CalibrationDownloadGrant = components['schemas']['CalibrationDownloadGrant'];
+export type CalibrationExportFile = components['schemas']['CalibrationExportFile'];
+export type CalibrationExportJob = components['schemas']['CalibrationExportJob'];
 export type CalibrationMetrics = components['schemas']['CalibrationMetrics'];
 export type CalibrationThreshold = components['schemas']['CalibrationThreshold'];
 export type Capability = components['schemas']['Capability'];
@@ -8938,6 +9230,7 @@ export type InventoryManagementState = components['schemas']['InventoryManagemen
 export type InventoryPage = components['schemas']['InventoryPage'];
 export type InventoryProvider = components['schemas']['InventoryProvider'];
 export type InventoryRecord = components['schemas']['InventoryRecord'];
+export type InventoryReviewReceipt = components['schemas']['InventoryReviewReceipt'];
 export type InventorySourceObservation = components['schemas']['InventorySourceObservation'];
 export type InventorySummary = components['schemas']['InventorySummary'];
 export type KubernetesReferenceAuthorizationConfiguration = components['schemas']['KubernetesReferenceAuthorizationConfiguration'];
@@ -8960,6 +9253,8 @@ export type McpToolRiskClass = components['schemas']['MCPToolRiskClass'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type ModelQualification = components['schemas']['ModelQualification'];
 export type ModelQualificationPage = components['schemas']['ModelQualificationPage'];
+export type ModelQualificationRun = components['schemas']['ModelQualificationRun'];
+export type ModelQualificationSelection = components['schemas']['ModelQualificationSelection'];
 export type NameInput = components['schemas']['NameInput'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
 export type OAuthCompletionWorkflowMutationReceipt = components['schemas']['OAuthCompletionWorkflowMutationReceipt'];
@@ -9123,6 +9418,7 @@ export type SessionEventPage = components['schemas']['SessionEventPage'];
 export type SessionId = components['schemas']['SessionID'];
 export type SessionIntent = components['schemas']['SessionIntent'];
 export type SessionIntentAction = components['schemas']['SessionIntentAction'];
+export type SessionIntentLink = components['schemas']['SessionIntentLink'];
 export type SessionInvestigationId = components['schemas']['SessionInvestigationID'];
 export type SessionPage = components['schemas']['SessionPage'];
 export type SessionScope = components['schemas']['SessionScope'];
@@ -9181,6 +9477,8 @@ export type TicketWrite = components['schemas']['TicketWrite'];
 export type WorkflowMutationIntent = components['schemas']['WorkflowMutationIntent'];
 export type WorkflowMutationReceipt = components['schemas']['WorkflowMutationReceipt'];
 export type WorkflowMutationReceiptPage = components['schemas']['WorkflowMutationReceiptPage'];
+export type WorkforceInventoryAgent = components['schemas']['WorkforceInventoryAgent'];
+export type WorkforceInventoryPage = components['schemas']['WorkforceInventoryPage'];
 export type WorkloadActionDecision = components['schemas']['WorkloadActionDecision'];
 export type WorkloadActionLabel = components['schemas']['WorkloadActionLabel'];
 export type WorkloadActionOutcome = components['schemas']['WorkloadActionOutcome'];
@@ -9424,6 +9722,44 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["AddonCIOrigin"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deepScanAddonVersion: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Review reported add-on findings using the qualified model. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryReviewReceipt"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];
@@ -10448,6 +10784,44 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly verifyAgentDiscovery: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Review repository discovery evidence using the qualified model. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryReviewReceipt"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly getAgentEvidencePack: {
         readonly parameters: {
             readonly query?: {
@@ -10569,6 +10943,44 @@ export interface operations {
                 };
             };
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly draftAgentPurpose: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Draft an agent purpose from scoped tool evidence. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryReviewReceipt"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -10720,6 +11132,36 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listWorkforceInventory: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description List registered security agents and their locked purposes. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkforceInventoryPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listModelQualifications: {
         readonly parameters: {
             readonly query?: never;
@@ -10740,6 +11182,63 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly runModelQualification: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ModelQualificationSelection"];
+            };
+        };
+        readonly responses: {
+            /** @description Qualification job accepted. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ModelQualificationRun"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getModelQualificationRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Qualification job. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ModelQualificationRun"];
+                };
+            };
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -11281,6 +11780,126 @@ export interface operations {
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createCalibrationExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationExportJob"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getCalibrationExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationExportJob"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly downloadCalibrationExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly grant: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationExportFile"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createCalibrationDownloadGrant: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationDownloadGrant"];
+                };
+            };
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -14790,8 +15409,8 @@ export interface operations {
             readonly header: {
                 /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Quoted current durable resource version. */
-                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+                readonly "If-Match": components["parameters"]["ControlVersion"];
                 /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
                 readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
                 /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
@@ -16378,6 +16997,8 @@ export interface operations {
             readonly header: {
                 /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
                 readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];

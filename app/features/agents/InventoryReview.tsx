@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import type {InventoryReviewReceipt} from "../../../apps/web/api/generated";
 import type {ReviewPurpose,reviewAPI} from "../../../apps/web/api/inventory-review";
 import {APIProductError} from "../../../apps/web/api/client";
+import {ReviewedPurpose} from "./ReviewedPurpose";
 import {Button} from "../../components/ui";
 import {useOptionalSession} from "../../auth/SessionProvider";
 
@@ -15,7 +16,7 @@ function Result({receipt}:{receipt:InventoryReviewReceipt}) {
  const v=receipt.result;
  if(!v || receipt.coverage_degraded)return <p role="status">The optional model review is unavailable. Current evidence and approvals remain in effect.</p>;
  if("kind" in v)return <p><strong>{v.kind.replaceAll("_"," ")}</strong> · evidence {v.evidence_refs.join(", ")}</p>;
- if("allowed_tool_ids" in v)return <div><h4>Suggested purpose</h4><p>{v.allowed_tool_ids.length ? v.allowed_tool_ids.join(", ") : "No supported tools identified."}</p>{v.iam_mismatches.length>0 && <p>Access evidence to review · {v.iam_mismatches.join(", ")}</p>}</div>;
+ if("allowed_tool_ids" in v)return <div><h4>Suggested purpose</h4><p>{v.allowed_tool_ids.length ? v.allowed_tool_ids.join(", ") : "No supported tools identified."}</p>{v.iam_mismatches.length>0 && <p>Access evidence to review · {v.iam_mismatches.join(", ")}</p>}<ReviewedPurpose agent={receipt.target_id} tools={v.allowed_tool_ids}/></div>;
  return <dl><dt>Estimated threat</dt><dd>{Math.round(v.threat_score*100)}%</dd><dt>Estimated impact</dt><dd>{Math.round(v.risk_score*100)}%</dd><dt>Static evidence</dt><dd>{v.citations.join(", ")}</dd>{v.tags.length>0 && <><dt>Framework references</dt><dd>{v.tags.join(", ")}</dd></>}</dl>;
 }
 export function InventoryReview({id,purposes,review}:{id:string;purposes:readonly ReviewPurpose[];review:ReturnType<typeof reviewAPI>}) {

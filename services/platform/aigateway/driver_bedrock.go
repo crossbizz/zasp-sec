@@ -24,6 +24,7 @@ type BedrockDriver struct {
 }
 
 type BedrockBinding struct {
+	Provider            string `json:"provider"`
 	Model               string `json:"model"`
 	Region              string `json:"region"`
 	CredentialReference string `json:"credential_reference"`
@@ -39,7 +40,7 @@ func NewBedrockTriage(host string, ip netip.Addr, model, reference, token string
 func NewBedrockForPurpose(p Purpose, host string, ip netip.Addr, model, reference, token string, upperCost int64) (*BedrockDriver, BedrockBinding, error) {
 	b := BedrockBinding{}
 	match := bedrockHost.FindStringSubmatch(host)
-	if len(match) != 2 || bedrockInstructions[p] == "" || !EligibleModel(p, ModeBedrock, model) || !strings.HasPrefix(reference, "secret_ref_planner/") || len(reference) > 240 || upperCost < 1 || upperCost > 9_007_199_254_740_991 || len(token) < 16 || len(token) > 8192 || strings.IndexFunc(token, func(r rune) bool { return r < 33 || r > 126 }) >= 0 {
+	if len(match) != 2 || awsResidency(match[1]) == "" || bedrockInstructions[p] == "" || !EligibleModel(p, ModeBedrock, model) || !validPrivateCredential(reference, token, upperCost) {
 		return nil, b, ErrInvalidConfiguration
 	}
 	path := "/model/" + url.PathEscape(model) + "/converse"
@@ -48,12 +49,30 @@ func NewBedrockForPurpose(p Purpose, host string, ip netip.Addr, model, referenc
 	if err != nil {
 		return nil, b, err
 	}
-	digest := func(s string) string {
-		hash := sha256.Sum256([]byte(s))
-		return "sha256:" + hex.EncodeToString(hash[:])
-	}
-	b = BedrockBinding{model, strings.SplitN(match[1], "-", 2)[0], reference, digest(token), digest(fmt.Sprintf("bedrock-converse-v1\n%s\n%s\n%s", endpoint, ip.String(), model)), upperCost}
+
+	b = BedrockBinding{Provider: ModeBedrock, Model: model, Region: awsResidency(match[1]), CredentialReference: reference, CredentialDigest: digest(token), DeploymentDigest: digest(fmt.Sprintf("bedrock-converse-v1\n%s\n%s\n%s", endpoint, ip.String(), model)), Cost: upperCost}
 	return &BedrockDriver{p, client, endpoint, token}, b, nil
+}
+
+func digest(s string) string {
+	hash := sha256.Sum256([]byte(s))
+	return "sha256:" + hex.EncodeToString(hash[:])
+}
+
+func validPrivateCredential(reference, token string, cost int64) bool {
+	return strings.HasPrefix(reference, "secret_ref_planner/") && len(reference) <= 240 &&
+		len(token) >= 16 && len(token) <= 8192 && strings.IndexFunc(token, func(r rune) bool { return r < 33 || r > 126 }) < 0 &&
+		cost > 0 && cost <= 9_007_199_254_740_991
+}
+
+func awsResidency(region string) string {
+	switch region {
+	case "us-east-1", "us-east-2", "us-west-1", "us-west-2":
+		return "us"
+	case "eu-central-1", "eu-west-1", "eu-west-3", "eu-north-1", "eu-south-1", "eu-south-2":
+		return "eu"
+	}
+	return ""
 }
 
 // Tier: 3 | Purpose: security_agent_triage using qualified regional Haiku.

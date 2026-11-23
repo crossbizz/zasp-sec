@@ -40,13 +40,13 @@ LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $allowed$
   JOIN public.model_qualifications q USING(organization_id,workspace_id,environment_id)
   WHERE (env.organization_id,env.workspace_id,env.environment_id)=(o,w,e)
    AND org.ai_enabled AND org.require_zero_retention AND env.mode=ANY(org.allowed_modes)
-   AND env.mode='privatelink_bedrock' AND env.tier3_provider=env.mode AND env.tier3_security_agent_planner_enabled
+   AND env.mode IN ('privatelink_bedrock','privatelink_vertex') AND env.tier3_provider=env.mode AND env.tier3_security_agent_planner_enabled
    AND env.allow_redacted_summaries AND env.monthly_budget_nano_credits>0
    AND q.provider=env.mode AND q.model=env.tier3_model_pin AND q.purpose='security_agent_triage'
    AND q.qualified AND q.deployment_digest IS NOT NULL AND q.checked_at<=now() AND q.expires_at>now()
    AND (zasp_authorization80.ai_data_limits(o,w,e,false)->>'collection_mode') IN('extended','metadata_only')
    AND org.allowed_residency IN('us_only','eu_only','us_eu')
-   AND (config IS NULL OR (env.tier3_model_pin=config->>'model' AND org.allowed_residency IN ('us_eu',(config->>'region')||'_only')
+   AND (config IS NULL OR (env.mode=config->>'provider' AND env.tier3_model_pin=config->>'model' AND org.allowed_residency IN ('us_eu',(config->>'region')||'_only')
      AND env.credential_digest=config->>'credential_digest' AND env.credential_reference=config->>'credential_reference'
      AND q.deployment_digest=config->>'deployment_digest'))
    AND EXISTS(SELECT FROM public.zasp_security_agent_kill_switches k WHERE (k.organization_id,k.workspace_id,k.environment_id,k.action_key,k.execution_enabled)=('*','*','*','*',true))

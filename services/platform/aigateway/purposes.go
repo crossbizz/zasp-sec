@@ -57,7 +57,7 @@ var (
 		PurposeDiscoveryVerify: {"tier3_discovery_purpose_enabled", 3, 30 * time.Second, 32768, code, frontier},
 		PurposeDraft:           {"tier3_discovery_purpose_enabled", 3, 30 * time.Second, 32768, code, frontier},
 		PurposeAddonAudit:      {"tier3_addon_audit_enabled", 3, 30 * time.Second, 32768, addon, frontier},
-		PurposeTriage:          {"tier3_security_agent_planner_enabled", 3, 30 * time.Second, 16384, summary, []string{modelHaiku, "anthropic.claude-haiku-4-5-20251001-v1:0"}},
+		PurposeTriage:          {"tier3_security_agent_planner_enabled", 3, 30 * time.Second, 16384, summary, []string{modelHaiku, "anthropic.claude-haiku-4-5-20251001-v1:0", modelGemini}},
 		PurposeRemediate:       {"tier3_security_agent_planner_enabled", 3, 30 * time.Second, 16384, summary, frontier},
 	}
 )
@@ -80,7 +80,7 @@ func EligibleModel(p Purpose, mode, model string) bool {
 	case ModeBedrock:
 		return d.Tier == 3 && model != modelGemini
 	case ModeVertex:
-		return d.Tier == 3
+		return d.Tier == 3 && model == modelGemini
 	case ModeDev:
 		return true
 	}

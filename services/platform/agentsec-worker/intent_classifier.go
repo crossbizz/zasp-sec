@@ -52,6 +52,8 @@ func configuredIntentClassifier() *privateIntentClassifier {
 		return nil
 	}
 	deployment := aigateway.Deployment{
+		Provider: os.Getenv("ZASP_INTENT_CLASSIFIER_PROVIDER"), OrganizationID: os.Getenv("ZASP_INTENT_CLASSIFIER_ORGANIZATION_ID"),
+		WorkspaceID: os.Getenv("ZASP_INTENT_CLASSIFIER_WORKSPACE_ID"), EnvironmentID: os.Getenv("ZASP_INTENT_CLASSIFIER_ENVIRONMENT_ID"),
 		Endpoint: os.Getenv("ZASP_INTENT_CLASSIFIER_ENDPOINT"), PrivateIP: os.Getenv("ZASP_INTENT_CLASSIFIER_PRIVATE_IP"),
 		WeightsSHA256: os.Getenv("ZASP_INTENT_CLASSIFIER_WEIGHTS_SHA256"), Model: model, Region: residency, MaximumNanoCredits: cost,
 	}

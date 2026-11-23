@@ -29,7 +29,7 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	}
 	s, event, agent, receipt := b.id(), b.id(), b.id(), b.id()
 	model := &testAnalystModel{id: receipt}
-	cfg := aigateway.BedrockBinding{Model: "anthropic.claude-haiku-4-5", Region: "us", CredentialReference: "secret_ref_planner/" + b.o + "/" + b.w + "/" + b.e + "/v1", CredentialDigest: "sha256:" + strings.Repeat("a", 64), DeploymentDigest: "sha256:" + strings.Repeat("b", 64), Cost: 20}
+	cfg := aigateway.BedrockBinding{Provider: aigateway.ModeBedrock, Model: "anthropic.claude-haiku-4-5", Region: "us", CredentialReference: "secret_ref_planner/" + b.o + "/" + b.w + "/" + b.e + "/v1", CredentialDigest: "sha256:" + strings.Repeat("a", 64), DeploymentDigest: "sha256:" + strings.Repeat("b", 64), Cost: 20}
 	h := &discoveryWorkflowSurface{evidenceDB: b.product, analyst: &analystChat{model, cfg}}
 	b.seed(func() {
 		b.exec(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$5,$6,'strong','gateway','policy','block','Gateway blocked the request',$7,now())`, b.o, b.w, b.e, event, s, agent, receipt)
@@ -49,7 +49,6 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 		b.exec(`INSERT INTO zasp_environment_ai_controls(organization_id,workspace_id,environment_id,environment_class,mode,tier3_provider,tier3_model_pin,tier3_security_agent_planner_enabled,allow_redacted_summaries,monthly_budget_nano_credits,credential_reference,credential_digest) VALUES($1,$2,$3,'production','privatelink_bedrock','privatelink_bedrock',$4,true,true,20,$5,$6)`, b.o, b.w, b.e, cfg.Model, cfg.CredentialReference, cfg.CredentialDigest)
 		b.exec(`INSERT INTO model_qualifications(organization_id,workspace_id,environment_id,provider,model,purpose,qualified,deployment_digest,evidence_digest,expires_at) VALUES($1,$2,$3,'privatelink_bedrock',$4,'security_agent_triage',true,$5,$5,now()+interval '1 hour')`, b.o, b.w, b.e, cfg.Model, cfg.DeploymentDigest)
 		b.exec(`INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$2,$3,'*',true,'fixture') ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true`, b.o, b.w, b.e)
-		b.exec(`UPDATE zasp_security_agent_kill_switches SET execution_enabled=true WHERE (organization_id,workspace_id,environment_id,action_key)=('*','*','*','*')`)
 	})
 	out := create()
 	var thread analystThread
@@ -74,7 +73,22 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	if replay := stream(k); replay.Code != 200 || replay.Body.String() != first.Body.String() || model.calls != 1 {
 		t.Fatalf("replayed model: %d %s", model.calls, replay.Body)
 	}
+	history := b.serve(h, admin, "getAnalystThread", "GET", path+"/"+thread.ID+query, params, "", nil)
+	var persisted analystThread
+	if history.Code != 200 || json.Unmarshal(history.Body.Bytes(), &persisted) != nil || len(persisted.Messages) != 2 || persisted.Messages[0].Role != "user" || persisted.Messages[0].ID != k || persisted.Messages[1].Role != "assistant" || len(persisted.Messages[1].EvidenceIDs) != 1 || persisted.Messages[1].EvidenceIDs[0] != receipt {
+		t.Fatalf("missing scoped message history: %d %s", history.Code, history.Body)
+	}
 	if limited := stream(b.id()); limited.Code != 409 || model.calls != 1 {
 		t.Fatalf("budget ignored: %d", limited.Code)
+	}
+	b.seed(func() {
+		b.exec(`UPDATE zasp_environment_ai_controls SET tier3_security_agent_planner_enabled=false WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, b.o, b.w, b.e)
+	})
+	disabled := b.serve(h, admin, "getAnalystThread", "GET", path+"/"+thread.ID+query, params, "", nil)
+	if disabled.Code != 409 || strings.Contains(disabled.Body.String(), receipt) {
+		t.Fatalf("disabled history leaked: %d", disabled.Code)
+	}
+	if denied := stream(k); denied.Code != 409 || model.calls != 1 {
+		t.Fatalf("disabled replay=%d calls=%d", denied.Code, model.calls)
 	}
 }

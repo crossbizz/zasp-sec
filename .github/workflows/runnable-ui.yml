@@ -56,7 +56,7 @@ jobs:
           esac
           "$fixture_pg_bin/postgres" --version
           printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
-      - name: Rehearse a populated V2 upgrade and compare the fresh catalog
+      - name: Rehearse populated predecessor upgrades through V3 and compare the fresh catalog
         run: scripts/test-feature-v2-upgrade.sh
       - name: Install pinned secret scanner
         run: go install github.com/zricethezav/gitleaks/v8@v8.30.1

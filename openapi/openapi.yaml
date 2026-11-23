@@ -3156,6 +3156,27 @@ paths:
       responses:
         '200': { description: Current saved suggestions and observed coverage., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSuggestionPage' } } } }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/workforce:
+    get:
+      operationId: listWorkforceInventory
+      summary: List registered security agents and their locked purposes
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 64 } }
+      responses:
+        '200':
+          description: List registered security agents and their locked purposes.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkforceInventoryPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/posture-summary:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -4588,6 +4609,76 @@ paths:
         '200': { description: Update environment AI controls., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/EnvironmentAIControls' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports:
+    post:
+      operationId: createCalibrationExport
+      summary: Queue a redacted calibration export
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
+      responses:
+        '202': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportJob' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports/{id}:
+    get:
+      operationId: getCalibrationExport
+      summary: Read calibration export status
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportJob' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports/{id}/download-grants:
+    post:
+      operationId: createCalibrationDownloadGrant
+      summary: Issue a single-use calibration download grant
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
+      responses:
+        '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationDownloadGrant' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports/{id}/download:
+    post:
+      operationId: downloadCalibrationExport
+      summary: Download a frozen calibration snapshot
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [grant], properties: { grant: { type: string, pattern: '^[0-9a-f]{64}$' } } } } } }
+      responses:
+        '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportFile' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/ai/qualifications/run:
+    post:
+      operationId: runModelQualification
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Request measurement of a registered model deployment
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationSelection' } } } }
+      responses:
+        '202': { description: Qualification job accepted., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationRun' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/ai/qualifications/runs/{id}:
+    get:
+      operationId: getModelQualificationRun
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read a qualification job
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Qualification job., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationRun' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/ai/qualifications:
     get:
       operationId: listModelQualifications
@@ -4635,6 +4726,7 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
         - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/FreshAuth' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityCaseVerificationInput' } } } }
       responses:
         '200': { description: Verify a case against linked fixture receipts., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityCaseVerification' } } } }
@@ -4694,7 +4786,7 @@ paths:
         - { $ref: '#/components/parameters/CSRFToken' }
         - { $ref: '#/components/parameters/IdempotencyKey' }
         - { $ref: '#/components/parameters/FreshAuth' }
-        - { $ref: '#/components/parameters/ResourceVersion' }
+        - { $ref: '#/components/parameters/ControlVersion' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSuppressionInput' } } } }
       responses:
         '200': { description: Change the suppression mode of a heuristic rule., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSuppressionMode' } } } }
@@ -7713,6 +7805,7 @@ components:
       additionalProperties: false
       required: [fixture_run_id]
       properties:
+        business_fixture_unavailable: { type: boolean, default: false }
         fixture_run_id: { $ref: '#/components/schemas/ProductID' }
     SecurityCaseVerification:
       type: object
@@ -7720,7 +7813,7 @@ components:
       required: [case_id, state, security_check_passed, business_task_preserved, fixture_run_id, security_receipt_id, business_receipt_id, reason]
       properties:
         case_id: { $ref: '#/components/schemas/ProductID' }
-        state: { type: string, enum: [open, verified_complete] }
+        state: { type: string, enum: [open, verified_complete, closed_business_task_unverified] }
         security_check_passed: { type: boolean }
         business_task_preserved: { type: boolean }
         fixture_run_id: { anyOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
@@ -7739,14 +7832,23 @@ components:
         source: { type: string, enum: [authenticated_workload, gateway, tetragon, otlp] }
         evidence_ids: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/ProductID' } }
         attention: { type: boolean }
+    SessionIntentLink:
+      type: object
+      additionalProperties: false
+      required: [source, target, reason]
+      properties:
+        source: { $ref: '#/components/schemas/ProductID' }
+        target: { $ref: '#/components/schemas/ProductID' }
+        reason: { type: string, enum: [read_then_tool, tool_then_activity, read_then_activity] }
     SessionIntent:
       type: object
       additionalProperties: false
-      required: [session_id, truncated, actions]
+      required: [session_id, truncated, actions, links]
       properties:
         session_id: { $ref: '#/components/schemas/ProductID' }
         truncated: { type: boolean }
         actions: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionIntentAction' } }
+        links: { type: array, maxItems: 99, items: { $ref: '#/components/schemas/SessionIntentLink' } }
     RuleSuppressionInput:
       type: object
       additionalProperties: false
@@ -7834,15 +7936,15 @@ components:
       additionalProperties: false
       required: [name, mission, trigger, read_tools, proposal, require_approval, max_steps, budget_nano_credits, model_pin]
       properties:
-        name: { type: string, maxLength: 128 }
-        mission: { type: string, maxLength: 1024 }
+        name: { type: string, maxLength: 80 }
+        mission: { type: string, maxLength: 512 }
         trigger: { type: string, enum: [manual, finding_opened] }
         read_tools: { type: array, maxItems: 4, minItems: 1, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift] } }
         proposal: { type: string, enum: [none, propose_policy, request_containment] }
         require_approval: { type: boolean, const: true }
         max_steps: { type: integer, minimum: 1, maximum: 6 }
         budget_nano_credits: { type: integer, minimum: 0, maximum: 1000000000000 }
-        model_pin: { type: string, maxLength: 180 }
+        model_pin: { type: string, maxLength: 128 }
     CustomSecurityAgent:
       type: object
       additionalProperties: false
@@ -8261,12 +8363,58 @@ components:
                 risk_score: { type: number, minimum: 0, maximum: 1 }
                 tags: { type: array, maxItems: 16, items: { type: string } }
                 citations: { type: array, maxItems: 32, items: { type: string } }
+    WorkforceInventoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: { type: [string, 'null'] }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/WorkforceInventoryAgent' } }
+    WorkforceInventoryAgent:
+      type: object
+      additionalProperties: false
+      required: [id, source, revision, name, mission, trigger, read_tools, actions, trigger_receipts, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        source: { type: string, enum: [built_in, studio] }
+        revision: { type: integer, minimum: 1 }
+        name: { type: string }
+        mission: { type: string }
+        trigger: { type: string }
+        read_tools: { type: array, items: { type: string } }
+        actions: { type: array, items: { type: string } }
+        trigger_receipts: { type: integer, minimum: 0 }
+        updated_at: { type: string, format: date-time }
+    AgentPostureSyncReview:
+      type: object
+      additionalProperties: false
+      required: [purpose, state, evidence_id, result]
+      properties:
+        purpose: { type: string, enum: [agent_discovery_verify, agent_purpose_draft] }
+        state: { type: string, enum: [pending, reviewed, uncertain] }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        result:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [kind, evidence_refs]
+              properties:
+                kind: { type: string, enum: [autonomous_agent, simple_llm_app, mcp_server, skill_addon, not_an_agent_fp] }
+                evidence_refs: { type: array, maxItems: 32, items: { type: string } }
+            - type: object
+              additionalProperties: false
+              required: [allowed_tool_ids, iam_mismatches]
+              properties:
+                allowed_tool_ids: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/ProductID' } }
+                iam_mismatches: { type: array, maxItems: 32, items: { type: string } }
     AgentPostureSummary:
       type: object
       additionalProperties: false
       required: [agent_id, deployment_kind, deployment_evidence, discovery_evidence_id, purpose_revision, allowed_tool_ids, access_known, granted_categories, last_observed_at, observed_evidence_id]
       properties:
         agent_id: { $ref: '#/components/schemas/ProductID' }
+        sync_reviews: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/AgentPostureSyncReview' } }
         deployment_kind: { type: string, enum: [deployed_agent, repo_code, unknown] }
         deployment_evidence: { type: string, enum: [runtime_receipt, repository, provider_workload, unverified] }
         discovery_evidence_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f-]{36}$' }
@@ -9690,6 +9838,54 @@ components:
       required: [recorded]
       properties:
         recorded: { type: boolean, const: true }
+    ModelQualificationSelection:
+      type: object
+      additionalProperties: false
+      required: [provider, model, purpose]
+      properties:
+        provider: { type: string, enum: [zasp_vpc_slm, byoc_self_hosted, privatelink_bedrock, privatelink_vertex] }
+        model: { type: string, minLength: 1, maxLength: 128 }
+        purpose: { type: string, minLength: 1, maxLength: 63 }
+    CalibrationExportJob:
+      type: object
+      additionalProperties: false
+      required: [id, environment_id, status, requested_at, expires_at, samples]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, enum: [queued, writing, ready, failed] }
+        requested_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        samples: { type: integer, minimum: 0, maximum: 2048 }
+    CalibrationDownloadGrant:
+      type: object
+      additionalProperties: false
+      required: [grant, expires_at]
+      properties:
+        grant: { type: string, pattern: '^[0-9a-f]{64}$' }
+        expires_at: { type: string, format: date-time }
+    CalibrationExportFile:
+      type: object
+      additionalProperties: false
+      required: [environment_id, filename, sha256, jsonl]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        filename: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        jsonl: { type: string, maxLength: 1048576 }
+    ModelQualificationRun:
+      type: object
+      additionalProperties: false
+      required: [id, environment_id, provider, model, purpose, status, requested_at, finished_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        provider: { type: string }
+        model: { type: string }
+        purpose: { type: string }
+        status: { type: string, enum: [queued, running, passed, failed] }
+        requested_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
     GuardrailInteraction:
       type: object
       additionalProperties: false

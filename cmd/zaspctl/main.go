@@ -25,6 +25,7 @@ const usage = `zaspctl — local agent add-on inventory and static scans
   zaspctl mcp rescan --environment ID --server ID --view LABEL --baseline FILE --baseline-sha256 sha256:DIGEST [--fail-on-change] [--json] < captured-pages.jsonl
   zaspctl evidence export --environment ID (--cohort LABEL | --device ID [--session REF]) [--no-open]
   zaspctl device status|doctor [--json]
+  zaspctl calibration export --environment ID [--no-open | --export-id ID --output NEW_FILE]
   zaspctl guardrails simulate POLICY@REVISION --agent ID --since RFC3339 [--until RFC3339] [--before-event-id ID]
   zaspctl auth login --environment ID [--no-open]
   zaspctl addons attest RECEIPT --environment ID --credential-id ID --repository OWNER/REPO --commit SHA --bundle DIR --key-file FILE [--repo-dir DIR]
@@ -51,6 +52,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return 0
+	}
+	if len(args) >= 2 && args[0] == "calibration" && args[1] == "export" {
+		return calibrationExport(args[2:], os.Stdin, stdout, stderr, nil)
 	}
 	if len(args) >= 2 && args[0] == "guardrails" && args[1] == "simulate" {
 		return simulateGuardrail(args[2:], stdout, stderr)

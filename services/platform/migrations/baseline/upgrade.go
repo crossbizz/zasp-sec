@@ -2,7 +2,8 @@ package baseline
 
 import (
 	"context"
-	_ "embed"
+	"embed"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -41,38 +42,13 @@ var policyReplayDDL string
 //go:embed provider_readiness.sql
 var providerReadinessDDL string
 
-//go:embed feature_v3_ai_controls.sql
-var v3AiControlsDDL string
+// Fresh installs and upgrades apply this single manifest in dependency order.
+//
+//go:embed feature_v3.order
+var v3Order string
 
-//go:embed feature_v3_models.sql
-var v3ModelsDDL string
-
-//go:embed feature_v3_model_flow.sql
-var v3ModelFlowDDL string
-
-//go:embed feature_v3_delegation.sql
-var v3DelegationDDL string
-
-//go:embed feature_v3_evidence.sql
-var v3EvidenceDDL string
-
-//go:embed feature_v3_inventory.sql
-var v3InventoryDDL string
-
-//go:embed feature_v3_calibration.sql
-var v3CalibrationDDL string
-
-//go:embed feature_v3_pricing.sql
-var v3PricingDDL string
-
-//go:embed feature_v3_chat.sql
-var v3ChatDDL string
-
-//go:embed feature_v3_semantic_guardrail.sql
-var v3SemanticGuardrailDDL string
-
-//go:embed feature_v3_studio.sql
-var v3StudioDDL string
+//go:embed feature_v3_*.sql
+var v3Sources embed.FS
 
 // UpgradeToV2 applies the same DDL used by the fresh-install generator. The
 // transaction includes temporary privileges, all new objects, the new catalog
@@ -129,7 +105,13 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 		if artifact != precedingV3Artifact {
 			updates = []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL}
 		}
-		updates = append(updates, v3AiControlsDDL, v3ModelsDDL, v3ModelFlowDDL, v3DelegationDDL, v3EvidenceDDL, v3InventoryDDL, v3CalibrationDDL, v3PricingDDL, v3StudioDDL, v3ChatDDL, v3SemanticGuardrailDDL)
+		for _, name := range strings.Fields(v3Order) {
+			ddl, err := v3Sources.ReadFile(name)
+			if err != nil {
+				return refuse(StageArtifact, "missing schema source", err)
+			}
+			updates = append(updates, string(ddl))
+		}
 		for _, ddl := range updates {
 			if err = execScript(ctx, conn, ddl); err != nil {
 				return refuse(StageObjects, "feature schema upgrade", err)

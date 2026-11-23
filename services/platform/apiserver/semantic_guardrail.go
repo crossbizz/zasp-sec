@@ -77,7 +77,7 @@ func (h *guardrailHTTPHandler) evaluateSnippet(ctx context.Context, id RequestId
 	result.SemanticState = "coverage_degraded"
 	result.CoverageDegraded = true
 	profile, ok := h.profiles[job]
-	if !ok {
+	if !ok || !profile.deployment.ScopedTo(id.Scope.OrganizationID().String(), id.Scope.WorkspaceID().String(), id.Scope.EnvironmentID().String()) {
 		return
 	}
 	snippet, err := json.Marshal(map[string]any{"rule_id": rule, "snippet": *in.Text})

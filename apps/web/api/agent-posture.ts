@@ -1,4 +1,5 @@
 import { APITransportError, requireAPIData, type APIClient } from "./client";
+import { decodeInventoryReview } from "./inventory-review";
 import type { AgentPostureSummary } from "./generated";
 
 const id = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -20,6 +21,20 @@ export function decodeAgentPosture(raw: unknown, agent: string): AgentPostureSum
   if (r.deployment_evidence === "runtime_receipt") {
     if (!validID(r.observed_evidence_id) || typeof r.last_observed_at !== "string" || !Number.isFinite(Date.parse(r.last_observed_at))) return invalid();
   } else if (r.observed_evidence_id !== null || r.last_observed_at !== null) return invalid();
+  if (r.sync_reviews !== undefined) {
+    if (!Array.isArray(r.sync_reviews) || r.sync_reviews.length > 2) return invalid();
+    const seen = new Set<string>();
+    for (const review of r.sync_reviews) {
+      if (!review || !["agent_discovery_verify", "agent_purpose_draft"].includes(review.purpose) || seen.has(review.purpose) ||
+        !["pending", "uncertain", "reviewed"].includes(review.state) || !validID(review.evidence_id) || review.evidence_id !== r.discovery_evidence_id) return invalid();
+      seen.add(review.purpose);
+      decodeInventoryReview({target_id: agent, purpose: review.purpose, coverage_degraded: review.state !== "reviewed", result: review.result}, agent, review.purpose);
+      if (review.result && review.purpose === "agent_discovery_verify" &&
+        (!review.result.evidence_refs.length || !review.result.evidence_refs.every((v:unknown) => v === review.evidence_id))) return invalid();
+      if (review.result && review.purpose === "agent_purpose_draft" &&
+        (!review.result.allowed_tool_ids.every(validID) || !review.result.iam_mismatches.every((v:unknown) => v === review.evidence_id))) return invalid();
+    }
+  }
   return r as AgentPostureSummary;
 }
 

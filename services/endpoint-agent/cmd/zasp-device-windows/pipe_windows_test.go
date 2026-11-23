@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/windowsinventory"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
 	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 	"golang.org/x/sys/windows"
 )
@@ -40,6 +41,56 @@ func TestHookFallbackAndCacheHeartbeat(t *testing.T) {
 		if !beat.Valid() || (h == nil) != (beat.Adapter == "windows_inventory") {
 			t.Fatalf("bad heartbeat %#v", beat)
 		}
+	}
+}
+
+func TestWindowsTaskGrantFrameUsesDeviceBindingAndActualHook(t *testing.T) {
+	raw, err := os.ReadFile("../../../../sdks/fixtures/task-delegation.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var grant struct {
+		Verifier delegation.Verifier
+		Token    string
+		Issued   int64 `json:"issued_at"`
+	}
+	if err := json.Unmarshal(raw, &grant); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(grant.Issued, 0)
+	binding := endpointprotocol.Binding{Organization: grant.Verifier.Organization, Workspace: grant.Verifier.Workspace, Environment: grant.Verifier.Environment}
+	hook := json.RawMessage(`{"hook_event_name":"PreToolUse","session_id":"session","tool_use_id":"call","tool_name":"mcp__pilot__update_ticket","tool_input":{"destination":"internal"}}`)
+	wrap := func(h json.RawMessage, token string) []byte {
+		t.Helper()
+		body, err := json.Marshal(delegatedHook{Hook: h, Token: token})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return append([]byte(delegationFrame), body...)
+	}
+	for _, tc := range []struct {
+		raw  []byte
+		at   time.Time
+		want bool
+	}{
+		{wrap(hook, grant.Token), now, true},
+		{wrap(hook, ""), now, false},
+		{hook, now, false},
+		{wrap(bytes.ReplaceAll(hook, []byte("internal"), []byte("external")), grant.Token), now, false},
+		{wrap(hook, grant.Token), now.Add(5 * time.Minute), false},
+	} {
+		if _, allowed := checkDelegatedHook(binding, &grant.Verifier, tc.raw, tc.at); allowed != tc.want {
+			t.Fatalf("delegated frame allowed = %t, want %t", allowed, tc.want)
+		}
+	}
+	binding.Environment = "elsewhere"
+	if _, allowed := checkDelegatedHook(binding, &grant.Verifier, wrap(hook, grant.Token), now); allowed {
+		t.Fatal("cross-environment frame admitted")
+	}
+	t.Setenv("ZASP_TASK_DELEGATION", "")
+	var out bytes.Buffer
+	if err := managedPipeHook(pipeName+"-unavailable", false, true, bytes.NewReader(hook), &out); err != nil || !strings.Contains(out.String(), `"permissionDecision":"deny"`) {
+		t.Fatal("mandatory hook did not deny an unavailable grant")
 	}
 }
 

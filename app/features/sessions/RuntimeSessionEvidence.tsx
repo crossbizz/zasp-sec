@@ -5,6 +5,7 @@ import { APITransportError, requireAPIData, type APIClient } from "../../../apps
 import type { RuntimeSessionEvent } from "../../../apps/web/api/generated";
 import { decodeRuntimeSessionEvent } from "../../../apps/web/api/runtime-session-decoders";
 import { Button, LoadingState } from "../../components/ui";
+import { OutcomeBadge } from "./SessionIntent";
 import { RuntimeConfidence } from "./RuntimeConfidence";
 import { Time } from "../../components/time";
 
@@ -58,6 +59,7 @@ export function RuntimeSessionEvidence({ target, api }: { target: RuntimeEvidenc
       <dt>Canonical event</dt><dd>{event.id}</dd>
       <dt>Event type</dt><dd>{event.class} / {event.action}</dd>
       <dt>Source</dt><dd>{event.source}</dd>
+      {event.outcome && <><dt>Observed outcome</dt><dd><OutcomeBadge outcome={event.outcome} /></dd></>}
       <dt>Correlation confidence</dt><dd><RuntimeConfidence confidence={event.confidence} /></dd>
       <dt>Agent</dt><dd>{event.agent_id ?? "Unknown"}</dd>
       <dt>Session</dt><dd>{event.session_id ?? "Unattributed collection"}</dd>
@@ -67,6 +69,6 @@ export function RuntimeSessionEvidence({ target, api }: { target: RuntimeEvidenc
       <dt>Projection time</dt><dd><time dateTime={event.projected_at}><Time value={event.projected_at} /></time></dd>
     </dl>
     <p>Raw archive content is not included in this view.</p>
-    {(event.class === "credential" || event.class === "policy") && <p>This is a source observation, not proof of credential ownership or policy enforcement.</p>}
+    {(event.class === "credential" || (event.class === "policy" && event.source !== "gateway")) && <p>This is a source observation, not proof of credential ownership or policy enforcement.</p>}
   </section>;
 }

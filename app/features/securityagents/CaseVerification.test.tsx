@@ -23,3 +23,19 @@ it("requires explicit approval and displays both persisted receipts", async () =
   expect(screen.getByText("blocked-1")).toBeVisible();
   expect(screen.getByText("business-2")).toBeVisible();
 });
+
+it("records the owner's missing-fixture attestation without showing business success", async () => {
+  const fallback: SecurityCaseVerification = { ...open, state: "closed_business_task_unverified", fixture_run_id: fixture,
+    security_check_passed: true, security_receipt_id: "blocked-1", reason: "owner_attested_no_business_fixture" };
+  const api = { get: vi.fn().mockResolvedValue(open), submit: vi.fn().mockResolvedValue(fallback) };
+  render(<CaseVerification id={caseID} api={api} canWrite fresh locked={false} reauthenticate={vi.fn()} />);
+  await userEvent.type(await screen.findByLabelText("Fixture run ID"), fixture);
+  await userEvent.selectOptions(screen.getByRole("combobox", {name:"Business task fixture"}), "unavailable");
+  const save = screen.getByRole("button", {name:"Record security check only"});
+  expect(save).toBeDisabled();
+  await userEvent.click(screen.getByRole("checkbox"));
+  await userEvent.click(save);
+  expect(await screen.findByText("Closed · business task unverified")).toBeVisible();
+  expect(api.submit).toHaveBeenCalledWith(caseID, fixture, true);
+  expect(screen.getByText("Unverified")).toBeVisible();
+});

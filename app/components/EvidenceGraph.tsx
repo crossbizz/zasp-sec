@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import "./evidence-graph.css";
 
 export type EvidenceNode = Readonly<{ id: string; label: string; detail?: string }>;
-export type EvidenceEdge = Readonly<{ source: string; target: string; kind: "observed" | "inferred" | "blocked" }>;
+export type EvidenceEdge = Readonly<{ source: string; target: string; kind: "observed" | "inferred" | "blocked" | "configured" }>;
 export type EvidenceGraphProps = Readonly<{
   label: string;
   nodes: readonly EvidenceNode[];
@@ -14,7 +14,7 @@ export type EvidenceGraphProps = Readonly<{
 }>;
 
 const Canvas = lazy(() => import("./EvidenceGraphCanvas"));
-const edgeLabels = { observed: "Observed", inferred: "Possible reach", blocked: "Blocked" } as const;
+const edgeLabels = { observed: "Observed", inferred: "Possible reach", blocked: "Blocked", configured: "Workflow sequence" } as const;
 
 export function EvidenceGraph(props: EvidenceGraphProps) {
   const host = useRef<HTMLDivElement>(null);

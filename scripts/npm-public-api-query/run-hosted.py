@@ -325,7 +325,7 @@ def main():
   except BaseException:complete=False
   if any(not c['completed'] or c['unknown'] or c['intervened'] for c in CLEANUPS) or FORCED:complete=False
   TERMINAL=True
-  result=dict(format='root-owned-official-public-lock-query-observation-v1',completeIssuedQueries=complete,failureClass=failure,forced=FORCED,cancelled=CANCELLED,requests=RECORDS,ownedSessionCleanup=CLEANUPS,sourceToolsBefore=before,sourceToolsAfter=after,elapsedSeconds=600-(END-time.monotonic()),component=value,portableMemoryObservations=MEMORY_PROBES,scope='Actual public API pages only when complete+ROOT normal0/no late-refusal. Current issued publiclock209 coverage, upstream affects semantics, no immutable snapshot/localOSV/allunrelatedmalware/Go/images/SBOM/release clearance.',releaseAccepted=False)
+  result=dict(format='root-owned-official-public-lock-query-observation-v1',completeIssuedQueries=complete,failureClass=failure,forced=FORCED,cancelled=CANCELLED,requests=RECORDS,ownedSessionCleanup=CLEANUPS,sourceToolsBefore=before,sourceToolsAfter=after,elapsedSeconds=600-(END-time.monotonic()),component=value,portableMemoryObservations=MEMORY_PROBES,scope='Actual public API pages only when complete+ROOT normal0/no late-refusal. Coverage of the pinned public lock, upstream affects semantics, no immutable snapshot/localOSV/allunrelatedmalware/Go/images/SBOM/release clearance.',releaseAccepted=False)
   digest=persist('result.json',result);print(json.dumps(dict(result=str(OUT/'result.json'),sha256=digest,complete=complete)),flush=True)
   try:guard()
   except BaseException:return 1

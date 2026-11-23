@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-const postureSummarySQL = "SELECT zasp_authorization80.agent_posture($1,$2,$3,$4)"
+const postureSummarySQL = "SELECT zasp_authorization80.agent_posture_with_sync($1,$2,$3,$4)"
 
 func init() {
 	productStatementRules[postureSummarySQL] = productStatementRule{operations: []string{"getAgentPostureSummary"}, arguments: 4, scope: 1, object: 4, kind: "agent", browserOnly: true}

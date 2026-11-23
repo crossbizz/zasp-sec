@@ -928,6 +928,36 @@ paths:
       x-fern-sdk-group-name: tools
       x-fern-sdk-method-name: reviewAddonDeploymentApproval
       description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/agents/{id}/discovery/verify:
+    post:
+      tags:
+        - Agents
+      x-fern-sdk-group-name: agents
+      x-fern-sdk-method-name: verifyAgentDiscovery
+      description: |-
+        Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+
+        Authentication: a browser session only. An API token is refused.
+  /api/v1/agents/{id}/purpose/draft:
+    post:
+      tags:
+        - Agents
+      x-fern-sdk-group-name: agents
+      x-fern-sdk-method-name: draftAgentPurpose
+      description: |-
+        Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+
+        Authentication: a browser session only. An API token is refused.
+  /api/v1/addon-versions/{id}/deep-scan:
+    post:
+      tags:
+        - Tools
+      x-fern-sdk-group-name: tools
+      x-fern-sdk-method-name: deepScanAddonVersion
+      description: |-
+        Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+
+        Authentication: a browser session only. An API token is refused.
   /api/v1/addon-versions/{id}/review-decisions:
     post:
       tags:
@@ -1171,6 +1201,17 @@ paths:
       x-fern-sdk-group-name: policies
       x-fern-sdk-method-name: reviewAgentSuggestion
       description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/agents/workforce:
+    get:
+      tags:
+        - Agents
+      x-fern-sdk-group-name: agents
+      x-fern-sdk-method-name: listWorkforceInventory
+      description: 'Authentication: a browser session only. An API token is refused.'
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next_cursor
+        results: $response.items
   /api/v1/agents/{id}/posture-summary:
     get:
       tags:
@@ -1941,6 +1982,49 @@ paths:
         - Data controls
       x-fern-sdk-group-name: settings
       x-fern-sdk-method-name: updateEnvironmentAiControls
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/calibration/exports:
+    post:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: createCalibrationExport
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/calibration/exports/{id}:
+    get:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: getCalibrationExport
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/calibration/exports/{id}/download-grants:
+    post:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: createCalibrationDownloadGrant
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/calibration/exports/{id}/download:
+    post:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: downloadCalibrationExport
+      x-fern-audiences:
+        - api-token
+  /api/v1/ai/qualifications/run:
+    post:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: runModelQualification
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/ai/qualifications/runs/{id}:
+    get:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: getModelQualificationRun
       description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/ai/qualifications:
     get:

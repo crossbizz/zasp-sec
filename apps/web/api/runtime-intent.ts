@@ -14,5 +14,15 @@ export async function loadSessionIntent(client: APIClient, id: string, signal: A
       !Array.isArray(action.evidence_ids) || action.evidence_ids.length < 1 || action.evidence_ids.length > 2 || action.evidence_ids.some((item: string) => !product.test(item))) throw new Error("Invalid session receipt");
     seen.add(action.decision_id);
   }
+  if (!Array.isArray(data.links) || data.links.length > 99) throw new Error("Invalid session links");
+  const byID = new Map(data.actions.map(action => [action.decision_id, action]));
+  const targets = new Set<string>();
+  for (const link of data.links) {
+    const from = byID.get(link.source), to = byID.get(link.target);
+    if (!from || !to || targets.has(link.target) || !["read_then_tool", "tool_then_activity", "read_then_activity"].includes(link.reason)) throw new Error("Invalid session link");
+    const gap = Date.parse(to.observed_at) - Date.parse(from.observed_at);
+    if (gap <= 0 || gap > 120_000) throw new Error("Invalid session link window");
+    targets.add(link.target);
+  }
   return data;
 }

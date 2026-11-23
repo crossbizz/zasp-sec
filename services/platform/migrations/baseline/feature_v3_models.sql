@@ -36,8 +36,8 @@ BEGIN
  JOIN public.zasp_organization_ai_controls org USING(organization_id)
  JOIN public.model_qualifications q USING(organization_id,workspace_id,environment_id)
  LEFT JOIN public.zasp_ai_monthly_usage u ON (u.organization_id,u.workspace_id,u.environment_id,u.month_start)=(a.organization_id,a.workspace_id,a.environment_id,month_key)
- WHERE org.ai_enabled AND org.require_zero_retention AND env.mode='zasp_vpc_slm' AND env.mode=ANY(org.allowed_modes)
- AND org.allowed_residency IN('us_eu',region||'_only') AND (zasp_authorization80.ai_data_limits(env.organization_id,env.workspace_id,env.environment_id,false)->>'collection_mode') IN('metadata_only','extended')
+ WHERE org.ai_enabled AND org.require_zero_retention AND env.mode IN('zasp_vpc_slm','byoc_self_hosted') AND env.mode=ANY(org.allowed_modes)
+ AND (org.allowed_residency IN('us_eu',region||'_only') OR (org.allowed_residency='customer_vpc_only' AND env.mode='byoc_self_hosted')) AND (zasp_authorization80.ai_data_limits(env.organization_id,env.workspace_id,env.environment_id,false)->>'collection_mode') IN('metadata_only','extended')
  AND env.tier2_purpose_drift_enabled AND env.allow_redacted_summaries AND env.tier2_profile=profile
  AND env.monthly_budget_nano_credits-coalesce(u.reserved_nano_credits,0)>=cost
  AND q.purpose='purpose_alignment_check' AND q.provider=env.mode AND q.model=profile AND q.qualified

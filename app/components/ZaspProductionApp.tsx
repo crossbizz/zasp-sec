@@ -104,7 +104,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" onNavigate={navigate} />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
-  if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
+  if (path === "/investigate/sessions") return <ProductionSessionsView enableInvestigation={session.hasCapability("sessions.read")} key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
   if (path === "/administration/ai-controls") return <AIControlsView expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} key={`${session.principal.id}/${queryGeneration}`} client={client} canEditOrganization={session.hasCapability("identity.manage")} canEditEnvironment={session.hasCapability("data-controls.manage")} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} />;
   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} onNavigate={navigate} canMutate={session.hasCapability("data-controls.manage")} />;
   if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
@@ -188,6 +188,7 @@ function ProductionAppContent() {
   useEffect(() => { if (!productionRoutes.some((route) => route.path === window.location.pathname)) window.history.replaceState({}, "", "/"); }, []);
   useEffect(() => {
     const handlePopState = () => {
+      setMobileOpen(false);
       const candidate = window.location.pathname;
       const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && hasProductionCapability(session, route.capability));
       if (allowed) { setLocation(`${candidate}${window.location.search}${window.location.hash}`); return; }
@@ -222,7 +223,7 @@ function ProductionAppContent() {
   if (routes.length === 0) return <AuthPage><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></AuthPage>;
   const routeGroups = routes.reduce<{ label: string; routes: (typeof routes)[number][] }[]>((groups, route) => { const last = groups[groups.length - 1]; if (last && last.label === route.group) last.routes.push(route); else groups.push({ label: route.group, routes: [route] }); return groups; }, []);
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
-  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); setMobileOpen(false); };
+  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); setMobileOpen(false); window.scrollTo(0, 0); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const navigation = <nav aria-label="Main navigation">{routeGroups.map((group) => <div key={group.label || "home"} className="nav-section" role="group" aria-label={group.label || "Home"}>
@@ -231,7 +232,7 @@ function ProductionAppContent() {
   </div>)}</nav>;
   return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}>
     <div className="app-shell production-app">
-      <a className="skip-link" href="#main-content">Skip to content</a>
+      <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById("main-content")?.focus(); }}>Skip to content</a>
       <header className="topbar">
         <button ref={menuButton} className="mobile-menu icon-button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-controls="product-navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}</button>
         <button className="brand" onClick={() => navigate(routes[0].path)} aria-label={`Zasp ${routes[0].label.toLowerCase()}`}><BrandLogo /></button>

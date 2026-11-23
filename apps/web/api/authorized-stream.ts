@@ -1,3 +1,17 @@
+import { createFinalURL, createQuerySerializer, defaultPathSerializer } from "openapi-fetch";
+import type { paths } from "./generated";
+
+const streamRoute = "/api/v1/security-agents/chat/threads/{id}/stream" satisfies keyof paths;
+
+export function analystStreamURL(baseUrl: string, threadID: string, sessionID: string): string {
+  return createFinalURL(streamRoute, {
+    baseUrl,
+    params: { path: { id: threadID }, query: { session_id: sessionID } },
+    querySerializer: createQuerySerializer(),
+    pathSerializer: defaultPathSerializer,
+  });
+}
+
 // Keep byte and scope checks active until EOF. An SSE response may outlive
 // the HTTP header timeout; stop reading as soon as its caller disconnects.
 export function boundedUIMessageStream(response: Response, maxBytes: number, signal: AbortSignal, isCurrent: () => boolean): Response {

@@ -7,6 +7,7 @@ import { useAPIQuery } from "../../api/query";
 import { Button, Card, MetricGrid, Select } from "../../components/ui";
 import { Time } from "../../components/time";
 import { workflowIdempotencyKey } from "../workflows/api";
+import { CalibrationExports } from "./CalibrationExports";
 import { createCalibrationAPI } from "./calibration-api";
 
 const Chart = lazy(() => import("./CalibrationChart"));
@@ -89,5 +90,6 @@ export function CalibrationPanel({ ruleIDs, canWrite }: { ruleIDs: readonly stri
     <Button disabled={query.status === "loading"} onClick={() => void query.retry()}>Refresh metrics</Button>
     {ruleID && <Card title={<h2>Per-rule suppression</h2>}><Select label="Guardrail rule" value={ruleID} onChange={e => setPicked(e.target.value)}>
       {ruleIDs.map(id => <option key={id}>{id}</option>)}</Select><SuppressionSettings key={ruleID} api={api} ruleID={ruleID} canWrite={canWrite} /></Card>}
+    <CalibrationExports />
   </div>;
 }

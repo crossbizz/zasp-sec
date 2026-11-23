@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"net/netip"
 	"slices"
 	"time"
@@ -15,6 +16,10 @@ import (
 // The deployment identity binds the measured endpoint, exact weights, billing
 // ceiling and residency to the tuple subsequently used by the scheduler.
 type Deployment struct {
+	Provider           string `json:"provider,omitempty"`
+	OrganizationID     string `json:"organization_id,omitempty"`
+	WorkspaceID        string `json:"workspace_id,omitempty"`
+	EnvironmentID      string `json:"environment_id,omitempty"`
 	SafeLabel          string `json:"safe_label,omitempty"`
 	MaliciousLabel     string `json:"malicious_label,omitempty"`
 	Endpoint           string `json:"endpoint"`
@@ -25,6 +30,23 @@ type Deployment struct {
 	MaximumNanoCredits int64  `json:"maximum_nano_credits"`
 }
 
+func (d Deployment) ScopedTo(o, w, e string) bool {
+	if d.Provider == "" || d.Provider == ModeVPC {
+		return d.OrganizationID == "" && d.WorkspaceID == "" && d.EnvironmentID == ""
+	}
+	return d.Provider == ModeBYOC && d.OrganizationID == o && d.WorkspaceID == w && d.EnvironmentID == e
+}
+func (d Deployment) validScope() bool {
+	if d.Provider != ModeBYOC {
+		return d.ScopedTo("", "", "")
+	}
+	o, e1 := domain.ParseProductID(d.OrganizationID)
+	w, e2 := domain.ParseProductID(d.WorkspaceID)
+	e, e3 := domain.ParseProductID(d.EnvironmentID)
+	_, err := domain.NewScope(o, w, e)
+	return e1 == nil && e2 == nil && e3 == nil && err == nil
+}
+
 func (d Deployment) Digest() string {
 	raw, _ := json.Marshal(d)
 	return fmt.Sprintf("sha256:%x", sha256.Sum256(raw))
@@ -32,7 +54,7 @@ func (d Deployment) Digest() string {
 func (d Deployment) Driver() (ProviderDriver, error) {
 	ip, err := netip.ParseAddr(d.PrivateIP)
 	weights, errDigest := hex.DecodeString(d.WeightsSHA256)
-	if err != nil || ip.String() != d.PrivateIP || errDigest != nil || len(weights) != sha256.Size || d.MaximumNanoCredits < 1 || d.MaximumNanoCredits > 1000000000000 || (d.Region != "eu" && d.Region != "us") {
+	if !d.validScope() || err != nil || ip.String() != d.PrivateIP || errDigest != nil || len(weights) != sha256.Size || d.MaximumNanoCredits < 1 || d.MaximumNanoCredits > 1000000000000 || (d.Region != "eu" && d.Region != "us") {
 		return nil, ErrInvalidConfiguration
 	}
 	ep := PrivateEndpoint{URL: d.Endpoint, IP: ip}
@@ -46,6 +68,7 @@ func (d Deployment) Driver() (ProviderDriver, error) {
 }
 
 type DeploymentAttestation struct {
+	Vertex           *VertexQualificationProfile  `json:"vertex,omitempty"`
 	Bedrock          *BedrockQualificationProfile `json:"bedrock,omitempty"`
 	CorpusSHA256     string                       `json:"corpus_sha256,omitempty"`
 	Deployment       Deployment                   `json:"deployment"`
@@ -69,7 +92,10 @@ func VerifyAttestation(raw, signature []byte, key ed25519.PublicKey, now time.Ti
 			return a, ErrInvalidRequest
 		}
 	}
-	if a.Bedrock != nil {
+	if a.Bedrock != nil && a.Vertex != nil || (a.Bedrock != nil || a.Vertex != nil) && a.Deployment != (Deployment{}) {
+		return a, ErrInvalidRequest
+	}
+	if a.Bedrock != nil || a.Vertex != nil {
 		if _, ok := expectedFields[a.Purpose]; !ok {
 			return a, ErrInvalidRequest
 		}

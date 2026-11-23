@@ -25,9 +25,10 @@ func TestRuntimeDelegationOnInstalledPostgres(t *testing.T) {
 	newToken, _ := installedWorkloadTokenIssuer(t, b, repo, admin)
 	parent := newToken("Delegation parent", `["use_gateway"]`)
 	child := newToken("Delegation child", `["use_gateway","decide_actions"]`)
-	parentID, childID := b.id(), b.id()
+	peer := newToken("Delegation peer", `["use_gateway"]`)
+	parentID, childID, peerID := b.id(), b.id(), b.id()
 	b.seed(func() {
-		for _, id := range []string{parentID, childID} {
+		for _, id := range []string{parentID, childID, peerID} {
 			b.exec(`INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,first_seen_at,last_seen_at,product_kind)
 VALUES($1,$2,$3,$4,'agent','helper','{"name":"helper"}',now(),now(),'agent')`, b.o, b.w, b.e, id)
 		}
@@ -37,7 +38,7 @@ VALUES($1,$2,$3,$4,'agent','helper','{"name":"helper"}',now(),now(),'agent')`, b
 		op, _ := RoutedOperationFromRequest(r)
 		h.binding(w, r, op)
 	})
-	for _, a := range []struct{ cred, id string }{{parent.binding.ID, parentID}, {child.binding.ID, childID}} {
+	for _, a := range []struct{ cred, id string }{{parent.binding.ID, parentID}, {child.binding.ID, childID}, {peer.binding.ID, peerID}} {
 		res := b.serve(binder, admin, "bindWorkloadCredential", "PUT", "/api/v1/runtime/workload-bindings/"+a.cred, map[string]string{"id": a.cred}, `{"agent_id":"`+a.id+`"}`, nil)
 		if res.Code != 200 {
 			t.Fatalf("bind %d %s", res.Code, res.Body.String())
@@ -49,6 +50,7 @@ VALUES($1,$2,$3,$4,'agent','helper','{"name":"helper"}',now(),now(),'agent')`, b
 	authority, err := issuer.NewAuthority(issuer.Configuration{Seed: key.Seed(), Agents: []issuer.Agent{
 		{Tenant: tenant, ID: parentID, Credential: parent.binding.ID, Purpose: scope},
 		{Tenant: tenant, ID: childID, Credential: child.binding.ID, Delegated: true, Purpose: scope},
+		{Tenant: tenant, ID: peerID, Credential: peer.binding.ID, Delegated: true, Purpose: scope},
 	}, Tasks: []issuer.Task{{Binding: delegation.Binding{Tenant: tenant, Task: "task-1", Agent: parentID}, Scope: scope, MaxDepth: 2}},
 		Policies: []issuer.Policy{{Tenant: tenant, Scope: scope}}})
 	if err != nil {
@@ -59,7 +61,7 @@ VALUES($1,$2,$3,$4,'agent','helper','{"name":"helper"}',now(),now(),'agent')`, b
 		op, _ := RoutedOperationFromRequest(r)
 		host.ServeHTTP(w, r, op)
 	})
-	q := issuer.IssueRequest{Scope: scope, Task: "task-1", Child: childID, MaxDepth: 1, TTL: 60}
+	q := issuer.IssueRequest{Scope: scope, Task: "task-1", Child: childID, MaxDepth: 2, TTL: 60}
 	payload, _ := json.Marshal(q)
 	grantResponse := b.serve(surface, parent, "issueRuntimeDelegation", "POST", "/api/v1/runtime/delegations/issue", nil, string(payload), nil)
 	var grant issuer.Grant
@@ -96,6 +98,20 @@ VALUES($1,$2,$3,$4,'agent','helper','{"name":"helper"}',now(),now(),'agent')`, b
 	if n := b.text(`SELECT count(*)::text FROM public.delegation_receipts WHERE (organization_id,workspace_id,environment_id,parent_task_id)=($1,$2,$3,'task-1')`, b.o, b.w, b.e); n != "4" {
 		t.Fatalf("receipts %s", n)
 	}
+	q.Child, q.ParentToken, q.TTL = peerID, grant.Token, 30
+	payload, _ = json.Marshal(q)
+	issued := b.serve(surface, child, "issueRuntimeDelegation", "POST", "/api/v1/runtime/delegations/issue", nil, string(payload), nil)
+	var next issuer.Grant
+	if issued.Code != 200 || json.Unmarshal(issued.Body.Bytes(), &next) != nil || next.Depth != 2 {
+		t.Fatalf("child grant %d %s", issued.Code, issued.Body)
+	}
+	admit(peer, next.Token, "draft_reply", "verified")
+	resp = read(peer.binding.ID)
+	if resp.Code != 200 || json.Unmarshal(resp.Body.Bytes(), &page) != nil || len(page.Items) != 1 || len(page.Items[0].Grants) != 2 ||
+		page.Items[0].Grants[0].Parent != parentID || page.Items[0].Grants[1].Child != peerID {
+		t.Fatalf("delegation chain %d %s", resp.Code, resp.Body)
+	}
+
 }
 
 func TestDelegationTrafficRejectsUnconfiguredGrant(t *testing.T) {

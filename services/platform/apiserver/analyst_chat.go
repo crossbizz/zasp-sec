@@ -35,8 +35,7 @@ func init() {
 	}}
 }
 
-// Only an operator-mounted Bedrock credential can activate a driver. Invalid
-// or missing settings keep investigation unavailable without touching Tier 1.
+// Only an operator-configured private provider can activate an investigation.
 func configuredAnalystChat() *analystChat {
 	return configuredPrivateModel(aigateway.PurposeTriage, "ZASP_BEDROCK_TRIAGE_")
 }
@@ -113,7 +112,7 @@ func serveAnalystChat(db JSONDatabase, h *analystChat, w http.ResponseWriter, r 
 	w.Header().Set("Cache-Control", "no-store")
 	i, ok := IdentityFromRequest(r)
 	if !ok || i.CredentialKind != CredentialBrowserSession {
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	}
 	q, ok := exactWorkflowQuery(r.URL.RawQuery, map[string]int{"session_id": 40})

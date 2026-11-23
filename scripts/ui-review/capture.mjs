@@ -4,6 +4,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { fixture } from './fixtures.mjs';
+import { investigationStream, reviewModelWorkflows, reviewQualification } from './model-workflows.mjs';
 import { buildWalkthrough } from './walkthrough.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -21,7 +22,8 @@ let mode = 'normal';
 const context = await browser.newContext();
 await context.route('**/api/v1/**', async route => {
   const request = route.request(), url = new URL(request.url());
-  // Review never changes a real backend, even if a control is activated accidentally.
+  // Review never changes a real backend. The session response is a local stream fixture.
+  if (request.method() === 'POST' && /^\/api\/v1\/security-agents\/chat\/threads\/[^/]+\/stream$/.test(url.pathname)) return investigationStream(route);
   if (request.method() !== 'GET') return route.fulfill({ status: 405, json: { code: 'review_read_only', message: 'Visual review does not submit mutations.' } });
   if (mode === 'error' && url.pathname.endsWith('/agents')) return route.fulfill({ status: 503, json: { code: 'service_unavailable', message: 'Review error state', correlation_id: 'pid_00000004-0000-4000-8000-000000000004', retryable: true } });
   if (mode === 'loading' && url.pathname.endsWith('/home/summary')) await new Promise(resolve => setTimeout(resolve, 1500));
@@ -42,6 +44,8 @@ async function open(route) {
 async function capture(title, route, state = 'Page') {
   const filename = `${String(slides.length + 1).padStart(3, '0')}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${theme}-${viewport.width}.png`;
   const file = path.join('screenshots', filename);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const png = await page.screenshot({ path: path.join(output, file), fullPage: true, animations: 'disabled' });
   const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
   const overflow = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
@@ -158,6 +162,12 @@ for (theme of ['light','dark']) {
   await page.reload({ waitUntil: 'networkidle' });
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), target);
   assertions.push(`${theme}: theme preference survives reload`);
+}
+for (viewport of [viewports[1], viewports[3]]) {
+  await page.setViewportSize(viewport);
+  await reviewModelWorkflows(page, open, capture);
+  await reviewQualification(page, open, capture, fixture);
+  assertions.push(`Workflow Studio, analyst history and streaming, calibration and confidence bins at ${viewport.width}px`);
 }
 assert.equal(consoleErrors.length, 0, `Browser errors: ${consoleErrors.join('; ')}`);
 const report = { fixtureNotice: 'Isolated synthetic responses. Live authentication, authorization enforcement and backend mutations are not verified.', routes: routes.length, viewports, themes: ['light','dark'], screenshotCount: slides.length, failures, consoleErrors, assertions, slides };

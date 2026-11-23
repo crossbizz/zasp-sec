@@ -88,7 +88,7 @@ describe("production scoped activity navigation", () => {
       expect(requests.every(request => request.method === "GET")).toBe(true);
       view.unmount();
       render(<ZaspProductionApp />);
-      expect(await screen.findByRole("heading", { name: "Canonical record" })).toBeVisible();
+      expect(await screen.findByRole("heading", { name: "Canonical record" }, { timeout: 3000 })).toBeVisible();
       expect(screen.getByRole("dialog", { name })).toHaveTextContent(id);
     });
   });

@@ -97,14 +97,14 @@ DECLARE fields text[]; refs text;
 BEGIN
  IF p='agent_discovery_verify' THEN
   fields:=ARRAY['kind','evidence_refs']; refs:='evidence_refs';
-  IF r->>'kind' NOT IN ('autonomous_agent','simple_llm_app','mcp_server','skill_addon','not_an_agent_fp') THEN RETURN false; END IF;
+  IF NOT coalesce(r->>'kind' IN ('autonomous_agent','simple_llm_app','mcp_server','skill_addon','not_an_agent_fp'),false) THEN RETURN false; END IF;
  ELSIF p='agent_purpose_draft' THEN
   fields:=ARRAY['allowed_tool_ids','iam_mismatches']; refs:='iam_mismatches';
   IF jsonb_typeof(r->'allowed_tool_ids') IS DISTINCT FROM 'array' OR NOT ((s->'tool_ids') @> (r->'allowed_tool_ids')) OR jsonb_array_length(r->'allowed_tool_ids')>64 THEN RETURN false; END IF;
  ELSE
   fields:=ARRAY['threat_score','risk_score','tags','citations']; refs:='citations';
   IF jsonb_typeof(r->'threat_score') IS DISTINCT FROM 'number' OR jsonb_typeof(r->'risk_score') IS DISTINCT FROM 'number' OR jsonb_typeof(r->'tags') IS DISTINCT FROM 'array' THEN RETURN false; END IF;
-  IF (r->>'threat_score')::numeric NOT BETWEEN 0 AND 1 OR (r->>'risk_score')::numeric NOT BETWEEN 0 AND 1 OR jsonb_array_length(r->'tags')>16 THEN RETURN false; END IF;
+  IF (r->>'threat_score')::numeric NOT BETWEEN 0 AND 1 OR (r->>'risk_score')::numeric NOT BETWEEN 0 AND 1 OR jsonb_array_length(r->'tags')>16 OR EXISTS(SELECT FROM jsonb_array_elements(r->'tags') t WHERE jsonb_typeof(t)<>'string' OR (t#>>'{}')!~'^[A-Za-z0-9_.:-]{1,64}$') THEN RETURN false; END IF;
  END IF;
  RETURN coalesce(r?&fields AND r-fields='{}'::jsonb AND jsonb_typeof(r->refs)='array' AND jsonb_array_length(r->refs)<=32 AND (s->'evidence_refs') @> (r->refs),false);
 END $valid$;

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { RuntimeSession, RuntimeSessionEvent, RuntimeSessionEventPage } from "../../../apps/web/api/generated";
 import { compareRuntimeSessionEventOrder, decodeRuntimeSession, decodeRuntimeSessionEventPage } from "../../../apps/web/api/runtime-session-decoders";
-import { Button, Card, LoadingState, Modal } from "../../components/ui";
+import { Button, Card, LoadingState } from "../../components/ui";
 import { RuntimeSessionEventRow } from "./RuntimeSessionEventRow";
 import { RuntimeSessionEvidence, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 import type { ActivityScope } from "../../domain/activity-links";
@@ -13,6 +13,7 @@ import { loadSessionIntent } from "../../../apps/web/api/runtime-intent";
 import type { SessionIntent } from "../../../apps/web/api/generated";
 import { SessionInvestigation } from "../securityagents/SessionInvestigation";
 import { SessionIntentPanel } from "./SessionIntent";
+import { InlineSessionDetail } from "./InlineSessionDetail";
 import { Time } from "../../components/time";
 
 export type RuntimeSessionActivity = { scope: ActivityScope; canReadRuns: boolean; onNavigate(path: string): void };
@@ -57,7 +58,7 @@ export function createRuntimeSessionTimelineAPI(client: APIClient, scope?: Activ
 type Query = { id: string; api: RuntimeSessionTimelineAPI; cursor: string | null; page: number; after?: RuntimeSessionEvent };
 type Load = { query: Query; summary?: RuntimeSession; events?: RuntimeSessionEventPage; error?: boolean };
 
-export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity }: { id: string; api: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI; activity?: RuntimeSessionActivity }) {
+export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity, enableInvestigation = false }: { id: string; enableInvestigation?: boolean; api: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI; activity?: RuntimeSessionActivity }) {
   const initial = useMemo<Query>(() => ({ id, api, cursor: null, page: 1 }), [id, api]);
   const [requested, setRequested] = useState(initial);
   const query = requested.id === id && requested.api === api ? requested : initial;
@@ -89,7 +90,7 @@ export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity }: { id:
       <p>Events are ordered by canonical event time, then event ID. Pages and the summary are not a snapshot; restart at the first page to include newly projected earlier events.</p>
     </Card>
     {id !== "unattributed" && api.intent && <SessionIntentPanel key={id} id={id} read={api.intent} />}
-    {id !== "unattributed" && api.intent && <SessionInvestigation key={"chat:"+id} sessionID={id} />}
+    {enableInvestigation && id !== "unattributed" && api.intent && <SessionInvestigation key={"chat:"+id} sessionID={id} />}
     <ol aria-label="Runtime evidence timeline">
       {events.items.map(event => <RuntimeSessionEventRow key={event.id} event={event} onEvidence={evidenceAPI ? event => setEvidence({ event, query, api: evidenceAPI }) : undefined} />)}
     </ol>
@@ -100,8 +101,8 @@ export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity }: { id:
       <Button disabled={!events.page_info.has_more} onClick={() => setRequested({ ...query, cursor: events.page_info.next_cursor, page: query.page + 1, after: events.items.at(-1) })}>Next event page</Button>
     </nav>
     {id !== "unattributed" && activity && <SecurityAgentActivityPanel direction="runs" kind="session" entityID={summary.id} scope={activity.scope} permitted={activity.canReadRuns} onNavigate={activity.onNavigate} />}
-    <Modal open={!!evidence && evidence.query === query && evidence.api === evidenceAPI} title="Evidence metadata" onClose={() => setEvidence(null)}>
-      {evidence && evidence.query === query && evidence.api === evidenceAPI && evidenceAPI && <RuntimeSessionEvidence target={{ investigationID: id, eventID: evidence.event.id, evidenceID: evidence.event.evidence_id }} api={evidenceAPI} />}
-    </Modal>
+    {evidence && evidence.query === query && evidence.api === evidenceAPI && evidenceAPI && <InlineSessionDetail title="Evidence metadata" onClose={() => setEvidence(null)}>
+      <RuntimeSessionEvidence target={{ investigationID: id, eventID: evidence.event.id, evidenceID: evidence.event.evidence_id }} api={evidenceAPI} />
+    </InlineSessionDetail>}
   </div>;
 }

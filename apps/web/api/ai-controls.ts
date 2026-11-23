@@ -76,6 +76,9 @@ export function createAIControlsAPI(client: APIClient, expectedScope: string) {
   const scopeHeaders = { "X-Zasp-Expected-Scope": expectedScope };
   const mutation = (version: number) => ({ header: { "If-Match": `"${version}"`, "X-CSRF-Token": "" } });
   return {
+    async qualifications(signal: AbortSignal) {
+      return requireAPIData(await client.GET("/api/v1/ai/qualifications", { signal, headers: scopeHeaders }), decodeQualifications).items;
+    },
     async load(signal: AbortSignal) {
       const [organization, environment, qualifications] = await Promise.all([
         client.GET("/api/v1/organization/ai-controls", { signal, headers: scopeHeaders }).then(result => requireAPIData(result, decodeOrganizationAIControls)),

@@ -67,7 +67,7 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
   return <Card title={<h2>{saved ? saved.definition.name : "New investigation workflow"}</h2>} action={<Button onClick={onClose} disabled={busy}>Close editor</Button>}>
     <fieldset disabled={!editable} className="studio-fields"><Field label="Name" maxLength={80} value={draft.name} onChange={e => change({name:e.target.value})} />
       <Field label="Mission" maxLength={512} value={draft.mission} onChange={e => change({mission:e.target.value})} /></fieldset>
-    <EvidenceGraph label="Investigation workflow" nodes={stages} edges={stages.slice(1).map((s, i) => ({ source: stages[i].id, target: s.id, kind: "inferred" }))} selectedID={stage} onSelect={id => setStage(id as Stage)} />
+    <EvidenceGraph label="Investigation workflow" nodes={stages} edges={stages.slice(1).map((s, i) => ({ source: stages[i].id, target: s.id, kind: "configured" }))} selectedID={stage} onSelect={id => setStage(id as Stage)} />
     <fieldset disabled={!editable} className="studio-fields"><legend>{stageNames[stage]}</legend>
       {stage === "trigger" && <Select label="Start this workflow" value={draft.trigger} onChange={e => change({trigger:e.target.value as Definition["trigger"]})}><option value="manual">Manually</option><option value="finding_opened">When a finding opens</option></Select>}
       {stage === "tools" && tools.map(t => <label key={t}><input type="checkbox" checked={draft.read_tools.includes(t)} onChange={e => change({read_tools:e.target.checked ? [...draft.read_tools, t] : draft.read_tools.filter(v => v !== t)})} /> {labels[t]}</label>)}

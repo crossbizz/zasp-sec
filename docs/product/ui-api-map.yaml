@@ -795,6 +795,18 @@ screens:
       - id: decide_guardrail_interaction
         operation_id: createGuardrailDecision
         availability: api_available
+      - id: create_calibration_export
+        operation_id: createCalibrationExport
+        availability: available
+      - id: get_calibration_export
+        operation_id: getCalibrationExport
+        availability: available
+      - id: create_calibration_download_grant
+        operation_id: createCalibrationDownloadGrant
+        availability: available
+      - id: download_calibration_export
+        operation_id: downloadCalibrationExport
+        availability: available
       - id: get_calibration_metrics
         operation_id: getCalibrationMetrics
         availability: available

@@ -37,6 +37,9 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   const [load, setLoad] = useState<Load>({ status: "loading" });
   // One section at a time; the others stay loaded, so a draft is not lost.
   const [section, setSection] = useState("rules");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "calibration") setSection("calibration");
+  }, []);
   const [draft, setDraft] = useState<Record<string, GuardrailMode>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -83,7 +86,7 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   const base = origin ?? (typeof window === "undefined" ? "https://<your Zasp address>" : window.location.origin);
 
   return <div className="page guardrails">
-    <PageHeader title="Guardrails" eyebrow="Protect" description="Decide what the hosted gateway, or a gateway you already run, blocks, redacts or lets through. Detection is deterministic: patterns, phrase lists and checksums, with no model call." />
+    <PageHeader title="Guardrails" eyebrow="Protect" description="Manage gateway rules, review recorded decisions and calibrate optional model checks." />
     {error && <div className="error-banner" role="alert">{error}</div>}
     {notice && <div className="success-banner" role="status">{notice}</div>}
     <div className="page-tabs"><Tabs active={section} onChange={setSection} tabs={[{ id: "rules", label: "Rules" }, { id: "calibration", label: "Calibration" }, ...(gatewayAPI ? [{ id: "gateway", label: "Hosted gateway" }, { id: "activity", label: "Activity" }] : []), ...(onNavigate ? [{ id: "suggestions", label: "Suggestions" }] : []), { id: "setup", label: "Set up" }]} /></div>

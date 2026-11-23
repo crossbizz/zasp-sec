@@ -15,6 +15,8 @@ func init() {
 }
 
 type sessionActionEvidence struct {
+	AgentID     *string   `json:"agent_id"`
+	Confidence  string    `json:"confidence"`
 	ID          string    `json:"decision_id"`
 	Source      string    `json:"source"`
 	Class       string    `json:"class"`
@@ -56,7 +58,7 @@ func serveSessionIntent(db JSONDatabase, w http.ResponseWriter, r *http.Request,
 	w.Header().Set("Cache-Control", "no-store")
 	i, ok := IdentityFromRequest(r)
 	if !ok || i.CredentialKind != CredentialBrowserSession {
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	}
 	id := route.PathParameters["id"]
@@ -88,7 +90,14 @@ func serveSessionIntent(db JSONDatabase, w http.ResponseWriter, r *http.Request,
 		writeProductionError(w, r, err)
 		return
 	}
-	writeJSONValue(w, r, 200, map[string]any{"session_id": id, "actions": actions, "truncated": truncated}, nil)
+	observations := make([]sessionintent.Observation, 0, len(rows))
+	for _, row := range rows {
+		if row.AgentID == nil || !validProductID(*row.AgentID) || !stringIn(row.Confidence, "exact", "strong") {
+			continue
+		}
+		observations = append(observations, sessionintent.Observation{ID: row.ID, AgentID: *row.AgentID, Class: row.Class, Action: row.Action, Source: row.Source, At: row.ObservedAt})
+	}
+	writeJSONValue(w, r, 200, map[string]any{"session_id": id, "actions": actions, "truncated": truncated, "links": sessionintent.PossibleLinks(observations)}, nil)
 }
 
 // Historical runtime events have no downstream receipt. Preserve every field

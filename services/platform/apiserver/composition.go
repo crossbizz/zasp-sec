@@ -143,6 +143,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/agents/{id}/discovery/verify", "verifyAgentDiscovery", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/agents/{id}/purpose/draft", "draftAgentPurpose", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/addon-versions/{id}/deep-scan", "deepScanAddonVersion", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/workforce", "listWorkforceInventory", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/posture-summary", "getAgentPostureSummary", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/purpose", "getAgentPurpose", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/agents/{id}/purpose", "putAgentPurpose", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
@@ -232,6 +233,12 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/runtime/action-decisions", "createWorkloadActionDecision", "decide_actions", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/runtime/actions/{actionId}/outcomes", "recordWorkloadActionOutcome", "decide_actions", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/guardrails/decisions", "createGuardrailDecision", "decide_guardrails", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/calibration/exports", "createCalibrationExport", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/calibration/exports/{id}", "getCalibrationExport", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/calibration/exports/{id}/download-grants", "createCalibrationDownloadGrant", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/calibration/exports/{id}/download", "downloadCalibrationExport", "view_compliance", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/ai/qualifications/run", "runModelQualification", "manage_data_controls", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/ai/qualifications/runs/{id}", "getModelQualificationRun", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/calibration/metrics", "getCalibrationMetrics", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/feedback", "submitAnalystFeedback", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/rules/{ruleId}/suppression-mode", "getRuleSuppressionMode", "view", []string{"BrowserSession"}}, workflowDependency},
@@ -390,6 +397,19 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 		if definition.dependency == evidencePackDependency {
 			handler = evidencePack
 		}
+		if calibrationExportOperation(definition.OperationID) {
+			endpoint := calibrationExportHTTP{}
+			if surface, ok := handler.(*discoveryWorkflowSurface); ok {
+				endpoint.db = surface.evidenceDB
+			}
+			switch c := complianceHandler.(type) {
+			case *complianceProductionSurface:
+				endpoint.reader = c.reader
+			case *complianceHTTPHandler:
+				endpoint.reader = c.reader
+			}
+			handler = endpoint
+		}
 		if complianceHandler != nil && stringIn(definition.OperationID, "listComplianceControls", "listComplianceEvidence") {
 			handler = complianceHandler
 		}
@@ -445,7 +465,7 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
-	case "submitAnalystFeedback", "putRuleSuppressionMode", "updateOrganizationAIControls", "updateEnvironmentAIControls", "registerBrowserProfile", "retireBrowserProfile":
+	case "verifySecurityCase", "createCalibrationExport", "createCalibrationDownloadGrant", "runModelQualification", "submitAnalystFeedback", "putRuleSuppressionMode", "updateOrganizationAIControls", "updateEnvironmentAIControls", "registerBrowserProfile", "retireBrowserProfile":
 		return true
 	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "publishTicketCohort", "updateEndpointPolicyCohort":
 		return true

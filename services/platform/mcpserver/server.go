@@ -35,6 +35,10 @@ var catalog = []tool{
 type itemInput struct {
 	ID string `json:"id" jsonschema:"Product identifier from this environment"`
 }
+type addonInput struct {
+	ID    string `json:"id" jsonschema:"Add-on version identifier"`
+	Agent string `json:"agent_id" jsonschema:"Agent receiving this deployment"`
+}
 type listInput struct {
 	Cursor string `json:"cursor,omitempty" jsonschema:"Opaque cursor returned by the previous page"`
 }
@@ -54,6 +58,18 @@ func result(status int, raw []byte) (*mcp.CallToolResult, any, error) {
 }
 
 func addTool(s *mcp.Server, t tool, read Read) {
+	if t.operation == "getAddonDeploymentApproval" {
+		mcp.AddTool(s, description(t), func(ctx context.Context, _ *mcp.CallToolRequest, in addonInput) (*mcp.CallToolResult, any, error) {
+			if _, err := domain.ParseProductID(in.ID); err != nil {
+				return nil, nil, errors.New("A valid add-on version identifier is required.")
+			}
+			if _, err := domain.ParseProductID(in.Agent); err != nil {
+				return nil, nil, errors.New("A valid deployment agent identifier is required.")
+			}
+			return result(read(ctx, t.operation, in.ID, url.Values{"agent_id": {in.Agent}}))
+		})
+		return
+	}
 	if t.operation == "listAgents" {
 		mcp.AddTool(s, description(t), func(ctx context.Context, _ *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
 			if len(in.Cursor) > 2048 || strings.ContainsAny(in.Cursor, "\r\n") {

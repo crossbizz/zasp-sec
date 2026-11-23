@@ -84,7 +84,7 @@ func NewRouter(operations []Operation) (http.Handler, error) {
 		}
 		seen[key] = struct{}{}
 		for _, existing := range registered {
-			if existing.method == operation.Method && overlappingRouteShape(existing.segments, segments) {
+			if existing.method == operation.Method && overlappingRouteShape(existing.operationID, existing.segments, operation.OperationID, segments) {
 				return nil, ErrDuplicateOperation
 			}
 		}
@@ -344,12 +344,33 @@ func validRouteParameters(operationID string, parameters map[string]string) bool
 	return true
 }
 
-func overlappingRouteShape(left, right []routeSegment) bool {
+// A literal and a validated one-parameter operation cannot collide when the
+// exact dispatch validator rejects that literal. Keep unnamed and composite
+// parameter routes conservative because one segment cannot establish validity.
+func literalMatchesRoute(operationID string, segments []routeSegment, parameter, literal string) bool {
+	if operationID == "" {
+		return true
+	}
+	for _, segment := range segments {
+		if segment.parameter && segment.name != parameter {
+			return true
+		}
+	}
+	return validRouteParameters(operationID, map[string]string{parameter: literal})
+}
+
+func overlappingRouteShape(leftID string, left []routeSegment, rightID string, right []routeSegment) bool {
 	if len(left) != len(right) {
 		return false
 	}
 	for index := range left {
-		if !left[index].parameter && !right[index].parameter && left[index].literal != right[index].literal {
+		l, r := left[index], right[index]
+		switch {
+		case !l.parameter && !r.parameter && l.literal != r.literal:
+			return false
+		case l.parameter && !r.parameter && !literalMatchesRoute(leftID, left, l.name, r.literal):
+			return false
+		case r.parameter && !l.parameter && !literalMatchesRoute(rightID, right, r.name, l.literal):
 			return false
 		}
 	}

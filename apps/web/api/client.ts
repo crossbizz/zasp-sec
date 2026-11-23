@@ -1,4 +1,4 @@
-import { boundedUIMessageStream } from "./authorized-stream";
+import { analystStreamURL, boundedUIMessageStream } from "./authorized-stream";
 import createClient from "openapi-fetch";
 import type { ClientOptions } from "openapi-fetch";
 
@@ -132,7 +132,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
       if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
     }
     const timeout = new AbortController();
-    const timer = globalThis.setTimeout(() => timeout.abort(), timeoutMs);
+    const privateEvidenceReview = request.method === "POST" && /\/api\/v1\/(?:agents\/[^/]+\/(?:purpose\/draft|discovery\/verify)|addon-versions\/[^/]+\/deep-scan)$/.test(new URL(request.url).pathname);
+    const timeoutBudget = options.timeoutMs ?? (privateEvidenceReview ? 35_000 : timeoutMs);
+    const timer = globalThis.setTimeout(() => timeout.abort(), timeoutBudget);
     const signal = AbortSignal.any([request.signal, timeout.signal]);
     const securedRequest = new Request(request, {
       credentials: "same-origin",
@@ -184,8 +186,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
       throw new APITransportError("invalid_configuration", "Invalid scoped investigation request");
     }
     const signal = AbortSignal.any([AbortSignal.timeout(60_000), ...(callerSignal ? [callerSignal] : [])]);
-    const endpoint = new URL(`${baseUrl}/api/v1/security-agents/chat/threads/${threadID}/stream`, origin);
-    endpoint.searchParams.set("session_id", sessionID);
+    const endpoint = analystStreamURL(origin + baseUrl, threadID, sessionID);
     const response = await configuredFetch(new Request(endpoint, {
       method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store", signal,
       headers: { Accept: "text/event-stream", "Content-Type": "application/json", "Cache-Control": "no-store",

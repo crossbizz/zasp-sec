@@ -7,21 +7,22 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/redteam"
 )
 
-const caseVerificationRead = `SELECT zasp_authorization80.case_verification($1,$2,$3,$4,$5,NULL)`
-const caseVerificationWrite = `SELECT zasp_authorization80.case_verification($1,$2,$3,$4,$5,$6)`
+const caseVerificationRead = `SELECT zasp_authorization80.case_verification($1,$2,$3,$4,$5,NULL,false)`
+const caseVerificationWrite = `SELECT zasp_authorization80.case_verification($1,$2,$3,$4,$5,$6,$7)`
 
 func init() {
 	productStatementRules[caseVerificationRead] = productStatementRule{operations: []string{"getSecurityCaseVerification"}, arguments: 5, scope: 1, actor: 4, object: 5, kind: "security_agent_run", browserOnly: true}
-	productStatementRules[caseVerificationWrite] = productStatementRule{operations: []string{"verifySecurityCase"}, arguments: 6, scope: 1, actor: 4, object: 5, kind: "security_agent_run", browserOnly: true, fresh: true}
+	productStatementRules[caseVerificationWrite] = productStatementRule{operations: []string{"verifySecurityCase"}, arguments: 7, scope: 1, actor: 4, object: 5, kind: "security_agent_run", browserOnly: true, fresh: true}
 }
 
 type storedCaseEvidence struct {
-	CaseID              string                     `json:"case_id"`
-	TargetID            string                     `json:"target_id"`
-	RemediationVerified bool                       `json:"remediation_verified"`
-	FixtureRunID        *string                    `json:"fixture_run_id"`
-	SubmittedAt         *time.Time                 `json:"submitted_at"`
-	Bundle              *redteam.TicketProofBundle `json:"bundle"`
+	CaseID                     string                     `json:"case_id"`
+	TargetID                   string                     `json:"target_id"`
+	BusinessFixtureUnavailable bool                       `json:"business_fixture_unavailable"`
+	RemediationVerified        bool                       `json:"remediation_verified"`
+	FixtureRunID               *string                    `json:"fixture_run_id"`
+	SubmittedAt                *time.Time                 `json:"submitted_at"`
+	Bundle                     *redteam.TicketProofBundle `json:"bundle"`
 }
 
 type caseVerification struct {
@@ -71,8 +72,12 @@ func verifyCase(record storedCaseEvidence, scope redteam.TicketScope, qualify fu
 	if test.ProtectedDecisionID == "" || test.ControlReceiptID == "" {
 		return value, ErrRepositoryUnavailable
 	}
-	value.SecurityCheckPassed, value.BusinessTaskPreserved = true, true
-	value.SecurityReceiptID, value.BusinessReceiptID = &test.ProtectedDecisionID, &test.ControlReceiptID
+	value.SecurityCheckPassed, value.SecurityReceiptID = true, &test.ProtectedDecisionID
+	if record.BusinessFixtureUnavailable {
+		value.State, value.Reason = "closed_business_task_unverified", "owner_attested_no_business_fixture"
+		return value, nil
+	}
+	value.BusinessTaskPreserved, value.BusinessReceiptID = true, &test.ControlReceiptID
 	value.State = "verified_complete"
 	return value, nil
 }
@@ -81,7 +86,7 @@ func serveSecurityCaseVerification(db JSONDatabase, w http.ResponseWriter, r *ht
 	w.Header().Set("Cache-Control", "no-store")
 	i, ok := IdentityFromRequest(r)
 	if !ok || i.CredentialKind != CredentialBrowserSession {
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	}
 	id := route.PathParameters["id"]
@@ -94,17 +99,18 @@ func serveSecurityCaseVerification(db JSONDatabase, w http.ResponseWriter, r *ht
 	query := caseVerificationRead
 	if route.OperationID == "verifySecurityCase" {
 		var body struct {
-			Fixture string `json:"fixture_run_id"`
+			Fixture                    string `json:"fixture_run_id"`
+			BusinessFixtureUnavailable bool   `json:"business_fixture_unavailable"`
 		}
 		if !i.FreshAuthenticated {
-			writeProductionError(w, r, ErrRepositoryAuthorization)
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 			return
 		}
 		if r.Method != http.MethodPost || decodeProductionJSON(r, &body) != nil || !validProductID(body.Fixture) {
 			writeProductionError(w, r, ErrRepositoryOperation)
 			return
 		}
-		query, args = caseVerificationWrite, append(args, body.Fixture)
+		query, args = caseVerificationWrite, append(args, body.Fixture, body.BusinessFixtureUnavailable)
 	} else if route.OperationID != "getSecurityCaseVerification" || r.Method != http.MethodGet {
 		writeProductionError(w, r, ErrRepositoryOperation)
 		return
@@ -119,7 +125,7 @@ func serveSecurityCaseVerification(db JSONDatabase, w http.ResponseWriter, r *ht
 		writeProductionError(w, r, ErrRepositoryNotFound)
 		return
 	case `"owner_required"`:
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	case `"ineligible"`:
 		writeProductionError(w, r, ErrRepositoryOperation)

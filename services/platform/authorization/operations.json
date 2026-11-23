@@ -1,4 +1,10 @@
 [
+  {"ID":"createCalibrationExport","Method":"POST","Path":"/api/v1/calibration/exports","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"getCalibrationExport","Method":"GET","Path":"/api/v1/calibration/exports/{id}","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
+  {"ID":"createCalibrationDownloadGrant","Method":"POST","Path":"/api/v1/calibration/exports/{id}/download-grants","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"downloadCalibrationExport","Method":"POST","Path":"/api/v1/calibration/exports/{id}/download","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
+  {"ID":"runModelQualification","Method":"POST","Path":"/api/v1/ai/qualifications/run","Permission":"manage_data_controls","Relation":"manage_data_controls","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"getModelQualificationRun","Method":"GET","Path":"/api/v1/ai/qualifications/runs/{id}","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"getAnalystThreads","Method":"GET","Path":"/api/v1/security-agents/chat/threads","Permission":"investigate_sessions","Relation":"investigate_sessions","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"createAnalystThread","Method":"POST","Path":"/api/v1/security-agents/chat/threads","Permission":"investigate_sessions","Relation":"investigate_sessions","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"getAnalystThread","Method":"GET","Path":"/api/v1/security-agents/chat/threads/{id}","Permission":"investigate_sessions","Relation":"investigate_sessions","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
@@ -176,6 +182,7 @@
   {"ID":"verifyAgentDiscovery","Method":"POST","Path":"/api/v1/agents/{id}/discovery/verify","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"draftAgentPurpose","Method":"POST","Path":"/api/v1/agents/{id}/purpose/draft","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"deepScanAddonVersion","Method":"POST","Path":"/api/v1/addon-versions/{id}/deep-scan","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"listWorkforceInventory","Method":"GET","Path":"/api/v1/agents/workforce","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"getAddonDeploymentApproval","Method":"GET","Path":"/api/v1/addon-versions/{id}/deployment-approvals","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"reviewAddonDeploymentApproval","Method":"POST","Path":"/api/v1/addon-versions/{id}/deployment-approvals","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"reviewAddonVersion","Method":"POST","Path":"/api/v1/addon-versions/{id}/review-decisions","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},

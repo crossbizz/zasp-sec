@@ -206,6 +206,11 @@ describe("Zasp application", () => {
   });
 
   it("uses server capabilities for production navigation without the demo store", async () => {
+    const id = "pid_10000005-0000-4000-8000-000000000005";
+    const at = "2026-11-01T12:00:00Z";
+    const summary = { id, name: "Production payment agent", kind: "agent", owner: "payments", team: "platform", tags: [], evidence_id: id, confidence_basis_points: 9500,
+      first_seen: at, last_seen: at, observed_at: at, fresh_until: at, freshness_state: "fresh", version: 1, provider: "kubernetes", source_kind: "kubernetes_agent",
+      discovery: { method: "declared", platform: "kubernetes_agent", signals: [] }, management_state: "managed", last_activity_at: null, activity_state: "unknown" };
     const client = createAPIClient({
       generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       fetch: async (request) => {
@@ -226,7 +231,12 @@ describe("Zasp application", () => {
           expect(url.searchParams.get("limit")).toBe("20");
           return apiJSON({ items: [{ id: "pid_10000005-0000-4000-8000-000000000005", type: "agent", name: "Production payment agent" }] });
         }
-        if (path === "/api/v1/agents") return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
+        if (path === "/api/v1/agents") return apiJSON({ items: [summary], page_info: { next_cursor: null, has_more: false } });
+        if (path === `/api/v1/agents/${id}`) return apiJSON({ summary,
+          sources: [{ integration_id: id, provider: "kubernetes", source: "kubernetes", source_identifier: "sha256:" + "b".repeat(64), snapshot_id: id, generation: 1, evidence_id: id, confidence_basis_points: 9500, observed_at: at, fresh_until: at, projection_version: 1, winning: true }],
+          evidence: [{ id, checksum: "sha256:" + "a".repeat(64), media_type: "application/json", schema_version: "raw_v1", parser_version: "parser_v1", tool_version: "tool_v1", collected_at: at, size_bytes: 128 }] });
+        if (["capabilities", "relationships", "sessions"].some(suffix => path === `/api/v1/agents/${id}/${suffix}`)) return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
+        if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
         return apiJSON({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
       },
     });
@@ -238,8 +248,11 @@ describe("Zasp application", () => {
 	expect(screen.getByRole("combobox", { name: "Authorized scope" })).toBeVisible();
     await userEvent.type(screen.getByRole("searchbox", { name: "Search product entities" }), "Production");
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Open Production payment agent" }));
-    expect(await screen.findByText("No records in this scope.")).toBeVisible();
+    const result = await screen.findByRole("link", { name: "Open Production payment agent" });
+    expect(result).toHaveAttribute("href", `/discovery/assets?inventory=${id}`);
+    await userEvent.click(result);
+    expect(await screen.findByRole("heading", { name: "Canonical record" })).toBeVisible();
+    expect(window.location.search).toBe(`?inventory=${id}`);
   });
 
 	it("routes authenticated workflow capabilities to real API-backed production surfaces", async () => {

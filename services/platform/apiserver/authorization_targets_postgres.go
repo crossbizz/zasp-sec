@@ -83,6 +83,9 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 			id = identity.Scope.EnvironmentID().String()
 		}
 	}
+	if route.OperationID == "listWorkforceInventory" {
+		return r.workforceTargets(ctx, identity, route)
+	}
 	if route.OperationID == "getAddonDeploymentApproval" || route.OperationID == "reviewAddonDeploymentApproval" {
 		agents := query["agent_id"]
 		if len(agents) != 1 || !validProductID(agents[0]) {

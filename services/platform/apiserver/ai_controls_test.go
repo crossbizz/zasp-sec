@@ -97,3 +97,34 @@ func TestV3PricingProvidersUseTheirOwnLedger(t *testing.T) {
 		}
 	}
 }
+
+func TestPrivatePlannerPricingInstalled(t *testing.T) {
+	b := startInstalledV2Baseline(t)
+	admin := b.member("organization_admin", "manage_identity", "view")
+	if err := b.product.RequireCurrentAuthorization(); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := NewPostgresRepository(b.product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewSecurityAgentPricingHTTPHandler(repo, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	submit := func(provider, unit, key string, want int) {
+		t.Helper()
+		policy := securityAgentPricingPolicyFixture(admin.identity)
+		policy.Provider, policy.CostUnit = provider, unit
+		now := time.Now().UTC()
+		policy.EffectiveAt = now.Add(-time.Minute).Format(securityAgentPricingTimeLayout)
+		policy.ExpiresAt = now.Add(time.Hour).Format(securityAgentPricingTimeLayout)
+		raw, _ := json.Marshal(map[string]any{"environment_id": b.e, "operation": "create", "expected_account_version": 0, "policy": policy})
+		response := b.serve(handler, admin, "setSecurityAgentPlannerPricing", "PUT", "/api/v1/security-agent-planner-pricing", nil, string(raw), map[string]string{"If-Match": `"0"`, "Idempotency-Key": key, "X-Zasp-Fresh-Auth": "confirmed"})
+		if response.Code != want {
+			t.Fatalf("%s = %d (%s), want %d", provider, response.Code, response.Body.String(), want)
+		}
+	}
+	submit("bedrock_privatelink", "model_credit", "pricing-v3-bedrock-01", 200)
+	submit("openrouter", "openrouter_credit", "pricing-v3-router-001", 400)
+}

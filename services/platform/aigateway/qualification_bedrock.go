@@ -24,19 +24,46 @@ type BedrockQualificationProfile struct {
 	MaximumNanoCredits  int64  `json:"maximum_nano_credits"`
 }
 
+type VertexQualificationProfile struct {
+	Location            string `json:"location"`
+	Project             string `json:"project"`
+	PrivateIP           string `json:"private_ip"`
+	Model               string `json:"model"`
+	CredentialReference string `json:"credential_reference"`
+	MaximumNanoCredits  int64  `json:"maximum_nano_credits"`
+}
+
 func (a DeploymentAttestation) ProviderMode() string {
+	if a.Vertex != nil {
+		return ModeVertex
+	}
+	if a.Deployment.Provider == ModeBYOC {
+		return ModeBYOC
+	}
 	if a.Bedrock != nil {
 		return ModeBedrock
 	}
 	return ModeVPC
 }
 func (a DeploymentAttestation) ModelName() string {
+	if a.Vertex != nil {
+		return a.Vertex.Model
+	}
 	if a.Bedrock != nil {
 		return a.Bedrock.Model
 	}
 	return a.Deployment.Model
 }
 func (a DeploymentAttestation) MeasuredDriver(token string) (ProviderDriver, string, error) {
+	if a.Vertex != nil {
+		v := a.Vertex
+		ip, err := netip.ParseAddr(v.PrivateIP)
+		if err != nil {
+			return nil, "", ErrInvalidConfiguration
+		}
+		d, b, err := NewVertexForPurpose(a.Purpose, v.Location, v.Project, ip, v.Model, v.CredentialReference, token, v.MaximumNanoCredits)
+		return d, b.DeploymentDigest, err
+	}
 	if a.Bedrock == nil {
 		driver, err := a.Deployment.Driver()
 		return driver, a.Deployment.Digest(), err
@@ -85,7 +112,7 @@ func matchesExpected(p Purpose, expected map[string]any, output []byte) bool {
 // Model: region-bound PrivateLink Converse accessed only for synthetic cases.
 // Authority: a signed corpus fixes test inputs and the expected evidence.
 // Fallback: inadequate evidence, latency or output fails qualification.
-func MeasureBedrock(ctx context.Context, driver ProviderDriver, a DeploymentAttestation, digest string, data []byte) (QualificationResult, error) {
+func MeasureCloud(ctx context.Context, driver ProviderDriver, a DeploymentAttestation, digest string, data []byte) (QualificationResult, error) {
 	r := QualificationResult{SchemaVersion: semanticSchemaVersion, Purpose: a.Purpose, DeploymentDigest: digest}
 	h := sha256.Sum256(data)
 	d, ok := LookupPurpose(a.Purpose)

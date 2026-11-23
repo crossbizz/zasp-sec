@@ -82,6 +82,12 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		serveInventoryReview(surface.evidenceDB, surface.inventoryModels[routed.OperationID], writer, request, routed)
+	case "listWorkforceInventory":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveWorkforceInventory(surface.evidenceDB, writer, request)
 	case "getAgentPostureSummary":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -142,6 +148,12 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		surface.actions.serve(writer, request, routed)
+	case "getModelQualificationRun", "runModelQualification":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		serveQualificationRun(surface.evidenceDB, writer, request, routed)
 	case "getCalibrationMetrics", "submitAnalystFeedback", "getRuleSuppressionMode", "putRuleSuppressionMode":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryUnavailable)

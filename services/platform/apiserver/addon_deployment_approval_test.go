@@ -15,8 +15,13 @@ func TestDeploymentReviewReopensOnPurposeAccessAndRoleDrift(t *testing.T) {
 	if err := b.product.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
 	}
+	exerciseDeploymentReview(t, b, admin, b.id())
+}
+
+func exerciseDeploymentReview(t *testing.T, b *installedBaseline, admin installedPrincipal, agent string) {
+	t.Helper()
 	surface := &discoveryWorkflowSurface{evidenceDB: b.product}
-	version, agent, role := b.id(), b.id(), b.id()
+	version, role := b.id(), b.id()
 	digest := "sha256:" + strings.Repeat("c", 64)
 	b.seed(func() {
 		b.exec("INSERT INTO zasp_addon_versions(organization_id,workspace_id,environment_id,id,manifest_digest,origin,origin_credential,ruleset,findings,review_state) VALUES($1,$2,$3,$4,$5,'local',$6,'zasp-static.v2','[]','approved')", b.o, b.w, b.e, version, digest, b.id())
@@ -30,6 +35,11 @@ func TestDeploymentReviewReopensOnPurposeAccessAndRoleDrift(t *testing.T) {
 		b.seed(func() {
 			b.exec("INSERT INTO zasp_action_analysis_versions(organization_id,workspace_id,environment_id,agent_id,revision,actor,request_key,settings) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb)", b.o, b.w, b.e, agent, n, b.id(), b.id(), fmt.Sprintf(`{"allowed_destinations":[%q],"allowed_operations":[],"allowed_classifications":[],"blocked_transitions":[]}`, destination))
 		})
+	}
+	purpose := b.serve(surface, admin, "getAgentPurpose", http.MethodGet, "/api/v1/agents/"+agent+"/purpose", map[string]string{"id": agent}, "", nil)
+	var approved agentPurpose
+	if purpose.Code != 200 || json.Unmarshal(purpose.Body.Bytes(), &approved) != nil || approved.AgentID != agent || approved.Revision != 1 {
+		t.Fatalf("missing registered purpose: %d %s", purpose.Code, purpose.Body)
 	}
 	var last map[string]any
 	params := map[string]string{"id": version}
@@ -75,6 +85,7 @@ func TestDeploymentReviewReopensOnPurposeAccessAndRoleDrift(t *testing.T) {
 	read("needs_re_review")
 	route := RoutedOperation{OperationID: "getAddonDeploymentApproval", PathParameters: params}
 	b.refused[admin.identity.PrincipalID.String()+" view"] = true
+	defer delete(b.refused, admin.identity.PrincipalID.String()+" view")
 	if _, err := b.checkedQuery(admin, route, url.Values{"agent_id": []string{agent}}); err == nil {
 		t.Fatal("refused view granted")
 	}

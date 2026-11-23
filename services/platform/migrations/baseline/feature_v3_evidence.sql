@@ -9,14 +9,14 @@ BEGIN
  THEN RETURN 'null'::jsonb; END IF;
  WITH events AS (
   SELECT v.event_id decision_id,v.source,CASE v.event_class WHEN 'process' THEN 'runtime' ELSE v.event_class END AS class,
-   v.action,''::text receipt,v.title operation,v.event_time observed_at,ARRAY[v.evidence_id] evidence_ids
+   v.action,''::text receipt,v.title operation,v.event_time observed_at,ARRAY[v.evidence_id] evidence_ids,v.agent_id,v.confidence
   FROM public.zasp_runtime_session_events v WHERE (v.organization_id,v.workspace_id,v.environment_id,v.session_id)=(o,w,e,s)
   ORDER BY v.event_time DESC,v.event_id DESC LIMIT 101
  ), workload AS (
   SELECT x.receipt->>'decision_id' decision_id,'authenticated_workload'::text source,'tool'::text class,
    x.receipt->>'verdict' AS action,coalesce(x.outcome->>'status','') receipt,x.request->>'operation' operation,
    x.created_at observed_at,CASE WHEN x.outcome IS NULL THEN ARRAY[x.receipt->>'decision_id'] ELSE ARRAY[x.receipt->>'decision_id',
-    public.zasp_discovery_canonical_id(o,w,e,'workload_outcome',x.receipt->>'decision_id')] END evidence_ids
+    public.zasp_discovery_canonical_id(o,w,e,'workload_outcome',x.receipt->>'decision_id')] END evidence_ids,b.agent_id,'exact'::text confidence
   FROM public.zasp_workload_bindings b JOIN public.zasp_workload_actions x
    ON (b.organization_id,b.workspace_id,b.environment_id,b.credential_id)=(x.organization_id,x.workspace_id,x.environment_id,x.credential_id) AND b.created_at<=x.created_at
   WHERE (b.organization_id,b.workspace_id,b.environment_id,b.session_id)=(o,w,e,s)
@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.verification_case_checks (
  FOREIGN KEY(organization_id,workspace_id,environment_id,fixture_run_id)
  REFERENCES public.zasp_ticket_verification_imports(organization_id,workspace_id,environment_id,run_id)
 );
+ALTER TABLE public.verification_case_checks ADD COLUMN IF NOT EXISTS business_fixture_unavailable boolean NOT NULL DEFAULT false;
 ALTER TABLE public.verification_case_checks OWNER TO zasp_discovery_authority;
 ALTER TABLE public.verification_case_checks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verification_case_checks FORCE ROW LEVEL SECURITY;
@@ -57,11 +58,12 @@ DO $policy$ BEGIN
  END IF;
 END $policy$;
 
-CREATE OR REPLACE FUNCTION zasp_authorization80.case_verification(o text,w text,e text,a text,r text,f text) RETURNS jsonb
+CREATE OR REPLACE FUNCTION zasp_authorization80.case_verification(o text,w text,e text,a text,r text,f text,business_unavailable boolean) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $verification$
 DECLARE rem public.zasp_security_agent_provider_remediations%ROWTYPE; fixture public.zasp_ticket_verification_imports%ROWTYPE;
  previous public.verification_case_checks%ROWTYPE; proof jsonb; end_at timestamptz;
 BEGIN
+ IF business_unavailable IS NULL OR (f IS NULL AND business_unavailable) THEN RETURN '"ineligible"'::jsonb; END IF;
  IF f IS NULL THEN
   PERFORM zasp_authorization80.product_request(o,w,e,a,'getSecurityCaseVerification','view','security_agent_run',r,true,true,false,false);
  ELSE
@@ -90,16 +92,26 @@ BEGIN
  ORDER BY x.window_end DESC LIMIT 1;
  IF f IS NOT NULL THEN
   IF previous.fixture_run_id IS DISTINCT FROM f AND previous.window_end>=end_at THEN RETURN '"stale"'::jsonb;END IF;
-  INSERT INTO public.verification_case_checks(organization_id,workspace_id,environment_id,case_id,fixture_run_id,step_id,owner_id,window_end)
-  VALUES(o,w,e,r,f,rem.step_id,a,end_at) ON CONFLICT DO NOTHING;
+  -- An owner can acknowledge the missing business fixture only before
+  -- attaching any business fixture, including a failed one.
+  IF (business_unavailable AND EXISTS(SELECT FROM public.verification_case_checks x WHERE
+   (x.organization_id,x.workspace_id,x.environment_id,x.case_id)=(o,w,e,r) AND NOT x.business_fixture_unavailable))
+   OR (previous.fixture_run_id=f AND previous.business_fixture_unavailable<>business_unavailable) THEN RETURN '"stale"'::jsonb; END IF;
+  INSERT INTO public.verification_case_checks(organization_id,workspace_id,environment_id,case_id,fixture_run_id,step_id,owner_id,window_end,business_fixture_unavailable)
+  VALUES(o,w,e,r,f,rem.step_id,a,end_at,business_unavailable) ON CONFLICT DO NOTHING;
+  IF FOUND THEN
+   INSERT INTO public.zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata)
+   VALUES(o,w,e,public.zasp_discovery_canonical_id(o,w,e,'case_verification',r||'/'||f),a,'attach_case_verification_evidence',r,'succeeded',
+    jsonb_build_object('fixture_run_id',f,'remediation_step_id',rem.step_id,'business_fixture_unavailable',business_unavailable));
+  END IF;
   PERFORM zasp_authorization80.product_settled(proof);
  ELSIF previous.fixture_run_id IS NOT NULL THEN
   SELECT * INTO STRICT fixture FROM public.zasp_ticket_verification_imports t WHERE (t.organization_id,t.workspace_id,t.environment_id,t.run_id)=(o,w,e,previous.fixture_run_id);
  END IF;
  RETURN jsonb_build_object('case_id',r,'remediation_verified',rem.state='verified','target_id',rem.entity_id,'fixture_run_id',fixture.run_id,
-  'submitted_at',fixture.submitted_at,'bundle',fixture.bundle);
+  'submitted_at',fixture.submitted_at,'bundle',fixture.bundle,'business_fixture_unavailable',CASE WHEN f IS NULL THEN coalesce(previous.business_fixture_unavailable,false) ELSE business_unavailable END);
 END $verification$;
 ALTER FUNCTION zasp_authorization80.session_intent(text,text,text,text,text) OWNER TO zasp_discovery_authority;
-ALTER FUNCTION zasp_authorization80.case_verification(text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
-REVOKE ALL ON FUNCTION zasp_authorization80.session_intent(text,text,text,text,text),zasp_authorization80.case_verification(text,text,text,text,text,text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION zasp_authorization80.session_intent(text,text,text,text,text),zasp_authorization80.case_verification(text,text,text,text,text,text) TO zasp_discovery_api;
+ALTER FUNCTION zasp_authorization80.case_verification(text,text,text,text,text,text,boolean) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.session_intent(text,text,text,text,text),zasp_authorization80.case_verification(text,text,text,text,text,text,boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.session_intent(text,text,text,text,text),zasp_authorization80.case_verification(text,text,text,text,text,text,boolean) TO zasp_discovery_api;

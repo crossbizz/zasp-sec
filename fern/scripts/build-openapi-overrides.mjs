@@ -156,6 +156,10 @@ const OPERATIONS = {
   getSensorCoverage: ["sensors", "getCoverage"],
 
   createGuardrailDecision: ["guardrails", "createDecision"],
+  createCalibrationExport: ["guardrails", "createCalibrationExport"],
+  getCalibrationExport: ["guardrails", "getCalibrationExport"],
+  createCalibrationDownloadGrant: ["guardrails", "createCalibrationDownloadGrant"],
+  downloadCalibrationExport: ["guardrails", "downloadCalibrationExport"],
   getCalibrationMetrics: ["guardrails", "getCalibrationMetrics"],
   submitAnalystFeedback: ["guardrails", "submitAnalystFeedback"],
   getRuleSuppressionMode: ["guardrails", "getRuleSuppressionMode"],

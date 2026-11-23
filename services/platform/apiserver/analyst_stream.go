@@ -79,7 +79,7 @@ func serveAnalystTurn(db JSONDatabase, h *analystChat, w http.ResponseWriter, r 
 	}
 	ctx, err := refreshChatAuthorization(r, op)
 	if err != nil {
-		writeProductionError(w, r, ErrRepositoryAuthorization)
+		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
 	}
 	raw, err = query(ctx, map[string]any{"phase": "finish", "assistant_id": assistant, "text": answer.Text, "evidence_ids": answer.EvidenceIDs})

@@ -37,13 +37,13 @@ class Controls(unittest.TestCase):
     def test_actual_public_lock_whole_hash_and_complete_projection(self):
         raw=Path(os.environ['PUBLIC_NPM_LOCK_FOR_CONTROLS']).read_bytes()
         rows=adapter.public_inventory(raw);groups=adapter.groups_for(rows)
-        self.assertEqual(len(rows),209);self.assertEqual(len(groups),19)
+        self.assertEqual(len(rows),432);self.assertEqual(len(groups),33)
         wanted={r['name']+'@'+r['version'] for r in rows}
-        self.assertEqual(set(sum(groups,[])),wanted);self.assertEqual(len(wanted),185)
+        self.assertEqual(set(sum(groups,[])),wanted);self.assertEqual(len(wanted),325)
         calls=[]
         def acquire(target,allowance):calls.append(target);return http([])
         result=adapter.collect_public_lock(raw,acquire,lambda:None)
-        self.assertEqual(len(calls),57)
+        self.assertEqual(len(calls),99)
         for query in calls:
             p=parse_qs(urlsplit(query).query)
             self.assertEqual(p['ecosystem'],['npm']);self.assertNotIn('is_withdrawn',p)

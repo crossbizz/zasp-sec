@@ -184,8 +184,8 @@ func storeSecretIn(root, staging, name string, raw []byte) error {
 	}
 }
 func run(command string, stdin io.Reader, stdout io.Writer) error {
-	if command == "claude-pretool" || command == "claude-pretool-open" {
-		return pipeHook(pipeName, command == "claude-pretool", stdin, stdout)
+	if command == "claude-pretool" || command == "claude-pretool-open" || command == "claude-pretool-delegated" {
+		return managedPipeHook(pipeName, command != "claude-pretool-open", command == "claude-pretool-delegated", stdin, stdout)
 	}
 	if !system() {
 		return errors.New("LocalSystem context required")
@@ -346,7 +346,7 @@ func publishStatus(s windowsinventory.State, h *brokerHealth, syncErr, reportErr
 }
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: zasp-device-windows init-device-key|provision-token|sync|status|pretool-broker|claude-pretool|claude-pretool-open")
+		fmt.Fprintln(os.Stderr, "Usage: zasp-device-windows init-device-key|provision-token|sync|status|pretool-broker|claude-pretool|claude-pretool-open|claude-pretool-delegated")
 		os.Exit(2)
 	}
 	if err := run(os.Args[1], os.Stdin, os.Stdout); err != nil {

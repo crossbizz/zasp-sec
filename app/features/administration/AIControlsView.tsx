@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { APIProductError, type APIClient } from "../../../apps/web/api/client";
 import { createAIControlsAPI, modeLabels, type AISettings, type EnvironmentInput, type OrganizationInput } from "../../../apps/web/api/ai-controls";
 import { Badge, Button, Card, LoadingState, PageHeader } from "../../components/ui";
+import { QualificationRunner } from "./QualificationRunner";
 import { EnvironmentFields, OrganizationFields, Qualifications } from "./AIControlFields";
 
 type Scope = "organization" | "environment";
@@ -23,17 +24,22 @@ export function AIControlsView({ client, expectedScope, ...access }: { client: A
     return () => controller.abort();
   }, [api, revision]);
 
+  const refreshQualifications = useCallback(async () => {
+    const items = await api.qualifications(AbortSignal.timeout(10_000));
+    setSettings(current => current && { ...current, qualifications: items });
+  }, [api]);
+
   function reload(message = "") { setSettings(null); setLoadError(false); setSaved(message); setRevision(v => v + 1); }
   return <div className="page ai-controls">
     <PageHeader title="AI & Models" description="Set the organization’s hosting and privacy limits, then choose which model capabilities this environment can use." />
     {saved && <p role="status" className="success-banner">{saved}</p>}
     {loadError ? <div role="alert" className="error-banner">AI settings could not be loaded. <Button onClick={() => reload()}>Retry</Button></div>
-      : settings ? <AIEditors {...access} settings={settings} api={api} reload={reload} /> : <LoadingState label="Loading AI controls…" />}
+      : settings ? <AIEditors {...access} settings={settings} api={api} reload={reload} client={client} expectedScope={expectedScope} refreshQualifications={refreshQualifications} /> : <LoadingState label="Loading AI controls…" />}
   </div>;
 }
 
-function AIEditors({ settings, api, reload, canEditOrganization, canEditEnvironment, fresh, reauthenticate }: Access & {
-  settings: AISettings; api: ReturnType<typeof createAIControlsAPI>; reload(message?: string): void;
+function AIEditors({ settings, api, reload, client, expectedScope, refreshQualifications, canEditOrganization, canEditEnvironment, fresh, reauthenticate }: Access & {
+  settings: AISettings; client: APIClient; expectedScope: string; refreshQualifications(): Promise<void>; api: ReturnType<typeof createAIControlsAPI>; reload(message?: string): void;
 }) {
   const [editing, setEditing] = useState<Scope | null>(null);
   const [org, setOrg] = useState<OrganizationInput>({});
@@ -82,6 +88,6 @@ function AIEditors({ settings, api, reload, canEditOrganization, canEditEnvironm
       {panel("organization", "Organization AI policy", canEditOrganization, <OrganizationFields policy={{ ...settings.organization, ...org }} change={patch => setOrg(current => ({ ...current, ...patch }))} />)}
       {panel("environment", "Environment AI controls", canEditEnvironment, <EnvironmentFields settings={settings} draft={env} change={patch => setEnv(current => ({ ...current, ...patch }))} />)}
     </div>
-    <Card title={<h2>Model qualifications</h2>}><div className="table-scroll"><Qualifications items={settings.qualifications} /></div></Card>
+    <Card title={<h2>Model qualifications</h2>}><div className="table-scroll"><Qualifications items={settings.qualifications} /></div><QualificationRunner client={client} expectedScope={expectedScope} environment={settings.environment} canEdit={canEditEnvironment} fresh={fresh} refreshQualifications={refreshQualifications} /></Card>
   </>;
 }

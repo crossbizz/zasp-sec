@@ -661,7 +661,7 @@ function SecurityAgentsScopedView({ tabbed = false, api = defaultSecurityAgentsA
   const [approvals, setApprovals] = useState<readonly SecurityAgentApproval[]>(initialSnapshot?.approvals ?? []);
   const [controls, setControls] = useState<SecurityAgentExecutionControls | undefined>(initialSnapshot?.controls);
   const [builder, setBuilder] = useState(false);
-  const [ activeSection, setActiveSection ] = useState("agents");
+  const [activeSection, setActiveSection] = useState("agents");
   const [selected, setSelected] = useState<Versioned<SecurityAgentDefinition> | null>(null);
   const [selectedActivation, setSelectedActivation] = useState<SecurityAgentActivationState | null>(null);
   const [loadedRun, setSelectedRun] = useState<SecurityAgentRunDetail | null>(null);

@@ -16,8 +16,8 @@ LANGUAGE sql VOLATILE SET search_path=pg_catalog,public AS $cap$
  SELECT env.monthly_budget_nano_credits FROM public.zasp_environment_ai_controls env JOIN public.zasp_organization_ai_controls org USING(organization_id)
  JOIN public.model_qualifications q USING(organization_id,workspace_id,environment_id)
  WHERE (env.organization_id,env.workspace_id,env.environment_id)=(o,w,e)
- AND env.mode='zasp_vpc_slm' AND env.mode=ANY(org.allowed_modes) AND org.ai_enabled AND org.require_zero_retention
- AND org.allowed_residency IN('us_eu',region||'_only') AND region IN('us','eu') AND org.allow_private_code_egress AND env.allow_approved_code_snippets
+ AND env.mode IN('zasp_vpc_slm','byoc_self_hosted') AND env.mode=ANY(org.allowed_modes) AND org.ai_enabled AND org.require_zero_retention
+ AND (org.allowed_residency IN('us_eu',region||'_only') OR (org.allowed_residency='customer_vpc_only' AND env.mode='byoc_self_hosted')) AND region IN('us','eu') AND org.allow_private_code_egress AND env.allow_approved_code_snippets
  AND (zasp_authorization80.ai_data_limits(o,w,e,true)->>'collection_mode')='extended'
  AND (p='heuristic_fp_verify' AND env.tier2_heuristic_fp_suppression_enabled OR p='indirect_injection_screen' AND env.tier2_prompt_injection_enabled)
  AND env.tier2_profile=profile AND q.provider=env.mode AND q.model=profile AND q.purpose=p AND q.qualified AND q.expires_at>now() AND q.checked_at<=now()

@@ -190,18 +190,10 @@ completion_sources=(
   "$HERE/intent_classifier.sql"
   "$HERE/policy_replay.sql"
   "$HERE/provider_readiness.sql"
-  "$HERE/feature_v3_ai_controls.sql"
-  "$HERE/feature_v3_models.sql"
-  "$HERE/feature_v3_model_flow.sql"
-  "$HERE/feature_v3_delegation.sql"
-  "$HERE/feature_v3_evidence.sql"
-  "$HERE/feature_v3_inventory.sql"
-  "$HERE/feature_v3_calibration.sql"
-  "$HERE/feature_v3_pricing.sql"
-  "$HERE/feature_v3_studio.sql"
-  "$HERE/feature_v3_chat.sql"
-  "$HERE/feature_v3_semantic_guardrail.sql"
 )
+while IFS= read -r release_source; do
+  completion_sources+=("$HERE/$release_source")
+done < "$HERE/feature_v3.order"
 if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
   predicates reference > "$WORK/reference.predicates"
   echo "baseline: applying the product completion"
