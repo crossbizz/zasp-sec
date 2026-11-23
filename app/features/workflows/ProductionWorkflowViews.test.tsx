@@ -329,30 +329,32 @@ describe("production integration deletion", () => {
 
 	it("blocks a retained reference authorization retry when fresh authentication expires", async () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
-        try {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
-		const GET = vi.fn(async (path: string) => {
-			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
-			if (path === "/api/v1/integrations") return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
-			if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
-			throw new Error(`unexpected GET ${path}`);
-		});
-		const POST = vi.fn()
-			.mockRejectedValueOnce(new TypeError("response lost after commit"))
-			.mockRejectedValueOnce(new TypeError("replay response lost"));
-		renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 120_000).toISOString());
+		try {
+			const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
+			const GET = vi.fn(async (path: string) => {
+				if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+				if (path === "/api/v1/integrations") return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
+				if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
+				throw new Error(`unexpected GET ${path}`);
+			});
+			const POST = vi.fn()
+				.mockRejectedValueOnce(new TypeError("response lost after commit"))
+				.mockRejectedValueOnce(new TypeError("replay response lost"));
+			renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 120_000).toISOString());
 
-		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
-		await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
-		expect(await screen.findByText(/The response was lost\. The exact operation and idempotency key are retained\./)).toBeVisible();
-		await act(async () => { await vi.advanceTimersByTimeAsync(120_010); });
+			await user.click(await screen.findByRole("button", { name: "Open AWS" }));
+			await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
+			expect(await screen.findByText(/The response was lost\. The exact operation and idempotency key are retained\./)).toBeVisible();
+			await act(async () => { await vi.advanceTimersByTimeAsync(120_010); });
 
-		expect(screen.getByRole("button", { name: "Retry retained integration operation" })).toBeDisabled();
-		expect(screen.getByText("Fresh authentication is required to retry this reference authorization.")).toBeVisible();
-		expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled();
-		fireEvent.click(screen.getByRole("button", { name: "Retry retained integration operation" }));
-		expect(POST).toHaveBeenCalledTimes(2);
-        } finally { vi.useRealTimers(); }
+			expect(screen.getByRole("button", { name: "Retry retained integration operation" })).toBeDisabled();
+			expect(screen.getByText("Fresh authentication is required to retry this reference authorization.")).toBeVisible();
+			expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled();
+			fireEvent.click(screen.getByRole("button", { name: "Retry retained integration operation" }));
+			expect(POST).toHaveBeenCalledTimes(2);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("keeps a retained reference authorization locked through 409 refetch failures", async () => {

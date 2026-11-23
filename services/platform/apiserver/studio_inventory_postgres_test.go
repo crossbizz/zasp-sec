@@ -75,6 +75,10 @@ func exerciseStudioInventoryTurn(t *testing.T, b *installedBaseline, h *discover
 	if err != nil {
 		t.Fatal(err)
 	}
+	detail := b.serve(reads, admin, "getAgent", "GET", "/api/v1/agents/"+agent, map[string]string{"id": agent}, "", nil)
+	if detail.Code != 200 {
+		t.Fatalf("local source record %d %s", detail.Code, detail.Body)
+	}
 	composed, err := NewComposition(Dependencies{Authorizer: b.authorizer, Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: reads, Risk: handlerResponse("risk"), Workflow: h, Connector: handlerResponse("connector")})
 	if err != nil {
 		t.Fatal(err)

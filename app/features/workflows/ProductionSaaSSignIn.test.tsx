@@ -106,7 +106,7 @@ describe("SaaS sign-in from the Integrations page", () => {
     return null;
   }
   function workflow(status: () => unknown, version = () => '"1"') {
-    const user = userEvent.setup();
+    const user = userEvent.setup(vi.isFakeTimers() ? { advanceTimers: vi.advanceTimersByTimeAsync } : {});
     let current = waiting;
     const listing = reads(() => current);
     const GET = vi.fn(async (path: string, _options?: { params?: { path?: Record<string, string> } }) => {
@@ -126,8 +126,8 @@ describe("SaaS sign-in from the Integrations page", () => {
     const rendered = render(view(true));
     const start = async () => {
       await user.click(await screen.findByRole("button", { name: "Open Acme production" }, { timeout: 4000 }));
-      await user.click(await screen.findByRole("button", { name: "Sign in to Acme AI" }));
-      return screen.findByRole("button", { name: "Finish sign-in" });
+      await user.click(await screen.findByRole("button", { name: "Sign in to Acme AI" }, { timeout: 4000 }));
+      return screen.findByRole("button", { name: "Finish sign-in" }, { timeout: 4000 });
     };
     return { user, GET, POST, PATCH, start, disable: () => rendered.rerender(view(false)), suspend: () => rendered.rerender(view(true, true)), unmount: () => rendered.unmount() };
   }
@@ -168,15 +168,18 @@ describe("SaaS sign-in from the Integrations page", () => {
     expect(m.PATCH).not.toHaveBeenCalled();
   });
   it("expires the attempt before issuing a status request", async () => {
-    const m = workflow(() => result);
-    const finish = await m.start();
-    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 600000);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      await m.user.click(finish);
-      expect(await screen.findByText("This provider sign-in expired. Start a new sign-in.")).toBeVisible();
+      const m = workflow(() => result);
+      await m.start();
+      await act(async () => { await vi.advanceTimersByTimeAsync(540_005); });
+      expect(screen.getByText("This provider sign-in expired. Start a new sign-in.")).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Finish sign-in" })).toBeNull();
       expect(m.GET.mock.calls.filter(([path]) => path === statusPath)).toHaveLength(0);
       expect(m.PATCH).not.toHaveBeenCalled();
-    } finally { clock.mockRestore(); }
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it("checks only the latest attempt after signing in again", async () => {
     const next = "pid_40000002-0000-4000-8000-000000000002";

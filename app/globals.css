@@ -757,7 +757,7 @@ button.metric:hover { background: var(--hover); }
 .production-app .card > .field:has(textarea) { display: flex; width: auto; margin-right: 16px; }
 .production-app .card > .card__header + .field, .production-app .card > .card__header + .field + .field { margin-top: 16px; }
 .production-app .page .button + .button, .drawer__body .button + .button { margin-left: 8px; }
-.production-app .page :where(.row-actions, .button-row, .tabs, .table-pagination__controls, .page-header) > .button + .button, .drawer__body :where(.row-actions, .button-row) > .button + .button { margin-left: 0; }
+.production-app .page :where(.row-actions, .button-row, .page-actions, .tabs, .table-pagination__controls, .page-header) > .button + .button, .drawer__body :where(.row-actions, .button-row) > .button + .button { margin-left: 0; }
 @media (max-width: 900px) { .production-app .card > .field { display: flex; width: auto; margin-right: 16px; } }
 .drawer__body .card > :where(:not(.card__header, table, .table-scroll, .data-table)) { margin-left: 16px; margin-right: 16px; }
 .drawer__body .card > .card__header + * { margin-top: 14px; }
