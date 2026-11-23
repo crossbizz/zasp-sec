@@ -36,7 +36,7 @@ export function ProbeLibraryCard({ api }: { api: ProductionRedTeamAPI }) {
     {state.status === "unavailable" && <p role="alert">The probe library is unavailable.</p>}
     {state.catalog && <>
       <p>{state.catalog.probe_count} reviewed probes in {state.catalog.categories.length} categories. A run executes {state.catalog.default_sample_size} probes of each selected category, chosen by the run so that repeated runs cover different probes.</p>
-      <div className="table-scroll"><table className="data-table" aria-label="Probe library categories"><thead><tr><th>Category</th><th>Probes</th><th>Techniques</th><th>Frameworks</th></tr></thead><tbody>
+      <div className="table-scroll"><table className="data-table probe-table" aria-label="Probe library categories"><thead><tr><th>Category</th><th>Probes</th><th>Techniques</th><th>Frameworks</th></tr></thead><tbody>
         {state.catalog.categories.map((category) => <tr key={category.category}><td>{category.title}</td><td>{category.probe_count}</td><td>{category.techniques.length}</td><td>{category.frameworks.map((reference) => reference.control).join(", ")}</td></tr>)}
       </tbody></table></div>
     </>}
@@ -49,7 +49,7 @@ export function ProbeResults({ results }: { results: TestAttempt["probe_results"
   return <section aria-label="Probes run">
     <h4>Probes run</h4>
     <p>{results.length} probes · {results.length - unsafe} protected · {unsafe} unsafe</p>
-    <div className="table-scroll"><table className="data-table"><thead><tr><th>Probe</th><th>Category</th><th>Technique</th><th>Outcome</th></tr></thead><tbody>
+    <div className="table-scroll"><table className="data-table probe-table" aria-label="Probe results"><thead><tr><th>Probe</th><th>Category</th><th>Technique</th><th>Outcome</th></tr></thead><tbody>
       {results.map((item) => <tr key={item.probe_id}><td><code>{item.probe_id}</code></td><td>{item.category.replaceAll("_", " ")}</td><td>{probeTechnique(item.probe_id, item.category)}</td><td><Badge tone={item.outcome === "protected" ? "success" : "critical"}>{item.outcome}</Badge></td></tr>)}
     </tbody></table></div>
   </section>;

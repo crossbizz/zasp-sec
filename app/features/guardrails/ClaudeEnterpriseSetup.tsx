@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Button, Card, Field } from "../../components/ui";
+import "../claude-enterprise-setup.css";
 
 const integrationProductID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const dnsLabel = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
@@ -25,7 +26,7 @@ export function ClaudeEnterpriseSetup({ openAPIAccess, openPolicies }: {
 
   return <Card title={<h2>Claude Enterprise inference hooks</h2>}>
     <p>Claude can ask Zasp for a verdict before processing a prompt or tool frame. A Zasp deployment operator and a Claude Enterprise administrator configure the two ends.</p>
-    <details>
+    <details className="claude-enterprise-setup">
       <summary>Set up Claude Enterprise</summary>
       <ol>
         <li><strong>Provision a dedicated credential.</strong> Ask a Zasp token administrator to create a token for this Environment with <code>decide_actions</code> as its only permission. Leave it unbound to any agent or runtime session. {openAPIAccess && <Button onClick={openAPIAccess}>Open API Access</Button>}</li>

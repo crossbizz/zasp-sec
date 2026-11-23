@@ -3,7 +3,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 const output = process.env.ZASP_UI_REVIEW_OUTPUT || 'outputs/aegis-review';
-const {chromium} = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright');
+const {chromium} = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright-core');
 const browser = await chromium.launch({executablePath:process.env.ZASP_CHROMIUM || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
 try {
   const page = await browser.newPage({viewport:{width:1440,height:1000}});

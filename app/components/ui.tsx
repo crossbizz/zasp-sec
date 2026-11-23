@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Search, ChevronDown, Check, AlertTriangle, Inbox, LoaderCircle, Info, MoreHorizontal } from "lucide-react";
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { Children, forwardRef, isValidElement, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Severity } from "../domain/types";
@@ -53,7 +53,12 @@ function syncDialogLayers() {
 
 function tabbableElements(dialog: HTMLElement) {
   const selector = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
-  return Array.from(dialog.querySelectorAll<HTMLElement>(selector)).filter((element) => element.tabIndex >= 0 && element.getAttribute("aria-hidden") !== "true");
+  return Array.from(dialog.querySelectorAll<HTMLElement>(selector)).filter(element =>
+    element.tabIndex >= 0 &&
+    !element.matches(":disabled, input[type=hidden]") &&
+    !element.closest("[hidden], [inert], [aria-hidden=true]") &&
+    (element.checkVisibility?.({ visibilityProperty: true }) ?? true)
+  );
 }
 
 function useAccessibleDialog(open: boolean, closeDisabled: boolean, onClose: () => void) {
@@ -77,7 +82,7 @@ function useAccessibleDialog(open: boolean, closeDisabled: boolean, onClose: () 
       const index = dialogStack.indexOf(entry);
       if (index >= 0) dialogStack.splice(index, 1);
       syncDialogLayers();
-      queueMicrotask(() => { if (entry.invoker?.isConnected) entry.invoker.focus(); });
+      queueMicrotask(() => { if (entry.invoker?.isConnected) entry.invoker.focus({ preventScroll: true }); });
     };
   }, [open]);
 
@@ -124,7 +129,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
 });
 
 export function Card({ children, className = "", id, title, action }: { children: ReactNode; className?: string; id?: string; title?: ReactNode; action?: ReactNode }) {
-  return <section id={id} className={`card ${className}`}>{title && <div className="card__header"><div className="card__title">{title}</div>{action}</div>}{Children.map(children, child => isValidElement(child) && child.type === "table" ? <div className="table-scroll">{child}</div> : child)}</section>;
+  return <section id={id} className={`card ${className}`}>{title && <div className="card__header">{typeof title === "string" ? <h2 className="card__title">{title}</h2> : <div className="card__title">{title}</div>}{action}</div>}{Children.map(children, child => isValidElement(child) && child.type === "table" ? <div className="table-scroll">{child}</div> : child)}</section>;
 }
 
 export function PageHeader({ title, description, eyebrow, actions }: { title: string; description?: string; eyebrow?: string; actions?: ReactNode }) {
@@ -156,8 +161,21 @@ export function Select({ label, children, value, onChange, disabled, className =
   return <label className={`field ${className}`}>{label && <span>{label}</span>}<span className="select-wrap"><select value={value} onChange={onChange} disabled={disabled}>{children}</select><ChevronDown size={15} /></span></label>;
 }
 
-export function Field({ label, error, hint, multiline, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string; hint?: string; multiline?: boolean }) {
-  return <label className="field"><span>{label}</span>{multiline ? <textarea value={String(props.value ?? "")} placeholder={props.placeholder} onChange={props.onChange as unknown as React.ChangeEventHandler<HTMLTextAreaElement>} /> : <input {...props} />}{hint && <small>{hint}</small>}{error && <small className="field-error">{error}</small>}</label>;
+type FieldProps = { label: string; error?: string; hint?: string } & (
+  | ({ multiline: true } & TextareaHTMLAttributes<HTMLTextAreaElement>)
+  | ({ multiline?: false } & InputHTMLAttributes<HTMLInputElement>)
+);
+
+export function Field({ label, error, hint, ...control }: FieldProps) {
+  let element;
+  if (control.multiline) {
+    const { multiline, ...attributes } = control;
+    element = <textarea {...attributes} />;
+  } else {
+    const { multiline, ...attributes } = control;
+    element = <input {...attributes} />;
+  }
+  return <label className="field"><span>{label}</span>{element}{hint && <small>{hint}</small>}{error && <small className="field-error">{error}</small>}</label>;
 }
 
 export function Drawer({ open, title, children, onClose, closeDisabled = false, width = "wide" }: { open: boolean; title: string; children: ReactNode; onClose: () => void; closeDisabled?: boolean; width?: "medium" | "wide" }) {

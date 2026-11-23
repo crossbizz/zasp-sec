@@ -102,6 +102,19 @@ describe("tenant recovery operations", () => {
     expect(document.body.textContent).not.toMatch(/s3:|version-evidence|signing_key|signature|cleanup_failed/i);
   });
 
+  it("lets an authorized operator reauthenticate at a completed backup before restoring", async () => {
+    const reauthenticate = vi.fn();
+    const startRestore = vi.fn<RecoveryAPI["startRestore"]>();
+    const storage = memoryStorage({ [`zasp:recovery:v1:${scope}`]: JSON.stringify({
+      version: 1, backup: { id: backupID, retention_days: 30, idempotency_key: "recovery_backup_00000001" }, restore: null,
+    }) });
+    render(<RecoveryOperationsView api={api({ getBackup: async () => succeededBackup, startRestore })}
+      expectedScope={scope} storage={storage} canWrite fresh={false} onReauthenticate={reauthenticate} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Reauthenticate to start restore" }));
+    expect(reauthenticate).toHaveBeenCalledOnce();
+    expect(startRestore).not.toHaveBeenCalled();
+  });
+
   it("renders a safe empty state and sends stale authentication to reauthentication", async () => {
     const user = userEvent.setup(); const reauthenticate = vi.fn(); const startBackup = vi.fn<RecoveryAPI["startBackup"]>();
     render(<RecoveryOperationsView api={api({ startBackup })} expectedScope={scope} storage={memoryStorage()} canWrite fresh={false} onReauthenticate={reauthenticate} />);

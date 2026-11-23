@@ -12,7 +12,8 @@
 .managed-device-enroll > .field + .button { margin-block-start: 12px; }
 .managed-device-space legend { font-weight: 600; }
 .managed-device-space legend + .field { margin-block-start: 8px; }
-.managed-device-list { container-type: inline-size; }
+.managed-device-list, .ticket-cohort { container-type: inline-size; }
+.ticket-cohort-members :is(th, td) { overflow-wrap: anywhere; vertical-align: top; }
 .managed-device-table { table-layout: fixed; white-space: normal; }
 .managed-device-table th:first-child { width: 37%; }
 .managed-device-table th:nth-child(2) { width: 23%; }
@@ -64,8 +65,9 @@
     padding: 12px 16px;
     border-top: 1px solid var(--border);
   }
-  .managed-device-table td { display: block; height: auto; padding: 0; border: 0; }
-  .managed-device-table td:first-child, .managed-device-table td:last-child { grid-column: 1 / -1; }
+  .managed-device-table :is(td, th[scope="row"]) { display: block; height: auto; padding: 0; border: 0; }
+  .managed-device-table :is(td:first-child, td:last-child, th[scope="row"]) { grid-column: 1 / -1; }
+  .managed-device-table th[scope="row"] { width: auto; color: var(--text); background: none; font-size: inherit; }
   .managed-device-table .device-cell-label { display: block; margin-bottom: 3px; }
 }
 @media (max-width: 600px) {

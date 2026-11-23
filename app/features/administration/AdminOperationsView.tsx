@@ -5,7 +5,7 @@ import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import { createAuditLogAPI, type AuditLogAPI } from "../../../apps/web/api/audit-log";
 import type { ExternalFlowPage, SystemComponentPage, SystemStatus, SystemVersion } from "../../../apps/web/api/generated";
 import { decodeExternalFlowPage, decodeSystemComponentPage, decodeSystemStatus, decodeSystemVersion } from "../../../apps/web/api/administration-decoders";
-import { Badge, Card, EmptyState, LoadingState, PageHeader } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, LoadingState, PageHeader } from "../../components/ui";
 import { ReleaseCoverage } from "./ReleaseCoverage";
 import { AuditLogPanel, type AuditReadBoundary } from "./AuditLogPanel";
 import { AuditExportPanel, type AuditExportPanelProps } from "./AuditExportPanel";
@@ -36,10 +36,50 @@ function AdminStatusView({ surface, api: suppliedAPI, client }: { surface: "heal
   const [flows, setFlows] = useState<ExternalFlowPage["items"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(async () => { try { if (!api) throw new Error(); if (surface === "health") setHealth(await api.getHealth()); else setFlows(await api.getExternalFlows()); } catch { setError("Administration data could not be loaded"); } finally { setLoading(false); } }, [api, surface]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!api) throw new Error();
+      if (surface === "health") setHealth(await api.getHealth());
+      else setFlows(await api.getExternalFlows());
+    } catch {
+      setError("Administration data could not be loaded");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, surface]);
   useEffect(() => { let active = true; queueMicrotask(() => { if (active) void load(); }); return () => { active = false; }; }, [load]);
   if (loading) return <div className="page"><LoadingState label="Loading administration data…" /></div>;
-  if (surface === "health") return <div className="page"><PageHeader title="System health" description="Only registered components with live readiness probes are shown." />{error && <p role="alert">{error}</p>}{health && <><Card title={health.status.security_plane_healthy ? "Security plane healthy" : "Security plane degraded"}><Badge tone={health.status.security_plane_healthy ? "success" : "warning"}>{health.status.security_plane_healthy ? "Required components healthy" : "Required component unavailable"}</Badge><p>{health.version}</p><p>Fresh <Time value={health.status.fresh_at} /></p></Card>{health.components.map((component) => <Card key={component.id} title={component.id}><Badge tone={component.state === "healthy" ? "success" : "warning"}>{component.state}</Badge><p>{component.required ? "Required" : "Optional"} · fresh <Time value={component.fresh_at} /></p></Card>)}<ReleaseCoverage version={health.version} /></>}</div>;
-  if (surface === "external") return <div className="page"><PageHeader title="External data flows" description="Inventory derived only from mounted adapters and their real readiness." />{error && <p role="alert">{error}</p>}{flows.length === 0 ? <EmptyState title="No external adapters registered" /> : flows.map((flow) => <Card key={flow.id} title={flow.id}><Badge tone={flow.required ? "info" : "neutral"}>{flow.required ? "Required" : "Optional"}</Badge><p>{flow.categories.join(" · ")} · {flow.health}</p></Card>)}</div>;
-  return null;
+  return (
+    <div className="page">
+      {surface === "health"
+        ? <PageHeader title="System health" description="Only registered components with live readiness probes are shown." />
+        : <PageHeader title="External data flows" description="Inventory derived only from mounted adapters and their real readiness." />}
+      {error && <div role="alert"><p>{error}</p><Button onClick={() => void load()}>Retry</Button></div>}
+      {!error && surface === "health" && health && <>
+        <Card title={health.status.security_plane_healthy ? "Security plane healthy" : "Security plane degraded"}>
+          <Badge tone={health.status.security_plane_healthy ? "success" : "warning"}>
+            {health.status.security_plane_healthy ? "Required components healthy" : "Required component unavailable"}
+          </Badge>
+          <p>{health.version}</p><p>Fresh <Time value={health.status.fresh_at} /></p>
+        </Card>
+        {health.components.map(component => (
+          <Card key={component.id} title={component.id}>
+            <Badge tone={component.state === "healthy" ? "success" : "warning"}>{component.state}</Badge>
+            <p>{component.required ? "Required" : "Optional"} · fresh <Time value={component.fresh_at} /></p>
+          </Card>
+        ))}
+        <ReleaseCoverage version={health.version} />
+      </>}
+      {!error && surface === "external" && (flows.length === 0
+        ? <EmptyState title="No external adapters registered" description="No external adapters reported for this installation." />
+        : flows.map(flow => (
+          <Card key={flow.id} title={flow.id}>
+            <Badge tone={flow.required ? "info" : "neutral"}>{flow.required ? "Required" : "Optional"}</Badge>
+            <p>{flow.categories.join(" · ")} · {flow.health}</p>
+          </Card>
+        )))}
+    </div>
+  );
 }

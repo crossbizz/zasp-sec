@@ -1,0 +1,13 @@
+.claude-enterprise-setup summary { cursor: pointer; }
+.claude-enterprise-setup ol { list-style: decimal; padding-inline-start: 1.5rem; margin-block-start: 12px; }
+.claude-enterprise-setup li + li { margin-block-start: 12px; }
+.claude-enterprise-setup .field { margin-block-start: 12px; }
+.claude-enterprise-setup pre {
+  margin-block-start: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}

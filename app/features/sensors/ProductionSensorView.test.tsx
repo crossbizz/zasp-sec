@@ -88,6 +88,8 @@ describe("production sensor management", () => {
     expect(within(dialog).getByText("6.8.0")).toBeVisible();
     expect(within(dialog).getByText("125 events/s")).toBeVisible();
     expect(getSensorCoverage).toHaveBeenCalledWith(sensorID, expect.any(AbortSignal));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open production-runtime" })).toHaveFocus());
   });
 
   it("reveals enrollment material once and clears it from the document on close", async () => {

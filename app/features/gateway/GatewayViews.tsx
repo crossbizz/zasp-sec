@@ -103,13 +103,13 @@ export function GatewayPolicyCard({ api, canWrite }: { api: GatewayAPI; canWrite
 
 // How an agent is pointed at the hosted gateway: a URL changes and a token is
 // presented. Nothing is installed.
-export function HostedGatewaySetupCard({ origin, onNavigate }: { origin?: string; onNavigate?(path: string): void }) {
+export function HostedGatewaySetupCard({ origin, openAPIAccess, openTools }: { origin?: string; openAPIAccess?(): void; openTools?(): void }) {
   const base = baseOrigin(origin);
   return <Card title={<h2>Route an agent through the hosted gateway</h2>}>
     <p>Nothing is installed in your environment. The platform hosts the gateway; an agent reaches it by changing one address in its configuration and presenting a platform token. Your MCP server&apos;s credential and your model provider&apos;s key travel in a header of each request and are never stored.</p>
     <ol>
-      <li>Create an API token under {onNavigate ? <Button onClick={() => onNavigate("/administration/api-access")}>API Access</Button> : "Administration, API Access"} with the use “Hosted gateway only”. That token can send traffic through the gateway and can read nothing.</li>
-      <li><strong>MCP:</strong> register the server under {onNavigate ? <Button onClick={() => onNavigate("/inventory/tools")}>MCP servers</Button> : "Inventory, Tools, MCP servers"} and put the gateway address it shows in the agent&apos;s MCP configuration in place of the server&apos;s own:</li>
+      <li>Create an API token under {openAPIAccess ? <Button onClick={openAPIAccess}>API Access</Button> : "Administration, API Access"} with the use “Hosted gateway only”. That token can send traffic through the gateway and can read nothing.</li>
+      <li><strong>MCP:</strong> register the server under {openTools ? <Button onClick={openTools}>MCP servers</Button> : "Inventory, Tools, MCP servers"} and put the gateway address it shows in the agent&apos;s MCP configuration in place of the server&apos;s own:</li>
     </ol>
     <pre aria-label="MCP configuration example">{`{
   "mcpServers": {

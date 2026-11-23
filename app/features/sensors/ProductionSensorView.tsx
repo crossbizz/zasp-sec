@@ -134,7 +134,16 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
     {feedback && <p role={feedback.role}>{feedback.message}</p>}
     <MetricGrid metrics={[{ label: "Sensors", value: sensors.length, tone: "brand" }, { label: "Active", value: active, tone: "success" }, { label: "Needs attention", value: attention, tone: attention > 0 ? "warning" : "success" }, { label: "Awaiting heartbeat", value: sensors.filter((item) => item.state === "pending").length }]} />
     <Card title="Authorized sensor coverage" action={loadState === "error" ? <Button onClick={() => void load()}>Retry</Button> : undefined}>
-      {loadState === "loading" ? <LoadingState label="Loading sensors…" /> : sensors.length === 0 ? <EmptyState title="No runtime sensors" description="Enroll a scoped Tetragon or OTLP sensor to begin runtime coverage." /> : <div className="connection-list">{sensors.map((sensor) => <button key={sensor.id} type="button" disabled={busy || detailLoading} aria-label={`Open ${sensor.name}`} onClick={() => void openSensor(sensor.id)}><strong>{sensor.name}</strong><span>{sensor.kind} · {sensor.mode.replace("_", " ")}</span><span>{sensor.state}</span></button>)}</div>}
+      {loadState === "loading" && <LoadingState label="Loading sensors…" />}
+      {loadState === "success" && sensors.length === 0 && <EmptyState title="No runtime sensors" description="Enroll a scoped Tetragon or OTLP sensor to begin runtime coverage." />}
+      {loadState !== "loading" && sensors.length > 0 && <div className="connection-list" aria-busy={detailLoading}>
+        {sensors.map(sensor => (
+          <button key={sensor.id} type="button" disabled={busy} aria-disabled={busy || detailLoading}
+            aria-label={`Open ${sensor.name}`} onClick={() => { if (!detailLoading) void openSensor(sensor.id); }}>
+            <strong>{sensor.name}</strong><span>{sensor.kind} · {sensor.mode.replace("_", " ")}</span><span>{sensor.state}</span>
+          </button>
+        ))}
+      </div>}
     </Card>
     <Modal open={enrolling} title="Enroll runtime sensor" onClose={closeEnrollment} closeDisabled={busy} footer={oneTime ? <Button onClick={closeEnrollment}>Done</Button> : <><Button disabled={busy} onClick={closeEnrollment}>Cancel</Button><Button variant="primary" disabled={busy || name.length < 1 || name.trim() !== name || pairingInvalid} onClick={create}>Create enrollment</Button></>}>
       {feedback && <p role={feedback.role}>{feedback.message}</p>}<div className="form-grid"><Field label="Sensor name" value={name} maxLength={128} disabled={busy || oneTime !== null} onChange={(event) => setName(event.target.value)} /><Select label="Sensor kind" value={kind} disabled={busy || oneTime !== null} onChange={(event) => { setKind(event.target.value as SensorInput["kind"]); setRuntimeSensorID(""); }}><option value="tetragon">Tetragon</option><option value="otlp">OTLP</option></Select><Select label="Collection mode" value={mode} disabled={busy || oneTime !== null} onChange={(event) => setMode(event.target.value as SensorMode)}><option value="metadata_only">Metadata only</option><option value="full">Full</option></Select>

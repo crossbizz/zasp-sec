@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { endpointAdapterLabels } from "../../../apps/web/api/endpoint-fleet";
 import { requireAPIData } from "../../../apps/web/api/client";
 import type {
   TicketCohortPhase,
@@ -294,7 +295,7 @@ export function TicketCohort({
     }
   };
   return (
-    <Card title="Staging ticket cohort">
+    <Card title="Staging ticket cohort" className="ticket-cohort">
       <fieldset disabled={busy}>
         <legend>Prepare a ticket rule</legend>
         <Field
@@ -351,34 +352,43 @@ export function TicketCohort({
             {view.revision} · {view.environment_class}
           </p>
           {view.members.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Device</th>
-                  <th>Adapter</th>
-                  <th>Revision</th>
-                  <th>Observed ticket calls</th>
-                </tr>
-              </thead>
-              <tbody>
-                {view.members.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.id}</td>
-                    <td>
-                      {m.adapter} · {m.online ? "online" : "offline or stale"}
-                    </td>
-                    <td>
-                      {m.policy_revision || "none"} ·{" "}
-                      {m.acknowledged ? "acknowledged" : "unconfirmed"}
-                    </td>
-                    <td>
-                      Allowed {m.allowed_observed ? "seen" : "unknown"} ·
-                      outside {m.outside_observed ? "seen" : "unknown"}
-                    </td>
+            <div className="table-scroll">
+              <table className="data-table managed-device-table ticket-cohort-members">
+                <thead>
+                  <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">Adapter</th>
+                    <th scope="col">Revision</th>
+                    <th scope="col">Observed ticket calls</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {view.members.map((m) => (
+                    <tr key={m.id}>
+                      <th scope="row">
+                        <span className="device-cell-label" aria-hidden="true">Device</span>{m.id}
+                      </th>
+                      <td>
+                        <span className="device-cell-label" aria-hidden="true">Adapter</span>
+                        {Object.hasOwn(endpointAdapterLabels, m.adapter)
+                          ? endpointAdapterLabels[m.adapter as keyof typeof endpointAdapterLabels]
+                          : m.adapter} · {m.online ? "online" : "offline or stale"}
+                      </td>
+                      <td>
+                        <span className="device-cell-label" aria-hidden="true">Revision</span>
+                        {m.policy_revision || "none"} ·{" "}
+                        {m.acknowledged ? "acknowledged" : "unconfirmed"}
+                      </td>
+                      <td>
+                        <span className="device-cell-label" aria-hidden="true">Observed ticket calls</span>
+                        Allowed {m.allowed_observed ? "seen" : "unknown"} ·
+                        outside {m.outside_observed ? "seen" : "unknown"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           <p>
             Counts describe signed device observations. Independent target

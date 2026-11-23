@@ -3,8 +3,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { fixture, fixtureStatus } from './fixtures.mjs';
+import { bootstrap, fixture, fixtureStatus } from './fixtures.mjs';
 import { captureViewport } from './viewport-capture.mjs';
+import { inspectLayout, inspectDrawer, visitTabs } from './shell-audit.mjs';
 import { captureWorkflows } from './workflows.mjs';
 import { buildWalkthrough } from './walkthrough.mjs';
 
@@ -12,7 +13,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const output = process.env.ZASP_UI_REVIEW_OUTPUT || path.join(root, 'outputs/aegis-review');
 const workflowsOnly = process.argv.includes('--workflows-only');
 await mkdir(path.join(output, 'screenshots'), { recursive: true });
-const { chromium } = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright-core');
 const browser = await chromium.launch({ executablePath: process.env.ZASP_CHROMIUM || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
 const origin = process.env.ZASP_UI_REVIEW_ORIGIN || 'http://localhost:3000';
 const source = await readFile(path.join(root, 'app/components/ZaspProductionApp.tsx'), 'utf8');
@@ -20,6 +21,7 @@ const routes = [...source.matchAll(/\{ path: "([^"]+)", label: "([^"]+)"/g)].map
 assert.equal(routes.length, 24, 'Update review coverage if production routes change');
 const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 1000 }, { width: 1024, height: 768 }, { width: 390, height: 844 }];
 const slides = [], failures = [], consoleErrors = [], assertions = [];
+const audit = [], fallbackReads = new Set();
 let mode = 'normal';
 const context = await browser.newContext();
 await context.route('**/*', async route => {
@@ -30,13 +32,14 @@ await context.route('**/*', async route => {
   if (request.method() !== 'GET') return route.fulfill({ status: 405, json: { code: 'review_read_only', message: 'Visual review does not submit mutations.' } });
   if (mode === 'error' && url.pathname.endsWith('/agents')) return route.fulfill({ status: 503, json: { code: 'service_unavailable', message: 'Review error state', correlation_id: 'pid_00000004-0000-4000-8000-000000000004', retryable: true } });
   if (mode === 'loading' && url.pathname.endsWith('/home/summary')) await new Promise(resolve => setTimeout(resolve, 1500));
-  return route.fulfill({ status: fixtureStatus(url), json: fixture(url), headers: { ETag: '"1"', 'Cache-Control': 'no-store' } });
+  return route.fulfill({ status: fixtureStatus(url), json: fixture(url, path => fallbackReads.add(path)), headers: { ETag: '"1"', 'Cache-Control': 'no-store' } });
 });
 const page = await context.newPage();
 page.on('pageerror', error => consoleErrors.push(error.message));
 let theme = 'light', viewport = viewports[0];
 await context.addInitScript(() => { if (!localStorage.getItem('zasp.theme')) localStorage.setItem('zasp.theme', 'light'); });
 async function open(route) {
+  fallbackReads.clear();
   await page.goto(origin + route, { waitUntil: 'networkidle' });
   await page.locator('h1').first().waitFor({state: 'attached'});
   await page.evaluate(theme => { document.documentElement.dataset.theme = theme; localStorage.setItem('zasp.theme', theme); window.dispatchEvent(new Event('zasp-theme-change')); }, theme);
@@ -67,7 +70,15 @@ async function capture(title, route, state = 'Page', focus, contextLocators) {
     const artwork = await page.locator('.auth-page').evaluate(element => getComputedStyle(element, '::before').backgroundImage);
     if (!artwork.includes(`zasp-wordmark-${theme}.svg`)) failures.push({ title, theme, viewport, issue: 'Wrong sign-in wordmark for theme' });
   }
-  const alerts = await page.getByRole('alert').allTextContents();
+  const layout = await inspectLayout(page, routes.map(r => r.route));
+  const fallback = [...fallbackReads].sort();
+  const intentionalError = ['Error state','Missing callback parameters'].includes(state);
+  const notices = [...layout.alerts,...layout.unavailable];
+  if (layout.problems.length || (notices.length && !intentionalError)) {
+    failures.push({title,route,state,theme,viewport:viewport.width,issue:'Layout or data unavailable',problems:layout.problems,notices});
+  }
+  audit.push({title,route,state,theme,viewport:viewport.width,...layout,fallbackReads:fallback});
+  const alerts = layout.alerts;
   const brokenImages = await page.locator('img').evaluateAll(images => images.filter(img => !img.complete || img.naturalWidth === 0).map(img => img.src));
   if (brokenImages.length) failures.push({ title, theme, viewport, issue: 'Broken image', images: brokenImages });
   slides.push({ title, route, state, theme, viewport: viewport.width, ...frame, file, alerts, source: 'Running Zasp app · synthetic browser API fixtures' });
@@ -80,6 +91,31 @@ for (viewport of viewports) {
       for (const item of routes) {
         await open(item.route);
         await capture(item.title, item.route);
+        if (viewport.width === 390) {
+          const menu = page.getByRole('button',{name:'Open navigation',exact:true});
+          await menu.click();
+          const nav = page.getByRole('dialog',{name:'Navigation',exact:true}).getByRole('navigation');
+          assert.deepEqual(await nav.getByRole('link').evaluateAll(links=>links.map(a=>a.getAttribute('href'))),routes.map(r=>r.route));
+          assert.equal(await nav.locator('[aria-current=page]').getAttribute('href'),item.route);
+          await page.keyboard.press('Escape');
+          await nav.waitFor({state:'hidden'});
+          assert(await menu.evaluate(e=>document.activeElement===e),'Mobile menu must return focus on every route');
+        }
+        if ([1440,390].includes(viewport.width)) {
+          await visitTabs(page, (name, tab) => capture(name, item.route, 'Tab', tab));
+          if (item.route === '/compliance/evidence') {
+            const coverage = page.getByRole('button', {name:'Framework coverage',exact:true});
+            await coverage.click();
+            await page.getByRole('table',{name:'Coverage by control'}).waitFor();
+            await capture('Framework coverage', item.route, 'View', coverage);
+          }
+          if (item.route === '/investigate/sessions') {
+            const consoleLogins = page.getByRole('button', {name:'Console logins',exact:true});
+            await consoleLogins.click();
+            await page.getByText('session-review', {exact:true}).waitFor();
+            await capture('Console logins', item.route, 'View', consoleLogins);
+          }
+        }
       }
     }
     await captureWorkflows({page, open, capture});
@@ -87,18 +123,10 @@ for (viewport of viewports) {
   }
 }
 if (!workflowsOnly) {
-// Inspect every tabbed section at a readable desktop size in both palettes.
-viewport = viewports[1]; await page.setViewportSize(viewport);
+// Exercise detail, filter and retry states after capturing every route and visible tab.
+for (viewport of [viewports[1],viewports[3]]) {
+await page.setViewportSize(viewport);
 for (theme of ['light', 'dark']) {
-  for (const route of ['/inventory/tools','/red-team/results','/protect/guardrails','/protect/security-agents']) {
-    await open(route);
-    const tabs = await page.getByRole('tab').allTextContents();
-    for (let i = 1; i < tabs.length; i++) {
-      await page.getByRole('tab').nth(i).click();
-      await page.waitForLoadState('networkidle');
-      await capture(tabs[i].trim(), route, 'Tab', page.getByRole('tab').nth(i));
-    }
-  }
   await open('/discovery/assets');
   const firstRow = page.getByRole('button', { name: 'Open Support agent', exact: true });
   await firstRow.click();
@@ -106,6 +134,7 @@ for (theme of ['light', 'dark']) {
   await page.getByRole('heading', { name: 'Canonical record', exact: true }).waitFor();
   await capture('Agent details', '/discovery/assets', 'Drawer', page.getByRole('heading', {name:'Canonical record', exact:true}));
   const dialog = page.getByRole('dialog');
+  audit.push({title:'Agent details',theme,viewport:viewport.width,drawer:await inspectDrawer(page,dialog)});
   await page.keyboard.press('Shift+Tab');
   assert(await dialog.evaluate(dialog => dialog.contains(document.activeElement)), 'Drawer must trap focus');
   await page.keyboard.press('Escape');
@@ -137,8 +166,28 @@ for (theme of ['light', 'dark']) {
   await page.getByRole('status').filter({ hasText: 'Loading authorized data' }).waitFor();
   await capture('Loading data', '/', 'Loading state', page.getByRole('status').filter({hasText:'Loading authorized data'}));
   mode = 'normal';
+  await open('/');
+  const search = page.getByRole('search'), input = search.getByRole('searchbox');
+  await input.fill('agent'); await input.press('Enter');
+  const results = search.locator('.global-results'), options = results.getByRole('button');
+  await options.last().waitFor();
+  assert.equal(await options.count(),12);
+  await options.first().focus();
+  for(let n=1;n<12;n++) await page.keyboard.press('Tab');
+  const lastMatch=options.last();
+  assert(await lastMatch.evaluate(el=>el===document.activeElement),'All search results must be keyboard reachable');
+  const dimensions = await results.evaluate(el=>{
+    const r=el.getBoundingClientRect();return {top:r.top,left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight};
+  });
+  assert(dimensions.top>=0 && dimensions.left>=-1 && dimensions.right<=dimensions.width+1 && dimensions.bottom<=dimensions.height+1,'Search results exceed the visible viewport');
+  await capture('Search results','/','Search menu',lastMatch);
+  await page.keyboard.press('Escape');
+  await results.waitFor({state:'detached'});
+  assert(await input.evaluate(el=>el===document.activeElement),'Escape must restore search focus');
+  assertions.push(`${theme}/${viewport.width}: 12 search results reachable and Escape returns focus`);
   await open('/sign-in'); await capture('Sign in', '/sign-in');
   await open('/auth/callback'); await capture('Sign in callback', '/auth/callback', 'Missing callback parameters');
+}
 }
 // Mobile navigation uses the production links inside the existing accessible drawer.
 viewport = viewports[3]; await page.setViewportSize(viewport);
@@ -163,7 +212,9 @@ for (theme of ['light','dark']) {
   const toggle = page.getByRole('button', { name: 'Open navigation' });
   await toggle.click();
   await page.getByRole('dialog', { name: 'Navigation', exact: true }).waitFor();
-  assert.equal(await page.getByRole('dialog').getByRole('link').count(), routes.length);
+  const mobileDialog=page.getByRole('dialog',{name:'Navigation'});
+  assert.deepEqual(await mobileDialog.getByRole('link').evaluateAll(links=>links.map(a=>a.getAttribute('href'))), routes.map(r=>r.route));
+  audit.push({title:'Mobile navigation',theme,viewport:viewport.width,drawer:await inspectDrawer(page,mobileDialog)});
   await capture('Mobile navigation', '/', 'Navigation drawer', page.getByRole('dialog').getByRole('link').first());
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({ state: 'detached' });
@@ -177,7 +228,8 @@ for (theme of ['light','dark']) {
 }
 }
 assert.equal(consoleErrors.length, 0, `Browser errors: ${consoleErrors.join('; ')}`);
-const report = { captureVersion: 2, fixtureNotice: 'Isolated synthetic responses. Live authentication, authorization enforcement and backend mutations are not verified.', routes: new Set(slides.map(s => s.route).filter(r => routes.some(item => item.route === r))).size, viewports, themes: ['light','dark'], screenshotCount: slides.length, failures, consoleErrors, assertions, slides };
+const report = { captureVersion: 2, fixtureCapabilities:bootstrap.capabilities, fixturePermissions:bootstrap.permissions, layoutAudit:'layout-audit.json', fixtureNotice: 'Isolated synthetic responses. Live authentication, authorization enforcement and backend mutations are not verified.', routes: new Set(slides.map(s => s.route).filter(r => routes.some(item => item.route === r))).size, viewports, themes: ['light','dark'], screenshotCount: slides.length, failures, consoleErrors, assertions, slides };
+await writeFile(path.join(output,'layout-audit.json'), JSON.stringify(audit,null,2));
 await writeFile(path.join(output,'manifest.json'), JSON.stringify(report,null,2));
 await buildWalkthrough(output, report);
 await browser.close();

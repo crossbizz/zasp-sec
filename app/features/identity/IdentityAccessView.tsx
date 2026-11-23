@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
+import "../admin-surface-layout.css";
 import { useOptionalSession } from "../../auth/SessionProvider";
 import { BUILT_IN_ROLE_NAMES } from "../../../apps/web/api/administration-decoders";
 import { useOptionalIdentityAdminAPI } from "./IdentityAPIProvider";
@@ -88,6 +89,7 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
 	const organizationAllowed = session === null || session.status === "authenticated" && session.hasCapability("identity.manage");
 	const groupsAllowed = session === null || session.status === "authenticated" && session.hasCapability("identity.groups.manage");
 	const fresh = session?.status === "authenticated" ? session.isFreshAuthenticated : true;
+  const identityRoot = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<LoadedState>(emptyState);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +127,16 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
     return () => { active = false; };
   }, [load]);
 
+  useEffect(() => {
+    if (loading || !window.location.hash) return;
+    // On a bookmarked link the heading is rendered after the identity reads.
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (target instanceof HTMLHeadingElement && identityRoot.current?.contains(target)) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView?.({ block: "start" });
+    }
+  }, [loading]);
+
   const action = async (operation: () => Promise<void>, success: string) => {
     setError(null);
     setNotice(null);
@@ -138,7 +150,7 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
 
   if (loading) return <div className="page"><LoadingState label="Loading identity and access…" /></div>;
 
-  return <div className="page identity-access">
+  return <div className="page identity-access" ref={identityRoot}>
     <PageHeader title="Identity & Access" eyebrow="Administration" description="Manage tenant-scoped roles, enterprise SSO, and SCIM provisioning." />
     <nav className="identity-section-nav" aria-label="Identity sections">
       {organizationAllowed && <><a href="#identity-members">Members</a>
@@ -150,15 +162,15 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
     {notice && <div className="success-banner" role="status">{notice}</div>}
 	{!fresh && <div className="error-banner" role="alert">Fresh authentication expired. <Button onClick={() => session?.reauthenticate()}>Reauthenticate</Button></div>}
     <div className="identity-grid">
-      {organizationAllowed && <><Card id="identity-members" title={<h2>Members</h2>}>
+      {organizationAllowed && <><Card title={<h2 id="identity-members" tabIndex={-1}>Members</h2>}>
         {state.members.length === 0 ? <EmptyState title="No members" description="Provisioned members will appear here." /> :
           <ul className="identity-list">{state.members.map((member) => <li key={member.id}><span><strong>{member.memberReference}</strong><small>version {member.version}</small></span><div className="row-actions"><Select disabled={!fresh} label={`Role for ${member.memberReference}`} value={roleDrafts[member.id] ?? member.role} onChange={(event) => setRoleDrafts((current) => ({ ...current, [member.id]: event.target.value }))}>{state.roles.map((roleValue) => <option key={roleValue.role} value={roleValue.role}>{roleValue.role.replaceAll("_", " ")}</option>)}</Select><Button disabled={!fresh || !member.active || (roleDrafts[member.id] ?? member.role) === member.role} onClick={() => void action(async () => { if (!api) throw new Error(); const updated = await api.updateMemberRole(member.id, roleDrafts[member.id] ?? member.role, member.version); setState((current) => ({ ...current, members: current.members.map((item) => item.id === updated.id ? updated : item) })); }, "Member role updated; active sessions revoked")}>Update role</Button><Badge tone={member.active ? "success" : "neutral"}>{member.active ? "Active" : "Disabled"}</Badge></div></li>)}</ul>}
       </Card>
-      <Card id="identity-roles" title={<h2>Built-in roles</h2>}>
+      <Card title={<h2 id="identity-roles" tabIndex={-1}>Built-in roles</h2>}>
         {state.roles.length === 0 ? <EmptyState title="No roles" /> :
           <ul className="identity-list">{state.roles.map((role) => <li key={role.role}><span><strong>{role.role.replaceAll("_", " ")}</strong><small>{role.permissions.join(" · ")}</small></span></li>)}</ul>}
       </Card>
-      <Card id="identity-provider" title={<h2>Enterprise identity</h2>}>
+      <Card title={<h2 id="identity-provider" tabIndex={-1}>Enterprise identity</h2>}>
         <Badge tone="success">Configured</Badge>
         <p>Connections are isolated to this organization and reconciled against the configured identity provider.</p>
         <h3>Single sign-on</h3>
@@ -168,7 +180,7 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
           <Select label="SSO identity provider" value={ssoProvider} disabled={!fresh} onChange={(event) => setSSOProvider(event.target.value)}><option value="generic">Generic</option><option value="okta">Okta</option><option value="microsoft-entra">Microsoft Entra</option><option value="google-workspace">Google Workspace</option></Select>
           <Button disabled={!fresh || ssoDisplayName.trim().length === 0} onClick={() => void action(async () => { if (!api) throw new Error(); const created = await api.createSSOConnection({ displayName: ssoDisplayName.trim(), protocol: ssoProtocol, identityProvider: ssoProvider }); setState((current) => ({ ...current, ssoConnections: [...current.ssoConnections, created] })); setSSODisplayName(""); }, "SSO connection created")}>Add SSO connection</Button>
         </div>
-        {state.ssoConnections.length === 0 ? <EmptyState title="No SSO connections" description="Add the first connection for this organization." /> : <ul className="identity-list">{state.ssoConnections.map((connection) => <li key={connection.id}><span><strong>{connection.displayName}</strong><small>{connection.protocol.toUpperCase()} · {connection.identityProvider}</small></span><div className="row-actions"><Badge tone={connection.status === "active" ? "success" : "warning"}>{connection.status}</Badge><Button disabled={!fresh || connection.status !== "active"} onClick={() => void action(async () => { if (!api) throw new Error(); await api.testSSOConnection(connection.id); }, `${connection.displayName} connection is healthy`)}>Test {connection.displayName}</Button><Button variant="danger" disabled={!fresh} onClick={() => void action(async () => { if (!api) throw new Error(); await api.deleteSSOConnection(connection.id); setState((current) => ({ ...current, ssoConnections: current.ssoConnections.filter((item) => item.id !== connection.id) })); }, "SSO connection deleted")}>Delete {connection.displayName}</Button></div></li>)}</ul>}
+        {state.ssoConnections.length === 0 ? <EmptyState title="No SSO connections" description="Add the first connection for this organization." /> : <ul className="identity-list">{state.ssoConnections.map((connection) => <li key={connection.id}><span><strong>{connection.displayName}</strong><small>{connection.protocol.toUpperCase()} · {connection.identityProvider}</small></span><div className="row-actions"><Badge tone={connection.status === "active" ? "success" : "warning"}>{connection.status}</Badge><Button aria-label={`Test ${connection.displayName}`} disabled={!fresh || connection.status !== "active"} onClick={() => void action(async () => { if (!api) throw new Error(); await api.testSSOConnection(connection.id); }, `${connection.displayName} connection is healthy`)}>Test</Button><Button aria-label={`Delete ${connection.displayName}`} variant="danger" disabled={!fresh} onClick={() => void action(async () => { if (!api) throw new Error(); await api.deleteSSOConnection(connection.id); setState((current) => ({ ...current, ssoConnections: current.ssoConnections.filter((item) => item.id !== connection.id) })); }, "SSO connection deleted")}>Delete</Button></div></li>)}</ul>}
         <h3>SCIM provisioning</h3>
         <div className="form-grid">
           <Field label="SCIM display name" value={scimDisplayName} maxLength={128} disabled={!fresh} onChange={(event) => setSCIMDisplayName(event.target.value)} />
@@ -176,13 +188,13 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
           <Button disabled={!fresh || scimDisplayName.trim().length === 0} onClick={() => void action(async () => { if (!api) throw new Error(); const created = await api.createSCIMConnection({ displayName: scimDisplayName.trim(), identityProvider: scimProvider }); setState((current) => ({ ...current, scimConnections: [...current.scimConnections, created] })); setRevealedCredential(created); setSCIMDisplayName(""); }, "SCIM connection created")}>Add SCIM connection</Button>
         </div>
         {revealedCredential && <div className="success-banner" role="status"><strong>Copy the SCIM bearer token now. It will not appear in connection lists.</strong><code>{revealedCredential.bearerToken}</code><Button onClick={() => setRevealedCredential(null)}>Hide token</Button></div>}
-        {state.scimConnections.length === 0 ? <EmptyState title="No SCIM connections" description="Add the first provisioning connection for this organization." /> : <ul className="identity-list">{state.scimConnections.map((connection) => <li key={connection.id}><span><strong>{connection.displayName}</strong><small>{connection.identityProvider} · {connection.baseURL}</small></span><div className="row-actions"><Badge tone={connection.status === "active" ? "success" : "warning"}>{connection.status}</Badge><Button variant="danger" disabled={!fresh} onClick={() => void action(async () => { if (!api) throw new Error(); await api.deleteSCIMConnection(connection.id); setState((current) => ({ ...current, scimConnections: current.scimConnections.filter((item) => item.id !== connection.id) })); }, "SCIM connection deleted")}>Delete {connection.displayName}</Button></div></li>)}</ul>}
+        {state.scimConnections.length === 0 ? <EmptyState title="No SCIM connections" description="Add the first provisioning connection for this organization." /> : <ul className="identity-list">{state.scimConnections.map((connection) => <li key={connection.id}><span><strong>{connection.displayName}</strong><small>{connection.identityProvider} · {connection.baseURL}</small></span><div className="row-actions"><Badge tone={connection.status === "active" ? "success" : "warning"}>{connection.status}</Badge><Button aria-label={`Delete ${connection.displayName}`} variant="danger" disabled={!fresh} onClick={() => void action(async () => { if (!api) throw new Error(); await api.deleteSCIMConnection(connection.id); setState((current) => ({ ...current, scimConnections: current.scimConnections.filter((item) => item.id !== connection.id) })); }, "SCIM connection deleted")}>Delete</Button></div></li>)}</ul>}
       </Card>
       </>}
-      {groupsAllowed && <Card id="identity-groups" title={<h2>Group mappings</h2>}>
+      {groupsAllowed && <Card title={<h2 id="identity-groups" tabIndex={-1}>Group mappings</h2>}>
         <p>Map a verified SCIM group to one tenant workspace, environment, and built-in role.</p>
         <div className="form-grid">
-          <Field label="Stytch SCIM group ID" value={groupReference} maxLength={128} disabled={!fresh} onChange={(event) => setGroupReference(event.target.value)} />
+          <Field id="identity-group-reference" label="Stytch SCIM group ID" value={groupReference} maxLength={128} disabled={!fresh} onChange={(event) => setGroupReference(event.target.value)} />
           <Select label="Mapped role" value={groupRole} disabled={!fresh} onChange={(event) => setGroupRole(event.target.value)}>{BUILT_IN_ROLE_NAMES.map((role) => <option key={role} value={role}>{role.replaceAll("_", " ")}</option>)}</Select>
           <Field label="Workspace ID" value={groupWorkspaceID} maxLength={128} disabled={!fresh} onChange={(event) => setGroupWorkspaceID(event.target.value)} />
           <Field label="Environment ID" value={groupEnvironmentID} maxLength={128} disabled={!fresh} onChange={(event) => setGroupEnvironmentID(event.target.value)} />
@@ -193,7 +205,7 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
             setState((current) => ({ ...current, groupMappings: [...current.groupMappings.filter((mapping) => mapping.groupReference !== updated.groupReference), updated].sort((left, right) => left.groupReference.localeCompare(right.groupReference)) }));
           }, "Group mapping saved; affected sessions revoked")}>Save group mapping</Button>
         </div>
-        {state.groupMappings.length === 0 ? <EmptyState title="No group mappings" description="Add a verified provider group mapping for this organization." /> : <ul className="identity-list">{state.groupMappings.map((mapping) => <li key={mapping.groupReference}><span><strong>{mapping.groupReference}</strong><small>{mapping.role.replaceAll("_", " ")} · {mapping.workspaceID} · {mapping.environmentID} · version {mapping.version}</small></span><Button disabled={!fresh} onClick={() => { setGroupReference(mapping.groupReference); setGroupRole(mapping.role); setGroupWorkspaceID(mapping.workspaceID); setGroupEnvironmentID(mapping.environmentID); }}>Edit {mapping.groupReference}</Button></li>)}</ul>}
+        {state.groupMappings.length === 0 ? <EmptyState title="No group mappings" description="Add a verified provider group mapping for this organization." /> : <ul className="identity-list">{state.groupMappings.map((mapping) => <li key={mapping.groupReference}><span><strong>{mapping.groupReference}</strong><small>{mapping.role.replaceAll("_", " ")} · {mapping.workspaceID} · {mapping.environmentID} · version {mapping.version}</small></span><Button disabled={!fresh} aria-label={`Edit ${mapping.groupReference}`} onClick={() => { setGroupReference(mapping.groupReference); setGroupRole(mapping.role); setGroupWorkspaceID(mapping.workspaceID); setGroupEnvironmentID(mapping.environmentID); document.getElementById("identity-group-reference")?.focus(); }}>Edit</Button></li>)}</ul>}
       </Card>}
     </div>
   </div>;

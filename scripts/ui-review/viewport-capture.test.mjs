@@ -7,7 +7,7 @@ import {captureViewport} from './viewport-capture.mjs';
 
 // Run with the same Chromium and Playwright used by capture.mjs.
 test('the PNG contains the named action in viewport coordinates after scrolling past a fixed header', async () => {
-  const {chromium} = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright');
+  const {chromium} = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright-core');
   const browser = await chromium.launch({executablePath:process.env.ZASP_CHROMIUM || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   const dir = await mkdtemp(path.join(tmpdir(), 'zasp-viewport-test-'));
   try {

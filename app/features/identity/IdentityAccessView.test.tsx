@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -23,6 +23,26 @@ function fixtureAPI(overrides: Partial<IdentityAdminAPI> = {}): IdentityAdminAPI
 }
 
 describe("Identity & Access product surface", () => {
+  it("focuses a bookmarked section after the authorized identity reads complete", async () => {
+    const original = window.location.href;
+    try {
+      window.history.replaceState({}, "", "/administration/identity-access#identity-provider");
+      render(<IdentityAccessView api={fixtureAPI()} />);
+      const target = await screen.findByRole("heading", { name: "Enterprise identity" });
+      await waitFor(() => expect(target).toHaveFocus());
+    } finally {
+      window.history.replaceState({}, "", original);
+    }
+  });
+
+  it("moves keyboard focus into the editor for the selected group", async () => {
+    render(<IdentityAccessView api={fixtureAPI()} />);
+    const edit = await screen.findByRole("button", { name: /^Edit scim-group-/ });
+    await userEvent.click(edit);
+    expect(screen.getByLabelText("Stytch SCIM group ID")).toHaveFocus();
+    expect(screen.getByLabelText("Stytch SCIM group ID")).toHaveValue("scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31");
+  });
+
   it("renders durable identity sections and live provider administration", async () => {
     render(<IdentityAccessView api={fixtureAPI()} />);
     expect(screen.getByText("Loading identity and access…")).toBeInTheDocument();
