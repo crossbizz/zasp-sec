@@ -386,11 +386,11 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
       setPendingSignIn(null);
       setFeedback({ tone: "alert", message });
     };
-    if (Date.now() >= Date.parse(pending.authorization.expires_at)) {
-      stop("This provider sign-in expired. Start a new sign-in.");
-      return;
-    }
     void run(async () => {
+      if (Date.now() >= Date.parse(pending.authorization.expires_at)) {
+        stop("This provider sign-in expired. Start a new sign-in.");
+        return;
+      }
       if (!owns()) return;
       let status: Awaited<ReturnType<typeof api.getSaaSSignInStatus>>;
       try {

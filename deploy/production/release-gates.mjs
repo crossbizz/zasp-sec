@@ -93,7 +93,7 @@ export async function verifyReleaseSources() {
   if (sbom.spdxVersion !== "SPDX-2.3" || !Array.isArray(sbom.packages) || sbom.packages.length < 2) throw new Error("SBOM gate rejected");
   const allowed = new Set(["0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0"]);
   for (const entry of sbom.packages) {
-    const license = entry.licenseConcluded ?? entry.licenseDeclared;
+    const license = electedNpmLicense(entry);
     if (entry.name === "zasp-agent-security-console" && license === "NOASSERTION") continue;
     if (!allowed.has(license)) throw new Error(`license gate rejected: ${entry.name}`);
   }
@@ -151,6 +151,19 @@ export async function verifyReleaseSources() {
   if (imageReferences.size !== 5 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
   return deepFreeze({ renderedRollouts, canary: true, documentation: true, imageDefinitions: builds.length, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true, task6Deployment: true, recoveryDeployment: true, attackLabDeployment: true, privateDependencies: true });
+}
+
+// The published json-schema tarball includes both license texts and expressly
+// allows recipients to choose BSD-3-Clause. Scope the election to those bytes.
+export function electedNpmLicense(entry) {
+  const license = entry.licenseConcluded ?? entry.licenseDeclared;
+  const choices = "(AFL-2.1 OR BSD-3-Clause)";
+  const sha512 = "7acf783379d321fb043e2b1169f6a4f870cb7c75e7281855def5397aa3dc4b77e5216a9cc495a05c75e27b2dd8ae968db1a9d8e5e8b55686046cece28eeabd04";
+  if (entry.name === "json-schema" && entry.versionInfo === "0.4.0" && entry.licenseDeclared === choices && license === choices &&
+      entry.checksums?.some(check => check.algorithm === "SHA512" && check.checksumValue === sha512)) {
+    return "BSD-3-Clause";
+  }
+  return license;
 }
 
 async function goSourceSBOM() {
@@ -219,9 +232,14 @@ async function moduleLicense(dependency) {
   const names = (await readdir(dependency.directory)).filter((name) => /^(?:licen[cs]e|copying)(?:[._-].*)?$/i.test(name)).sort();
   if (names.length === 0) return "NOASSERTION";
   const texts = await Promise.all(names.map((name) => readFile(path.join(dependency.directory, name), "utf8")));
-  const text = texts.join("\n").toLowerCase();
+  return classifyGoLicense(texts.join("\n"));
+}
+
+export function classifyGoLicense(content) {
+  const text = content.toLowerCase().replace(/\s+/g, " ").trim();
   if (text.includes("apache license") && text.includes("version 2.0")) return "Apache-2.0";
-  if (text.includes("permission is hereby granted, free of charge") || text.includes("the mit license")) return "MIT";
+  if (text.includes("mit no attribution") || /spdx-license-identifier: mit-0\b/.test(text)) return "MIT-0";
+  if (text.includes("permission is hereby granted, free of charge") && text.includes("copyright notice and this permission notice")) return "MIT";
   if (text.includes("permission to use, copy, modify, and/or distribute")) return "ISC";
   if (text.includes("redistribution and use in source and binary forms")) return text.includes("neither the name") ? "BSD-3-Clause" : "BSD-2-Clause";
   if (text.includes("mozilla public license") && text.includes("version 2.0")) return "MPL-2.0";

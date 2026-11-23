@@ -93,7 +93,7 @@ require (
 	github.com/lestrrat-go/httprc/v3 v3.0.5 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
-	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/segmentio/asm v1.2.1-0.20231018155815-7fd3678d1b7f // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
@@ -111,3 +111,7 @@ require (
 )
 
 replace github.com/zasp-ai/zasp-sec/services/health => ../health
+
+// The excluded tag changes only LICENSE from MIT to MIT-0. The preceding
+// upstream commit retains the original MIT notice and identical source files.
+exclude github.com/segmentio/asm v1.2.1

@@ -29,7 +29,7 @@ export async function reviewModelWorkflows(page, open, capture) {
   await page.getByLabel('Runtime session ID').fill(id(802));
   await page.getByRole('button', { name: 'Investigate session' }).click();
   await page.getByRole('button', { name: /Investigation from/ }).click();
-  await page.getByText('The reviewed session has one blocked action.', { exact: true }).waitFor();
+  await page.getByText(/^The reviewed session has one blocked action\.\s+Evidence:/).filter({hasText:id(200)}).waitFor();
   await page.getByLabel('Question about this session').fill('Which outcome was recorded?');
   await page.getByRole('button', { name: 'Send question' }).click();
   await page.getByText('The recorded receipt confirms the block.', { exact: true }).waitFor();

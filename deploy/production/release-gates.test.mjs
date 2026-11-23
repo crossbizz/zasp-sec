@@ -1,9 +1,37 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import test from "node:test";
 
-import { loadReleasePolicy, runReadOnlySynthetic, validateGoSpdxDocument, verifyReleaseSources } from "./release-gates.mjs";
+import { classifyGoLicense, electedNpmLicense, loadReleasePolicy, runReadOnlySynthetic, validateGoSpdxDocument, verifyReleaseSources } from "./release-gates.mjs";
+
+test("json-schema elects the reviewed BSD grant for the exact dual-licensed tarball", () => {
+  const entry = {
+    name: "json-schema", versionInfo: "0.4.0", licenseDeclared: "(AFL-2.1 OR BSD-3-Clause)",
+    checksums: [{ algorithm: "SHA512", checksumValue: "7acf783379d321fb043e2b1169f6a4f870cb7c75e7281855def5397aa3dc4b77e5216a9cc495a05c75e27b2dd8ae968db1a9d8e5e8b55686046cece28eeabd04" }],
+  };
+  assert.equal(electedNpmLicense(entry), "BSD-3-Clause");
+  for (const change of [{ name: "other" }, { versionInfo: "0.4.1" }, { checksums: [] }]) {
+    assert.equal(electedNpmLicense({ ...entry, ...change }), entry.licenseDeclared);
+  }
+  assert.equal(electedNpmLicense({ ...entry, licenseConcluded: "AFL-2.1" }), "AFL-2.1");
+  assert.equal(electedNpmLicense({ ...entry, licenseDeclared: "MIT-0" }), "MIT-0");
+});
+
+test("the published MIT notice accompanies each image linking segmentio/asm", async () => {
+  const notice = await readFile(new URL("../../services/platform/licenses/segmentio-asm-MIT.txt", import.meta.url));
+  assert.equal(createHash("sha256").update(notice).digest("hex"), "e2a78de21d6d8ded2dff0f3189cd32e011630d785da127ebfbc8949012c0947b");
+  assert.equal(classifyGoLicense(notice.toString()), "MIT");
+  assert.equal(classifyGoLicense("MIT No Attribution\nPermission is hereby granted, free of charge"), "MIT-0");
+  assert.equal(classifyGoLicense("SPDX-License-Identifier: MIT-0"), "MIT-0");
+  assert.equal(classifyGoLicense("Permission is hereby granted, free of charge"), "NOASSERTION");
+  for (const image of ["api", "worker", "redteam-worker", "attack-lab-runner"]) {
+    const definition = await readFile(new URL(`./${image}.Dockerfile`, import.meta.url), "utf8");
+    assert.match(definition, /^COPY services\/platform\/licenses\/segmentio-asm-MIT\.txt \/usr\/share\/licenses\/zasp\/segmentio-asm-MIT\.txt$/m);
+  }
+});
 
 test("release policy binds performance, resilience, supply-chain, and owned proof gates", async () => {
   const policy = await loadReleasePolicy();
@@ -106,6 +134,9 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   assert.equal(result.trackedSecretScan, true);
   assert.ok(result.npmSpdxPackages > 20);
   assert.ok(result.goSpdxPackages > 20);
+  const asm = result.goSpdx.packages.find(entry => entry.name === "github.com/segmentio/asm");
+  assert.equal(asm?.versionInfo, "v1.2.1-0.20231018155815-7fd3678d1b7f");
+  assert.equal(asm.licenseConcluded, "MIT");
   assert.ok(result.goSpdx, "Go SPDX document is included in release evidence");
   assert.equal(result.goSpdx.spdxVersion, "SPDX-2.3");
   assert.equal(result.goSpdx.dataLicense, "CC0-1.0");
