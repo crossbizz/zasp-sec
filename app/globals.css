@@ -948,5 +948,6 @@ a { color: var(--blue-text); }
 .search-results-inline h2 { margin: 0; font-size: 18px; }
 .search-results-inline ul { list-style: none; padding: 0; }
 .search-results-inline li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.search-results-inline li > a { display: block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
 .search-results-inline li:last-child { border: 0; }
 .search-results-inline small { display: block; color: var(--muted); overflow-wrap: anywhere; }

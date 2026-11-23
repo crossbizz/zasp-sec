@@ -22,7 +22,7 @@
     },
     {
       "path": "scripts/npm-public-api-query/hosted_query_controls.py",
-      "sha256": "43d6f8381faee4c5dbfe19627829a65f89120c6fd71685622126d172e01c525d"
+      "sha256": "c502fdd21268c48734849f4eec07c0ff82fc53254e34ee3c8e403a5aa2ccb6f2"
     },
     {
       "path": "scripts/npm-public-api-query/memory-cli.mjs",
@@ -46,11 +46,11 @@
     },
     {
       "path": "scripts/npm-public-api-query/run-hosted.py",
-      "sha256": "4d5d92cfc366ba9064c15ee0b5ef225b86a8c1cc12bcc41762e6affb8aa73751"
+      "sha256": "fdf10508cbe272b9d8f7f4c78db0a50aa10325a50df863d3faad57f85f66fb9c"
     },
     {
       "path": "scripts/npm-public-api-query/safe-summary.py",
-      "sha256": "fa13d2a599a9af2fc95bd224d780cc836db8430f566f65d4cfdba6efdef48428"
+      "sha256": "302d857b0e8715f64184025dd2cb1cd346b2c3ca8d30c4531fcd51fc0084d919"
     },
     {
       "path": "scripts/npm-public-api-query/verify-plan.py",

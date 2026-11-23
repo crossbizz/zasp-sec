@@ -125,7 +125,9 @@ def proc_row(pid,end):
  # Only interpret the documented numeric fields and process state.
  before=read_leaf('stat');tail=before.rsplit(b') ',1)[1].split()
  if int(before.split(b' ',1)[0])!=pid or len(tail)<20:raise RuntimeError('proc_identity_unknown')
- return {'pid':pid,'startTicks':tail[19].decode('ascii'),'ppid':int(tail[1]),'pgid':int(tail[2]),'sid':int(tail[3]),'state':tail[0].decode('ascii')}
+ # Diagnostic only. Never retain other processes' command names or arguments.
+ label=before.partition(b' (')[2].rsplit(b') ',1)[0]
+ return {'nameClass':'gh' if label==b'gh' else 'other','pid':pid,'startTicks':tail[19].decode('ascii'),'ppid':int(tail[1]),'pgid':int(tail[2]),'sid':int(tail[3]),'state':tail[0].decode('ascii')}
 
 def stable(row):
  return tuple(row[k] for k in ('pid','startTicks','ppid','pgid','sid'))
@@ -170,13 +172,15 @@ def owned_session(sid,end):
 
 def end_child(p,normal_join_deadline=None):
  global FORCED
- end=time.monotonic()+8
+ started=time.monotonic();end=started+8
  result={'scope':'exact original owned SID only; no escaped-session/global/fleet claim','sid':p.pid,'membersBefore':[],'membersAfter':None,'signals':[],'completed':False,'unknown':False,'intervened':False}
  try:
   # A normally joined CLI may leave a helper finishing a short, independent
   # teardown after it closes the response pipes. Observe that same session
   # and reap exact zombies before deciding whether intervention is required.
   settle_until=min(END,normal_join_deadline,time.monotonic()+.25) if normal_join_deadline is not None and p.returncode==0 else 0
+  result['normalJoin']=normal_join_deadline is not None
+  result['cliExitBeforeCleanup']=p.returncode
   result['membersBefore']=owned_session(p.pid,end)
   if p.poll() is None:
    result['intervened']=True
@@ -209,6 +213,8 @@ def end_child(p,normal_join_deadline=None):
   result['unknown']=True;return result
  except BaseException as e:
   result['unknown']=True;result['error']=type(e).__name__;result['reason']=failure_code(e);return result
+ finally:
+  result['elapsedMs']=int((time.monotonic()-started)*1000)
 
 
 import sys,re,selectors
@@ -246,7 +252,7 @@ def acquire(endpoint,allowance):
  if request_cap<=0:raise RuntimeError('public query aggregate cap')
  tag=str(REQUESTS).zfill(3);out=OUT/(tag+'.http');err=OUT/(tag+'.stderr');start=time.monotonic();deadline=min(END,start+30)
  allowed=['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY','http_proxy','https_proxy','all_proxy','no_proxy','SSL_CERT_FILE','SSL_CERT_DIR','CURL_CA_BUNDLE','REQUESTS_CA_BUNDLE','GH_TOKEN','GITHUB_TOKEN','GH_CONFIG_DIR','HOME']
- env={k:os.environ[k] for k in allowed if k in os.environ};env.update(PATH='/usr/local/bin:/usr/bin:/bin',GH_PROMPT_DISABLED='1',GH_PAGER='cat')
+ env={k:os.environ[k] for k in allowed if k in os.environ};env.update(PATH='/usr/local/bin:/usr/bin:/bin',GH_PROMPT_DISABLED='1',GH_PAGER='cat',GH_TELEMETRY='0',GH_NO_UPDATE_NOTIFIER='1')
  with out.open('xb') as f,err.open('xb') as e:
   guard();CHILD=subprocess.Popen([GH,'api','--include','--hostname','github.com',endpoint],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
   counts={'stdout':0,'stderr':0};selector=None;normal_join_deadline=None;primary_error=None

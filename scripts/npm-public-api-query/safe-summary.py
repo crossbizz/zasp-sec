@@ -56,6 +56,15 @@ if paths:
             for key in ("completed", "unknown", "intervened"):
                 if type(last.get(key)) is bool:
                     summary["cleanup" + key.capitalize()] = last[key]
+            if type(last.get("normalJoin")) is bool:
+                summary["cliNormallyJoinedBeforeCleanup"] = last["normalJoin"]
+            for field, low, high in (("cliExitBeforeCleanup", -128, 255), ("elapsedMs", 0, 600000)):
+                if type(last.get(field)) is int and low <= last[field] <= high:
+                    summary["cleanup" + field[0].upper() + field[1:]] = last[field]
+            members = last.get("membersBefore")
+            if isinstance(members, list) and len(members) <= 4096:
+                helpers = [m for m in members if isinstance(m, dict) and m.get("pid") != last.get("sid")]
+                summary["observedHelperNames"] = sorted({m["nameClass"] for m in helpers if m.get("nameClass") in ("gh", "other")})
             if isinstance(last.get("reason"), str) and last["reason"] in CODES:
                 summary["cleanupReason"] = last["reason"]
     records = value.get("requests")

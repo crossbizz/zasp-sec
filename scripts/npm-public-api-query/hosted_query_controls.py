@@ -4,6 +4,7 @@ import ctypes
 import subprocess
 import hashlib
 import io
+import os
 import json
 from pathlib import Path
 import runpy
@@ -60,6 +61,8 @@ class HostedControls(unittest.TestCase):
 import os, time
 from pathlib import Path
 root = Path({tmp!r})
+if os.environ.get('GH_TELEMETRY') != '0' or os.environ.get('GH_NO_UPDATE_NOTIFIER') != '1':
+    raise SystemExit(2)
 until = time.monotonic() + 5
 while not (root/'started').exists() and time.monotonic() < until:
     time.sleep(.005)
@@ -83,13 +86,17 @@ os.write(1, b"HTTP/2 200 OK\\r\\ncontent-type: application/json\\r\\n\\r\\n[]")
                         (root / 'observed').touch()
                     return rows
                 cleanups = []
-                with patch.dict(acquire.__globals__, guard=lambda: None, GH=str(helper),
+                with patch.dict(os.environ, GH_TELEMETRY='enabled', GH_NO_UPDATE_NOTIFIER=''), \
+                     patch.dict(acquire.__globals__, guard=lambda: None, GH=str(helper),
                                 owned_session=members, credential_row=credentials, CLEANUPS=cleanups):
                     if linger:
                         with self.assertRaisesRegex(RuntimeError, 'owned public query cleanup refusal'):
                             acquire('/advisories?type=reviewed', 65536)
                     else:
                         self.assertEqual(acquire('/advisories?type=reviewed', 65536)[0], 200)
+                self.assertTrue(cleanups[0]['normalJoin'])
+                self.assertEqual(cleanups[0]['cliExitBeforeCleanup'], 0)
+                self.assertGreaterEqual(cleanups[0]['elapsedMs'], 0)
                 self.assertTrue(cleanups[0]['membersBefore'])
                 self.assertEqual(cleanups[0]['membersAfter'], [])
                 self.assertTrue(cleanups[0]['completed'])
@@ -135,7 +142,11 @@ os.write(1, b"HTTP/2 200 OK\\r\\ncontent-type: application/json\\r\\n\\r\\n[]")
             value = dict(format='root-owned-official-public-lock-query-observation-v1',
                          releaseAccepted=False, requests=[], failureClass='RuntimeError',
                          failureCode='memory_floor', failurePhase='read_response',
-                         ownedSessionCleanup=[dict(unknown=True, reason='untrusted diagnostic')])
+                         ownedSessionCleanup=[dict(unknown=True, reason='untrusted diagnostic', normalJoin=True,
+                                                  cliExitBeforeCleanup=0, elapsedMs=252, sid=10,
+                                                  membersBefore=[dict(pid=10, nameClass='other'),
+                                                                 dict(pid=11, nameClass='gh'),
+                                                                 dict(pid=12, nameClass='untrusted diagnostic')])])
             evidence.write_text(json.dumps(value))
             capture = io.StringIO()
             real_glob = Path.glob
@@ -150,6 +161,9 @@ os.write(1, b"HTTP/2 200 OK\\r\\ncontent-type: application/json\\r\\n\\r\\n[]")
             self.assertFalse(emitted['complete'])
             self.assertFalse(emitted['releaseAccepted'])
             self.assertTrue(emitted['cleanupUnknown'])
+            self.assertEqual(emitted['cleanupCliExitBeforeCleanup'], 0)
+            self.assertEqual(emitted['cleanupElapsedMs'], 252)
+            self.assertEqual(emitted['observedHelperNames'], ['gh'])
             self.assertEqual(emitted['failureCode'], 'memory_floor')
             self.assertEqual(emitted['failurePhase'], 'read_response')
             self.assertNotIn('untrusted diagnostic', capture.getvalue())
