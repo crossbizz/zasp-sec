@@ -1,10 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { APIClient } from "../../../apps/web/api/client";
+import { createAPIClient, type APIClient } from "../../../apps/web/api/client";
 import { decodeGuardrailPolicy, GUARDRAIL_RULE_IDS, type GuardrailMode, type GuardrailPolicy } from "../../../apps/web/api/decoders";
 import { APIProvider } from "../../api/APIProvider";
+import { SessionProvider } from "../../auth/SessionProvider";
 import { createGuardrailPolicyAPI, GuardrailPolicyConflict, type GuardrailPolicyAPI } from "./guardrail-policy-api";
 import { ProductionGuardrailsView } from "./ProductionGuardrailsView";
 
@@ -107,6 +108,64 @@ describe("Guardrails page", () => {
     await user.click(screen.getByRole("tab", { name: "Set up" }));
     await user.click(screen.getByRole("button", { name: "API Access" }));
     expect(onNavigate).toHaveBeenCalledWith("/administration/api-access");
+  });
+
+  it.each([false, true])("hands off Claude setup to the external admins with token-management access %s", async (managesTokens) => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const savePolicy = vi.fn();
+    const organizationID = "pid_10000001-0000-4000-8000-000000000001";
+    const correlationID = "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    const fetch = vi.fn(async (request: Request) => {
+      expect([request.method, new URL(request.url).pathname]).toEqual(["GET", "/api/v1/session/bootstrap"]);
+      return response(200, {
+        principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: organizationID, organization_reference: "org", member_reference: "member", role: "security_admin", active: true },
+        organization_id: organizationID, workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: environmentID,
+        permissions: ["view"], capabilities: managesTokens ? ["policies.read", "api-access.manage"] : ["policies.read"],
+        csrf_token: "c".repeat(32), fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: correlationID,
+      }).response;
+    });
+    const client = createAPIClient({ fetch, generateCorrelationID: () => correlationID });
+    render(<APIProvider client={client}><SessionProvider><ProductionGuardrailsView
+      canWrite={false} api={{ getPolicy: async () => policy(0), savePolicy }} onNavigate={onNavigate}
+    /></SessionProvider></APIProvider>);
+    await user.click(screen.getByRole("tab", { name: "Set up" }));
+    const guide = screen.getByText("Set up Claude Enterprise").closest("details")!;
+    await user.click(within(guide).getByText("Set up Claude Enterprise"));
+    const content = within(guide);
+    expect(guide).toHaveTextContent("Leave it unbound to any agent or runtime session");
+    expect(guide).toHaveTextContent("read-only secret file");
+    expect(guide).toHaveTextContent("decide_actions");
+    expect(guide).toHaveTextContent("ZASP_CLAUDE_ENTERPRISE_HOOK_FILE");
+    expect(guide).toHaveTextContent("start in shadow mode");
+    expect(guide).toHaveTextContent("monitor mode");
+    expect(guide).toHaveTextContent("check the target independently");
+    expect(content.getByRole("link", { name: "Anthropic setup instructions" })).toHaveAttribute("href", "https://platform.claude.com/docs/en/manage-claude/inference-hooks-configuration");
+    // Only public address components belong in the browser. Editing them cannot activate or call a hook.
+    expect(content.getAllByRole("textbox")).toHaveLength(2);
+    expect(content.queryByLabelText("Claude Enterprise callback URL")).toBeNull();
+    const host = content.getByRole("textbox", { name: "Public receiver hostname" });
+    const id = content.getByRole("textbox", { name: "Integration product ID" });
+    const integrationID = "pid_10000005-0000-4000-8000-000000000005";
+    fireEvent.change(id, { target: { value: integrationID } });
+    for (const invalid of ["http://api.example", "api.example:444", "api.example/path", "127.0.0.1", "api.localhost", "api@other.example"]) {
+      fireEvent.change(host, { target: { value: invalid } });
+      expect(content.queryByLabelText("Claude Enterprise callback URL")).toBeNull();
+    }
+    fireEvent.change(host, { target: { value: "Hooks.Company.com" } });
+    expect(content.getByLabelText("Claude Enterprise callback URL").textContent).toBe(`https://hooks.company.com/api/v1/runtime/provider-hooks/claude-enterprise/${integrationID}`);
+    fireEvent.change(id, { target: { value: integrationID + "/other" } });
+    expect(content.queryByLabelText("Claude Enterprise callback URL")).toBeNull();
+    await user.click(await content.findByRole("button", { name: "Open runtime policies" }));
+    expect(onNavigate).toHaveBeenCalledWith("/policies");
+    if (managesTokens) {
+      await user.click(content.getByRole("button", { name: "Open API Access" }));
+      expect(onNavigate).toHaveBeenCalledWith("/administration/api-access");
+    } else {
+      expect(content.queryByRole("button", { name: "Open API Access" })).toBeNull();
+    }
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(savePolicy).not.toHaveBeenCalled();
   });
 });
 

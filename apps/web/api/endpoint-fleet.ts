@@ -4,6 +4,8 @@ import type {
   EndpointDetail,
   EndpointFleetPage,
   EndpointRegistration,
+  EndpointRotation,
+  EndpointSigned,
   EndpointInstallationDetail,
   EndpointPartitionSummary,
   EndpointObservationDetail,
@@ -223,6 +225,59 @@ export function createFleetAPI(client: APIClient) {
           signal,
         }),
         (v) => decodeDevice(v),
+      );
+    },
+    async rotate(row: EndpointDevice, body: EndpointRotation, key: string, signal?: AbortSignal) {
+      return requireAPIData(
+        await client.POST("/api/v1/devices/{id}/credential-rotations", {
+          params: {
+            path: { id: row.id },
+            header: { "X-CSRF-Token": "", "Idempotency-Key": key, "If-Match": `"${row.version}"` },
+          },
+          body,
+          signal,
+        }),
+        (value) => {
+          const next = decodeDevice(value, row.id);
+          if (
+            next.version !== row.version + 1 ||
+            next.credential_generation !== row.credential_generation + 1 ||
+            next.state !== "pending" ||
+            next.acknowledged
+          )
+            return invalid();
+          return next;
+        },
+      );
+    },
+    async publish(
+      row: EndpointDevice,
+      body: EndpointSigned,
+      revision: number,
+      key: string,
+      signal?: AbortSignal,
+    ) {
+      return requireAPIData(
+        await client.PUT("/api/v1/devices/{id}/policy-bundle", {
+          params: {
+            path: { id: row.id },
+            header: { "X-CSRF-Token": "", "Idempotency-Key": key, "If-Match": `"${row.version}"` },
+          },
+          body,
+          signal,
+        }),
+        (value) => {
+          const next = decodeDevice(value, row.id);
+          if (
+            next.version !== row.version + 1 ||
+            next.credential_generation !== row.credential_generation ||
+            revision <= row.policy_revision ||
+            next.policy_revision !== revision ||
+            next.state === "retired"
+          )
+            return invalid();
+          return next;
+        },
       );
     },
     async retire(row: EndpointDevice, key: string, signal?: AbortSignal) {

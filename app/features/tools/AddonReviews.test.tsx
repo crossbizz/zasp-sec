@@ -3,8 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { decodeAddonInstallationPage } from "../../../apps/web/api/addon-installations";
 import { APIProvider } from "../../api/APIProvider";
+import { scopedAddonFromSearch, scanReceiptLink, addonVersionLink } from "../../domain/addon-links";
+import { parseActivityLink } from "../../domain/activity-links";
+import { createAPIClient } from "../../../apps/web/api/client";
 import { AddonReviews, addonFromSearch } from "./AddonReviews";
 import {
+  decodeAddonScan,
   decodeAddonVersion,
   type AddonVersion,
   type AddonReviewAPI,
@@ -23,6 +27,7 @@ const row: AddonVersion = {
 function api() {
   let version = row;
   return {
+    scan: vi.fn<AddonReviewAPI["scan"]>(),
     list: vi.fn(async () => ({ items: [version], next_cursor: null })),
     get: vi.fn(async () => version),
     ciOrigin: vi.fn(async () => null),
@@ -159,5 +164,66 @@ describe("private add-on review", () => {
     }
     expect(addonFromSearch("?addon=" + row.id)).toBe(row.id);
     expect(addonFromSearch("?addon=" + row.id + "&addon=" + row.id)).toBe("");
+  });
+});
+
+describe("scan receipt lookup", () => {
+  const scan = "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const environment = "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const partial = { scan_id:scan, version_id:null, manifest_digest:null, completeness:"partial", review_path:null,
+    origin:"local", ruleset:"zasp-static.v2", findings:[{rule_id:"dependency.unpinned",count:1}], skipped_count:1, received_at:"2026-11-22T12:34:56+00:00" };
+  const complete = { ...partial, version_id:row.id, completeness:"complete", review_path:"/inventory/tools?addon=" + row.id, manifest_digest:row.manifest_digest, skipped_count:0 };
+  const scope = [scan,row.id,environment].join("/");
+
+  it("reads a partial scan through the typed client with the selected scope and offers no version action", async () => {
+    const requests: Request[] = [];
+    const client = createAPIClient({getExpectedScope:() => scope, fetch:async req => {
+      requests.push(req);
+      return Response.json(new URL(req.url).pathname.endsWith(scan) ? partial : {items:[],next_cursor:null});
+    }});
+    const user = userEvent.setup();
+    render(<APIProvider client={client}><AddonReviews canReview environment={environment} /></APIProvider>);
+    expect(screen.getByRole("button",{name:"Open receipt"})).toBeDisabled();
+    await user.type(screen.getByLabelText("Scan ID"),scan);
+    await user.click(screen.getByRole("button",{name:"Open receipt"}));
+    const receipt = await screen.findByRole("region",{name:"Scan receipt"});
+    expect(within(receipt).getByText("Partial scan")).toBeVisible();
+    expect(receipt).toHaveTextContent("Skipped entries 1");
+    expect(receipt).toHaveTextContent("dependency.unpinned · 1");
+    expect(within(receipt).queryByRole("link")).toBeNull();
+    expect(requests.filter(req => new URL(req.url).pathname === "/api/v1/addon-scans/"+scan).map(req => [req.method,req.headers.get("X-Zasp-Expected-Scope")])).toEqual([["GET",scope]]);
+    expect(requests.some(req => new URL(req.url).pathname.includes("/addon-versions/"))).toBe(false);
+  });
+
+  it("binds complete receipts to the exact version, hides a foreign link, and suppresses previously read data", async () => {
+    const target = scanReceiptLink(scan, environment).split("?")[1];
+    const registry = api();
+    registry.scan.mockResolvedValue(decodeAddonScan(complete,scan));
+    const view = render(<APIProvider><AddonReviews canReview={false} environment={environment} api={registry} initialScan={{ state:"selected", id:scan }} /></APIProvider>);
+    expect(await screen.findByRole("link",{name:"Open version review"})).toHaveAttribute("href",complete.review_path + "&environment_id=" + environment);
+    expect(screen.getByText(row.manifest_digest)).toBeVisible();
+    view.rerender(<APIProvider><AddonReviews canReview={false} environment={row.id} api={registry} initialScan={{ state:"foreign" }} /></APIProvider>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("another Environment");
+    expect(screen.queryByText(row.manifest_digest)).toBeNull();
+    expect(registry.scan).toHaveBeenCalledTimes(1);
+    expect(registry.list).not.toHaveBeenCalled();
+    const versionQuery = addonVersionLink(row.id,environment).split("?")[1];
+    expect(scopedAddonFromSearch(target,environment)).toEqual({state:"selected",id:scan});
+    expect(scopedAddonFromSearch(target,row.id)).toEqual({state:"foreign"});
+    expect(scopedAddonFromSearch(versionQuery,environment)).toEqual({state:"version",id:row.id});
+    expect(scopedAddonFromSearch(versionQuery,row.id)).toEqual({state:"foreign"});
+    const routeScope = {organizationID:scan, workspaceID:row.id, environmentID:environment};
+    for (const query of [target,versionQuery]) {
+      expect(parseActivityLink("/inventory/tools?"+query,routeScope)).toEqual({state:"none"});
+      expect(parseActivityLink("/inventory/tools?"+query,{...routeScope,environmentID:row.id})).toEqual({state:"scope_mismatch"});
+      expect(parseActivityLink("/inventory/tools?"+query+"&extra=untrusted",routeScope)).toEqual({state:"invalid"});
+    }
+    expect(scopedAddonFromSearch("?addon="+row.id,environment)).toBeUndefined();
+    expect(scopedAddonFromSearch(target+"&addon="+row.id,environment)).toEqual({state:"invalid"});
+    expect(scopedAddonFromSearch("?scan="+scan,environment)).toEqual({state:"invalid"});
+    expect(scopedAddonFromSearch("?scan="+scan+"&scan="+scan,environment)).toEqual({state:"invalid"});
+    for (const bad of [{...partial,version_id:row.id},{...partial,manifest_digest:complete.manifest_digest},{...partial,review_path:complete.review_path},{...partial,scan_id:row.id},{...complete,review_path:"https://example.invalid/"},{...partial,findings:[{rule_id:"dependency.unpinned",count:1_000_001}]},{...complete,skipped_count:1}]) {
+      expect(()=>decodeAddonScan(bad,scan)).toThrow();
+    }
   });
 });

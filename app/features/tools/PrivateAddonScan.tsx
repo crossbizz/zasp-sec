@@ -1,5 +1,7 @@
 "use client";
 
+import { addonVersionLink, scanReceiptLink } from "../../domain/addon-links";
+
 import { useEffect, useRef, useState } from "react";
 import {
   requireAPIData,
@@ -163,12 +165,14 @@ export function PrivateAddonScan({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [review, setReview] = useState("");
+  const [scanID, setScanID] = useState("");
   const current = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => current.current?.abort(), []);
   async function prepare() {
     if (!file || busy) return;
     setGrant(null);
     setReview("");
+    setScanID("");
     if (file.size <= 0 || file.size > 8 * 1024 * 1024) {
       setMessage("Choose a ZIP between 1 byte and 8 MiB.");
       return;
@@ -284,6 +288,7 @@ export function PrivateAddonScan({
       } else if (data.retention !== undefined) throw Error();
       let delivery = "";
       let reviewPath = "";
+      let receiptID = "";
       if (
         grant.result_delivery === "registry" &&
         data.registry_status !== "queued" &&
@@ -317,17 +322,19 @@ export function PrivateAddonScan({
               "/inventory/tools?addon=" + receipt.version_id
           )
             throw Error();
-          reviewPath = "/inventory/tools?addon=" + receipt.version_id;
+          reviewPath = addonVersionLink(receipt.version_id, environment);
         } else if (
           receipt.version_id !== null ||
           receipt.review_path !== null ||
           receipt.manifest_digest !== null
         )
           throw Error();
-        delivery = " Findings recorded under " + receipt.scan_id + ".";
+        receiptID = receipt.scan_id;
+        delivery = " Findings recorded under " + receiptID + ".";
       }
       if (!work.signal.aborted) {
         setReview(reviewPath);
+        setScanID(receiptID);
         setMessage(
           `Scan ${result.status}. ${text}${partial}${delivery}${storage}`,
         );
@@ -367,6 +374,7 @@ export function PrivateAddonScan({
             setGrant(null);
             setMessage("");
             setReview("");
+            setScanID("");
           }}
         />
       </label>
@@ -382,6 +390,7 @@ export function PrivateAddonScan({
             setGrant(null);
             setMessage("");
             setReview("");
+            setScanID("");
           }}
         />{" "}
         Retain an encrypted copy of this ZIP for up to 24 hours
@@ -415,6 +424,7 @@ export function PrivateAddonScan({
         </Button>
       )}
       {message && <p role="status">{message}</p>}
+      {scanID && <p><a href={scanReceiptLink(scanID, environment)}>Open scan receipt</a></p>}
       {review && <a href={review}>Open version review</a>}
     </details>
   );

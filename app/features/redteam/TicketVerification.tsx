@@ -37,7 +37,7 @@ export function TicketVerification({ runID, canWrite, locked }: { runID: string;
       }));
       const body = `{${pairs.map(([key, text]) => `${JSON.stringify(key)}:${text}`).join(",")}}`;
       if (new Blob([body]).size >= 64 * 1024) throw new RangeError();
-      const response = await client.PUT("/api/v1/test-runs/{id}/ticket-verification", { params: { path: { id: runID } }, body: JSON.parse(body) as TicketVerificationBundle, bodySerializer: () => body });
+      const response = await client.PUT("/api/v1/test-runs/{id}/ticket-verification", { params: { path: { id: runID }, header: { "X-CSRF-Token": "" } }, body: JSON.parse(body) as TicketVerificationBundle, bodySerializer: () => body });
       setSaved(requireAPIData(response, raw => decodeTicketVerification(raw, runID))); setFiles({});
     } catch (err) {
       if (err instanceof APIProductError && err.status === 409) { await query.retry(); setError("A different proof is already attached to this run. Open a new run to record another experiment."); }

@@ -8,6 +8,7 @@ import {
   type CatalogEdition, type CoverageEvidence, type CoverageRow, type CoverageSelector, type EvidenceKind,
   type EvidenceSelector, type SourceSelector,
 } from "../../../apps/web/api/framework-coverage";
+import { addonVersionLink } from "../../domain/addon-links";
 import { activityLink, type ActivityScope } from "../../domain/activity-links";
 import { catalogLink, type CatalogTarget } from "../../domain/coverage-links";
 import { Badge, Button, Card } from "../../components/ui";
@@ -49,7 +50,7 @@ function PageControls({ pages, next, setPages }: { pages: string[]; next: string
 }
 
 function referenceLink(row: CoverageEvidence, scope: ActivityScope): { href: string; label: string } | undefined {
-  if (row.source_kind === "addon_version") return { href: "/inventory/tools?addon=" + row.source_id, label: "Open add-on version" };
+  if (row.source_kind === "addon_version") return { href: addonVersionLink(row.source_id, scope.environmentID), label: "Open add-on version" };
   if (row.source_kind === "finding") return { href: activityLink({ kind: "finding", id: row.source_id }, scope), label: "Open finding" };
   if (row.source_kind === "ticket_test") return { href: activityLink({ kind: "test_run", id: row.source_id }, scope), label: "Open test run" };
   if (row.session_id) return { href: activityLink({ kind: "session", id: row.session_id }, scope), label: "Open session" };

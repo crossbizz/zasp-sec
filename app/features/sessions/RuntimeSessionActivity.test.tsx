@@ -11,7 +11,7 @@ const scope = { organizationID: id, workspaceID: id, environmentID: id };
 const at = "2026-09-16T00:00:00Z";
 function fixture(unattributed = false, fault = "") {
   const selected = unattributed ? "unattributed" : id;
-  const summary = { id: selected, kind: unattributed ? "unattributed" : "runtime", workspace_id: id, environment_id: id, agent_id: unattributed ? null : id, principal_id: null, first_event_at: at, last_event_at: at, projected_at: at, event_count: 1, confidence_counts: { exact: unattributed ? 0 : 1, strong: 0, probable: 0, unattributed: unattributed ? 1 : 0 } };
+  const summary = { id: selected, kind: unattributed ? "unattributed" : "runtime", workspace_id: fault === "workspace" ? run : id, environment_id: fault === "environment" ? run : id, agent_id: unattributed ? null : id, principal_id: null, first_event_at: at, last_event_at: at, projected_at: at, event_count: 1, confidence_counts: { exact: unattributed ? 0 : 1, strong: 0, probable: 0, unattributed: unattributed ? 1 : 0 } };
   const reads: Request[] = [];
   const client = createAPIClient({ fetch: async request => {
     reads.push(request); const path = new URL(request.url).pathname;
@@ -29,6 +29,21 @@ function fixture(unattributed = false, fault = "") {
 }
 
 describe("runtime session related run integration", () => {
+  it("offers a shareable session link in the active scope and retains the timeline preview", async () => {
+    const { client } = fixture();
+    render(<APIProvider client={client}><ProductionSessionsView client={client} canRevokeConsole={false} activityScope={scope} onNavigate={vi.fn()} /></APIProvider>);
+    const link = await screen.findByRole("link", { name: `Open session ${id}` });
+    expect(link).toHaveAttribute("href", `/investigate/sessions?entity_id=${id}&organization_id=${id}&workspace_id=${id}&environment_id=${id}`);
+    expect(screen.getByRole("button", { name: `Open runtime timeline ${id}` })).toBeVisible();
+  });
+
+  it.each(["workspace", "environment"])("rejects an out-of-scope %s before publishing a session link", async fault => {
+    const { client, reads } = fixture(false, fault);
+    render(<APIProvider client={client}><ProductionSessionsView client={client} canRevokeConsole={false} activityScope={scope} onNavigate={vi.fn()} /></APIProvider>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Runtime sessions could not be loaded");
+    expect(screen.queryByRole("link", { name: /Open session/ })).not.toBeInTheDocument();
+    expect(reads.some(request => request.url.includes("/security-agent-activity/"))).toBe(false);
+  });
   it.each([true, false])("opens scoped related runs (direct=%s) and removes them after permission loss", async direct => {
     const { client, reads } = fixture(); const onNavigate = vi.fn();
     const view = render(<APIProvider client={client}><ProductionSessionsView client={client} canRevokeConsole={false} selectedID={direct ? id : undefined} activityScope={scope} canReadRuns onNavigate={onNavigate} /></APIProvider>);
@@ -43,7 +58,7 @@ describe("runtime session related run integration", () => {
     expect(screen.queryByRole("button", { name: `Open run ${run}` })).not.toBeInTheDocument();
     expect(reads.filter(request => request.url.includes("/security-agent-activity/"))).toHaveLength(1);
   });
-  it.each(["identity", "events", "event identity"])("does not read relations after invalid %s authority", async fault => {
+  it.each(["identity", "events", "event identity", "workspace", "environment"])("does not read relations after invalid %s authority", async fault => {
     const { client, reads } = fixture(false, fault);
     render(<APIProvider client={client}><ProductionSessionsView client={client} canRevokeConsole={false} selectedID={id} activityScope={scope} canReadRuns onNavigate={vi.fn()} /></APIProvider>);
     expect(await screen.findByRole("alert")).toHaveTextContent("Runtime timeline could not be loaded");

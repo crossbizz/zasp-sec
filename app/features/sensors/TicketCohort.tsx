@@ -261,7 +261,7 @@ export function TicketCohort({
       const result = await client.PUT(
         "/api/v1/device-cohorts/{cohort}/ticket-rollout",
         {
-          params: { path: { cohort }, header: { "Idempotency-Key": key } },
+          params: { path: { cohort }, header: { "Idempotency-Key": key, "X-CSRF-Token": "" } },
           body,
           bodySerializer: () => raw,
         },

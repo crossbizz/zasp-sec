@@ -76,21 +76,30 @@ describe("purpose-based policy review", () => {
   });
 
   it("pins revision, agent and UTC window and discloses truncated replay and missing telemetry", async () => {
-    const run = vi.fn(async input => ({ matches: 7, would_block: 7, example_session_ids: [id(5)], replay: { policy_revision: input.policy_revision, agent_id: input.agent_id, from: input.from, to: input.to, evaluated: 5000, examined_count: 5000, eligible_count: 5000, would_block_rate: { tool: 7 / 5000 }, next_window_to: "2026-01-01T20:30:00.000Z", next_before_event_id: id(43), truncated: true, coverage: "indexed_events_only" as const } }));
+    const run = vi.fn(async input => ({ matches: 7, would_block: 7, example_session_ids: [id(5), id(5), "source-session"], replay: { policy_revision: input.policy_revision, agent_id: input.agent_id, from: input.from, to: input.to, evaluated: 5000, examined_count: 5000, eligible_count: 5000, would_block_rate: { tool: 7 / 5000 }, next_window_to: "2026-01-01T20:30:00.123456789Z", next_before_event_id: id(6), truncated: true, coverage: "indexed_events_only" as const } }));
     const user = userEvent.setup();
-    render(<ScopedReplay policy={policy} version={'"3"'} disabled={false} runReplay={run} />);
+    render(<ScopedReplay sessionScope={{organizationID:id(1),workspaceID:id(2),environmentID:id(3)}} policy={policy} version={'"3"'} disabled={false} runReplay={run} />);
     fireEvent.change(screen.getByLabelText("Replay from (UTC)"), { target: { value: "2026-01-01T12:00" } });
     fireEvent.change(screen.getByLabelText("Replay to (UTC, exclusive)"), { target: { value: "2026-01-02T12:00" } });
     await user.click(screen.getByRole("button", { name: "Replay revision 3" }));
     await waitFor(() => expect(run).toHaveBeenCalledWith({ schema_version: 2, agent_id: agent, policy_revision: 3, from: "2026-01-01T12:00:00.000Z", to: "2026-01-02T12:00:00.000Z" }));
     expect(await screen.findByText(/Additional indexed actions/)).toBeVisible();
     expect(screen.getByText(/Unreported activity/)).toBeVisible();
-    expect(screen.getByText("Would block 0.1% of eligible tool actions.")).toBeVisible();
+    expect(screen.getByText("Would block 0.1% of eligible tool actions on this page.")).toBeVisible();
+    const source = screen.getByRole("link", {name:id(5)});
+    expect(source).toHaveAttribute("href", "/investigate/sessions?entity_id="+id(5)+"&organization_id="+id(1)+"&workspace_id="+id(2)+"&environment_id="+id(3));
+    expect(screen.getByText("source-session").closest("a")).toBeNull();
+    run.mockRejectedValueOnce(new Error("unavailable"));
     await user.click(screen.getByRole("button", {name: "Replay remaining actions"}));
-    await waitFor(() => expect(run).toHaveBeenCalledWith({ schema_version: 2, agent_id: agent, policy_revision: 3, from: "2026-01-01T12:00:00.000Z", to: "2026-01-01T20:30:00.000Z", before_event_id: id(43) }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Replay unavailable");
+    expect(screen.getByText("Page 1.")).toBeVisible();
+    await user.click(screen.getByRole("button", {name: "Replay remaining actions"}));
+    expect(await screen.findByText("Page 2.")).toBeVisible();
+    expect(run.mock.calls[1][0]).toEqual(run.mock.calls[2][0]);
+    await waitFor(() => expect(run).toHaveBeenCalledWith({ schema_version: 2, agent_id: agent, policy_revision: 3, from: "2026-01-01T12:00:00.000Z", to: "2026-01-01T20:30:00.123456789Z", before_event_id: id(6) }));
     fireEvent.change(screen.getByLabelText("Replay from (UTC)"), { target: { value: "2025-01-01T12:00" } });
     await user.click(screen.getByRole("button", { name: "Replay revision 3" }));
     expect(screen.getByRole("alert")).toHaveTextContent("up to 30 days");
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledTimes(3);
   });
 });

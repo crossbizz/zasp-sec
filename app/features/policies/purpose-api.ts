@@ -11,7 +11,7 @@ export function purposeAPI(client: APIClient) {
       return requireAPIData(result, raw => decodeAgentPurpose(raw, agent));
     },
     async save(attempt: PurposeAttempt): Promise<AgentPurpose> {
-      const result = await client.PUT("/api/v1/agents/{id}/purpose", { params: { path: { id: attempt.agent }, header: { "Idempotency-Key": attempt.key, "If-Match": `"${attempt.revision}"` } }, body: { allowed_tool_ids: attempt.tools } });
+      const result = await client.PUT("/api/v1/agents/{id}/purpose", { params: { path: { id: attempt.agent }, header: { "X-CSRF-Token": "", "Idempotency-Key": attempt.key, "If-Match": `"${attempt.revision}"` } }, body: { allowed_tool_ids: attempt.tools } });
       const saved = requireAPIData(result, raw => decodeAgentPurpose(raw, attempt.agent));
       if (saved.revision !== attempt.revision + 1 || JSON.stringify(saved.allowed_tool_ids) !== JSON.stringify(attempt.tools)) throw new APITransportError("invalid_response", "Purpose change unconfirmed");
       return saved;

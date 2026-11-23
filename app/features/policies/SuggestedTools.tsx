@@ -28,7 +28,7 @@ export function SuggestedTools({ agent, revision, tools, onCreate, disabled, can
     if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || end > Date.now() || end - start > 30*86400000) { setError("Select a past UTC interval of up to 30 days."); return; }
     setBusy(true); setError("");
     try {
-      const response = await client.POST("/api/v1/agents/{id}/suggestions/refresh", { params: { path: { id: agent } }, body: { purpose_revision: revision, from: new Date(start).toISOString(), to: new Date(end).toISOString() } });
+      const response = await client.POST("/api/v1/agents/{id}/suggestions/refresh", { params: { path: { id: agent }, header: { "X-CSRF-Token": "" } }, body: { purpose_revision: revision, from: new Date(start).toISOString(), to: new Date(end).toISOString() } });
       const current = requireAPIData(response, value => decodeAgentSuggestions(value, agent));
       if (current.purpose_revision !== revision) throw new Error();
       setAfter(""); setSaved(current); setReview("");
@@ -39,7 +39,7 @@ export function SuggestedTools({ agent, revision, tools, onCreate, disabled, can
     if (!canManage || !available || disabled || busy) return;
     setBusy(true); setError("");
     try {
-      const response = await client.PUT("/api/v1/agents/{id}/suggestions/{toolId}/decision", { params: { path: { id: agent, toolId: item.tool_id } }, body: { purpose_revision: revision, decision } });
+      const response = await client.PUT("/api/v1/agents/{id}/suggestions/{toolId}/decision", { params: { path: { id: agent, toolId: item.tool_id }, header: { "X-CSRF-Token": "" } }, body: { purpose_revision: revision, decision } });
       const updated = requireAPIData(response, value => decodeAgentSuggestions(value, agent));
       const reviewedPage = after ? await getPage() : updated;
       const receipt = reviewedPage.items.find(row => row.tool_id === item.tool_id);

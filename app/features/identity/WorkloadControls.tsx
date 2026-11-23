@@ -133,7 +133,7 @@ function Binding({ id, client, fresh, canContain }: Context & { id: string }) {
     save.current = controller;
     setSaving(true);
     try {
-      const response = await client.PUT(bindingPath, { params: { path: { id } }, body: { agent_id: agent }, signal: controller.signal });
+      const response = await client.PUT(bindingPath, { params: { path: { id }, header: { "X-CSRF-Token": "" } }, body: { agent_id: agent }, signal: controller.signal });
       const binding = requireAPIData(response, (v) => decodeBinding(v, id));
       if (!controller.signal.aborted) setResult({ client, revision, binding });
     } catch {
@@ -202,13 +202,15 @@ function Containment({
     setBusy(true);
     setMessage("");
     try {
-      const req = { params: { path: { id: token, runId: run } }, signal: controller.signal };
+      const path = { id: token, runId: run };
+      const signal = controller.signal;
+      const mutation = { params: { path, header: { "X-CSRF-Token": "" } }, signal };
       const res =
         action === "check"
-          ? await client.GET(containmentPath, req)
+          ? await client.GET(containmentPath, { params: { path }, signal })
           : action === "release"
-            ? await client.DELETE(containmentPath, req)
-            : await client.PUT(containmentPath, { ...req, body: { step_id: step } });
+            ? await client.DELETE(containmentPath, mutation)
+            : await client.PUT(containmentPath, { ...mutation, body: { step_id: step } });
       const receipt = requireAPIData(res, (v) => decodeContainment(v, token, run, session));
       if (!controller.signal.aborted) setResult(receipt);
     } catch (error) {

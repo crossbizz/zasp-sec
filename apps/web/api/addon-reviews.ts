@@ -45,6 +45,49 @@ function record(value: unknown): Record<string, unknown> {
     return invalid();
   return value as Record<string, unknown>;
 }
+function decodeFindings(items: unknown, ruleset: AddonVersion["ruleset"]) {
+  if (!Array.isArray(items) || items.length > rules.length) return invalid();
+  const seen = new Set<string>();
+  return items.map((item) => {
+    const f = record(item);
+    if (
+      typeof f.rule_id !== "string" ||
+      !(ruleset === "zasp-static.v1" ? legacyRules : rules).includes(f.rule_id) ||
+      seen.has(f.rule_id) ||
+      typeof f.count !== "number" ||
+      !Number.isSafeInteger(f.count) ||
+      f.count < 1 || f.count > 1_000_000
+    )
+      return invalid();
+    seen.add(f.rule_id);
+    return { rule_id: f.rule_id, count: f.count };
+  });
+}
+
+export function decodeAddonScan(value: unknown, expectedID: string) {
+  const row = record(value);
+  if (row.scan_id !== expectedID || !addonID.test(expectedID) ||
+      (row.origin !== "local" && row.origin !== "ci" && row.origin !== "private_worker") ||
+      (row.ruleset !== "zasp-static.v1" && row.ruleset !== "zasp-static.v2") ||
+      (row.completeness !== "partial" && row.completeness !== "complete") ||
+      typeof row.skipped_count !== "number" || !Number.isSafeInteger(row.skipped_count) ||
+      row.skipped_count < 0 || row.skipped_count > 1_000_000 ||
+      typeof row.received_at !== "string" || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i.test(row.received_at) ||
+      !Number.isFinite(Date.parse(row.received_at))) return invalid();
+  const receipt = {
+    id: expectedID, origin: row.origin as AddonVersion["origin"], ruleset: row.ruleset as AddonVersion["ruleset"],
+    findings: decodeFindings(row.findings, row.ruleset), skipped: row.skipped_count, received: row.received_at,
+  };
+  if (row.completeness === "partial") {
+    if (row.version_id !== null || row.manifest_digest !== null || row.review_path !== null) return invalid();
+    return { ...receipt, completeness: "partial" as const };
+  }
+  if (row.skipped_count !== 0 || typeof row.version_id !== "string" || !addonID.test(row.version_id) ||
+      typeof row.manifest_digest !== "string" || !digest.test(row.manifest_digest) ||
+      row.review_path !== "/inventory/tools?addon=" + row.version_id) return invalid();
+  return { ...receipt, completeness: "complete" as const, versionID: row.version_id, digest: row.manifest_digest };
+}
+
 export function decodeAddonVersion(
   value: unknown,
   expectedID?: string,
@@ -65,26 +108,11 @@ export function decodeAddonVersion(
       row.review_state !== "revoked") ||
     typeof row.revision !== "number" ||
     !Number.isSafeInteger(row.revision) ||
-    row.revision < 0 ||
-    !Array.isArray(row.findings) ||
-    row.findings.length > rules.length
+    row.revision < 0
   )
     return invalid();
-  const seen = new Set<string>();
-  const findings = row.findings.map((item) => {
-    const f = record(item);
-    if (
-      typeof f.rule_id !== "string" ||
-      !(row.ruleset === "zasp-static.v1" ? legacyRules : rules).includes(f.rule_id) ||
-      seen.has(f.rule_id) ||
-      typeof f.count !== "number" ||
-      !Number.isSafeInteger(f.count) ||
-      f.count < 1
-    )
-      return invalid();
-    seen.add(f.rule_id);
-    return { rule_id: f.rule_id, count: f.count };
-  });
+  const findings = decodeFindings(row.findings, row.ruleset);
+  const seen = new Set(findings.map(finding => finding.rule_id));
   let frameworkEvidence: AddonFrameworkEvidence[] | undefined;
   if (row.framework_evidence !== undefined) {
     if (!Array.isArray(row.framework_evidence) || row.framework_evidence.length > 64) return invalid();
@@ -119,6 +147,12 @@ export function decodeAddonVersion(
 export type AddonReviewAPI = ReturnType<typeof createAddonReviewAPI>;
 export function createAddonReviewAPI(client: APIClient) {
   return {
+    async scan(id: string, signal?: AbortSignal) {
+      return requireAPIData(
+        await client.GET("/api/v1/addon-scans/{id}", {params: {path: {id}}, signal}),
+        value => decodeAddonScan(value, id),
+      );
+    },
     async list(cursor: string | undefined, signal?: AbortSignal) {
       const limit = 25;
       return requireAPIData(

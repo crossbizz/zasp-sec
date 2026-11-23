@@ -1,3 +1,5 @@
+import { scopedAddonFromSearch } from "./addon-links";
+
 export type ActivityScope = Readonly<{ organizationID: string; workspaceID: string; environmentID: string }>;
 export type ActivityKind = "finding" | "attack_path" | "session" | "audit" | "run" | "test_run" | "attack_lab_run" | "purpose";
 export type ActivityTarget = Readonly<{ kind: ActivityKind; id: string }>;
@@ -39,7 +41,13 @@ export function parseActivityLink(location: string, scope: ActivityScope): Activ
   // These product surfaces own their existing inventory selector. Delegate only
   // its exact canonical form; mixed or encoded activity keys must still fail.
   if (inventoryRoutes.has(path) && query.startsWith("inventory=") && productID.test(query.slice("inventory=".length))) return { state: "none" };
-  if (path === "/inventory/tools" && query.startsWith("addon=") && productID.test(query.slice("addon=".length))) return { state: "none" };
+  if (path === "/integrations/sensors" && query.startsWith("device=") && productID.test(query.slice("device=".length))) return { state: "none" };
+  if (path === "/inventory/tools") {
+    if (query.startsWith("addon=") && productID.test(query.slice("addon=".length))) return { state: "none" };
+    const addon = scopedAddonFromSearch(query, scope.environmentID);
+    if (addon?.state === "foreign") return { state: "scope_mismatch" };
+    if (addon?.state === "selected" || addon?.state === "version") return { state: "none" };
+  }
   const kind = (Object.keys(routes) as ActivityKind[]).find(value => routes[value] === path);
   if (!kind) return invalid;
   const entries = query.split("&").map(part => part.split("="));

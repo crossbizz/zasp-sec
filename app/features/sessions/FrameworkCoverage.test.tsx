@@ -82,7 +82,7 @@ describe("Edition-qualified framework coverage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Apply control" }));
     const target = await screen.findByRole("link", { name: "Open add-on version" });
     expect(screen.getByText("Skill manifest digest")).toBeVisible();
-    expect(target).toHaveAttribute("href", "/inventory/tools?addon=" + productID(7));
+    expect(target).toHaveAttribute("href", "/inventory/tools?addon=" + productID(7) + "&environment_id=" + environmentID);
     expect(parseActivityLink(target.getAttribute("href")!, boundary).state).toBe("none");
     expect(screen.getByText("No verification recorded")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Export this selection" }));

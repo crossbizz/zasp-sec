@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { RuntimeSession, RuntimeSessionPage, RuntimeSessionSearchStatus } from "../../../apps/web/api/generated";
 import { decodeRuntimeSessionPage } from "../../../apps/web/api/runtime-session-decoders";
-import type { ActivityScope } from "../../domain/activity-links";
+import { activityLink, type ActivityScope } from "../../domain/activity-links";
 import { Badge, Button, Card, Drawer, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
 import { SessionsComplianceView } from "./SessionsComplianceView";
-import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI, type RuntimeSessionActivity } from "./RuntimeSessionTimeline";
+import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, verifyRuntimeSessionScope, type RuntimeSessionTimelineAPI, type RuntimeSessionActivity } from "./RuntimeSessionTimeline";
 import { createRuntimeSessionEvidenceAPI, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 import { Time } from "../../components/time";
 
@@ -22,13 +22,14 @@ export interface RuntimeSessionsAPI {
   list(filters: RuntimeSessionFilters, cursor: string | null, signal: AbortSignal): Promise<RuntimeSessionPage>;
 }
 
-export function createRuntimeSessionsAPI(client: APIClient): RuntimeSessionsAPI {
+export function createRuntimeSessionsAPI(client: APIClient, scope?: ActivityScope): RuntimeSessionsAPI {
   return {
     async list(filters, cursor, signal) {
       const result = requireAPIData<RuntimeSessionPage>(await client.GET("/api/v1/sessions", {
         params: { query: { ...filters, kind: "runtime", limit: 25, ...(cursor ? { cursor } : {}) } }, signal,
       }), decodeRuntimeSessionPage);
       if (!result.search) throw new APITransportError("invalid_response", "Runtime search checkpoint is missing");
+      for (const session of result.items) verifyRuntimeSessionScope(session, scope);
       return result;
     },
   };
@@ -36,8 +37,8 @@ export function createRuntimeSessionsAPI(client: APIClient): RuntimeSessionsAPI 
 
 export function ProductionSessionsView({ client, canRevokeConsole, selectedID, onNavigate, activityScope, canReadRuns = false }: { client: APIClient; canRevokeConsole: boolean; activityScope?: ActivityScope; canReadRuns?: boolean; selectedID?: string; onNavigate?: (path: string) => void }) {
   const [surface, setSurface] = useState<"runtime" | "console">("runtime");
-  const api = useMemo(() => createRuntimeSessionsAPI(client), [client]);
-  const timelineAPI = useMemo(() => createRuntimeSessionTimelineAPI(client), [client]);
+  const api = useMemo(() => createRuntimeSessionsAPI(client, activityScope), [client, activityScope]);
+  const timelineAPI = useMemo(() => createRuntimeSessionTimelineAPI(client, activityScope), [client, activityScope]);
   const evidenceAPI = useMemo(() => createRuntimeSessionEvidenceAPI(client), [client]);
   const activity = activityScope && onNavigate ? { scope: activityScope, canReadRuns, onNavigate } : undefined;
   if (selectedID) return <div className="page"><PageHeader title="Runtime session detail" description="Exact activity record in the selected scope." /><p>Session <code>{selectedID}</code></p>{onNavigate && <Button onClick={() => onNavigate("/investigate/sessions")}>All sessions</Button>}<RuntimeSessionTimeline key={selectedID} id={selectedID} api={timelineAPI} evidenceAPI={evidenceAPI} activity={activity} /></div>;
@@ -112,7 +113,7 @@ export function RuntimeSessionsView({ api, timelineAPI, evidenceAPI, activity }:
     {current?.error && <div role="alert"><p>Runtime sessions could not be loaded. Results are unavailable, not empty.</p><Button onClick={() => setQuery({ ...query })}>Retry runtime search</Button></div>}
     {page && <>
       {page.search ? <SearchCheckpoint status={page.search} /> : <p role="alert">Indexing status is unavailable. Search completeness is unknown.</p>}
-      {page.items.length === 0 ? <EmptyState title="No matching runtime sessions" description="No indexed events matched these filters. Check indexing status and collection coverage before drawing conclusions." /> : page.items.map(item => <RuntimeSessionSummary key={item.id} item={item} onSelect={timelineAPI ? () => setSelection({ id: item.id, query, api }) : undefined} />)}
+      {page.items.length === 0 ? <EmptyState title="No matching runtime sessions" description="No indexed events matched these filters. Check indexing status and collection coverage before drawing conclusions." /> : page.items.map(item => <RuntimeSessionSummary key={item.id} item={item} scope={activity?.scope} onSelect={timelineAPI ? () => setSelection({ id: item.id, query, api }) : undefined} />)}
       <nav className="table-pagination" aria-label="Runtime session pages">
         <Button disabled={loading || query.page === 1} onClick={() => setQuery({ ...query, cursor: null, page: 1 })}>First session page</Button>
         <span>Page {query.page}</span>
@@ -136,8 +137,11 @@ function SearchCheckpoint({ status }: { status: RuntimeSessionSearchStatus }) {
   </Card>;
 }
 
-function RuntimeSessionSummary({ item, onSelect }: { item: RuntimeSession; onSelect?: () => void }) {
-  return <Card title={item.kind === "unattributed" ? "Unattributed evidence" : item.id} action={onSelect && <Button aria-label={`Open runtime timeline ${item.id}`} onClick={onSelect}>View timeline</Button>}>
+function RuntimeSessionSummary({ item, scope, onSelect }: { item: RuntimeSession; scope?: ActivityScope; onSelect?: () => void }) {
+  const title = item.kind === "unattributed" ? "Unattributed evidence" : scope
+    ? <a href={activityLink({ kind: "session", id: item.id }, scope)} aria-label={`Open session ${item.id}`}>{item.id}</a>
+    : item.id;
+  return <Card title={title} action={onSelect && <Button aria-label={`Open runtime timeline ${item.id}`} onClick={onSelect}>View timeline</Button>}>
     {item.kind === "unattributed" && <p>This is an evidence collection, not an inferred agent session.</p>}
     <p>{item.agent_id ?? "Unknown or multiple agents"} · Principal: {item.principal_id ?? "Unknown"}</p>
     <p>{item.event_count.toLocaleString("en-US")} canonical events</p>

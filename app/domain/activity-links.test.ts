@@ -17,6 +17,15 @@ const routes: [ActivityKind, string][] = [
 ];
 
 describe("exact scoped activity links", () => {
+  it("delegates the canonical Sensors device link and rejects mixed and malformed selectors", () => {
+    const base = "/integrations/sensors?";
+    expect(parseActivityLink(base + "device=" + id, scope)).toEqual({state: "none"});
+    for (const query of ["device=", "device=wrong", "dev%69ce=" + id, "device=" + id + "&device=" + id,
+      "device=" + id + "&entity_id=" + id, "device=" + id + "%0A", "device=" + id + "#device"]) {
+      expect(parseActivityLink(base + query, scope)).toEqual({state: "invalid"});
+    }
+  });
+
   it.each(["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"])("delegates canonical inventory selection on %s to its product reader", path => {
     expect(parseActivityLink(`${path}?inventory=${id}`, scope)).toEqual({ state: "none" });
   });

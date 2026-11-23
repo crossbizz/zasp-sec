@@ -2612,10 +2612,16 @@ export type paths = {
         };
         /** Read scoped containment and adapter readback */
         readonly get: operations["getWorkloadContainment"];
-        /** Approve extending a verified session isolation to this binding */
+        /**
+         * Approve extending a verified session isolation to this binding
+         * @description Requires fresh browser authentication.
+         */
         readonly put: operations["authorizeWorkloadContainment"];
         readonly post?: never;
-        /** Release this workload containment target */
+        /**
+         * Release this workload containment target
+         * @description Requires fresh browser authentication.
+         */
         readonly delete: operations["releaseWorkloadContainment"];
         readonly options?: never;
         readonly head?: never;
@@ -7963,6 +7969,8 @@ export type components = {
         };
     };
     parameters: {
+        /** @description Quoted current revision from a read of these agent settings. Use the quoted zero revision for the first write. */
+        readonly AgentSettingsVersion: string;
         /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
         readonly BrowserMutationCSRFToken: string;
         /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
@@ -7992,6 +8000,8 @@ export type components = {
     };
     requestBodies: never;
     headers: {
+        /** @description Quoted current revision. Zero represents an agent with no declared settings. */
+        readonly AgentSettingsETag: string;
         /** @description Minimum whole seconds before retrying an accepted asynchronous mutation. */
         readonly RetryAfter: string;
         /** @description Durable audit record identifier for this mutation or its exact replay. */
@@ -8469,6 +8479,7 @@ export type Workspace = components['schemas']['Workspace'];
 export type WorkspaceMutation = components['schemas']['WorkspaceMutation'];
 export type WorkspacePage = components['schemas']['WorkspacePage'];
 export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
+export type ParameterAgentSettingsVersion = components['parameters']['AgentSettingsVersion'];
 export type ParameterBrowserMutationCsrfToken = components['parameters']['BrowserMutationCSRFToken'];
 export type ParameterBrowserMutationOrigin = components['parameters']['BrowserMutationOrigin'];
 export type ParameterComplianceControlFilter = components['parameters']['ComplianceControlFilter'];
@@ -8483,6 +8494,7 @@ export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type ParameterResourceVersion = components['parameters']['ResourceVersion'];
 export type ParameterScheduleVersion = components['parameters']['ScheduleVersion'];
 export type ParameterSensorEnrollmentSchema = components['parameters']['SensorEnrollmentSchema'];
+export type HeaderAgentSettingsETag = components['headers']['AgentSettingsETag'];
 export type HeaderRetryAfter = components['headers']['RetryAfter'];
 export type HeaderWorkflowAuditId = components['headers']['WorkflowAuditID'];
 export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
@@ -9558,6 +9570,8 @@ export interface operations {
             /** @description Current purpose revision and up to 50 recent advisory findings. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["AgentSettingsETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -9579,7 +9593,8 @@ export interface operations {
             readonly header: {
                 /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                readonly "If-Match": string;
+                /** @description Quoted current revision from a read of these agent settings. Use the quoted zero revision for the first write. */
+                readonly "If-Match": components["parameters"]["AgentSettingsVersion"];
                 /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
                 readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
@@ -9597,6 +9612,8 @@ export interface operations {
             /** @description Current purpose revision and up to 50 recent advisory findings. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["AgentSettingsETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -9686,6 +9703,8 @@ export interface operations {
             /** @description Current declaration or revision zero for an active agent without a declaration. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["AgentSettingsETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -9701,11 +9720,12 @@ export interface operations {
             readonly header: {
                 /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                readonly "If-Match": string;
+                /** @description Quoted current revision from a read of these agent settings. Use the quoted zero revision for the first write. */
+                readonly "If-Match": components["parameters"]["AgentSettingsVersion"];
                 /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
                 readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
-                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
-                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -9721,6 +9741,8 @@ export interface operations {
             /** @description Recorded purpose revision. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["AgentSettingsETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -9817,11 +9839,11 @@ export interface operations {
     readonly reviewAgentSuggestion: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: {
+            readonly header: {
                 /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
                 readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
-                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
-                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -9850,11 +9872,11 @@ export interface operations {
     readonly refreshAgentSuggestions: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: {
+            readonly header: {
                 /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
                 readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
-                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
-                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -10831,8 +10853,8 @@ export interface operations {
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
                 readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
-                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
-                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly cohort: string;
@@ -10891,8 +10913,8 @@ export interface operations {
                 readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
                 readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
-                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
-                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly cohort: string;
@@ -14009,19 +14031,29 @@ export interface operations {
             /** @description Administrator-assigned workload identity. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": components["schemas"]["WorkloadCredentialBinding"];
                 };
             };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
     readonly bindWorkloadCredential: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path: {
                 /** @description Issued dedicated workload token ID. */
                 readonly id: components["schemas"]["ProductID"];
@@ -14039,13 +14071,19 @@ export interface operations {
             /** @description Original or newly created credential binding. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": components["schemas"]["WorkloadCredentialBinding"];
                 };
             };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -14064,19 +14102,29 @@ export interface operations {
             /** @description Scoped containment state and applied or release receipt when observed. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": components["schemas"]["WorkloadContainment"];
                 };
             };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
     readonly authorizeWorkloadContainment: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
                 readonly runId: components["schemas"]["ProductID"];
@@ -14094,19 +14142,29 @@ export interface operations {
             /** @description Scoped containment state and applied or release receipt when observed. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": components["schemas"]["WorkloadContainment"];
                 };
             };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
     readonly releaseWorkloadContainment: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
                 readonly runId: components["schemas"]["ProductID"];
@@ -14118,12 +14176,19 @@ export interface operations {
             /** @description Scoped containment state and applied or release receipt when observed. */
             readonly 200: {
                 headers: {
+                    readonly "Cache-Control"?: "no-store";
                     readonly [name: string]: unknown;
                 };
                 content: {
                     readonly "application/json": components["schemas"]["WorkloadContainment"];
                 };
             };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -16036,11 +16101,11 @@ export interface operations {
     readonly putTicketVerification: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: {
+            readonly header: {
                 /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
                 readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
-                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
-                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];

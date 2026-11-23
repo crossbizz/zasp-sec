@@ -92,6 +92,10 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.headers, {
+    AgentSettingsETag: {
+      description: "Quoted current revision. Zero represents an agent with no declared settings.",
+      schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]{0,5}|1000000)"$' },
+    },
     WorkflowETag: {
       description: "Quoted durable resource version for optimistic concurrency.",
       schema: { type: "string", pattern: '^"[1-9][0-9]*"$' },
@@ -188,6 +192,11 @@ function verifyDocument(value, rawText) {
       required: true,
       description: "Quoted current execution-control version, including quoted zero before the first tenant override.",
       schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]*)"$' },
+    },
+    AgentSettingsVersion: {
+      name: "If-Match", in: "header", required: true,
+      description: "Quoted current revision from a read of these agent settings. Use the quoted zero revision for the first write.",
+      schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]{0,5})"$' },
     },
     ScheduleVersion: {
       name: "If-Match",

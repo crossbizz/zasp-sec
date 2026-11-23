@@ -15,8 +15,13 @@ go -C services/endpoint-agent run ./cmd/endpoint-policy \
   --key /absolute/path/to/issuer.pem > signed-device.json
 ```
 
-5. Publish the signed envelope with the existing browser-authenticated `PUT /api/v1/devices/{id}/policy-bundle`, including CSRF, origin, an idempotency key and `If-Match` set to the current device resource version. The server verifies the enrolled issuer signature, generation, time, device revision and equality with the latest template in that device's cohort. A saved template alone has no effect on existing assignments.
+5. Under **Sensors → Devices**, open the enrolled device, choose **Publish signed policy**, and select the signed envelope file. Verify the selected revision, then publish it. The control plane records the assigned revision. The same action is available through the browser-authenticated `PUT /api/v1/devices/{id}/policy-bundle`, including CSRF, origin, an idempotency key and `If-Match` set to the current device resource version. The server verifies the enrolled issuer signature, generation, time, device revision and equality with the latest template in that device's cohort. A saved template alone has no effect on existing assignments.
 6. The active device retrieves its bundle with its registered transport token and signed device request. Check the reported revision and heartbeat time on the device detail page. A recorded monitor match has `would_block: true` and `verdict: continue`. A matching enforced action has `verdict: deny`. The action ID links to signed device evidence. Use separate authoritative service readback to establish any target effect.
+
+
+### Rotate the device credential
+
+In the selected device's detail view, choose **Rotate device credential**. Supply the replacement endpoint credential ID and the replacement device's public verification key, then confirm. Check the credential generation in the returned device record. Provision the matching credential and private key through your managed device channel. A new signed policy must use the new generation.
 
 ## Install the hook
 

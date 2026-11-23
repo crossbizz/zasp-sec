@@ -1,6 +1,8 @@
 "use client";
 
 import { CLIReleaseDownloads } from "./CLIReleaseDownloads";
+import { AddonScanReceipt } from "./AddonScanReceipt";
+import type { ScanTarget } from "../../domain/addon-links";
 import { AddonInstallations } from "./AddonInstallations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { APIProductError } from "../../../apps/web/api/client";
@@ -34,6 +36,9 @@ export function addonFromSearch(search: string) {
 }
 
 export function LocalScanHelp() {
+  const session = useOptionalSession();
+  const environment = session?.status === "authenticated" ? session.environmentID : "ENV_ID";
+  const cli = "cmd/zaspctl/zaspctl";
   return (
     <details>
       <summary>Scan this device</summary>
@@ -53,20 +58,24 @@ export function LocalScanHelp() {
         Local scans keep source and findings on this device. Preview the fields
         before sharing a report with an Environment.
       </p>
-      <code>
-        zaspctl addons submit scan.json --mode findings-only --environment
-        ENV_ID --dry-run
-      </code>
+      <pre><code>{`${cli} addons submit scan.json --mode findings-only --environment ${environment} --dry-run`}</code></pre>
+      <p>To share the previewed findings, set <code>ZASP_API_URL</code> to your deployment’s HTTPS origin. Sign in, confirm the Environment and terminal code in the browser, then submit.</p>
+      <pre><code>{`${cli} auth login --environment ${environment}\n${cli} addons submit scan.json --mode findings-only --environment ${environment}`}</code></pre>
+      <p>Open the link printed by the CLI, or enter its scan ID under Tools &amp; MCP → Add-ons → Find a scan receipt.</p>
     </details>
   );
 }
 
 export function AddonReviews({
   initialID = "",
+  initialScan,
+  environment = "",
   canReview,
   api: supplied,
 }: {
   initialID?: string;
+  initialScan?: ScanTarget;
+  environment?: string;
   canReview: boolean;
   api?: AddonReviewAPI;
 }) {
@@ -77,9 +86,11 @@ export function AddonReviews({
   );
   return (
     <Registry
-      key={JSON.stringify([queryScopeKey, queryGeneration, initialID])}
+      key={JSON.stringify([queryScopeKey, queryGeneration, initialID, initialScan, environment])}
       api={api}
       initialID={initialID}
+      initialScan={initialScan}
+      environment={environment}
       canReview={canReview}
     />
   );
@@ -88,10 +99,14 @@ export function AddonReviews({
 function Registry({
   api,
   initialID,
+  initialScan,
+  environment,
   canReview,
 }: {
   api: AddonReviewAPI;
   initialID: string;
+  initialScan?: ScanTarget;
+  environment: string;
   canReview: boolean;
 }) {
   const [id, select] = useState(initialID);
@@ -101,7 +116,8 @@ function Registry({
     (signal?: AbortSignal) => api.list(cursor, signal),
     [api, cursor],
   );
-  const query = useAPIQuery(`addon-versions:${cursor ?? ""}`, load, !id);
+  const query = useAPIQuery(`addon-versions:${cursor ?? ""}`, load, !id && !initialScan);
+  if (initialScan) return <Card title="Add-on scan"><AddonScanReceipt api={api} initial={initialScan} environment={environment} /></Card>;
   if (id)
     return (
       <VersionReview
@@ -114,6 +130,7 @@ function Registry({
     );
   return (
     <Card title="Add-on versions">
+      <AddonScanReceipt api={api} environment={environment} />
       {!query.data &&
         (query.status === "idle" || query.status === "loading") && (
           <p role="status">Loading add-on versions…</p>
@@ -204,7 +221,7 @@ function VersionReview({
   const { invalidate } = useAPI();
   const session = useOptionalSession();
   const confirm = async () => {
-    if (!intent || mutation.current || !canReview) return;
+    if (!intent || mutation.current || !canReview || (session?.status === "authenticated" && !session.isFreshAuthenticated)) return;
     const controller = new AbortController();
     mutation.current = controller;
     setBusy(true);
@@ -276,6 +293,8 @@ function VersionReview({
                 </>
               ) : origin.status === "loading" ? (
                 "Checking…"
+              ) : origin.status === "forbidden" ? (
+                "CI evidence is unavailable in your current session."
               ) : origin.status === "error" || origin.status === "stale" ? (
                 "Could not refresh evidence"
               ) : (
@@ -316,7 +335,10 @@ function VersionReview({
               ))}
             </ul>
           )}
-          {canReview && query.status === "success" && !intent && (
+          {canReview && session?.status === "authenticated" && !session.isFreshAuthenticated && (
+            <p>Fresh authentication is required to record a review. <Button onClick={session.reauthenticate}>Verify identity to review</Button></p>
+          )}
+          {canReview && (session?.status !== "authenticated" || session.isFreshAuthenticated) && query.status === "success" && !intent && (
             <div className="page-actions">
               {(["approved", "rejected", "revoked"] as const).map((state) => (
                 <Button
@@ -338,7 +360,7 @@ function VersionReview({
               ))}
             </div>
           )}
-          {canReview && intent && (
+          {canReview && (session?.status !== "authenticated" || session.isFreshAuthenticated) && intent && (
             <section aria-label="Confirm review">
               <p>
                 Record <strong>{intent.state}</strong> for this digest and

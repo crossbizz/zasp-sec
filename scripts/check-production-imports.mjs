@@ -17,15 +17,18 @@ const allowedExactSources = new Set([
 	"app/features/redteam/api.ts",
   "app/features/sensors/ProductionSensorView.tsx",
   "app/features/sensors/DeviceFleet.tsx",
+  "app/features/sensors/DeviceActions.tsx",
   "app/features/sensors/TicketCohort.tsx",
   "app/features/sensors/EndpointPolicyCohort.tsx",
   "app/features/sensors/api.ts",
   // API-backed production views that live beside the demo views of the same
   // feature. Each imports only the API client, decoders and shared UI.
   "app/features/guardrails/ProductionGuardrailsView.tsx",
+  "app/features/guardrails/ClaudeEnterpriseSetup.tsx",
   "app/features/guardrails/guardrail-policy-api.ts",
   "app/features/tools/MCPServersView.tsx",
   "app/features/tools/AddonReviews.tsx",
+  "app/features/tools/AddonScanReceipt.tsx",
   "app/features/tools/AddonInstallations.tsx",
   "app/features/tools/PrivateAddonScan.tsx",
   // The download view reads the release metadata staged by the operator.

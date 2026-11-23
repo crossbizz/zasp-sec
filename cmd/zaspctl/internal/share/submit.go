@@ -170,8 +170,12 @@ func Submit(args []string, stdout, stderr io.Writer) int {
 		err = json.NewEncoder(stdout).Encode(value)
 	} else {
 		_, err = fmt.Fprintf(stdout, "Submitted %s scan %s.\n", value.Completeness, value.ScanID)
-		if err == nil && value.ReviewPath != nil {
-			_, err = fmt.Fprintln(stdout, base.Scheme+"://"+base.Host+*value.ReviewPath)
+		if err == nil {
+			link := "/inventory/tools?scan=" + value.ScanID + "&environment_id=" + body.EnvironmentID
+			if value.ReviewPath != nil {
+				link = *value.ReviewPath + "&environment_id=" + body.EnvironmentID
+			}
+			_, err = fmt.Fprintln(stdout, base.Scheme+"://"+base.Host+link)
 		}
 	}
 	if err != nil {

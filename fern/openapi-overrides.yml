@@ -767,13 +767,19 @@ paths:
         - Guardrails
       x-fern-sdk-group-name: guardrails
       x-fern-sdk-method-name: authorizeContainment
-      description: 'Authentication: a browser session only. An API token is refused.'
+      description: |-
+        Requires fresh browser authentication.
+
+        Authentication: a browser session only. An API token is refused.
     delete:
       tags:
         - Guardrails
       x-fern-sdk-group-name: guardrails
       x-fern-sdk-method-name: releaseContainment
-      description: 'Authentication: a browser session only. An API token is refused.'
+      description: |-
+        Requires fresh browser authentication.
+
+        Authentication: a browser session only. An API token is refused.
   /api/v1/runtime/workload-bindings/{id}:
     get:
       tags:

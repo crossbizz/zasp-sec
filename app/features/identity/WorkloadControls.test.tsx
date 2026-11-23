@@ -61,7 +61,7 @@ it("reports a pending approval, then shows adapter readback and explicit release
   await screen.findByText(/State pending readback/);
   expect(client.PUT).toHaveBeenCalledWith(
     expect.anything(),
-    expect.objectContaining({ body: { step_id: step }, params: { path: { id: token, runId: run } } }),
+    expect.objectContaining({ body: { step_id: step }, params: { path: { id: token, runId: run }, header: { "X-CSRF-Token": "" } } }),
   );
   fireEvent.click(screen.getByRole("button", { name: "Check containment" }));
   await screen.findByText(/State adapter confirmed/);

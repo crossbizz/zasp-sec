@@ -136,7 +136,7 @@ describe("private ZIP scan", () => {
     );
     expect(
       screen.getByRole("link", { name: "Open version review" }),
-    ).toHaveAttribute("href", "/inventory/tools?addon=" + id);
+    ).toHaveAttribute("href", "/inventory/tools?addon=" + id + "&environment_id=" + id);
     expect(send).toHaveBeenCalledWith(
       g.upload_url,
       expect.objectContaining({
@@ -147,6 +147,16 @@ describe("private ZIP scan", () => {
         referrerPolicy: "no-referrer",
       }),
     );
+  });
+  it("links the recorded partial receipt to the selected Environment with no version action", async () => {
+    const original = result();
+    const partial = { ...original, receipt: {...original.receipt, completeness: "partial", version_id: null, manifest_digest: null, review_path: null},
+      result: {...original.result, status: "partial", manifest_digest: null} };
+    const {user} = await start(grant("memory_only"),partial);
+    await user.click(screen.getByRole("button",{name:"Prepare private scan"}));
+    await user.click(await screen.findByRole("button",{name:"Send ZIP to worker.test.invalid"}));
+    expect(await screen.findByRole("link",{name:"Open scan receipt"})).toHaveAttribute("href","/inventory/tools?scan=" + id + "&environment_id=" + id);
+    expect(screen.queryByRole("link",{name:"Open version review"})).toBeNull();
   });
   it("previews the exact deadline, invalidates previous consent, and confirms a verified retention receipt", async () => {
     const g = grant("encrypted_24h");

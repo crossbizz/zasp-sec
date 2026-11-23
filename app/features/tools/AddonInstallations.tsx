@@ -36,6 +36,7 @@ export function AddonInstallations({
           evidence.
         </p>
       )}
+      {result.status === "forbidden" && <p role="alert">Device installation evidence is unavailable in your current session.</p>}
       {result.status === "loading" && <p>Loading installation evidence…</p>}
       {(result.status === "error" || result.status === "stale") && (
         <p role="status">

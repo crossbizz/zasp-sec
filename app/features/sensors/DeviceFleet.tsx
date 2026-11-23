@@ -5,13 +5,14 @@ import { endpointAdapterLabels } from "../../../apps/web/api/endpoint-fleet";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EndpointFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import type { EndpointRegistration } from "../../../apps/web/api/generated";
-import { APIProductError } from "../../../apps/web/api/client";
+import { DeviceActions } from "./DeviceActions";
 import { useAPIQuery } from "../../api/query";
 import { Button, Card, Field } from "../../components/ui";
 import { Time } from "../../components/time";
 
 type Props = {
   initialID?: string;
+  scope?: string;
   api: EndpointFleetAPI;
   canWrite: boolean;
   fresh: boolean;
@@ -205,6 +206,7 @@ function Installations({
 }
 function DeviceDetail({
   api,
+  scope,
   id,
   canWrite,
   fresh,
@@ -213,43 +215,8 @@ function DeviceDetail({
 }: Props & { id: string; back(): void }) {
   const load = useCallback((signal?: AbortSignal) => api.get(id, signal), [api, id]);
   const query = useAPIQuery(`fleet-device:${id}`, load);
-  const [confirm, setConfirm] = useState(false),
-    [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState(false);
-  const pending = useRef<{ version: number; key: string } | null>(null);
-  const controller = useRef<AbortController | null>(null);
-  useEffect(() => () => controller.current?.abort(), []);
+  const [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
   const row = query.data;
-  async function retire() {
-    if (!row || !canWrite || !fresh || controller.current || !confirm) return;
-    const attempt =
-      pending.current?.version === row.version
-        ? pending.current
-        : { version: row.version, key: crypto.randomUUID() };
-    pending.current = attempt;
-    const abort = new AbortController();
-    controller.current = abort;
-    setBusy(true);
-    try {
-      await api.retire(row, attempt.key, abort.signal);
-      if (abort.signal.aborted) return;
-      setConfirm(false);
-      setNotice("Device retired. MDM removal is a separate step.");
-      await query.retry();
-    } catch (e) {
-      if (!abort.signal.aborted) {
-        setNotice("Retirement could not be confirmed. Refresh the device and retry.");
-        if (e instanceof APIProductError && [409, 412].includes(e.status)) {
-          pending.current = null;
-          setConfirm(false);
-          await query.retry();
-        }
-      }
-    } finally {
-      controller.current = null;
-      if (!abort.signal.aborted) setBusy(false);
-    }
-  }
   return (
     <Card
       title="Device detail"
@@ -274,12 +241,16 @@ function DeviceDetail({
             <dd>{row.cohort}</dd>
             <dt>Enrollment</dt>
             <dd>{row.state}</dd>
+            <dt>Credential generation</dt>
+            <dd>{row.credential_generation}</dd>
             <dt>Last contact</dt>
             <dd>{row.last_seen ? <Time value={row.last_seen} /> : "Never seen"}</dd>
             <dt>Assigned / reported policy revision</dt>
             <dd>
               {row.policy_revision} / {row.reported_policy_revision}
             </dd>
+            <dt>Current policy acknowledgment</dt>
+            <dd>{row.acknowledged ? "Acknowledged" : "No current acknowledgment"}</dd>
             <dt>Inventory partitions</dt>
             <dd>{row.inventory_partitions}</dd>
             <dt>Device observations</dt>
@@ -370,25 +341,10 @@ function DeviceDetail({
               </details>
             ))}
           </section>
-          {canWrite &&
-            query.status === "success" &&
-            row.state !== "retired" &&
-            (confirm ? (
-              <>
-                <p>
-                  Revoke this device’s server access? Historical observations remain available to authorized
-                  reviewers.
-                </p>
-                <Button disabled={busy} onClick={() => void retire()}>
-                  Confirm retirement
-                </Button>{" "}
-                <Button disabled={busy} onClick={() => setConfirm(false)}>
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => (fresh ? setConfirm(true) : onReauthenticate())}>Retire device</Button>
-            ))}
+          {canWrite && query.status === "success" && row.state !== "retired" && (
+            <DeviceActions key={[scope, row.id, row.version].join("/")} api={api} row={row} scope={scope} fresh={fresh}
+              reauthenticate={onReauthenticate} setBusy={setBusy} notify={setNotice} refresh={query.retry} />
+          )}
         </>
       )}
       {notice && <p role="status">{notice}</p>}

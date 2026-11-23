@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { APIProductError, requireAPIData } from "../../../apps/web/api/client";
 import type {
   ActionAnalysisSettings,
@@ -15,7 +15,7 @@ import { SourceFrameworkEvidence } from "../sessions/FrameworkCoverage";
 import { activityLink } from "../../domain/activity-links";
 
 const label = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
-const id = /^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+const id = /^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$(?![\s\S])/;
 const destinations = ["internal", "approved_partner", "external", "public"] as const;
 const issueLabels = {
   operation_outside_purpose: "Operation outside declaration",
@@ -125,6 +125,13 @@ export function ActionAnalysis({
 }) {
   const { client } = useAPI();
   const session = useOptionalSession();
+  const settingGroups = useRef<Partial<Record<keyof typeof recommendationLabels, HTMLElement | null>>>({});
+  const reviewSettings = (kind: keyof typeof recommendationLabels) => {
+    const group = settingGroups.current[kind];
+    if (!group) return;
+    const control = group.querySelector<HTMLElement>("textarea:enabled, input:enabled");
+    (control ?? group).focus();
+  };
   const [opened, setOpened] = useState(false);
   const read = useCallback(
     async (signal?: AbortSignal) =>
@@ -225,20 +232,24 @@ export function ActionAnalysis({
               Enable draft intent recommendations for this agent
             </label>
             <p>When your deployment enables OpenRouter, this sends the destination class, whether a previous action was observed, and four purpose-comparison flags. A reviewer decides how to use each recommendation.</p>
-            <Field
-              multiline
-              label="Allowed operations"
-              hint="One label per line. Empty leaves this dimension undeclared."
-              value={values.operations}
-              onChange={(e) => change({ operations: e.target.value })}
-            />
-            <Field
-              multiline
-              label="Allowed reported data classifications"
-              value={values.classes}
-              onChange={(e) => change({ classes: e.target.value })}
-            />
-            <fieldset>
+            <div role="group" aria-label="Operation settings" tabIndex={-1} ref={node => { settingGroups.current.review_purpose = node; }}>
+              <Field
+                multiline
+                label="Allowed operations"
+                hint="One label per line. Empty leaves this dimension undeclared."
+                value={values.operations}
+                onChange={(e) => change({ operations: e.target.value })}
+              />
+            </div>
+            <div role="group" aria-label="Classification settings" tabIndex={-1} ref={node => { settingGroups.current.review_data_access = node; }}>
+              <Field
+                multiline
+                label="Allowed reported data classifications"
+                value={values.classes}
+                onChange={(e) => change({ classes: e.target.value })}
+              />
+            </div>
+            <fieldset tabIndex={-1} ref={node => { settingGroups.current.review_destination = node; }}>
               <legend>Allowed reported destinations</legend>
               {destinations.map((d) => (
                 <label key={d}>
@@ -253,13 +264,15 @@ export function ActionAnalysis({
                 </label>
               ))}
             </fieldset>
-            <Field
-              multiline
-              label="Restricted operation sequences"
-              hint="One pair per line, for example ticket.read -> ticket.send. Sequence correlation ends after 15 minutes or a policy or settings revision change."
-              value={values.transitions}
-              onChange={(e) => change({ transitions: e.target.value })}
-            />
+            <div role="group" aria-label="Sequence settings" tabIndex={-1} ref={node => { settingGroups.current.review_sequence = node; }}>
+              <Field
+                multiline
+                label="Restricted operation sequences"
+                hint="One pair per line, for example ticket.read -> ticket.send. Sequence correlation ends after 15 minutes or a policy or settings revision change."
+                value={values.transitions}
+                onChange={(e) => change({ transitions: e.target.value })}
+              />
+            </div>
           </fieldset>
           {canManage && (
             <Button
@@ -283,7 +296,7 @@ export function ActionAnalysis({
                   </p>
                   <p>
                     Decision <code>{f.decision_id}</code> ·{" "}
-                    {session?.status === "authenticated" ? (
+                    {session?.status === "authenticated" && session.hasCapability("sessions.read") ? (
                       <a href={activityLink({ kind: "session", id: f.session_id }, session)}>Open session</a>
                     ) : (
                       <code>{f.session_id}</code>
@@ -299,12 +312,15 @@ export function ActionAnalysis({
             <section aria-label="Draft intent recommendations">
               <h4>Draft intent recommendations</h4>
               <ul>
-                {current.intent_drafts?.map((draft) => (
-                  <li key={draft.decision_id}>
-                    <strong>{recommendationLabels[draft.recommendation]}</strong> · {draft.occurred_at} · Decision{" "}
-                    <code>{draft.decision_id}</code>
-                  </li>
-                ))}
+                {current.intent_drafts?.map((item) => {
+                  const finding = current.findings.find(f => f.decision_id === item.decision_id);
+                  return <li key={item.decision_id}>
+                    <Button onClick={() => reviewSettings(item.recommendation)}>{recommendationLabels[item.recommendation]}</Button>
+                    {" · "}{item.occurred_at} · Decision <code>{item.decision_id}</code>
+                    {finding && session?.status === "authenticated" && session.hasCapability("sessions.read") &&
+                      <> · <a href={activityLink({ kind: "session", id: finding.session_id }, session)}>Open source session</a></>}
+                  </li>;
+                })}
               </ul>
             </section>
           )}

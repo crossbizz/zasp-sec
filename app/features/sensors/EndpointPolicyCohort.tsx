@@ -126,7 +126,7 @@ function RuleEditor({ client, view, canManage, fresh, reauthenticate, onSaved }:
   return <section aria-label="Cohort template rules">
     <p>{view.revision === 0 ? "No saved template." : "Saved template revision "+view.revision+"."}</p>
     {view.revision > 0 && <details><summary>Issue this template to a device</summary>
-      <p>On the authorized issuer, use the endpoint policy signer with the saved rules and the enrolled device binding. Publish the signed envelope with <code>PUT /api/v1/devices/&#123;id&#125;/policy-bundle</code>. In Devices, compare the assigned and reported revisions to confirm acknowledgment.</p>
+      <p>On the authorized issuer, use the endpoint policy signer with the saved rules and the enrolled device binding. Open the intended device in <strong>Devices</strong>, choose <strong>Publish signed policy</strong>, and select its signed envelope. In Devices, compare the assigned and reported revisions to confirm acknowledgment.</p>
     </details>}
     <fieldset disabled={!canManage || busy || conflict}><legend>Pre-tool policy</legend>
       <div className="form-grid">

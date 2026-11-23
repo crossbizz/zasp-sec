@@ -182,3 +182,61 @@ describe("hosted gateway", () => {
     assert.equal(schemas.GatewayDecision.additionalProperties, false);
   });
 });
+
+describe("Scoped browser mutations and agent settings", () => {
+  const security = [{ BrowserSession: [], BrowserExpectedScope: [] }];
+  const csrf = "#/components/parameters/CSRFToken";
+  const errorResponse = { $ref: "#/components/responses/ProductErrorResponse" };
+  const bindings = "/api/v1/runtime/workload-bindings/{id}";
+  const containment = bindings + "/containments/{runId}";
+  const agent = "/api/v1/agents/{id}";
+
+  it("publishes the workload router's credential, headers, freshness and typed refusals", () => {
+    for (const [path, method] of [[bindings, "get"], [bindings, "put"], [containment, "get"], [containment, "put"], [containment, "delete"]]) {
+      const operation = document.paths[path][method];
+      assert.deepEqual(operation.security, security, operation.operationId);
+      const headers = (operation.parameters ?? []).map(parameter => parameter.$ref);
+      assert.deepEqual(headers, method === "get" ? [] : [csrf], operation.operationId);
+      if (method !== "get") assert.match(operation.description, /fresh browser authentication/i);
+      for (const status of [400, 401, 403, 404, 409, 503]) assert.deepEqual(operation.responses[status], errorResponse);
+      assert.equal(operation.responses[200].headers["Cache-Control"].schema.const, "no-store");
+    }
+    assert.equal(document.paths[containment].delete.requestBody, undefined);
+    assert.equal(document.components.parameters.CSRFToken.required, true);
+    assert.match(document.components.parameters.CSRFToken.description, /exact same-origin Origin/);
+  });
+
+  it("requires CSRF for browser-only review, settings and cohort writes", () => {
+    const operations = [
+      [agent + "/purpose", "put"], [agent + "/action-analysis", "put"],
+      [agent + "/suggestions/refresh", "post"], [agent + "/suggestions/{toolId}/decision", "put"],
+      ["/api/v1/device-cohorts/{cohort}/ticket-rollout", "put"],
+      ["/api/v1/device-cohorts/{cohort}/pretool-policy", "put"],
+      ["/api/v1/test-runs/{id}/ticket-verification", "put"],
+    ];
+    for (const [path, method] of operations) {
+      const operation = document.paths[path][method];
+      assert.deepEqual(operation.security, security);
+      assert.ok(operation.parameters.some(parameter => parameter.$ref === csrf), operation.operationId);
+    }
+  });
+
+  it("exposes a revision usable for the next update, including the initial zero", () => {
+    const parameter = document.components.parameters.AgentSettingsVersion;
+    assert.deepEqual([parameter.name, parameter.in, parameter.required], ["If-Match", "header", true]);
+    const input = new RegExp(parameter.schema.pattern);
+    const output = new RegExp(document.components.headers.AgentSettingsETag.schema.pattern);
+    for (const revision of ['"0"', '"17"', '"999999"']) assert.ok(input.test(revision) && output.test(revision));
+    for (const invalid of ["0", '"01"', '"-1"', "*", '"1000001"']) assert.ok(!input.test(invalid) && !output.test(invalid));
+    assert.equal(input.test('"1000000"'), false);
+    assert.equal(output.test('"1000000"'), true);
+    for (const path of [agent + "/purpose", agent + "/action-analysis"]) {
+      const setting = document.paths[path];
+      for (const method of ["get", "put"]) {
+        assert.deepEqual(setting[method].responses[200].headers.ETag, { $ref: "#/components/headers/AgentSettingsETag" });
+      }
+      const params = setting.put.parameters.map(parameter => parameter.$ref);
+      assert.ok(params.includes("#/components/parameters/IdempotencyKey") && params.includes("#/components/parameters/AgentSettingsVersion"));
+    }
+  });
+});

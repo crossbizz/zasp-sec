@@ -1041,7 +1041,7 @@ paths:
       summary: Save the next template revision for independent per-device signing
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       parameters:
-        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/BrowserMutationOrigin'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EndpointPolicyTemplateInput' } } } }
@@ -1066,7 +1066,7 @@ paths:
       summary: Apply one revision of signed device-specific ticket policies to a staging cohort
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       parameters:
-        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/BrowserMutationOrigin'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TicketCohortUpload' } } } }
@@ -1816,7 +1816,10 @@ paths:
     put:
       operationId: authorizeWorkloadContainment
       summary: Approve extending a verified session isolation to this binding
-      security: [{ BrowserSession: [] }]
+      description: Requires fresh browser authentication.
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -1830,25 +1833,49 @@ paths:
       responses:
         '200':
           description: Scoped containment state and applied or release receipt when observed.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
           content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadContainment' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     get:
       operationId: getWorkloadContainment
       summary: Read scoped containment and adapter readback
-      security: [{ BrowserSession: [] }]
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       responses:
         '200':
           description: Scoped containment state and applied or release receipt when observed.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
           content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadContainment' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     delete:
       operationId: releaseWorkloadContainment
       summary: Release this workload containment target
-      security: [{ BrowserSession: [] }]
+      description: Requires fresh browser authentication.
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       responses:
         '200':
           description: Scoped containment state and applied or release receipt when observed.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
           content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadContainment' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/runtime/workload-bindings/{id}:
     parameters:
@@ -1857,7 +1884,9 @@ paths:
       operationId: bindWorkloadCredential
       summary: Bind one dedicated token to one agent and governed session
       description: Fresh browser authentication is required. The Environment's active inventory agent is selected by the administrator. An existing binding is immutable.
-      security: [{ BrowserSession: [] }]
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -1871,17 +1900,30 @@ paths:
       responses:
         '200':
           description: Original or newly created credential binding.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
           content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadCredentialBinding' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     get:
       operationId: getWorkloadCredentialBinding
       summary: Get the agent and governed session assigned to a dedicated token
-      security: [{ BrowserSession: [] }]
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       responses:
         '200':
           description: Administrator-assigned workload identity.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
           content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadCredentialBinding' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/browser-profiles/{id}:
     parameters:
@@ -2967,7 +3009,7 @@ paths:
       summary: Generate suggestions using scoped indexed runtime tool events
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       parameters:
-        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/BrowserMutationOrigin'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SuggestionRefresh' } } } }
       responses:
@@ -2982,7 +3024,7 @@ paths:
       summary: Record a draft request or dismissal for this observed tool
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       parameters:
-        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/BrowserMutationOrigin'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SuggestionDecision' } } } }
       responses:
@@ -2996,20 +3038,20 @@ paths:
       summary: Read the current version of the agent's declared purpose
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       responses:
-        '200': { description: Current declaration or revision zero for an active agent without a declaration., content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
+        '200': { description: Current declaration or revision zero for an active agent without a declaration., headers: { ETag: { $ref: '#/components/headers/AgentSettingsETag' }, Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     put:
       operationId: putAgentPurpose
       summary: Record the intended tool set for one agent
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       parameters:
-        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/BrowserMutationOrigin'
         - $ref: '#/components/parameters/IdempotencyKey'
-        - { name: If-Match, in: header, required: true, schema: { type: string, pattern: '^"[0-9]+"$' } }
+        - $ref: '#/components/parameters/AgentSettingsVersion'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurposeInput' } } } }
       responses:
-        '200': { description: Recorded purpose revision., content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
+        '200': { description: Recorded purpose revision., headers: { ETag: { $ref: '#/components/headers/AgentSettingsETag' }, Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AgentPurpose' } } } }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/action-analysis:
@@ -3022,7 +3064,7 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       responses:
-        '200': { description: Current purpose revision and up to 50 recent advisory findings., content: { application/json: { schema: { $ref: '#/components/schemas/AgentActionAnalysis' } } } }
+        '200': { description: Current purpose revision and up to 50 recent advisory findings., headers: { ETag: { $ref: '#/components/headers/AgentSettingsETag' }, Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AgentActionAnalysis' } } } }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -3039,10 +3081,10 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/IdempotencyKey'
-        - { name: If-Match, in: header, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/AgentSettingsVersion'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ActionAnalysisSettings' } } } }
       responses:
-        '200': { description: Current purpose revision and up to 50 recent advisory findings., content: { application/json: { schema: { $ref: '#/components/schemas/AgentActionAnalysis' } } } }
+        '200': { description: Current purpose revision and up to 50 recent advisory findings., headers: { ETag: { $ref: '#/components/headers/AgentSettingsETag' }, Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AgentActionAnalysis' } } } }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -4734,7 +4776,7 @@ paths:
       summary: Import a bounded pair of synthetic staging ticket observations for this run
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
       parameters:
-        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/BrowserMutationOrigin'
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TicketVerificationBundle' } } } }
       responses:
@@ -4960,6 +5002,9 @@ components:
       bearerFormat: ProductAPIToken
       description: Product automation token.
   headers:
+    AgentSettingsETag:
+      description: Quoted current revision. Zero represents an agent with no declared settings.
+      schema: { type: string, pattern: '^"(?:0|[1-9][0-9]{0,5}|1000000)"$' }
     WorkflowETag:
       description: Quoted durable resource version for optimistic concurrency.
       schema: { type: string, pattern: '^"[1-9][0-9]*"$' }
@@ -5049,6 +5094,12 @@ components:
       required: true
       description: Quoted current execution-control version, including quoted zero before the first tenant override.
       schema: { type: string, pattern: '^"(?:0|[1-9][0-9]*)"$' }
+    AgentSettingsVersion:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted current revision from a read of these agent settings. Use the quoted zero revision for the first write.
+      schema: { type: string, pattern: '^"(?:0|[1-9][0-9]{0,5})"$' }
     ScheduleVersion:
       name: If-Match
       in: header

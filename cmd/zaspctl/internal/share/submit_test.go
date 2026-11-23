@@ -128,3 +128,49 @@ func TestPreviewIsLocalAndClosedToUnknownRuleIDs(t *testing.T) {
 		t.Fatal("accepted an arbitrary finding id")
 	}
 }
+
+func TestPartialSubmitPrintsScopedReceiptLinkAndPreservesJSON(t *testing.T) {
+	var report map[string]any
+	if err := json.Unmarshal(localScan(t), &report); err != nil {
+		t.Fatal(err)
+	}
+	result := report["result"].(map[string]any)
+	report["status"] = "partial"
+	result["status"] = "partial"
+	delete(result, "manifest_digest")
+	result["skipped"] = []any{map[string]string{"path": "omitted", "reason": "unreadable"}}
+	data, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "partial.json")
+	if err := os.WriteFile(file, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body submission
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Completeness != "partial" || body.EnvironmentID != envID {
+			t.Error("unexpected projected submission")
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(receipt{ScanID: scanID, Completeness: "partial"})
+	}))
+	defer server.Close()
+	prev := http.DefaultTransport
+	http.DefaultTransport = server.Client().Transport
+	t.Cleanup(func() { http.DefaultTransport = prev })
+	t.Setenv("ZASP_API_URL", server.URL)
+	t.Setenv("ZASP_API_TOKEN", "test")
+	args := []string{file, "--mode", "findings-only", "--environment", envID}
+	var out, errOut bytes.Buffer
+	code := Submit(args, &out, &errOut)
+	if code != 3 || !strings.Contains(out.String(), server.URL+"/inventory/tools?scan="+scanID+"&environment_id="+envID) {
+		t.Fatalf("code %d, output %q, error %q", code, out.String(), errOut.String())
+	}
+	out.Reset()
+	code = Submit(append(args, "--json"), &out, &errOut)
+	var value receipt
+	if code != 3 || json.Unmarshal(out.Bytes(), &value) != nil || value.ScanID != scanID || value.ReviewPath != nil || value.VersionID != nil {
+		t.Fatalf("code %d, receipt %s", code, out.String())
+	}
+}

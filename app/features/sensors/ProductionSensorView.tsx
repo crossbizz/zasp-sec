@@ -5,6 +5,7 @@ import { RadioTower, RotateCw, Trash2 } from "lucide-react";
 
 import type { Sensor, SensorCoverage, SensorEnrollment, SensorInput, SensorMode, SensorUpdateInput } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
+import { useOptionalSession } from "../../auth/SessionProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, MetricGrid, Modal, PageHeader, Select } from "../../components/ui";
 import { SectionTabs } from "../../components/section-tabs";
 import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
@@ -38,11 +39,13 @@ export function ProductionSensorSurface(props: SensorSurfaceProps) {
 function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
   const [section, setSection] = useState(linkedDevice ? "devices" : "sensors");
+  const session = useOptionalSession();
+  const scope = session?.status === "authenticated" ? [session.organizationID, session.workspaceID, session.environmentID].join("/") : undefined;
   const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
   return <SectionTabs active={section} onChange={setSection} sections={[
     { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
-    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} initialID={linkedDevice} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate}/><EndpointPolicyCohort key={"pretool"+JSON.stringify([queryScopeKey,queryGeneration])} client={client} canManage={canManagePolicy} fresh={fresh} reauthenticate={onReauthenticate}/></> },
+    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} scope={scope} initialID={linkedDevice} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><EndpointPolicyCohort key={"pretool"+JSON.stringify([queryScopeKey,queryGeneration])} client={client} canManage={canManagePolicy} fresh={fresh} reauthenticate={onReauthenticate}/></> },
   ]} />;
 }
 

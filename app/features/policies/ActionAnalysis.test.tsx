@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { APIClient } from "../../../apps/web/api/client";
 import type { AgentActionAnalysis } from "../../../apps/web/api/generated";
+import { SessionProvider } from "../../auth/SessionProvider";
 import { APIProvider } from "../../api/APIProvider";
 import { ActionAnalysis, readAnalysis } from "./ActionAnalysis";
 
@@ -97,10 +98,37 @@ it("shows bounded draft recommendations and requires a separate opt-in change", 
   const toggle = await screen.findByRole("checkbox", { name: "Enable draft intent recommendations for this agent" });
   expect(toggle).not.toBeChecked();
   expect(screen.getByRole("heading", { name: "Draft intent recommendations" })).toBeVisible();
-  expect(screen.getByText("Review the permitted destinations")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", {name:"Review the permitted destinations"}));
+  expect(screen.getByRole("checkbox", {name:"internal"})).toHaveFocus();
+  expect(screen.getByRole("button", {name:"Save analysis settings"})).toBeDisabled();
   expect(put).not.toHaveBeenCalled();
   fireEvent.click(toggle);
   fireEvent.click(screen.getByRole("button", { name: "Save analysis settings" }));
   await waitFor(() => expect(put).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({body: expect.objectContaining({classifier_opt_in: true})})));
   expect(() => readAnalysis({...data, intent_drafts: [{...data.intent_drafts[0], recommendation:"block"}]},agent)).toThrow();
+});
+
+it.each([true,false])("links an intent draft to its exact finding only when the session is readable (%s)", async canRead => {
+  const other = "pid_71000004-0000-4000-8000-000000000004";
+  const record = {...initial, intent_drafts:[decision,other].map(decision_id => ({
+    decision_id, recommendation:"review_data_access", occurred_at:"2026-01-01T01:00:00Z",
+  }))};
+  const get = vi.fn(async (path: string) => {
+    if (path === "/api/v1/session/bootstrap") return ok({
+      principal:{id:other,organization_id:agent,organization_reference:"org",member_reference:"member",role:"security_admin",active:true},
+      organization_id:agent, workspace_id:decision, environment_id:other, permissions:["view"],
+      capabilities:canRead?["sessions.read"]:["policies.read"], csrf_token:"c".repeat(32),
+      fresh_auth_expires_at:new Date(Date.now()+60000).toISOString(), correlation_id:session,
+    });
+    if (path === "/api/v1/agents/{id}/action-analysis") return ok(record);
+    throw new Error(path);
+  });
+  render(<APIProvider client={{GET:get} as unknown as APIClient}><SessionProvider><ActionAnalysis agent={agent} canManage={false} disabled={false} /></SessionProvider></APIProvider>);
+  fireEvent.click(screen.getByRole("button", {name:"Inspect workload action analysis"}));
+  expect(await screen.findByRole("heading", {name:"Draft intent recommendations"})).toBeVisible();
+  if (canRead) expect(await screen.findByRole("link", {name:"Open source session"})).toHaveAttribute("href",
+    "/investigate/sessions?entity_id="+session+"&organization_id="+agent+"&workspace_id="+decision+"&environment_id="+other);
+  else expect(screen.queryByRole("link", {name:/session/i})).toBeNull();
+  fireEvent.click(screen.getAllByRole("button", {name:"Review access to the reported data class"})[0]);
+  expect(screen.getByRole("group", {name:"Classification settings"})).toHaveFocus();
 });
