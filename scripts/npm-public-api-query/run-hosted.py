@@ -168,11 +168,15 @@ def owned_session(sid,end):
   members.append(r)
  return members
 
-def end_child(p):
+def end_child(p,normal_join_deadline=None):
  global FORCED
  end=time.monotonic()+8
  result={'scope':'exact original owned SID only; no escaped-session/global/fleet claim','sid':p.pid,'membersBefore':[],'membersAfter':None,'signals':[],'completed':False,'unknown':False,'intervened':False}
  try:
+  # A normally joined CLI may leave a helper finishing a short, independent
+  # teardown after it closes the response pipes. Observe that same session
+  # and reap exact zombies before deciding whether intervention is required.
+  settle_until=min(END,normal_join_deadline,time.monotonic()+.25) if normal_join_deadline is not None and p.returncode==0 else 0
   result['membersBefore']=owned_session(p.pid,end)
   if p.poll() is None:
    result['intervened']=True
@@ -196,8 +200,8 @@ def end_child(p):
      try:os.waitpid(row['pid'],os.WNOHANG)
      except ChildProcessError:raise RuntimeError('owned_child_reap_unknown')
     elif row['state']!='Z':
+     if not CANCELLED and time.monotonic()<settle_until:continue
      result['intervened']=True
-
      sig=signal.SIGKILL if time.monotonic()>=term_until else signal.SIGTERM
      if sig==signal.SIGKILL:FORCED=True
      owned_signal(row,sig,end);result['signals'].append({'pid':row['pid'],'startTicks':row['startTicks'],'signal':'KILL' if sig==signal.SIGKILL else 'TERM'})
@@ -245,7 +249,7 @@ def acquire(endpoint,allowance):
  env={k:os.environ[k] for k in allowed if k in os.environ};env.update(PATH='/usr/local/bin:/usr/bin:/bin',GH_PROMPT_DISABLED='1',GH_PAGER='cat')
  with out.open('xb') as f,err.open('xb') as e:
   guard();CHILD=subprocess.Popen([GH,'api','--include','--hostname','github.com',endpoint],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
-  counts={'stdout':0,'stderr':0};selector=None
+  counts={'stdout':0,'stderr':0};selector=None;normal_join_deadline=None;primary_error=None
   try:
    credential_row(CHILD.pid,min(END,time.monotonic()+2));selector=selectors.DefaultSelector()
    for pipe,name,destination in [(CHILD.stdout,'stdout',f),(CHILD.stderr,'stderr',e)]:
@@ -262,18 +266,26 @@ def acquire(endpoint,allowance):
      destination.write(chunk);counts[name]+=len(chunk)
    PHASE='join_child'
    rc=CHILD.wait(timeout=max(.01,deadline-time.monotonic()));guard()
+   if rc==0:normal_join_deadline=deadline
+  except BaseException as error:
+   primary_error=error
+   raise
   finally:
-   if selector is not None:selector.close()
-   for pipe in [CHILD.stdout,CHILD.stderr]:
-    if pipe is not None:pipe.close()
    try:
+    if selector is not None:selector.close()
+    for pipe in [CHILD.stdout,CHILD.stderr]:
+     if pipe is not None:pipe.close()
     for stream in (f,e):stream.flush();os.fsync(stream.fileno())
     directory=os.open(OUT,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
     try:os.fsync(directory)
     finally:os.close(directory)
+   except BaseException as error:
+    if primary_error is not None:raise primary_error
+    primary_error=error
+    raise
    finally:
-    p=CHILD;cleanup=end_child(p);CLEANUPS.append(cleanup);CHILD=None
-    if not cleanup['completed'] or cleanup['unknown'] or cleanup['intervened'] or FORCED:
+    p=CHILD;cleanup=end_child(p,normal_join_deadline);CLEANUPS.append(cleanup);CHILD=None
+    if primary_error is None and (not cleanup['completed'] or cleanup['unknown'] or cleanup['intervened'] or FORCED):
      PHASE='cleanup_child';raise RuntimeError('owned public query cleanup refusal')
  PHASE='parse_http'
  raw=out.read_bytes();TOTAL+=len(raw)

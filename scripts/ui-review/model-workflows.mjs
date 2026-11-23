@@ -21,7 +21,7 @@ export async function reviewModelWorkflows(page, open, capture) {
   await page.locator('[_echarts_instance_]').first().waitFor();
   await page.getByText('Confidence bins', { exact: true }).click();
   await page.getByRole('columnheader', { name: 'Observed rate' }).waitFor();
-  await capture('Calibration confidence bins', '/protect/guardrails', 'Model review');
+  await capture('Calibration confidence bins', '/protect/guardrails', 'Model review', page.getByRole('columnheader', { name: 'Observed rate' }));
 
   await open('/protect/security-agents');
   await page.getByRole('tab', { name: 'Workflow Studio' }).click();
@@ -32,8 +32,9 @@ export async function reviewModelWorkflows(page, open, capture) {
   await page.getByText(/^The reviewed session has one blocked action\.\s+Evidence:/).filter({hasText:id(200)}).waitFor();
   await page.getByLabel('Question about this session').fill('Which outcome was recorded?');
   await page.getByRole('button', { name: 'Send question' }).click();
-  await page.getByText('The recorded receipt confirms the block.', { exact: true }).waitFor();
-  await capture('Saved workflow investigation', '/protect/security-agents', 'Model review');
+  const answer = page.locator('.analyst-message').filter({ has: page.getByText('The recorded receipt confirms the block.', { exact: true }) });
+  await answer.waitFor();
+  await capture('Saved workflow investigation', '/protect/security-agents', 'Model review', answer);
 }
 
 export async function reviewQualification(page, open, capture, fixture) {
@@ -61,6 +62,6 @@ export async function reviewQualification(page, open, capture, fixture) {
     await page.getByRole('button', {name:'Run qualification'}).click();
     await page.getByText(/Qualification passed/).waitFor();
     await page.getByRole('cell', {name:'Qualified',exact:true}).waitFor();
-    await capture('Qualified model job', '/administration/ai-controls','Model review');
+    await capture('Qualified model job', '/administration/ai-controls', 'Model review', page.getByRole('cell', {name:'Qualified',exact:true}));
   } finally { await page.unroute(group); await page.unroute(controls); await page.unroute(jobs); }
 }

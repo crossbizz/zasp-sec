@@ -49,10 +49,10 @@ if paths:
         diagnostic = value.get(key)
         if isinstance(diagnostic, str) and diagnostic in allowed:
             summary[key] = diagnostic
-    if summary.get("failureCode") == "cleanup_refused":
-        cleanups = value.get("ownedSessionCleanup")
-        if isinstance(cleanups, list) and 1 <= len(cleanups) <= 256 and isinstance(cleanups[-1], dict):
-            last = cleanups[-1]
+    cleanups = value.get("ownedSessionCleanup")
+    if isinstance(cleanups, list) and 1 <= len(cleanups) <= 256 and isinstance(cleanups[-1], dict):
+        last = cleanups[-1]
+        if last.get("completed") is False or last.get("unknown") is True or last.get("intervened") is True or summary.get("failureCode") == "cleanup_refused":
             for key in ("completed", "unknown", "intervened"):
                 if type(last.get(key)) is bool:
                     summary["cleanup" + key.capitalize()] = last[key]

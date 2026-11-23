@@ -18,11 +18,11 @@
     },
     {
       "path": "scripts/npm-public-api-query/hosted-controls.py",
-      "sha256": "675a9b84cf3eb333311c2b9d21ae75fa1698bf6cedd7362794ad0075d83ab85d"
+      "sha256": "dbfb84823fd524c2238867ee4efba8c636b0136a7a67c4c8ee57484a2a327c45"
     },
     {
       "path": "scripts/npm-public-api-query/hosted_query_controls.py",
-      "sha256": "d40388db70cd25ebb8eaf06d3c9322e486b4cf9c41c569b3d18eda5c20f701df"
+      "sha256": "43d6f8381faee4c5dbfe19627829a65f89120c6fd71685622126d172e01c525d"
     },
     {
       "path": "scripts/npm-public-api-query/memory-cli.mjs",
@@ -46,11 +46,11 @@
     },
     {
       "path": "scripts/npm-public-api-query/run-hosted.py",
-      "sha256": "d9f4efa9be4d62183e5ffe6b7144c51963ea2c308e2f1d2fbd597dbeaecb6c27"
+      "sha256": "4d5d92cfc366ba9064c15ee0b5ef225b86a8c1cc12bcc41762e6affb8aa73751"
     },
     {
       "path": "scripts/npm-public-api-query/safe-summary.py",
-      "sha256": "45fdb2688e25abeab469b5bb9be1e34abe4b3776e32819cf2cb71cc41abf5b85"
+      "sha256": "fa13d2a599a9af2fc95bd224d780cc836db8430f566f65d4cfdba6efdef48428"
     },
     {
       "path": "scripts/npm-public-api-query/verify-plan.py",

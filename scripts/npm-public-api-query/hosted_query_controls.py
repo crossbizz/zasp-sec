@@ -1,5 +1,7 @@
 """Offline regression controls for hosted request evidence and process churn."""
 import contextlib
+import ctypes
+import subprocess
 import hashlib
 import io
 import json
@@ -39,6 +41,80 @@ class HostedControls(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, '^owned_session_identity_unknown$'):
                         members(40, deadline)
 
+    def test_normal_join_allows_an_exiting_helper_but_refuses_a_lingering_one(self):
+        # Observe a real fork in the query's session after its leader returns.
+        # The pipe model is the same as acquire(): descendants close both pipes.
+        libc = ctypes.CDLL(None, use_errno=True)
+        previous = ctypes.c_int()
+        self.assertEqual(libc.prctl(37, ctypes.byref(previous), 0, 0, 0), 0)
+        self.assertEqual(libc.prctl(36, 1, 0, 0, 0), 0)
+        self.addCleanup(lambda: self.assertEqual(libc.prctl(36, previous.value, 0, 0, 0), 0))
+        for linger in (False, True):
+            with self.subTest(linger=linger), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                acquire = self.runner(root)['acquire']
+                get_members = acquire.__globals__['owned_session']
+                get_credential = acquire.__globals__['credential_row']
+                helper = root / 'query'
+                helper.write_text(f'''#!{sys.executable}
+import os, time
+from pathlib import Path
+root = Path({tmp!r})
+until = time.monotonic() + 5
+while not (root/'started').exists() and time.monotonic() < until:
+    time.sleep(.005)
+if os.fork() == 0:
+    os.close(1)
+    os.close(2)
+    while not (root/'observed').exists() and time.monotonic() < until:
+        time.sleep(.005)
+    time.sleep({2 if linger else .06})
+    os._exit(0)
+os.write(1, b"HTTP/2 200 OK\\r\\ncontent-type: application/json\\r\\n\\r\\n[]")
+''')
+                helper.chmod(0o700)
+                def credentials(*args):
+                    row = get_credential(*args)
+                    (root / 'started').touch()
+                    return row
+                def members(*args):
+                    rows = get_members(*args)
+                    if rows:
+                        (root / 'observed').touch()
+                    return rows
+                cleanups = []
+                with patch.dict(acquire.__globals__, guard=lambda: None, GH=str(helper),
+                                owned_session=members, credential_row=credentials, CLEANUPS=cleanups):
+                    if linger:
+                        with self.assertRaisesRegex(RuntimeError, 'owned public query cleanup refusal'):
+                            acquire('/advisories?type=reviewed', 65536)
+                    else:
+                        self.assertEqual(acquire('/advisories?type=reviewed', 65536)[0], 200)
+                self.assertTrue(cleanups[0]['membersBefore'])
+                self.assertEqual(cleanups[0]['membersAfter'], [])
+                self.assertTrue(cleanups[0]['completed'])
+                self.assertFalse(cleanups[0]['unknown'])
+                self.assertEqual(cleanups[0]['intervened'], linger)
+                self.assertEqual(bool(cleanups[0]['signals']), linger)
+
+    def test_request_refusal_survives_required_child_cleanup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            acquire = self.runner(Path(tmp))['acquire']
+            def guarded():
+                if acquire.__globals__['PHASE'] == 'read_response':
+                    raise RuntimeError('memory floor')
+            def sleeper(*_args, **kwargs):
+                return original_popen([sys.executable, '-c', 'import time; time.sleep(5)'], **kwargs)
+            original_popen = subprocess.Popen
+            cleanups = []
+            with patch.dict(acquire.__globals__, guard=guarded, CLEANUPS=cleanups), \
+                 patch.object(subprocess, 'Popen', side_effect=sleeper):
+                with self.assertRaisesRegex(RuntimeError, '^memory floor$'):
+                    acquire('/advisories?type=reviewed', 65536)
+                self.assertEqual(acquire.__globals__['PHASE'], 'read_response')
+            self.assertTrue(cleanups[0]['intervened'])
+            self.assertTrue(cleanups[0]['completed'])
+
     @staticmethod
     def raise_error(err):
         raise err
@@ -58,7 +134,7 @@ class HostedControls(unittest.TestCase):
             evidence = root / 'result.json'
             value = dict(format='root-owned-official-public-lock-query-observation-v1',
                          releaseAccepted=False, requests=[], failureClass='RuntimeError',
-                         failureCode='cleanup_refused', failurePhase='cleanup_child',
+                         failureCode='memory_floor', failurePhase='read_response',
                          ownedSessionCleanup=[dict(unknown=True, reason='untrusted diagnostic')])
             evidence.write_text(json.dumps(value))
             capture = io.StringIO()
@@ -74,5 +150,6 @@ class HostedControls(unittest.TestCase):
             self.assertFalse(emitted['complete'])
             self.assertFalse(emitted['releaseAccepted'])
             self.assertTrue(emitted['cleanupUnknown'])
-            self.assertEqual(emitted['failurePhase'], 'cleanup_child')
+            self.assertEqual(emitted['failureCode'], 'memory_floor')
+            self.assertEqual(emitted['failurePhase'], 'read_response')
             self.assertNotIn('untrusted diagnostic', capture.getvalue())

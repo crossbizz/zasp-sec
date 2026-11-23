@@ -72,7 +72,8 @@ describe("Google Cloud connector", () => {
 		await user.clear(within(dialog).getByLabelText("Integration name"));
 		await user.type(within(dialog).getByLabelText("Integration name"), "Acme Google Cloud");
 		await user.type(within(dialog).getByLabelText(/^Organization, folder or project/), "organizations/123456789012");
-		await user.type(within(dialog).getByLabelText(/^Service account/), keyReference);
+		await user.click(within(dialog).getByLabelText(/^Service account/));
+		await user.paste(keyReference);
 		expect(within(dialog).getByRole("button", { name: "Save integration" })).toBeEnabled();
 		await user.click(within(dialog).getByRole("button", { name: "Save integration" }));
 
@@ -96,8 +97,10 @@ describe("Google Cloud connector", () => {
 		await user.clear(within(dialog).getByLabelText("Integration name"));
 		await user.type(within(dialog).getByLabelText("Integration name"), "Acme Google Cloud");
 		await user.type(within(dialog).getByLabelText(/^Organization, folder or project/), "folders/42");
-		await user.type(within(dialog).getByLabelText(/^Service account/), federation);
-		await user.type(within(dialog).getByLabelText(/^Workload identity provider/), audience);
+		await user.click(within(dialog).getByLabelText(/^Service account/));
+		await user.paste(federation);
+		await user.click(within(dialog).getByLabelText(/^Workload identity provider/));
+		await user.paste(audience);
 		await user.click(within(dialog).getByRole("button", { name: "Save integration" }));
 
 		await screen.findByRole("dialog", { name: "Acme Google Cloud" });

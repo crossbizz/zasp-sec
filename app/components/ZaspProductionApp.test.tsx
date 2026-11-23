@@ -361,6 +361,24 @@ describe("production audit identity wiring", () => {
   beforeEach(() => window.history.replaceState({}, "", "/administration/audit-log"));
   afterEach(() => vi.unstubAllGlobals());
 
+  it("rejects another principal's retained export link on a new visit", async () => {
+    const query = new URLSearchParams({ export_request: principal.slice(4), principal_id: otherPrincipal,
+      organization_id: organization, workspace_id: workspace, environment_id: environment });
+    window.history.replaceState({}, "", `/administration/audit-log?${query}`);
+    const requested: string[] = [];
+    vi.stubGlobal("fetch", async (request: Request) => {
+      const path = new URL(request.url).pathname;
+      requested.push(path);
+      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), capabilities: ["audit.read", "audit.exports"] });
+      if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
+      throw Error(`Unexpected request ${path}`);
+    });
+    render(<ZaspProductionApp />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("This activity link belongs");
+    expect(window.location.search).toBe(`?${query}`);
+    expect(requested.some(path => path.startsWith("/api/v1/audit-"))).toBe(false);
+  });
+
   it.each(["fresh", "stale", "revoked", "other-principal"])("rebootstraps generic export forbidden and uses the resulting %s authority", async outcome => {
     sessionStorage.clear(); let bootstraps = 0; const posts: Request[] = [];
     let release!: (response: Response) => void; const rebootstrap = new Promise<Response>(resolve => { release = resolve; });
@@ -383,6 +401,7 @@ describe("production audit identity wiring", () => {
       const retry = await screen.findByRole("button", { name: outcome === "other-principal" ? "Create export" : "Retry create export" });
       if (outcome === "stale") { expect(retry).toBeDisabled(); expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled(); }
       else expect(retry).toBeEnabled();
+      if (outcome === "other-principal") expect(window.location.search).toBe("");
     }
     expect(posts).toHaveLength(1); expect(await posts[0].json()).toEqual({});
     expect(posts[0].headers.get("X-CSRF-Token")).toBe("c".repeat(32)); view.unmount();

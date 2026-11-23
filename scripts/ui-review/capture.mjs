@@ -45,7 +45,7 @@ async function open(route) {
   await context.addCookies([{ name: 'zasp.theme', value: theme, url: origin }]);
   const response = await page.goto(origin + route, { waitUntil: 'networkidle' });
   assert(response?.ok(), `Route ${route} returned HTTP ${response?.status()}`);
-  await page.locator('h1').first().waitFor();
+  await page.getByRole('heading', { level: 1 }).first().waitFor();
   if (routes.some(item => item.route === route)) await page.waitForSelector('.app-shell');
   await page.evaluate(() => document.fonts.ready);
 }

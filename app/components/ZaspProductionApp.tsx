@@ -14,6 +14,7 @@ import { SessionProvider, useSession, type SessionContextValue } from "../auth/S
 import { AIControlsView } from "../features/administration/AIControlsView";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
 import { AuditExportSaveNotice } from "../features/administration/AuditExportPanel";
+import { parseAuditExportLink, type AuditExportIdentity } from "../features/administration/audit-export-resume";
 import { ProductionAgentSecurityView } from "../features/agents/ProductionAgentSecurityView";
 import { ProductionGuardrailsView } from "../features/guardrails/ProductionGuardrailsView";
 import { APIAccessView } from "../features/identity/APIAccessView";
@@ -191,6 +192,7 @@ function ProductionAppContent() {
   const { client } = useAPI();
   const [location, setLocation] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? `${candidate}${typeof window === "undefined" ? "" : window.location.search + window.location.hash}` : "/"; });
   const path = location.split(/[?#]/, 1)[0];
+  const lastAuthenticatedIdentity = useRef<AuditExportIdentity | null>(null);
   const routes = useMemo(() => session.status === "authenticated"
     ? productionRoutes.filter(route => hasProductionCapability(session, route.capability)) : [], [session]);
   useEffect(() => {
@@ -198,8 +200,17 @@ function ProductionAppContent() {
       const { pathname, search, hash } = window.location;
       // Preserve a recognized sign-in return URL until the session tells us which routes are available.
       const allowed = (session.status === "authenticated" ? routes : productionRoutes).some(route => route.path === pathname);
-      const canonical = allowed ? pathname + search + hash : (routes[0]?.path ?? "/");
-      if (canonical !== pathname + search + hash) window.history.replaceState({}, "", canonical);
+      const current = pathname + search + hash;
+      let canonical = allowed ? current : (routes[0]?.path ?? "/");
+      if (session.status === "authenticated") {
+        const previous = lastAuthenticatedIdentity.current;
+        const identity = { principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID };
+        // A retained export from this tab must not follow its former owner into a new session.
+        if (allowed && previous && parseAuditExportLink(current, previous).state === "selected" &&
+            parseAuditExportLink(current, identity).state === "scope_mismatch") canonical = pathname;
+        lastAuthenticatedIdentity.current = identity;
+      }
+      if (canonical !== current) window.history.replaceState({}, "", canonical);
       setLocation(canonical);
     };
     let mounted = true;
@@ -207,7 +218,7 @@ function ProductionAppContent() {
     const onPopState = () => { setMobileOpen(false); syncLocation(); };
     window.addEventListener("popstate", onPopState);
     return () => { mounted = false; window.removeEventListener("popstate", onPopState); };
-  }, [routes, session.status]);
+  }, [routes, session]);
   // Right after sign-in or a role change the authorization projection can lag
   // for a few seconds. Reload the session a bounded number of times instead of
   // leaving the person on a manual retry screen.
