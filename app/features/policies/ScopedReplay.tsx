@@ -54,14 +54,17 @@ export function ScopedReplay({ policy, version, disabled, sessionScope, runRepla
   }
   const replay = page?.result.replay;
   const continuation = replay?.next_window_to && replay.next_before_event_id ? { to: replay.next_window_to, before_event_id: replay.next_before_event_id } : undefined;
-  return <fieldset disabled={disabled || busy}><legend>Replay a policy revision</legend>
+  return <fieldset className="policy-section" disabled={disabled || busy}><legend>Replay a policy revision</legend>
+    <div className="policy-stack">
     <Field label="Replay agent ID" value={agent} onChange={event => { reset(); setAgent(event.target.value); }} />
+    <div className="policy-fields">
     <Field type="datetime-local" label="Replay from (UTC)" value={from} onChange={event => { reset(); setFrom(event.target.value); }} />
     <Field type="datetime-local" label="Replay to (UTC, exclusive)" value={to} onChange={event => { reset(); setTo(event.target.value); }} />
+    </div>
     <Button onClick={() => void submit()} disabled={!agent || !from || !to}>Replay revision {version.replaceAll('"', '')}</Button>
     {busy && <p role="status">Replaying scoped runtime history…</p>}
     {error && <p role="alert">{error}</p>}
-    {replay && page && <div role="status">
+    {replay && page && <div className="policy-result" role="status">
       <p><strong>Page {page.number}.</strong> {page.result.matches} matched and {page.result.would_block} would block across {replay.evaluated} indexed actions.</p>
       <p>Coverage includes indexed {policy.trigger} events attributed to this agent during the selected interval. Unreported activity and adapter availability are unknown.</p>
       {replay.evaluated === 0 && <p>Insufficient activity on this page.</p>}
@@ -71,5 +74,6 @@ export function ScopedReplay({ policy, version, disabled, sessionScope, runRepla
         "Narrow the window to review older activity."}</p>}
       <PolicyExampleSessions ids={page.result.example_session_ids} scope={sessionScope} />
     </div>}
+    </div>
   </fieldset>;
 }

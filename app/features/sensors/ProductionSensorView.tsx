@@ -12,6 +12,7 @@ import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import { TicketCohort } from "./TicketCohort";
 import { EndpointPolicyCohort } from "./EndpointPolicyCohort";
 import { DeviceFleet } from "./DeviceFleet";
+import "../managed-device-layout.css";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
 
@@ -43,10 +44,35 @@ function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenti
   const scope = session?.status === "authenticated" ? [session.organizationID, session.workspaceID, session.environmentID].join("/") : undefined;
   const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
-  return <SectionTabs active={section} onChange={setSection} sections={[
-    { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
-    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} scope={scope} initialID={linkedDevice} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><EndpointPolicyCohort key={"pretool"+JSON.stringify([queryScopeKey,queryGeneration])} client={client} canManage={canManagePolicy} fresh={fresh} reauthenticate={onReauthenticate}/></> },
-  ]} />;
+  const scopeKey = JSON.stringify([queryScopeKey, queryGeneration]);
+  return (
+    <SectionTabs
+      active={section}
+      onChange={setSection}
+      sections={[
+        {
+          id: "sensors",
+          label: "Sensors",
+          content: <ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} />,
+        },
+        {
+          id: "devices",
+          label: "Devices",
+          content: section === "devices" && (
+            <div className="managed-device-space">
+              <PageHeader title="Managed devices" />
+              <DeviceFleet key={scopeKey} api={fleet} scope={scope} initialID={linkedDevice}
+                canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate} />
+              <TicketCohort key={"cohort" + scopeKey} canWrite={canManagePolicy} fresh={fresh}
+                onReauthenticate={onReauthenticate} />
+              <EndpointPolicyCohort key={"pretool" + scopeKey} client={client} canManage={canManagePolicy}
+                fresh={fresh} reauthenticate={onReauthenticate} />
+            </div>
+          ),
+        },
+      ]}
+    />
+  );
 }
 
 export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }: { api: SensorsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {

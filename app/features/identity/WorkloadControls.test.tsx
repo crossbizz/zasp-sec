@@ -55,19 +55,20 @@ it("reports a pending approval, then shows adapter readback and explicit release
   render(<WorkloadControls tokens={tokens} client={client as unknown as APIClient} canContain fresh />);
   fireEvent.change(screen.getByRole("combobox"), { target: { value: token } });
   await screen.findByText(session);
+  expect(screen.getByLabelText("Credential binding")).toHaveTextContent(agent);
   fireEvent.change(screen.getByLabelText("Security Agent run ID"), { target: { value: run } });
   fireEvent.change(screen.getByLabelText("Approved isolation step ID"), { target: { value: step } });
   fireEvent.click(screen.getByRole("button", { name: "Apply approved isolation" }));
-  await screen.findByText(/State pending readback/);
+  await screen.findByText("pending readback");
   expect(client.PUT).toHaveBeenCalledWith(
     expect.anything(),
     expect.objectContaining({ body: { step_id: step }, params: { path: { id: token, runId: run }, header: { "X-CSRF-Token": "" } } }),
   );
   fireEvent.click(screen.getByRole("button", { name: "Check containment" }));
-  await screen.findByText(/State adapter confirmed/);
+  await screen.findByText("adapter confirmed");
   fireEvent.click(screen.getByRole("button", { name: "Release this run’s isolation" }));
-  await screen.findByText(/State released/);
-  expect(screen.getByText(new RegExp(release))).toBeTruthy();
+  await screen.findByText("released");
+  expect(screen.getByLabelText("Containment readback")).toHaveTextContent(release);
 });
 it("rejects a valid-looking receipt for a different credential, run, or session", () => {
   expect(() => decodeBinding(binding, id(10))).toThrow();

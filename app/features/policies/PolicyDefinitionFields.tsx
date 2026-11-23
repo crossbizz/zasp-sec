@@ -34,7 +34,9 @@ export function PolicyDefinitionFields({ value, onChange, disabled, label, templ
     }
   }
 
-  return <fieldset disabled={disabled}><legend>{label} match and action</legend>
+  return <fieldset className="policy-section" disabled={disabled}><legend>{label} match and action</legend>
+    <div className="policy-stack">
+    <div className="policy-fields">
     {templates && <Select label="Fill conditions from a provider template" value="" onChange={event => selectTemplate(event.target.value)}>
       <option value="">Choose a template</option>
       <option value="prompt">Claude Enterprise · prompt</option><option value="tool">Claude Enterprise · any tool frame</option>
@@ -43,8 +45,10 @@ export function PolicyDefinitionFields({ value, onChange, disabled, label, templ
     <Select label={label + " trigger"} value={value.trigger} onChange={event => change({ trigger: event.target.value })}>
       {triggers.map(trigger => <option key={trigger}>{trigger}</option>)}
     </Select>
+    </div>
+    <div className="policy-conditions">
     <p>All conditions must match.</p>
-    {value.conditions.map((condition, index) => <div className="form-grid" key={index}>
+    {value.conditions.map((condition, index) => <div className="policy-condition" key={index}>
       <Select label={`${label} condition ${index + 1} field`} value={condition.field} onChange={event => setCondition(index, { field: event.target.value })}>
         {fields.map(field => <option key={field}>{field}</option>)}
       </Select>
@@ -53,11 +57,15 @@ export function PolicyDefinitionFields({ value, onChange, disabled, label, templ
       {value.conditions.length > 1 && <Button aria-label={`Remove ${label.toLowerCase()} condition ${index + 1}`} onClick={() => change({ conditions: value.conditions.filter((_, i) => i !== index) })}>Remove condition</Button>}
     </div>)}
     <Button disabled={value.conditions.length >= 32} onClick={() => change({ conditions: [...value.conditions, { field: "resource", operator: "equals", value: "" }] })}>Add {label.toLowerCase()} condition</Button>
+    </div>
+    <div className="policy-fields">
     <Select label={label + " action"} value={value.action} onChange={event => change({ action: event.target.value as Policy["action"] })}>
       <option value="monitor">Monitor match</option><option value="block">Block when enforced</option>
     </Select>
     <Select label={label + " failure mode"} value={value.failure_mode} onChange={event => change({ failure_mode: event.target.value as Policy["failure_mode"] })}>
       <option value="open">Open</option><option value="closed">Closed</option>
     </Select>
+    </div>
+    </div>
   </fieldset>;
 }

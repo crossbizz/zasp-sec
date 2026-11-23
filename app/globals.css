@@ -869,10 +869,12 @@ a { color: var(--blue-text); }
 .cell-copy { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .connector-card__head > div { min-width: 0; }
 .connector-card__head h4 { overflow-wrap: anywhere; }
-.skip-link { position: fixed; top: -80px; left: 20px; z-index: 1000; padding: 8px 16px; color: var(--primary-fg); background: var(--blue); border-radius: var(--radius-control); }
-.skip-link:focus { top: 8px; }
+.skip-link { position: fixed; top: 8px; left: 20px; z-index: 1000; padding: 8px 16px; color: var(--primary-fg); background: var(--blue); border-radius: var(--radius-control); }
+.skip-link:not(:focus) { clip-path: inset(50%); pointer-events: none; }
 @media (max-width: 1024px) { .shell-context { display: none; } }
 @media (max-width: 760px) {
+  /* The signed-in console renders mobile navigation in its own drawer. */
+  .production-app > .sidebar { display: none; }
   .theme-control { top: 12px; right: 12px; width: 40px; height: 40px; }
   .topbar > .button { margin-left: auto; }
   .topbar .global-search { min-width: 0; flex-basis: calc(100% + 52px); margin-right: -52px; }

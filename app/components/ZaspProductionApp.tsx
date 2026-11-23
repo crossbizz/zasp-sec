@@ -159,6 +159,7 @@ function ProductionSignOutControl() {
 
 function ProductionAppContent() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mainContent = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!window.matchMedia) return;
     const desktop = window.matchMedia("(min-width: 761px)");
@@ -216,7 +217,11 @@ function ProductionAppContent() {
   </div>)}</nav>;
   return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}>
     <div className="app-shell production-app">
-      <a className="skip-link" href="#main-content">Skip to content</a>
+      <a className="skip-link" href="#main-content" onClick={event => {
+        event.preventDefault();
+        mainContent.current?.focus({ preventScroll: true });
+        window.scrollTo({ top: 0 });
+      }}>Skip to content</a>
       <header className="topbar">
         <button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><Menu aria-hidden="true" /></button>
         <button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview"><BrandLogo /></button>
@@ -226,7 +231,7 @@ function ProductionAppContent() {
       </header>
       <aside className="sidebar"><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</aside>
       <Drawer open={mobileOpen} title="Navigation" onClose={() => setMobileOpen(false)} width="medium"><div className="mobile-navigation"><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</div></Drawer>
-      <main className="main-content" id="main-content" tabIndex={-1}>{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
+      <main ref={mainContent} className="main-content" id="main-content" tabIndex={-1}>{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
     </div>
   </ProductionWorkflowMutationProvider>;
 }

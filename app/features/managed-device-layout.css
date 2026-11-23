@@ -1,0 +1,73 @@
+.managed-device-space {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.managed-device-space > .page-header { min-height: 0; margin: 0; }
+.managed-device-space > .card { margin: 0; }
+.managed-device-space fieldset { min-inline-size: 0; }
+.managed-device-space fieldset > .field + .field,
+.managed-device-space fieldset > .field + .button,
+.managed-device-enroll > .field + .field,
+.managed-device-enroll > .field + .button { margin-block-start: 12px; }
+.managed-device-space legend { font-weight: 600; }
+.managed-device-space legend + .field { margin-block-start: 8px; }
+.managed-device-list { container-type: inline-size; }
+.managed-device-table { table-layout: fixed; white-space: normal; }
+.managed-device-table th:first-child { width: 37%; }
+.managed-device-table th:nth-child(2) { width: 23%; }
+.managed-device-table th:nth-child(3) { width: 15%; }
+.managed-device-table td, .managed-device-table .button { overflow-wrap: anywhere; }
+.managed-device-table .button {
+  display: inline-block;
+  max-width: 100%;
+  text-align: start;
+  white-space: normal;
+}
+.device-cell-label { display: none; }
+
+.managed-device-facts {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: baseline;
+}
+.managed-device-facts dt, .device-cell-label {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.managed-device-facts dd { margin: 0; overflow-wrap: anywhere; }
+.managed-device-detail > section { padding-block: 12px; border-top: 1px solid var(--border); }
+.managed-device-detail > section h3 { margin: 0 0 8px; font-size: 16px; }
+.managed-device-detail details { min-width: 0; padding-block: 8px; overflow-wrap: anywhere; }
+.managed-device-detail details + details { border-top: 1px solid var(--border); }
+.managed-device-detail summary { cursor: pointer; }
+.managed-device-detail code { overflow-wrap: anywhere; }
+.managed-device-action-review { min-width: 0; display: grid; gap: 14px; }
+.managed-device-detail .managed-device-action-review > :is(h3, p) { margin: 0; }
+.managed-device-action-review .field { min-width: 0; max-width: 46rem; }
+.managed-device-action-review .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.managed-device-detail .page-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@container (max-width: 40rem) {
+  .managed-device-table { display: block; }
+  .managed-device-table thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+  }
+  .managed-device-table tbody { display: block; }
+  .managed-device-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .managed-device-table td { display: block; height: auto; padding: 0; border: 0; }
+  .managed-device-table td:first-child, .managed-device-table td:last-child { grid-column: 1 / -1; }
+  .managed-device-table .device-cell-label { display: block; margin-bottom: 3px; }
+}
+@media (max-width: 600px) {
+  .managed-device-facts { grid-template-columns: minmax(0, 40%) minmax(0, 1fr); gap: 10px 12px; }
+}

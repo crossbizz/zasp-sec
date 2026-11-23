@@ -1,0 +1,41 @@
+.api-grants-empty { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.workload-controls { container-type: inline-size; }
+.workload-body, .workload-binding {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.workload-body { padding-block: 2px; }
+.workload-body > .field { width: 100%; max-width: 46rem; }
+.workload-body .select-wrap, .workload-body select { min-width: 0; max-width: 100%; }
+.workload-binding > .button, .workload-containment > .button { justify-self: start; }
+.workload-binding p, .workload-containment p { margin: 0; }
+.workload-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 0;
+}
+.workload-facts dt { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.workload-facts dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.workload-facts code { font-size: 0.875em; }
+.workload-containment {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 12px 0 0;
+  border: 0;
+}
+.workload-containment legend { padding: 0; font-weight: 600; }
+.workload-form-row {
+  display: grid;
+  max-width: 46rem;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, auto);
+  align-items: end;
+  gap: 8px 12px;
+}
+@container (max-width: 36rem) {
+  .workload-facts, .workload-form-row { grid-template-columns: minmax(0, 1fr); }
+  .workload-form-row > .button { justify-self: start; }
+}

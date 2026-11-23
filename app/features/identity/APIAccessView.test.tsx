@@ -75,6 +75,8 @@ describe("API Access product surface", () => {
     renderAuthenticated(fixtureAPI({ createToken, revokeToken, acknowledgeGrant }));
 
     expect(await screen.findByText("CI scanner")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pending reveal grants" })).toBeVisible();
+    expect(screen.getByText(/^No pending credentials/)).toBeVisible();
     await user.type(screen.getByLabelText("Token name"), "Automation");
     expect(screen.queryByLabelText("Workspace ID")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Environment ID")).not.toBeInTheDocument();
