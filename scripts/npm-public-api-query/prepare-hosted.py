@@ -34,7 +34,7 @@ def main():
   if d['sha256']!=row['sha256']:raise ValueError('source manifest mismatch')
   inputs.append(d)
  inputs.append(descriptor(source_manifest));lock=ROOT/'package-lock.json';d=descriptor(lock)
- if d['sha256']!='0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c':raise ValueError('issued public lock mismatch')
+ if d['sha256']!='4cfe99433e36b67716d6dc1528b69c8135799b4721b5537fbcfdf5d16053411a':raise ValueError('issued public lock mismatch')
  inputs.append(d)
  node=Path(shutil.which('node')).resolve(strict=True);gh=Path(shutil.which('gh')).resolve(strict=True)
  tools=[descriptor(p) for p in [node,gh,Path(sys.executable),Path(shutil.which('timeout')),Path(shutil.which('env'))]]

@@ -24,8 +24,10 @@ export function decodeRuntimeSession(value: unknown): RuntimeSession {
 }
 
 export function decodeRuntimeSessionEvent(value: unknown): RuntimeSessionEvent {
+  const hasOutcome = value !== null && typeof value === "object" && Object.hasOwn(value, "outcome");
   const hasSandbox = value !== null && typeof value === "object" && (Object.hasOwn(value, "sandbox_id") || Object.hasOwn(value, "sandbox_source_sensor_id"));
-  const record = exact(value, ["id", "session_id", "agent_id", "class", "action", "label", "evidence_id", "source", "confidence", "at", "projected_at", ...(hasSandbox ? ["sandbox_id", "sandbox_source_sensor_id"] : [])]);
+  const record = exact(value, ["id", "session_id", "agent_id", "class", "action", "label", "evidence_id", "source", "confidence", "at", "projected_at", ...(hasOutcome ? ["outcome"] : []), ...(hasSandbox ? ["sandbox_id", "sandbox_source_sensor_id"] : [])]);
+  if (hasOutcome && !["prevented", "completed", "outcome_unknown"].includes(String(record.outcome))) bad();
   id(record.id); id(record.evidence_id); nullableID(record.session_id); nullableID(record.agent_id);
   text(record.label, 256);
   if ([...record.label as string].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) bad();

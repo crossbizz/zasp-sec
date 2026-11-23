@@ -53,21 +53,24 @@ type GuardrailMatchedRule struct {
 // GuardrailDecision is the answer to one interaction. RedactedText is
 // present only when Decision is redact.
 type GuardrailDecision struct {
-	DecisionID    string                 `json:"decision_id"`
-	Decision      string                 `json:"decision"`
-	RedactedText  *string                `json:"redacted_text,omitempty"`
-	MatchedRules  []GuardrailMatchedRule `json:"matched_rules"`
-	PolicyVersion int64                  `json:"policy_version"`
+	SemanticState    string                 `json:"semantic_state,omitempty"`
+	CoverageDegraded bool                   `json:"coverage_degraded,omitempty"`
+	DecisionID       string                 `json:"decision_id"`
+	Decision         string                 `json:"decision"`
+	RedactedText     *string                `json:"redacted_text,omitempty"`
+	MatchedRules     []GuardrailMatchedRule `json:"matched_rules"`
+	PolicyVersion    int64                  `json:"policy_version"`
 }
 
 // GuardrailPolicyRule is one rule of the catalog with the Environment's mode.
 type GuardrailPolicyRule struct {
-	ID          string `json:"id"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	Mode        string `json:"mode"`
-	DefaultMode string `json:"default_mode"`
-	Redactable  bool   `json:"redactable"`
+	Class       guardrail.RuleClass `json:"rule_class"`
+	ID          string              `json:"id"`
+	Category    string              `json:"category"`
+	Description string              `json:"description"`
+	Mode        string              `json:"mode"`
+	DefaultMode string              `json:"default_mode"`
+	Redactable  bool                `json:"redactable"`
 }
 
 // GuardrailPolicy is the guardrail policy of an Environment: every rule of
@@ -80,6 +83,7 @@ type GuardrailPolicy struct {
 }
 
 type guardrailHTTPHandler struct {
+	profiles     guardrailProfiles
 	database     JSONDatabase
 	newProductID func() (string, error)
 }
@@ -104,10 +108,11 @@ func (handler *guardrailHTTPHandler) ServeHTTP(writer http.ResponseWriter, reque
 }
 
 type guardrailDecisionInput struct {
-	Direction string  `json:"direction"`
-	Text      *string `json:"text"`
-	AgentID   *string `json:"agent_id"`
-	ToolName  *string `json:"tool_name"`
+	ContentMode string  `json:"content_mode,omitempty"`
+	Direction   string  `json:"direction"`
+	Text        *string `json:"text"`
+	AgentID     *string `json:"agent_id"`
+	ToolName    *string `json:"tool_name"`
 }
 
 type guardrailMatchedInput struct {
@@ -148,7 +153,7 @@ func (handler *guardrailHTTPHandler) decide(writer http.ResponseWriter, request 
 	var input guardrailDecisionInput
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF || input.Text == nil || !stringIn(input.Direction, string(guardrail.DirectionInput), string(guardrail.DirectionOutput)) ||
+	if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF || input.Text == nil || !stringIn(input.ContentMode, "", "approved_code_snippet") || !stringIn(input.Direction, string(guardrail.DirectionInput), string(guardrail.DirectionOutput)) ||
 		input.AgentID != nil && !guardrailIdentifierPattern.MatchString(*input.AgentID) || input.ToolName != nil && !guardrailIdentifierPattern.MatchString(*input.ToolName) || !utf8.ValidString(*input.Text) {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
@@ -201,6 +206,7 @@ func (handler *guardrailHTTPHandler) decide(writer http.ResponseWriter, request 
 	if result.Decision == guardrail.DecisionRedact {
 		result.RedactedText = &local.RedactedText
 	}
+	handler.evaluateSnippet(request.Context(), identity, input, &result)
 	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
 
@@ -262,7 +268,7 @@ func decodeGuardrailPolicy(raw json.RawMessage, environmentID string, extra ...s
 			mode = guardrail.Mode(stored)
 			delete(wire.Rules, rule.ID)
 		}
-		policy.Rules = append(policy.Rules, GuardrailPolicyRule{ID: rule.ID, Category: rule.Category, Description: rule.Description, Mode: string(mode), DefaultMode: string(rule.DefaultMode), Redactable: rule.Redactable})
+		policy.Rules = append(policy.Rules, GuardrailPolicyRule{ID: rule.ID, Class: rule.Class, Category: rule.Category, Description: rule.Description, Mode: string(mode), DefaultMode: string(rule.DefaultMode), Redactable: rule.Redactable})
 	}
 	// A stored rule the catalog does not have is not served.
 	if len(wire.Rules) != 0 {

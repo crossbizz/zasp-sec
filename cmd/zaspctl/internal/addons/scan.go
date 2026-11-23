@@ -59,6 +59,7 @@ type Skip struct {
 	Reason string `json:"reason"`
 }
 type Finding struct {
+	RuleClass         string                    `json:"rule_class,omitempty"`
 	FileSHA256        string                    `json:"file_sha256,omitempty"`
 	FrameworkEvidence []addonevidence.Reference `json:"framework_evidence,omitempty"`
 	RuleID            string                    `json:"rule_id"`

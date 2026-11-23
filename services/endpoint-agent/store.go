@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
 	"math"
 	"os"
 	"path/filepath"
@@ -137,6 +138,7 @@ func (s *store) commit(next diskState) error {
 }
 
 type broker struct {
+	delegation       *delegation.Verifier
 	adapter, home    string
 	syncRequested    chan struct{}
 	inventoryEnabled bool

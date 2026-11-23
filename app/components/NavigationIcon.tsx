@@ -1,4 +1,4 @@
-import { LayoutDashboard, Boxes, Wrench, KeyRound, Container, TriangleAlert, Route, FileCheck2, ScanSearch, FlaskConical, FileSliders, ShieldCheck, BadgeCheck, Search, ScrollText, PlugZap, RadioTower, UsersRound, Braces, Database, DatabaseBackup, Network, HeartPulse, Shield } from "lucide-react";
+import { Cpu, LayoutDashboard, Boxes, Wrench, KeyRound, Container, TriangleAlert, Route, FileCheck2, ScanSearch, FlaskConical, FileSliders, ShieldCheck, BadgeCheck, Search, ScrollText, PlugZap, RadioTower, UsersRound, Braces, Database, DatabaseBackup, Network, HeartPulse, Shield } from "lucide-react";
 
 const icons = {
   "/": LayoutDashboard, "/discovery/assets": Boxes, "/inventory/tools": Wrench,
@@ -10,7 +10,7 @@ const icons = {
   "/investigate/sessions": Search, "/administration/audit-log": ScrollText,
   "/connectors": PlugZap, "/integrations/sensors": RadioTower,
   "/administration/identity-access": UsersRound, "/administration/api-access": Braces,
-  "/administration/data-retention": Database, "/administration/recovery": DatabaseBackup,
+  "/administration/data-retention": Database, "/administration/ai-controls": Cpu, "/administration/recovery": DatabaseBackup,
   "/administration/external-data-flows": Network, "/administration/system-health": HeartPulse,
 };
 

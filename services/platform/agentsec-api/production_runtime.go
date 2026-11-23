@@ -21,6 +21,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation/issuer"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
@@ -558,6 +559,13 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		lifecycleWorkers = append(lifecycleWorkers, approvalNotificationReconciler.Run)
 	}
 	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
+	if config.DelegationAuthorityFile != "" {
+		authority, loadErr := issuer.Load(config.DelegationAuthorityFile)
+		if loadErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("task-delegation", errRuntimeUnavailable)
+		}
+		cookie.Delegation = authority
+	}
 	cookie.SecurityAgentOrderedHTTPEnabled = config.SecurityAgentOrderedHTTPEnabled
 	if config.HostedGatewayEnabled {
 		// The traffic routes of the hosted gateway. Its outbound requests go

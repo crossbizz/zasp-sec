@@ -1,3 +1,5 @@
+import { reviewAPI } from "./inventory-review";
+import { deploymentAPI, type DeploymentAPI } from "./addon-deployments";
 import { decodeAddonInstallationPage } from "./addon-installations";
 import { APITransportError, requireAPIData, type APIClient } from "./client";
 
@@ -144,9 +146,11 @@ export function decodeAddonVersion(
     revision: row.revision,
   };
 }
-export type AddonReviewAPI = ReturnType<typeof createAddonReviewAPI>;
+export type AddonReviewAPI = Omit<ReturnType<typeof createAddonReviewAPI>, "deployments" | "reviewEvidence"> & { deployments?: DeploymentAPI;reviewEvidence?: ReturnType<typeof reviewAPI> };
 export function createAddonReviewAPI(client: APIClient) {
   return {
+    deployments: deploymentAPI(client),
+    reviewEvidence:reviewAPI(client),
     async scan(id: string, signal?: AbortSignal) {
       return requireAPIData(
         await client.GET("/api/v1/addon-scans/{id}", {params: {path: {id}}, signal}),

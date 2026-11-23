@@ -45,6 +45,8 @@ var TokenPermissionOperations = map[string]string{
 	"createGuardrailDecision":      "view",
 	"attestAddonScan":              "view",
 	"submitAddonScan":              "view",
+	"issueRuntimeDelegation":       "view", // issue a task-scoped grant
+	"verifyRuntimeDelegation":      "view", // verify a task-scoped grant
 	"callMCPGateway":               "view",
 	"closeMCPGatewaySession":       "view",
 	"createGatewayChatCompletion":  "view",

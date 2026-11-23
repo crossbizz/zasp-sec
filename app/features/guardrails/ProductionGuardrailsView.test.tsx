@@ -16,7 +16,7 @@ function policy(version: number, modes: Partial<Record<string, GuardrailMode>> =
     environment_id: environmentID, version, updated_at: version === 0 ? null : "2026-11-14T10:00:00.000000Z",
     rules: GUARDRAIL_RULE_IDS.map((id) => {
       const injection = id.startsWith("injection."), defaultMode: GuardrailMode = injection ? "block" : "redact";
-      return { id, category: injection ? "prompt_injection" as const : "sensitive_data" as const, description: `Matches ${id}`, mode: modes[id] ?? defaultMode, default_mode: defaultMode, redactable: !injection };
+      return { id, rule_class: injection ? "heuristic" as const : "hard" as const, category: injection ? "prompt_injection" as const : "sensitive_data" as const, description: `Matches ${id}`, mode: modes[id] ?? defaultMode, default_mode: defaultMode, redactable: !injection };
     }),
   };
 }
@@ -37,6 +37,8 @@ describe("Guardrails page", () => {
     show({ getPolicy: async () => policy(0), savePolicy });
     const table = await screen.findByRole("table", { name: "Guardrail rules" });
     expect(within(table).getAllByRole("row")).toHaveLength(GUARDRAIL_RULE_IDS.length + 1);
+    expect(within(table).getAllByText("Hard rule")).toHaveLength(7);
+    expect(within(table).getAllByText("Heuristic rule")).toHaveLength(4);
     expect(screen.getByText("Defaults")).toBeInTheDocument();
     expect(screen.getByText(/No policy has been saved for this Environment/)).toBeInTheDocument();
     // A rule that cannot redact does not offer it; a redactable one does.

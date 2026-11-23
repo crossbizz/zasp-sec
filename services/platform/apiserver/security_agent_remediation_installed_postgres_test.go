@@ -254,12 +254,16 @@ VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,clock_timestamp(),clock_timestamp()+interv
 // checked authorizes one request the way the router does and returns the
 // context a handler receives, or the authorizer's refusal.
 func (baseline *installedBaseline) checked(principal installedPrincipal, route RoutedOperation) (context.Context, error) {
-	ctx := context.WithValue(baseline.ctx, authorizationQueryContextKey{}, url.Values{})
+	return baseline.checkedQuery(principal, route, url.Values{})
+}
+
+func (baseline *installedBaseline) checkedQuery(principal installedPrincipal, route RoutedOperation, query url.Values) (context.Context, error) {
+	ctx := context.WithValue(baseline.ctx, authorizationQueryContextKey{}, query)
 	grant, err := baseline.authorizer.Authorize(ctx, principal.identity, principal.binding, route)
 	if err != nil {
 		return nil, err
 	}
-	ctx = context.WithValue(baseline.ctx, identityContextKey{}, principal.identity)
+	ctx = context.WithValue(ctx, identityContextKey{}, principal.identity)
 	ctx = context.WithValue(ctx, routedOperationContextKey{}, route)
 	ctx = context.WithValue(ctx, requestAuthorizationContextKey{}, grant)
 	return context.WithValue(ctx, requestAuthorizerContextKey{}, RequestAuthorizer(baseline.authorizer)), nil
@@ -271,11 +275,12 @@ func (baseline *installedBaseline) serve(handler http.Handler, principal install
 	if parameters == nil {
 		parameters = map[string]string{}
 	}
-	ctx, err := baseline.checked(principal, RoutedOperation{OperationID: operation, PathParameters: parameters})
+	request := httptest.NewRequest(method, path, strings.NewReader(body))
+	ctx, err := baseline.checkedQuery(principal, RoutedOperation{OperationID: operation, PathParameters: parameters}, request.URL.Query())
 	if err != nil {
 		baseline.t.Fatalf("authorize %s: %v", operation, err)
 	}
-	request := httptest.NewRequest(method, path, strings.NewReader(body)).WithContext(ctx)
+	request = request.WithContext(ctx)
 	if body != "" {
 		request.Header.Set("Content-Type", "application/json")
 	}

@@ -22,7 +22,7 @@ var (
 const maxDependencies = 2048
 
 func (s *scanner) finding(path, id, severity, message, fix string) {
-	f := Finding{RuleID: id, Severity: severity, Path: path, Message: message, Remediation: fix,
+	f := Finding{RuleID: id, RuleClass: string(addonevidence.RuleClass(id)), Severity: severity, Path: path, Message: message, Remediation: fix,
 		FrameworkEvidence: addonevidence.References(id, s.report.Ruleset)}
 	// Directory and archive scans inspect the bytes just added to Files.
 	if n := len(s.report.Files); n > 0 && s.report.Files[n-1].Path == path {

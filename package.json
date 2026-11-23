@@ -146,8 +146,12 @@
     "security:npm-public-corpus:test": "node --test scripts/npm-public-corpus.test.mjs scripts/npm-public-corpus-cli.test.mjs"
   },
   "dependencies": {
+    "@ai-sdk/react": "4.0.184",
+    "@assistant-ui/ai-sdk": "0.0.20",
+    "@assistant-ui/react": "0.15.38",
     "@dagrejs/dagre": "2.0.4",
     "@xyflow/react": "12.12.1",
+    "ai": "7.0.179",
     "drizzle-orm": "0.45.2",
     "echarts": "6.1.0",
     "lucide-react": "^1.31.0",

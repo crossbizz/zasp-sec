@@ -1,3 +1,4 @@
+import { boundedUIMessageStream } from "./authorized-stream";
 import createClient from "openapi-fetch";
 import type { ClientOptions } from "openapi-fetch";
 
@@ -174,13 +175,37 @@ export function createAPIClient(options: APIClientOptions = {}) {
       if (settling) onAuthorizationSettling(false);
     }
   };
-  return createClient<paths>({
+  const openAuthorizedEventStream = async (threadID: string, sessionID: string, message: string, requestID: string, callerSignal?: AbortSignal): Promise<Response> => {
+    const expected = getExpectedScope();
+    const csrf = getCSRFToken();
+    const correlation = generateCorrelationID();
+    if (![threadID, sessionID, requestID, correlation].every(id => PRODUCT_ID.test(id)) || !expected || !validExpectedScope(expected)
+      || !csrf || !message.trim() || new TextEncoder().encode(message).byteLength > 2048) {
+      throw new APITransportError("invalid_configuration", "Invalid scoped investigation request");
+    }
+    const signal = AbortSignal.any([AbortSignal.timeout(60_000), ...(callerSignal ? [callerSignal] : [])]);
+    const endpoint = new URL(`${baseUrl}/api/v1/security-agents/chat/threads/${threadID}/stream`, origin);
+    endpoint.searchParams.set("session_id", sessionID);
+    const response = await configuredFetch(new Request(endpoint, {
+      method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store", signal,
+      headers: { Accept: "text/event-stream", "Content-Type": "application/json", "Cache-Control": "no-store",
+        [EXPECTED_SCOPE_HEADER]: expected, "X-CSRF-Token": csrf, "X-Correlation-ID": correlation },
+      body: JSON.stringify({ message, request_id: requestID }),
+    }));
+    if (!response.ok) {
+      await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);
+      throw new APIProductError(response.status, await response.json() as ProductError);
+    }
+    return boundedUIMessageStream(response, Math.min(maximumResponseBytes, 256 * 1024), signal, () => expected === getExpectedScope());
+  };
+  const client = createClient<paths>({
     ...clientOptions,
     baseUrl: `${origin}${baseUrl}`,
     credentials: "same-origin",
     redirect: "error",
     fetch: transport,
   });
+  return Object.assign(client, { openAuthorizedEventStream });
 }
 
 export type APIClient = ReturnType<typeof createAPIClient>;

@@ -42,7 +42,7 @@ class Transport:
         self._token = token
         self._timeout = timeout
 
-    def post(self, path: str, payload: dict, key: str) -> dict:
+    def post(self, path: str, payload: dict, key: str, *, delegation_headers: dict[str, str] | None = None) -> dict:
         try:
             token = self._token() if callable(self._token) else self._token
         except Exception:
@@ -53,6 +53,7 @@ class Transport:
         connection = connection_type(self._host, self._port, timeout=self._timeout)
         try:
             connection.request("POST", path, json.dumps(payload, separators=(",", ":")), {
+                **(delegation_headers or {}),
                 "Content-Type": "application/json", "Accept": "application/json",
                 "Authorization": f"Bearer {token}", "Idempotency-Key": key,
             })

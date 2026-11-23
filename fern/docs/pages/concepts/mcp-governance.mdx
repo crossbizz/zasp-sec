@@ -82,3 +82,9 @@ The registry alone is a record of decisions. To enforce it on traffic, route the
 - For a Cloud Run MCP server on Google Cloud, no relationship says which agent uses it, so the findings above are not raised for it.
 - An agent that learns a server's address from a secret, a service mesh or a hard-coded address is not related to the server.
 - A local (stdio) server is found from configuration only. It cannot be put behind the hosted gateway, which fronts remote servers.
+
+## Read Zasp records from an MCP client
+
+Point a Streamable HTTP client at `https://<your Zasp address>/mcp` and use a product API token with `view`. The server offers `list_agents` and `get_attack_path` to eligible tokens. Send the returned cursor to continue an inventory page. A browser session with the corresponding permissions can also read session intent, add-on deployment review and agent posture through `inspect_session`, `get_addon_drift` and `get_posture_summary`.
+
+Each tool uses the current product route and its scope and object checks. Browser calls require the console Origin, CSRF token and expected scope. Tool calls are stateless. Clients send a single JSON-RPC message per POST and accept both `application/json` and `text/event-stream`.

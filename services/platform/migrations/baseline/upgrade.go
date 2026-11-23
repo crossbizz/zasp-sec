@@ -7,8 +7,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Both supported predecessors have immutable, recorded catalog seals.
+// Supported predecessors have immutable, recorded catalog seals.
 const precedingV2Artifact = "eb705a3d269f2a632327d49514f5a790c29c3595c3a6e67d2f3d6ddd1dcddff9"
+
+const precedingV3Artifact = "93f816f311bae3bf0105c45979125d2c4d6ea93290e3ed54c37dadd16b046ebb"
 
 const precedingFrameworkArtifact = "44af7b31b098ad0a87dce6db8c3ab09e9204c321f1419140014575a0111e4b8d"
 
@@ -39,6 +41,39 @@ var policyReplayDDL string
 //go:embed provider_readiness.sql
 var providerReadinessDDL string
 
+//go:embed feature_v3_ai_controls.sql
+var v3AiControlsDDL string
+
+//go:embed feature_v3_models.sql
+var v3ModelsDDL string
+
+//go:embed feature_v3_model_flow.sql
+var v3ModelFlowDDL string
+
+//go:embed feature_v3_delegation.sql
+var v3DelegationDDL string
+
+//go:embed feature_v3_evidence.sql
+var v3EvidenceDDL string
+
+//go:embed feature_v3_inventory.sql
+var v3InventoryDDL string
+
+//go:embed feature_v3_calibration.sql
+var v3CalibrationDDL string
+
+//go:embed feature_v3_pricing.sql
+var v3PricingDDL string
+
+//go:embed feature_v3_chat.sql
+var v3ChatDDL string
+
+//go:embed feature_v3_semantic_guardrail.sql
+var v3SemanticGuardrailDDL string
+
+//go:embed feature_v3_studio.sql
+var v3StudioDDL string
+
 // UpgradeToV2 applies the same DDL used by the fresh-install generator. The
 // transaction includes temporary privileges, all new objects, the new catalog
 // seal and caller-supplied readiness checks. Preserve preexisting privileges.
@@ -68,7 +103,7 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	var artifact string
 	var intact bool
 	err = tx.QueryRow(ctx, `SELECT coalesce(state->>'artifact',''), coalesce((state->>'intact')::boolean AND (state->>'sealed')::boolean,false) FROM zasp_baseline.state() AS state`).Scan(&artifact, &intact)
-	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != Checksum()) {
+	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != precedingV3Artifact && artifact != Checksum()) {
 		return refuse(StagePreconditions, "an intact supported baseline is required", err)
 	}
 	if artifact != Checksum() {
@@ -90,9 +125,14 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 				return refuse(StageObjects, "V2 upgrade", err)
 			}
 		}
-		for _, ddl := range []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL} {
+		var updates []string
+		if artifact != precedingV3Artifact {
+			updates = []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL}
+		}
+		updates = append(updates, v3AiControlsDDL, v3ModelsDDL, v3ModelFlowDDL, v3DelegationDDL, v3EvidenceDDL, v3InventoryDDL, v3CalibrationDDL, v3PricingDDL, v3StudioDDL, v3ChatDDL, v3SemanticGuardrailDDL)
+		for _, ddl := range updates {
 			if err = execScript(ctx, conn, ddl); err != nil {
-				return refuse(StageObjects, "framework coverage upgrade", err)
+				return refuse(StageObjects, "feature schema upgrade", err)
 			}
 		}
 		if !alreadyGranted {

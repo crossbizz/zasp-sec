@@ -1636,7 +1636,7 @@ export function decodeIntegrationRemediationRole(value: unknown, expectedIntegra
 export const GUARDRAIL_RULE_IDS = ["injection.instruction_override", "injection.role_switch", "injection.hidden_text", "injection.tool_call", "pii.email", "pii.phone", "pii.credit_card", "pii.us_ssn", "secret.aws_access_key_id", "secret.private_key", "secret.bearer_token"] as const;
 export const GUARDRAIL_MODES = ["block", "redact", "monitor", "off"] as const;
 export type GuardrailMode = typeof GUARDRAIL_MODES[number];
-export type GuardrailPolicyRule = { id: typeof GUARDRAIL_RULE_IDS[number]; category: "prompt_injection" | "sensitive_data"; description: string; mode: GuardrailMode; default_mode: GuardrailMode; redactable: boolean };
+export type GuardrailPolicyRule = { rule_class?: "hard" | "heuristic"; id: typeof GUARDRAIL_RULE_IDS[number]; category: "prompt_injection" | "sensitive_data"; description: string; mode: GuardrailMode; default_mode: GuardrailMode; redactable: boolean };
 export type GuardrailPolicy = { environment_id: string; version: number; updated_at: string | null; rules: readonly GuardrailPolicyRule[] };
 
 export function decodeGuardrailPolicy(value: unknown): GuardrailPolicy {
@@ -1647,7 +1647,8 @@ export function decodeGuardrailPolicy(value: unknown): GuardrailPolicy {
   if (!Array.isArray(record.rules) || record.rules.length !== GUARDRAIL_RULE_IDS.length) fail();
   const seen = new Set<string>();
   for (const item of record.rules as unknown[]) {
-    const rule = exactRecord(item, ["id", "category", "description", "mode", "default_mode", "redactable"]);
+    const rule = exactRecord(item, ["id", "category", "description", "mode", "default_mode", "redactable"], ["rule_class"]);
+    if (rule.rule_class !== undefined) enumValue(rule.rule_class, ["hard", "heuristic"]);
     enumValue(rule.id, GUARDRAIL_RULE_IDS);
     if (seen.has(rule.id as string)) fail();
     seen.add(rule.id as string);

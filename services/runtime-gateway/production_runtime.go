@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
 	"net"
 	"net/http"
 	"sync"
@@ -193,9 +194,13 @@ func buildProductionGatewayDependenciesWithFactories(ctx context.Context, config
 		_ = evidence.Close()
 		return failCache()
 	}
+	verifier, verifierErr := delegation.ParseVerifier(config.Delegation, delegation.Tenant{Organization: config.OrganizationID, Workspace: config.WorkspaceID, Environment: config.EnvironmentID})
+	if verifierErr != nil {
+		return failEvidence()
+	}
 	control := boundGatewayControl{next: gatewayHTTPControl{next: client}, expected: expected}
 	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{
-		Control: control, Cache: cache, Evidence: evidence, ExpectedAuthority: expected, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
+		Delegation: verifier, Control: control, Cache: cache, Evidence: evidence, ExpectedAuthority: expected, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
 		MaximumPendingEvents: config.MaximumPendingEvents, Now: gatewayUTCNow,
 	})
 	if err != nil {

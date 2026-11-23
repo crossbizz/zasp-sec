@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation/issuer"
 	"github.com/zasp-ai/zasp-sec/services/platform/guardrail"
 	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway"
 )
@@ -118,6 +119,7 @@ func NewHostedGateway(config HostedGatewayConfig) (*hostedgateway.Gateway, error
 }
 
 type hostedGatewayHandler struct {
+	authority    *issuer.Authority
 	database     JSONDatabase
 	newProductID func() (string, error)
 	// gateway is the engine of the traffic routes. It is nil where the
@@ -134,6 +136,8 @@ func (handler *hostedGatewayHandler) ServeHTTP(writer http.ResponseWriter, reque
 		return
 	}
 	switch routed.OperationID {
+	case "issueRuntimeDelegation", "verifyRuntimeDelegation":
+		handler.delegationAPI(writer, request, identity, routed)
 	case "callMCPGateway", "closeMCPGatewaySession", "createGatewayChatCompletion", "createGatewayResponse", "createGatewayMessage":
 		handler.traffic(writer, request, identity, routed)
 	case "getGatewayPolicy":
@@ -178,6 +182,9 @@ func (handler *hostedGatewayHandler) traffic(writer http.ResponseWriter, request
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
+		if !handler.delegationTraffic(writer, request, identity, routed, nil) {
+			return
+		}
 		handler.gateway.CloseMCP(writer, request, caller, routed.PathParameters["id"])
 		return
 	}
@@ -188,6 +195,9 @@ func (handler *hostedGatewayHandler) traffic(writer http.ResponseWriter, request
 	body, err := io.ReadAll(request.Body)
 	if err != nil || len(body) == 0 {
 		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	if !handler.delegationTraffic(writer, request, identity, routed, body) {
 		return
 	}
 	switch routed.OperationID {

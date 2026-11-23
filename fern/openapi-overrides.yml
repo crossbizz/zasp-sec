@@ -915,6 +915,19 @@ paths:
       x-fern-sdk-group-name: tools
       x-fern-sdk-method-name: getAddonVersion
       description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/addon-versions/{id}/deployment-approvals:
+    get:
+      tags:
+        - Tools
+      x-fern-sdk-group-name: tools
+      x-fern-sdk-method-name: getAddonDeploymentApproval
+      description: 'Authentication: a browser session only. An API token is refused.'
+    post:
+      tags:
+        - Tools
+      x-fern-sdk-group-name: tools
+      x-fern-sdk-method-name: reviewAddonDeploymentApproval
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/addon-versions/{id}/review-decisions:
     post:
       tags:
@@ -1157,6 +1170,13 @@ paths:
         - Policies
       x-fern-sdk-group-name: policies
       x-fern-sdk-method-name: reviewAgentSuggestion
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/agents/{id}/posture-summary:
+    get:
+      tags:
+        - Agents
+      x-fern-sdk-group-name: agents
+      x-fern-sdk-method-name: getAgentPostureSummary
       description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/agents/{id}/purpose:
     get:
@@ -1896,6 +1916,174 @@ paths:
 
 
         Authentication: a browser session only. An API token is refused.
+  /api/v1/organization/ai-controls:
+    get:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: getOrganizationAiControls
+      description: 'Authentication: a browser session only. An API token is refused.'
+    patch:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: updateOrganizationAiControls
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/settings/ai-controls:
+    get:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: getEnvironmentAiControls
+      description: 'Authentication: a browser session only. An API token is refused.'
+    patch:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: updateEnvironmentAiControls
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/ai/qualifications:
+    get:
+      tags:
+        - Data controls
+      x-fern-sdk-group-name: settings
+      x-fern-sdk-method-name: listModelQualifications
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/runtime/delegations/issue:
+    post:
+      tags:
+        - Hosted gateway
+      x-fern-sdk-group-name: gateway
+      x-fern-sdk-method-name: issueRuntimeDelegation
+      x-fern-audiences:
+        - api-token
+  /api/v1/runtime/delegations/verify:
+    post:
+      tags:
+        - Hosted gateway
+      x-fern-sdk-group-name: gateway
+      x-fern-sdk-method-name: verifyRuntimeDelegation
+      x-fern-audiences:
+        - api-token
+  /api/v1/security-agents/cases/{id}/verify:
+    get:
+      tags:
+        - Security Agent runs
+      x-fern-sdk-group-name: securityAgentRuns
+      x-fern-sdk-method-name: getSecurityCaseVerification
+      description: 'Authentication: a browser session only. An API token is refused.'
+    post:
+      tags:
+        - Security Agent runs
+      x-fern-sdk-group-name: securityAgentRuns
+      x-fern-sdk-method-name: verifySecurityCase
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/sessions/{id}/intent:
+    get:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: getSessionIntent
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/calibration/metrics:
+    get:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: getCalibrationMetrics
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/feedback:
+    post:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: submitAnalystFeedback
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/rules/{ruleId}/suppression-mode:
+    get:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: getRuleSuppressionMode
+      description: 'Authentication: a browser session only. An API token is refused.'
+    put:
+      tags:
+        - Guardrails
+      x-fern-sdk-group-name: guardrails
+      x-fern-sdk-method-name: putRuleSuppressionMode
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/security-agents/custom:
+    get:
+      tags:
+        - Security Agents
+      x-fern-sdk-group-name: securityAgents
+      x-fern-sdk-method-name: listCustomSecurityAgents
+      description: 'Authentication: a browser session only. An API token is refused.'
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next_cursor
+        results: $response.items
+    post:
+      tags:
+        - Security Agents
+      x-fern-sdk-group-name: securityAgents
+      x-fern-sdk-method-name: createCustomSecurityAgent
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/security-agents/custom/{id}:
+    get:
+      tags:
+        - Security Agents
+      x-fern-sdk-group-name: securityAgents
+      x-fern-sdk-method-name: getCustomSecurityAgent
+      description: 'Authentication: a browser session only. An API token is refused.'
+    put:
+      tags:
+        - Security Agents
+      x-fern-sdk-group-name: securityAgents
+      x-fern-sdk-method-name: updateCustomSecurityAgent
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/security-agents/chat/threads:
+    get:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: getAnalystThreads
+      description: 'Authentication: a browser session only. An API token is refused.'
+    post:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: createAnalystThread
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/security-agents/chat/threads/{id}:
+    get:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: getAnalystThread
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/security-agents/chat/threads/{id}/stream:
+    post:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: streamAnalystThread
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/runtime/workload-bindings/{id}/delegations:
+    get:
+      tags:
+        - Hosted gateway
+      x-fern-sdk-group-name: gateway
+      x-fern-sdk-method-name: getWorkloadDelegations
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /mcp:
+    post:
+      tags:
+        - Hosted gateway
+      x-fern-sdk-group-name: gateway
+      x-fern-sdk-method-name: callZaspMCP
+      x-fern-audiences:
+        - api-token
   /api/v1/settings/data-controls:
     get:
       tags:

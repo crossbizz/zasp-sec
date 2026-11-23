@@ -11,11 +11,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal, ParamSpec, TypeVar
 
+from .delegation import DelegationDenied, TaskDelegation
 from .transport import DecisionUnavailable, ProtocolError, Transport
 
 __all__ = [
     "Action", "AlreadyAttempted", "Decision", "DecisionUnavailable", "PolicyDenied",
-    "ProtocolError", "ToolGuard",
+    "ProtocolError", "ToolGuard", "TaskDelegation", "DelegationDenied",
 ]
 
 P = ParamSpec("P")
@@ -73,14 +74,16 @@ class ToolGuard:
     def __init__(
         self, base_url: str, token: str | Callable[[], str], *,
         on_unavailable: Literal["block", "allow"] = "block", timeout: float = 0.3,
+        delegation: TaskDelegation | None = None,
     ):
         if on_unavailable not in ("allow", "block"):
             raise ValueError("on_unavailable must be allow or block")
         self._transport = Transport(base_url, token, timeout)
         self._fallback = on_unavailable
+        self._delegation = delegation
 
     def action(
-        self, operation: str, *, resource_kind: str, classification: str,
+        self, operation: str, *, resource_kind: str, classification: str, resource_id: str | None = None,
         session_ref: str | None = None, call_ref: str | None = None, destination_class: str | None = None,
     ) -> Action:
         metadata: dict = {
@@ -98,13 +101,16 @@ class ToolGuard:
             metadata["source_session_ref"] = _label(session_ref)
         if call_ref is not None:
             metadata["source_call_ref"] = _label(call_ref)
-        return Action(self._transport, self._fallback, metadata)
+        return Action(self._transport, self._fallback, metadata, self._delegation, resource_id)
 
 
 class Action:
     """One invocation. Share this instance with duplicate callbacks for the same invocation."""
 
-    def __init__(self, transport: Transport, fallback: str, metadata: dict):
+    def __init__(self, transport: Transport, fallback: str, metadata: dict,
+                 delegation: TaskDelegation | None = None, resource_id: str | None = None):
+        self._delegation = delegation
+        self._resource_id = resource_id
         self._transport = transport
         self._fallback = fallback
         self._metadata = metadata
@@ -144,18 +150,23 @@ class Action:
 
     def _request_decision(self) -> None:
         try:
-            raw = self._transport.post(
-                "/api/v1/runtime/action-decisions", self._metadata, self.action_id,
-            )
+            if self._delegation:
+                headers = self._delegation.headers(self._metadata["operation"], self._resource_id)
+                raw = self._transport.post("/api/v1/runtime/action-decisions", self._metadata,
+                                           self.action_id, delegation_headers=headers)
+            else:
+                raw = self._transport.post("/api/v1/runtime/action-decisions", self._metadata, self.action_id)
         except DecisionUnavailable:
             self._coverage_gap = "decision_unavailable"
             log.warning("Zasp decision unavailable for action %s (fallback %s)", self.action_id, self._fallback)
-            if self._fallback == "block":
+            if self._delegation or self._fallback == "block":
                 raise
             return
         self._decision = Decision.parse(self.action_id, raw)
 
     def _check_decision(self) -> None:
+        if self._delegation:
+            self._delegation.check(self._metadata["operation"], self._resource_id)
         if self._decision and self._decision.verdict == "block":
             raise PolicyDenied(self._decision)
 

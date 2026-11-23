@@ -179,16 +179,39 @@ fi
 # historical checks describe. The baseline replaces those checks with the
 # integrity check (rules.sql), and the comparison below still requires every
 # predicate of the finished baseline to agree with this record.
+completion_sources=(
+  "$HERE/completion.sql"
+  "$HERE/feature_v2.sql"
+  "$HERE/framework_context.sql"
+  "$HERE/framework_addon.sql"
+  "$HERE/framework_reporting.sql"
+  "$HERE/framework_provider_hooks.sql"
+  "$HERE/framework_endpoint.sql"
+  "$HERE/intent_classifier.sql"
+  "$HERE/policy_replay.sql"
+  "$HERE/provider_readiness.sql"
+  "$HERE/feature_v3_ai_controls.sql"
+  "$HERE/feature_v3_models.sql"
+  "$HERE/feature_v3_model_flow.sql"
+  "$HERE/feature_v3_delegation.sql"
+  "$HERE/feature_v3_evidence.sql"
+  "$HERE/feature_v3_inventory.sql"
+  "$HERE/feature_v3_calibration.sql"
+  "$HERE/feature_v3_pricing.sql"
+  "$HERE/feature_v3_studio.sql"
+  "$HERE/feature_v3_chat.sql"
+  "$HERE/feature_v3_semantic_guardrail.sql"
+)
 if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
   predicates reference > "$WORK/reference.predicates"
   echo "baseline: applying the product completion"
-  { echo "BEGIN;"; cat "$HERE/completion.sql" "$HERE/feature_v2.sql" "$HERE/framework_context.sql" "$HERE/framework_addon.sql" "$HERE/framework_reporting.sql" "$HERE/framework_provider_hooks.sql" "$HERE/framework_endpoint.sql" "$HERE/intent_classifier.sql" "$HERE/policy_replay.sql" "$HERE/provider_readiness.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  { echo "BEGIN;"; cat "${completion_sources[@]}"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 else
   # A kept installation already carries the completion. It is re-applied (the
   # file is re-runnable) and the predicates recorded before it are reused.
   [ -s "$WORK/reference.predicates" ] || fail "the kept installation has the completion but no recorded predicates; remove the kept containers"
-  { echo "BEGIN;"; cat "$HERE/completion.sql" "$HERE/feature_v2.sql" "$HERE/framework_context.sql" "$HERE/framework_addon.sql" "$HERE/framework_reporting.sql" "$HERE/framework_provider_hooks.sql" "$HERE/framework_endpoint.sql" "$HERE/intent_classifier.sql" "$HERE/policy_replay.sql" "$HERE/provider_readiness.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  { echo "BEGIN;"; cat "${completion_sources[@]}"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 fi
 dump "$CONTAINER-reference" "$REFERENCE_PORT" pg_dumpall --roles-only --no-role-passwords > "$WORK/roles.raw"

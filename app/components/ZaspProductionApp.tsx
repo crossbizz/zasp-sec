@@ -1,13 +1,16 @@
 "use client";
 
+import { AuthPage } from "./AuthPage";
 import { useEffect, useRef, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { NavigationIcon } from "./NavigationIcon";
+import { ThemeControl } from "./ThemeControl";
 import { BrandLogo } from "./BrandLogo";
 
 import type { APIClient } from "../../apps/web/api/client";
 import { APIProvider, useAPI } from "../api/APIProvider";
 import { SessionProvider, useSession, type SessionContextValue } from "../auth/SessionProvider";
+import { AIControlsView } from "../features/administration/AIControlsView";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
 import { AuditExportSaveNotice } from "../features/administration/AuditExportPanel";
 import { ProductionAgentSecurityView } from "../features/agents/ProductionAgentSecurityView";
@@ -28,7 +31,7 @@ import { ProductionSensorSurface } from "../features/sensors/ProductionSensorVie
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
 import { PrivateAddonScan } from "../features/tools/PrivateAddonScan";
-import { Button, Drawer, LoadingState } from "./ui";
+import { Button, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 import { parseActivityLink } from "../domain/activity-links";
 import { parseCatalogLink } from "../domain/coverage-links";
@@ -59,6 +62,7 @@ const productionRoutes = [
   { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage", group: "Settings" },
   { path: "/administration/api-access", label: "API Access", capability: "api-access.manage", group: "Settings" },
   { path: "/administration/data-retention", label: "Data & Retention", capability: "compliance.read", group: "Settings" },
+  { path: "/administration/ai-controls", label: "AI & Models", capability: "compliance.read", group: "Settings" },
   { path: "/administration/recovery", label: "Recovery", capability: "recovery.read", group: "Settings" },
   { path: "/administration/external-data-flows", label: "External Data Flows", capability: "system.read", group: "Settings" },
   { path: "/administration/system-health", label: "System Health", capability: "system.read", group: "Settings" },
@@ -101,7 +105,8 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
   if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
-  if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
+  if (path === "/administration/ai-controls") return <AIControlsView expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} key={`${session.principal.id}/${queryGeneration}`} client={client} canEditOrganization={session.hasCapability("identity.manage")} canEditEnvironment={session.hasCapability("data-controls.manage")} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} />;
+  if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} onNavigate={navigate} canMutate={session.hasCapability("data-controls.manage")} />;
   if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
   if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
@@ -159,6 +164,16 @@ function ProductionSignOutControl() {
 
 function ProductionAppContent() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchHost, setSearchHost] = useState<HTMLDivElement | null>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMobileOpen(false); menuButton.current?.focus(); }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileOpen]);
   useEffect(() => {
     if (!window.matchMedia) return;
     const desktop = window.matchMedia("(min-width: 761px)");
@@ -198,13 +213,13 @@ function ProductionAppContent() {
     const timer = window.setTimeout(() => { pendingRetries.current++; setPendingAttempt((current) => current + 1); void retrySession(); }, 2000);
     return () => window.clearTimeout(timer);
   }, [authorizationPending, retrySession, session.status, pendingAttempt]);
-  if (session.status === "loading") return <main className="page auth-page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
-  if (session.status === "unauthenticated") return <main className="page auth-page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></main>;
-  if (session.status === "forbidden") return <main className="page auth-page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
-  if (session.status === "error") return <main className="page auth-page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. This usually takes a few seconds; the page retries on its own. You can also retry now.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
+  if (session.status === "loading") return <AuthPage><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></AuthPage>;
+  if (session.status === "unauthenticated") return <AuthPage><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></AuthPage>;
+  if (session.status === "forbidden") return <AuthPage><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></AuthPage>;
+  if (session.status === "error") return <AuthPage><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. This usually takes a few seconds; the page retries on its own. You can also retry now.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</AuthPage>;
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
-  if (routes.length === 0) return <main className="page auth-page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
+  if (routes.length === 0) return <AuthPage><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></AuthPage>;
   const routeGroups = routes.reduce<{ label: string; routes: (typeof routes)[number][] }[]>((groups, route) => { const last = groups[groups.length - 1]; if (last && last.label === route.group) last.routes.push(route); else groups.push({ label: route.group, routes: [route] }); return groups; }, []);
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
   const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); setMobileOpen(false); };
@@ -218,15 +233,14 @@ function ProductionAppContent() {
     <div className="app-shell production-app">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="topbar">
-        <button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><Menu aria-hidden="true" /></button>
-        <button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview"><BrandLogo /></button>
+        <button ref={menuButton} className="mobile-menu icon-button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-controls="product-navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}</button>
+        <button className="brand" onClick={() => navigate(routes[0].path)} aria-label={`Zasp ${routes[0].label.toLowerCase()}`}><BrandLogo /></button>
         <span className="shell-context">Agent Security</span>
-        <ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} />
-        <ProductionSignOutControl />
+        <ProductionGlobalSearch key={expectedScope + location} client={client} onNavigate={navigate} resultsHost={searchHost} scope={session} routes={routes} />
+        <ProductionSignOutControl /><ThemeControl />
       </header>
-      <aside className="sidebar"><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</aside>
-      <Drawer open={mobileOpen} title="Navigation" onClose={() => setMobileOpen(false)} width="medium"><div className="mobile-navigation"><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</div></Drawer>
-      <main className="main-content" id="main-content" tabIndex={-1}>{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
+      <aside id="product-navigation" className={`sidebar${mobileOpen ? " sidebar--expanded" : ""}`}><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</aside>
+      <main className="main-content" id="main-content" tabIndex={-1}><div ref={setSearchHost} id="product-search-results" />{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
     </div>
   </ProductionWorkflowMutationProvider>;
 }

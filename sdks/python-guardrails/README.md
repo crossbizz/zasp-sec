@@ -94,8 +94,14 @@ The adapter commits a local receipt and the associated mutation atomically. The 
 
 ### Optional asynchronous intent recommendations
 
-An AppSec operator can opt an agent in under its **Workload action analysis** settings. The deployment must also enable the classifier on the API and scheduler with `ZASP_INTENT_CLASSIFIER_ENABLED=true`. Configure `ZASP_INTENT_CLASSIFIER_KEY_FILE` only on the scheduler, pointing to a private 0400 regular file containing the OpenRouter key without a trailing newline. The fixed destination is OpenRouter chat completions using `openai/gpt-5-mini`. The worker requests providers with data collection disabled.
+Enable **Draft intent recommendations** for the agent under **Workload action analysis**. The organization and environment also need to allow private purpose review in **Administration → AI & Models**. The environment must permit redacted summaries, reserve a budget and select a qualified Tier 2 model.
 
-The worker selects one analyzed admission per minute, from the last 24 hours and the latest opted-in settings revision. The provider receives the reported destination class, whether a previous operation exists, and four comparison flags for operation, classification, destination and sequence. The destination is an enumeration. Customer identifiers, operation names, classification labels, message text, origins and arguments stay inside Zasp.
+The scheduler leases one recent analyzed admission at a time. Its private model receives the destination category, whether a preceding operation was observed, and four comparison flags. Recommendations enter the current agent revision for a human to review. **External Data Flows** reports the qualified deployment’s recent health. A timeout leaves the deterministic analysis in place.
 
-The worker can save four review recommendations or no recommendation. A model response cannot change a policy. In **External Data Flows** the flow appears when the deployment enables the integration. The row shows whether any agent in the selected environment has consented and whether a recent provider attempt completed. An unavailable provider leaves deterministic findings available. A failed claim retries after five minutes for up to three attempts. Saving a new declaration supersedes pending work from the earlier revision. A request already sent may finish, and its result is accepted only while the opted-in revision is current. Published API and UI drafts are limited to 50 over the current analysis window.
+The deployment settings and qualification procedure are documented in [Private model qualification](../../docs/operations/private-model-qualification.md).
+
+### Task-scoped dispatch
+
+Install the `delegation` extra to verify Ed25519 task grants locally. Construct `TaskDelegation` with the trusted deployment public key, organization, workspace, environment, task and child agent IDs, plus the parent's short-lived token. Supply it as `ToolGuard(..., delegation=grant)`. When creating an action, set `resource_id` from the actual tool target in the trusted adapter.
+
+The guard verifies the signature and exact tool and resource scope before requesting a decision, then checks the grant again immediately before synchronous or asynchronous dispatch. Delegated dispatch requires a valid grant and successful policy admission.

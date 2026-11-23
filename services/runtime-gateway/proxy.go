@@ -125,6 +125,10 @@ func (handler *gatewayProxyHandler) ServeHTTP(response http.ResponseWriter, requ
 		gatewayJSONError(response, http.StatusBadRequest, "invalid_request")
 		return
 	}
+	if !handler.runtime.delegatedProxy(&evaluation, request, body, target) {
+		gatewayJSONError(response, http.StatusForbidden, "delegation_denied")
+		return
+	}
 	result, err := handler.runtime.Evaluate(request.Context(), evaluation)
 	if err != nil {
 		gatewayJSONError(response, http.StatusServiceUnavailable, "service_unavailable")

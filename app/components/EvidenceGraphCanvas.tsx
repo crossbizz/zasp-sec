@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { graphlib, layout } from "@dagrejs/dagre";
+import dagre from "@dagrejs/dagre";
 import { ReactFlow, Position, type Node, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { EvidenceGraphProps } from "./EvidenceGraph";
@@ -9,12 +9,12 @@ import type { EvidenceGraphProps } from "./EvidenceGraph";
 export default function EvidenceGraphCanvas({ nodes, edges, selectedID, onSelect, width }: EvidenceGraphProps & { width: number }) {
   const vertical = width < 560 || nodes.length > 5;
   const drawing = useMemo(() => {
-    const graph = new graphlib.Graph();
+    const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: vertical ? "TB" : "LR", ranksep: 32, nodesep: 24, marginx: 12, marginy: 16 });
     graph.setDefaultEdgeLabel(() => ({}));
     for (const node of nodes) graph.setNode(node.id, { width: 126, height: 52 });
     for (const edge of edges) graph.setEdge(edge.source, edge.target);
-    layout(graph);
+    dagre.layout(graph);
     return {
       nodes: nodes.map((node): Node => {
         const { x, y } = graph.node(node.id);

@@ -9,11 +9,16 @@ import { RuntimeSessionEventRow } from "./RuntimeSessionEventRow";
 import { RuntimeSessionEvidence, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 import type { ActivityScope } from "../../domain/activity-links";
 import { SecurityAgentActivityPanel } from "../securityagents/SecurityAgentActivityPanel";
+import { loadSessionIntent } from "../../../apps/web/api/runtime-intent";
+import type { SessionIntent } from "../../../apps/web/api/generated";
+import { SessionInvestigation } from "../securityagents/SessionInvestigation";
+import { SessionIntentPanel } from "./SessionIntent";
 import { Time } from "../../components/time";
 
 export type RuntimeSessionActivity = { scope: ActivityScope; canReadRuns: boolean; onNavigate(path: string): void };
 
 export interface RuntimeSessionTimelineAPI {
+  intent?(id: string, signal: AbortSignal): Promise<SessionIntent>;
   get(id: string, signal: AbortSignal): Promise<RuntimeSession>;
   events(id: string, cursor: string | null, signal: AbortSignal): Promise<RuntimeSessionEventPage>;
 }
@@ -39,6 +44,7 @@ function targetedEvents(value: unknown, id: string): RuntimeSessionEventPage {
 
 export function createRuntimeSessionTimelineAPI(client: APIClient, scope?: ActivityScope): RuntimeSessionTimelineAPI {
   return {
+    intent: (id, signal) => loadSessionIntent(client, id, signal),
     async get(id, signal) {
       return targetedSummary(requireAPIData(await client.GET("/api/v1/sessions/{id}", { params: { path: { id } }, signal })), id, scope);
     },
@@ -82,6 +88,8 @@ export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity }: { id:
       <p>{summary.event_count.toLocaleString("en-US")} canonical events · Summary projected <time dateTime={summary.projected_at}><Time value={summary.projected_at} /></time></p>
       <p>Events are ordered by canonical event time, then event ID. Pages and the summary are not a snapshot; restart at the first page to include newly projected earlier events.</p>
     </Card>
+    {id !== "unattributed" && api.intent && <SessionIntentPanel key={id} id={id} read={api.intent} />}
+    {id !== "unattributed" && api.intent && <SessionInvestigation key={"chat:"+id} sessionID={id} />}
     <ol aria-label="Runtime evidence timeline">
       {events.items.map(event => <RuntimeSessionEventRow key={event.id} event={event} onEvidence={evidenceAPI ? event => setEvidence({ event, query, api: evidenceAPI }) : undefined} />)}
     </ol>

@@ -1,21 +1,20 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
-	"io"
-	"net/http"
+
 	"os"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/aigateway"
 )
 
-// The provider interface cannot accept tenant identifiers, user-controlled
-// labels, model input/output, or action arguments.
+// Only bounded flags are sent. Tenant identifiers, prompts, arguments, and
+// user-controlled operation names are absent from this wire type.
 type intentFeatures struct {
 	Destination            string `json:"destination"`
 	HasPrevious            bool   `json:"has_previous"`
@@ -24,9 +23,6 @@ type intentFeatures struct {
 	DestinationMismatch    bool   `json:"destination_mismatch"`
 	SequenceMismatch       bool   `json:"sequence_mismatch"`
 }
-type IntentClassifier interface {
-	Classify(context.Context, intentFeatures) (string, error)
-}
 type intentClaim struct {
 	Lease    string         `json:"lease"`
 	Features intentFeatures `json:"features"`
@@ -34,88 +30,68 @@ type intentClaim struct {
 
 var intentCodes = []string{"none", "review_purpose", "review_destination", "review_sequence", "review_data_access"}
 
-const intentModel = "openai/gpt-5-mini"
-const intentEndpoint = "https://openrouter.ai/api/v1/chat/completions"
-
-type openRouterIntentClassifier struct {
-	tokenPath string
-	client    *http.Client
+type privateIntentClassifier struct {
+	driver           aigateway.ProviderDriver
+	model, residency string
+	maximumCost      int64
+	deployment       string
 }
 
-// The deployment switch and independently managed per-agent consent must
-// both be enabled. A missing optional provider never blocks worker startup.
-func configuredIntentClassifier() IntentClassifier {
-	path := os.Getenv("ZASP_INTENT_CLASSIFIER_KEY_FILE")
-	if os.Getenv("ZASP_INTENT_CLASSIFIER_ENABLED") != "true" || path == "" {
+// Tier: 2 | Purpose: purpose alignment on a bound workload.
+// Model: pinned private vLLM, deployed in US/EU.
+// Authority: the scheduler leases only qualified jobs under both policy scopes.
+// Fallback: the deterministic analysis and findings stay available.
+func configuredIntentClassifier() *privateIntentClassifier {
+	if os.Getenv("ZASP_INTENT_CLASSIFIER_ENABLED") != "true" {
 		return nil
 	}
-	return &openRouterIntentClassifier{tokenPath: path, client: &http.Client{
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 2 * time.Second, IdleConnTimeout: 30 * time.Second, MaxIdleConnsPerHost: 1},
-		Timeout:   4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}}
+	model := os.Getenv("ZASP_INTENT_CLASSIFIER_MODEL")
+	residency := os.Getenv("ZASP_INTENT_CLASSIFIER_RESIDENCY")
+	cost, err := strconv.ParseInt(os.Getenv("ZASP_INTENT_CLASSIFIER_MAX_NANO_CREDITS"), 10, 64)
+	if err != nil || cost < 1 || cost > 1000000000000 || !slices.Contains([]string{"us", "eu"}, residency) {
+		return nil
+	}
+	deployment := aigateway.Deployment{
+		Endpoint: os.Getenv("ZASP_INTENT_CLASSIFIER_ENDPOINT"), PrivateIP: os.Getenv("ZASP_INTENT_CLASSIFIER_PRIVATE_IP"),
+		WeightsSHA256: os.Getenv("ZASP_INTENT_CLASSIFIER_WEIGHTS_SHA256"), Model: model, Region: residency, MaximumNanoCredits: cost,
+	}
+	driver, err := deployment.Driver()
+	if err != nil {
+		return nil
+	}
+	return &privateIntentClassifier{driver: driver, model: model, residency: residency, maximumCost: cost, deployment: deployment.Digest()}
 }
 
-func (c *openRouterIntentClassifier) Classify(ctx context.Context, features intentFeatures) (string, error) {
+func (c *privateIntentClassifier) Classify(ctx context.Context, features intentFeatures) (string, error) {
 	if !slices.Contains([]string{"internal", "approved_partner", "external", "public", "unknown"}, features.Destination) {
 		return "", errWorkerExecution
 	}
-	token, ok := readPinnedFile(c.tokenPath, 24, 512, 0400)
-	if !ok {
+	input, _ := json.Marshal(features)
+	raw, err := c.driver.Evaluate(ctx, aigateway.PurposeAlignment, input)
+	if err != nil || !aigateway.ValidateSemanticOutput(aigateway.PurposeAlignment, raw) {
 		return "", errWorkerExecution
 	}
-	defer clear(token)
-	if !validSecurityAgentPlannerCredential(token) {
+	var result struct {
+		Verdict string `json:"verdict"`
+		Clause  string `json:"violated_clause"`
+	}
+	if json.Unmarshal(raw, &result) != nil {
 		return "", errWorkerExecution
 	}
-	payload, _ := json.Marshal(features)
-	req := securityAgentOpenRouterRequest{
-		Model: intentModel, MaximumTokens: 128,
-		Provider: securityAgentOpenRouterProvider{DataCollection: "deny", RequireParameters: true},
-		Messages: []securityAgentOpenRouterMessage{
-			{Role: "system", Content: "Choose one advisory review for these declared-purpose comparison flags. Return none if no review is warranted. The response is a draft for a human."},
-			{Role: "user", Content: string(payload)},
-		},
-		ResponseFormat: securityAgentOpenRouterResponseFormat{Type: "json_schema", JSONSchema: securityAgentOpenRouterJSONSchema{Name: "intent_draft", Strict: true, Schema: map[string]any{"type": "object", "additionalProperties": false, "required": []string{"recommendation"}, "properties": map[string]any{"recommendation": map[string]any{"type": "string", "enum": intentCodes}}}}},
+	if result.Verdict == "aligned" && result.Clause == "none" {
+		return "none", nil
 	}
-	body, err := json.Marshal(req)
-	if err != nil {
-		return "", errWorkerExecution
-	}
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, intentEndpoint, bytes.NewReader(body))
-	if err != nil {
-		return "", errWorkerExecution
-	}
-	r.Header.Set("Authorization", "Bearer "+string(token))
-	r.Header.Set("Content-Type", "application/json")
-	response, err := c.client.Do(r)
-	if err != nil {
-		return "", errWorkerExecution
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return "", errWorkerExecution
-	}
-	raw, err := io.ReadAll(io.LimitReader(response.Body, 8193))
-	if err != nil || len(raw) > 8192 {
-		return "", errWorkerExecution
-	}
-	content, ok := validSecurityAgentOpenRouterResponse(raw, intentModel)
-	var compact bytes.Buffer
-	if !ok || len(content) > 128 || json.Compact(&compact, []byte(content)) != nil {
-		return "", errWorkerExecution
-	}
-	for _, code := range intentCodes {
-		if compact.String() == `{"recommendation":"`+code+`"}` {
-			return code, nil
-		}
+	code := "review_" + result.Clause
+	if result.Verdict == "drift" && slices.Contains(intentCodes, code) {
+		return code, nil
 	}
 	return "", errWorkerExecution
 }
 
-func (s *temporalDiscoveryScheduleSource) claimIntent(ctx context.Context) (job *intentClaim, err error) {
+func (s *temporalDiscoveryScheduleSource) claimIntent(ctx context.Context, cfg *privateIntentClassifier) (job *intentClaim, err error) {
 	err = s.withConnection(ctx, func(ctx context.Context, c *pgx.Conn) error {
 		var raw []byte
-		if err := c.QueryRow(ctx, `SELECT public.zasp_claim_intent_draft()`).Scan(&raw); err != nil {
+		if err := c.QueryRow(ctx, `SELECT public.zasp_claim_qualified_intent($1,$2,$3,$4)`, cfg.model, cfg.residency, cfg.maximumCost, cfg.deployment).Scan(&raw); err != nil {
 			return errWorkerExecution
 		}
 		if json.Unmarshal(raw, &job) != nil {
@@ -131,7 +107,6 @@ func (s *temporalDiscoveryScheduleSource) finishIntent(ctx context.Context, leas
 		return c.QueryRow(ctx, `SELECT public.zasp_finish_intent_draft($1::text::uuid,$2)`, lease, result).Scan(&saved)
 	})
 }
-
 func (p *temporalDiscoveryScheduleProcessor) classifyDue(ctx context.Context) {
 	if p.classifier == nil {
 		return
@@ -145,18 +120,14 @@ func (p *temporalDiscoveryScheduleProcessor) classifyDue(ctx context.Context) {
 		return
 	}
 	p.lastIntent = at
-	job, err := p.source.claimIntent(ctx)
+	job, err := p.source.claimIntent(ctx, p.classifier)
 	if err != nil || job == nil {
 		return
 	}
-	bounded, cancel := context.WithTimeout(ctx, 4*time.Second)
-	defer cancel()
-	code, err := p.classifier.Classify(bounded, job.Features)
+	code, err := p.classifier.Classify(ctx, job.Features)
 	var recommendation *string
 	if err == nil && slices.Contains(intentCodes, code) {
 		recommendation = &code
 	}
-	// A failed attempt leaves the local deterministic findings intact.
-	// The database lease supplies bounded retries after an outage or crash.
 	_ = p.source.finishIntent(ctx, job.Lease, recommendation)
 }

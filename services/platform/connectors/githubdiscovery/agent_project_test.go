@@ -492,3 +492,43 @@ func TestManifestPackageNames(t *testing.T) {
 		}
 	}
 }
+
+func TestRawSDKAndApplicationToolSchemaProduceInferredRepositoryOnly(t *testing.T) {
+	t.Parallel()
+	manifest := `{"dependencies":{"openai":"^4.0.0"}}`
+	for _, example := range []struct {
+		path      string
+		candidate bool
+	}{
+		{"src/tools/tool-schemas.ts", true}, {"examples/tool-schemas.ts", false}, {"node_modules/agent/tool-schemas.ts", false}, {"src/prompt.ts", false},
+	} {
+		page, err, calls := fetchAgentProjectPage(t, agentProjectTree(false, agentProjectBlob("package.json", len(manifest)), agentProjectBlob(example.path, 200)), agentProjectContent(manifest))
+		if example.candidate {
+			if err != nil {
+				t.Fatal(err)
+			}
+			requireAgentProject(t, page, `["layout:tool_schema","package:openai"]`)
+		} else {
+			requireNoAgentProject(t, page, err)
+		}
+		if len(calls) != 2 || bytes.Contains(page.Raw, []byte(example.path)) {
+			t.Fatalf("unexpected retained content or provider call for %s", example.path)
+		}
+	}
+}
+
+func TestRawHTTPAgentLayoutWithoutDependenciesRequiresAllThreeSignals(t *testing.T) {
+	t.Parallel()
+	tree := []string{agentProjectBlob("src/llm_client.py", 80), agentProjectBlob("schemas/tool_schema.json", 120)}
+	page, err, _ := fetchAgentProjectPage(t, agentProjectTree(false, tree...))
+	requireNoAgentProject(t, page, err)
+	tree = append(tree, agentProjectBlob("prompts/system-prompt.j2", 100))
+	page, err, requests := fetchAgentProjectPage(t, agentProjectTree(false, tree...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireAgentProject(t, page, `["client:model_http","layout:system_prompt","layout:tool_schema"]`)
+	if len(requests) != 1 {
+		t.Fatalf("unexpected source read: %v", requests)
+	}
+}

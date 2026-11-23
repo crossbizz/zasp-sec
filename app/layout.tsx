@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ThemeControl } from "./components/ThemeControl";
 import { themeBootstrap } from "./theme";
 import "./globals.css";
 
@@ -33,7 +32,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body>
-        <ThemeControl />
         {children}
       </body>
     </html>

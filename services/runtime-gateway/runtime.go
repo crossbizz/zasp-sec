@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
 	"regexp"
 	"sort"
 	"strconv"
@@ -76,6 +77,7 @@ type gatewayControlPlane interface {
 }
 
 type gatewayRuntimeConfig struct {
+	Delegation           *delegation.Verifier
 	Control              gatewayControlPlane
 	Cache                *policy.GatewayPolicyCache
 	Evidence             gatewayEvidenceStore
@@ -87,6 +89,7 @@ type gatewayRuntimeConfig struct {
 }
 
 type gatewayEvaluationRequest struct {
+	Delegation     string            `json:"delegation_token,omitempty"`
 	EventID        string            `json:"event_id"`
 	ActionKind     string            `json:"action_kind"`
 	Attributes     map[string]string `json:"attributes"`
@@ -109,7 +112,8 @@ type gatewayQuarantineAcknowledgment struct {
 }
 
 type gatewayRuntime struct {
-	mu sync.Mutex
+	delegation *delegation.Verifier
+	mu         sync.Mutex
 
 	control              gatewayControlPlane
 	cache                *policy.GatewayPolicyCache
@@ -143,6 +147,7 @@ func newGatewayRuntime(config gatewayRuntimeConfig) (*gatewayRuntime, error) {
 		return nil, errGatewayRuntime
 	}
 	runtime := &gatewayRuntime{
+		delegation:           config.Delegation,
 		control:              config.Control,
 		cache:                config.Cache,
 		evidence:             config.Evidence,
@@ -303,6 +308,10 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		runtime.mu.Unlock()
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
+	if denied := runtime.delegated(request, now); denied != nil {
+		runtime.mu.Unlock()
+		return *denied, nil
+	}
 	if result, found, exact, replayErr := runtime.evaluationReplayLocked(request.EventID, requestDigest, now); replayErr != nil {
 		runtime.mu.Unlock()
 		return gatewayEvaluationResult{}, errGatewayRuntime
@@ -367,6 +376,9 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 	now, ok = runtime.gatewayTimeLocked()
 	if !ok {
 		return gatewayEvaluationResult{}, errGatewayRuntime
+	}
+	if denied := runtime.delegated(request, now); denied != nil {
+		return *denied, nil
 	}
 	if replayed, found, exact, replayErr := runtime.evaluationReplayLocked(request.EventID, requestDigest, now); replayErr != nil {
 		return gatewayEvaluationResult{}, errGatewayRuntime
@@ -742,11 +754,12 @@ func (runtime *gatewayRuntime) gatewayTimeLocked() (time.Time, bool) {
 
 func gatewayEvaluationRequestDigest(request gatewayEvaluationRequest) ([sha256.Size]byte, error) {
 	raw, err := json.Marshal(struct {
+		Delegation     string            `json:"delegation_token,omitempty"`
 		EventID        string            `json:"event_id"`
 		ActionKind     string            `json:"action_kind"`
 		Attributes     map[string]string `json:"attributes"`
 		Classification map[string]string `json:"classification"`
-	}{EventID: request.EventID, ActionKind: request.ActionKind, Attributes: cloneGatewayStrings(request.Attributes), Classification: cloneGatewayStrings(request.Classification)})
+	}{Delegation: request.Delegation, EventID: request.EventID, ActionKind: request.ActionKind, Attributes: cloneGatewayStrings(request.Attributes), Classification: cloneGatewayStrings(request.Classification)})
 	if err != nil {
 		return [sha256.Size]byte{}, errGatewayRuntime
 	}

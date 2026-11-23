@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZaspProductionApp } from "./ZaspProductionApp";
@@ -210,7 +210,7 @@ describe("production scoped activity navigation", () => {
     expect(relationReads[0].headers.get("X-Zasp-Expected-Scope")).toBe(`${organization}/${workspace}/${environment}`);
     expect(reads.some(request => ["/api/v1/findings", "/api/v1/attack-paths", "/api/v1/security-agent-runs"].includes(new URL(request.url).pathname))).toBe(false);
     await userEvent.click(await screen.findByRole("button", { name: `Open ${kind === "finding" ? "finding" : "attack path"} ${entityID}` }));
-    expect(await screen.findByRole("dialog", { name: kind === "finding" ? finding.title : "Attack path detail" })).toBeVisible();
+    expect(await screen.findByRole(kind === "finding" ? "dialog" : "region", { name: kind === "finding" ? finding.title : "Attack path detail" })).toBeVisible();
     expect(window.location.pathname + window.location.search).toBe(`${route}?entity_id=${entityID}&${scopeQuery}`);
     view.unmount();
   });
@@ -293,13 +293,17 @@ describe("production scoped activity navigation", () => {
     expect(await screen.findByRole("dialog", { name: finding.title })).toHaveTextContent(principal);
     await waitFor(() => expect(screen.getByRole("button", { name: "Open attack path" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Open attack path" }));
-    expect(await screen.findByRole("dialog", { name: "Attack path detail" })).toBeVisible();
-    await screen.findByText(`${principal} → ${otherPrincipal}`);
+    expect(await screen.findByRole("region", { name: "Attack path detail" })).toBeVisible();
+    const pathSteps = await screen.findByRole("list", { name: "Path steps" });
+    const objects = within(pathSteps).getAllByRole("button", { name: "Object outside your access" });
+    expect(objects).toHaveLength(2);
+    await userEvent.click(objects[1]);
+    expect(objects[1]).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(otherPrincipal, { selector: "code" })).toBeVisible();
     expect(window.location.pathname + window.location.search).toBe(`/exposure/attack-paths?entity_id=${pathID}&${scopeQuery}`);
     expect(requested).not.toContain("/api/v1/findings");
     expect(requested).not.toContain("/api/v1/attack-paths");
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    await userEvent.click(screen.getByRole("button", { name: "All attack paths" }));
     expect(await screen.findByText("No attack paths in this scope.")).toBeVisible();
     expect(window.location.search).toBe("");
     window.history.replaceState({}, "", `/violations?entity_id=${findingID}&${scopeQuery}`);

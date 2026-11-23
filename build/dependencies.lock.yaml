@@ -66,6 +66,30 @@ dependencies:
     review: approved
   - ecosystem: npm
     manifest: package.json
+    name: "@ai-sdk/react"
+    version: 4.0.184
+    license: Apache-2.0
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: "@assistant-ui/ai-sdk"
+    version: 0.0.20
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: "@assistant-ui/react"
+    version: 0.15.38
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
     name: "@dagrejs/dagre"
     version: 2.0.4
     license: MIT
@@ -77,6 +101,14 @@ dependencies:
     name: "@xyflow/react"
     version: 12.12.1
     license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: "ai"
+    version: 7.0.179
+    license: Apache-2.0
     owner: web-platform
     scope: runtime
     review: approved
@@ -338,6 +370,22 @@ dependencies:
     review: approved
   - ecosystem: go
     manifest: services/platform/go.mod
+    name: github.com/lestrrat-go/jwx/v3
+    version: v3.1.1
+    license: MIT
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
+    name: github.com/modelcontextprotocol/go-sdk
+    version: v1.8.0
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
     name: github.com/neo4j/neo4j-go-driver/v6
     version: v6.2.0
     license: Apache-2.0
@@ -356,6 +404,14 @@ dependencies:
     manifest: services/platform/go.mod
     name: github.com/openfga/go-sdk
     version: v0.8.2
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
+    name: github.com/santhosh-tekuri/jsonschema/v6
+    version: v6.0.2
     license: Apache-2.0
     owner: platform-data
     scope: runtime

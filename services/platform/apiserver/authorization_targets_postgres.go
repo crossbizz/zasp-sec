@@ -42,6 +42,13 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 	}
 	id := route.PathParameters[policy.Parameter]
 	query, _ := ctx.Value(authorizationQueryContextKey{}).(url.Values)
+	if analystChatOperation(route.OperationID) {
+		ids := query["session_id"]
+		if len(ids) != 1 || !validProductID(ids[0]) {
+			return AuthorizationTargets{}, authorization.ErrInvalid
+		}
+		id = ids[0]
+	}
 	if policy.Kind == "session" {
 		if route.OperationID == "listSessions" {
 			if len(query["kind"]) > 1 || query.Get("kind") != "" && query.Get("kind") != "console" && query.Get("kind") != "runtime" {
@@ -75,6 +82,13 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 		case "environment":
 			id = identity.Scope.EnvironmentID().String()
 		}
+	}
+	if route.OperationID == "getAddonDeploymentApproval" || route.OperationID == "reviewAddonDeploymentApproval" {
+		agents := query["agent_id"]
+		if len(agents) != 1 || !validProductID(agents[0]) {
+			return AuthorizationTargets{}, authorization.ErrInvalid
+		}
+		return r.deploymentReviewTargets(ctx, identity, route, policy, id, agents[0])
 	}
 	if r.securityAgentDatabase == nil {
 		return resolveAuthorizationDatabase(ctx, r.database, identity, route, policy, id)

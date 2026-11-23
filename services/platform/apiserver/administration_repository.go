@@ -63,6 +63,7 @@ type administrationMutation struct {
 	EnvironmentClass, CollectionMode, IdempotencyKey, GrantID, AuditID   string
 	RetentionDays                                                        int
 	DeletionEnabled                                                      bool
+	AIPatch                                                              json.RawMessage
 	Permissions                                                          json.RawMessage
 	ExpiresAt                                                            time.Time
 	// DefaultExpiry: the request named no expiry and ExpiresAt is the default.
@@ -153,6 +154,8 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 		return repository.database.QueryJSON(ctx, postgresListComplianceControlsSQL, identity.Scope.OrganizationID().String(), parameters["after_id"], adminLimit(parameters)+1)
 	case "listComplianceEvidence":
 		return repository.database.QueryJSON(ctx, postgresListComplianceEvidenceSQL, identity.Scope.OrganizationID().String(), parameters["after_parent_id"], parameters["after_id"], adminLimit(parameters)+1)
+	case "getOrganizationAIControls", "getEnvironmentAIControls", "listModelQualifications":
+		return repository.database.QueryJSON(ctx, aiControlsReadSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), operation)
 	case "getDataControls":
 		statement := authorizationReadStatement(ctx, postgresGetDataControlsSQL, `SELECT zasp_authorization80.get_data_controls($1,$2,$3)`)
 		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
@@ -249,6 +252,8 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 		return repository.preconditionedAdministrationMutation(ctx, postgresAcknowledgeAPITokenRevealSQL, organization, workspace, environment, actor, mutation.ID, mutation.AuditID)
 	case "revokeSession":
 		return repository.preconditionedAdministrationMutation(ctx, postgresRevokeInvestigatedSessionSQL, organization, workspace, environment, mutation.ID, mutation.ExpectedVersion, mutation.AuditID, actor, environment)
+	case "updateOrganizationAIControls", "updateEnvironmentAIControls":
+		return repository.preconditionedAdministrationMutation(ctx, aiControlsWriteSQL, organization, workspace, environment, actor, mutation.Operation, mutation.ExpectedVersion, mutation.AIPatch, mutation.AuditID)
 	case "updateDataControls":
 		statement := authorizationReadStatement(ctx, postgresUpdateDataControlsSQL, `SELECT zasp_authorization80.update_data_controls($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`)
 		return repository.preconditionedAdministrationMutation(ctx, statement, organization, workspace, environment, mutation.CollectionMode, mutation.RetentionDays, mutation.DeletionEnabled, mutation.ExpectedVersion, mutation.EnvironmentClass, mutation.AuditID, actor)

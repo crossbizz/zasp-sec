@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPage } from "../../components/AuthPage";
 import { useEffect, useState } from "react";
 
 import { APIProductError, createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
@@ -57,9 +58,9 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
     void complete();
     return () => { active = false; };
   }, [client, replaceLocation, accepted]);
-  if (failure) return <main className="page auth-page"><h1>Sign-in failed</h1><p role="alert">{failure.message}</p>{failure.correlation && <p>Correlation: <code>{failure.correlation}</code></p>}</main>;
-  if (invitation && !accepted) return <main className="page auth-page"><h1>Accept your invitation</h1><p>Continue to create your secure session.</p><button type="button" onClick={() => setAccepted(true)}>Accept invitation</button></main>;
-  return <main className="page auth-page"><h1>Completing sign-in</h1><p role="status">Creating your secure session…</p></main>;
+  if (failure) return <AuthPage><h1>Sign-in failed</h1><p role="alert">{failure.message}</p>{failure.correlation && <p>Correlation: <code>{failure.correlation}</code></p>}</AuthPage>;
+  if (invitation && !accepted) return <AuthPage><h1>Accept your invitation</h1><p>Continue to create your secure session.</p><button type="button" onClick={() => setAccepted(true)}>Accept invitation</button></AuthPage>;
+  return <AuthPage><h1>Completing sign-in</h1><p role="status">Creating your secure session…</p></AuthPage>;
 }
 
 export default function CallbackPage() {

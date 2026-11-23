@@ -14,7 +14,7 @@ const browser = await chromium.launch({ executablePath: process.env.ZASP_CHROMIU
 const origin = process.env.ZASP_UI_REVIEW_ORIGIN || 'http://localhost:3000';
 const source = await readFile(path.join(root, 'app/components/ZaspProductionApp.tsx'), 'utf8');
 const routes = [...source.matchAll(/\{ path: "([^"]+)", label: "([^"]+)"/g)].map(match => ({ route: match[1], title: match[2] }));
-assert.equal(routes.length, 24, 'Update review coverage if production routes change');
+assert.equal(routes.length, 25, 'Update review coverage if production routes change');
 const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 1000 }, { width: 1024, height: 768 }, { width: 390, height: 844 }];
 const slides = [], failures = [], consoleErrors = [], assertions = [];
 let mode = 'normal';
@@ -30,11 +30,13 @@ await context.route('**/api/v1/**', async route => {
 const page = await context.newPage();
 page.on('pageerror', error => consoleErrors.push(error.message));
 let theme = 'light', viewport = viewports[0];
-await context.addInitScript(() => { if (!localStorage.getItem('zasp.theme')) localStorage.setItem('zasp.theme', 'light'); });
+
 async function open(route) {
-  await page.goto(origin + route, { waitUntil: 'networkidle' });
+  await context.addCookies([{ name: 'zasp.theme', value: theme, url: origin }]);
+  const response = await page.goto(origin + route, { waitUntil: 'networkidle' });
+  assert(response?.ok(), `Route ${route} returned HTTP ${response?.status()}`);
   await page.locator('h1').first().waitFor();
-  await page.evaluate(theme => { document.documentElement.dataset.theme = theme; localStorage.setItem('zasp.theme', theme); window.dispatchEvent(new Event('zasp-theme-change')); }, theme);
+  if (routes.some(item => item.route === route)) await page.waitForSelector('.app-shell');
   await page.evaluate(() => document.fonts.ready);
 }
 async function capture(title, route, state = 'Page') {
@@ -137,19 +139,20 @@ for (theme of ['light', 'dark']) {
   await open('/sign-in'); await capture('Sign in', '/sign-in');
   await open('/auth/callback'); await capture('Sign in callback', '/auth/callback', 'Missing callback parameters');
 }
-// Mobile navigation uses the production links inside the existing accessible drawer.
+// Mobile navigation uses the production links in an inline disclosure.
 viewport = viewports[3]; await page.setViewportSize(viewport);
 for (theme of ['light','dark']) {
   await open('/');
   const toggle = page.getByRole('button', { name: 'Open navigation' });
   await toggle.click();
-  await page.getByRole('dialog', { name: 'Navigation', exact: true }).waitFor();
-  assert.equal(await page.getByRole('dialog').getByRole('link').count(), routes.length);
-  await capture('Mobile navigation', '/', 'Navigation drawer');
+  const menu = page.getByRole('navigation', { name: 'Main navigation' });
+  await menu.waitFor();
+  assert.equal(await menu.getByRole('link').count(), routes.length);
+  await capture('Mobile navigation', '/', 'Expanded navigation');
   await page.keyboard.press('Escape');
-  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  await menu.waitFor({ state: 'hidden' });
   assert(await toggle.evaluate(node => node === document.activeElement));
-  assertions.push(`${theme}: all 24 mobile destinations, Escape and focus restoration`);
+  assertions.push(`${theme}: all ${routes.length} mobile destinations, Escape and focus restoration`);
   const target = theme === 'light' ? 'dark' : 'light';
   await page.getByRole('button', { name: `Switch to ${target} theme` }).click();
   await page.reload({ waitUntil: 'networkidle' });
