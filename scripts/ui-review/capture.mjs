@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { bootstrap, fixture, fixtureStatus } from './fixtures.mjs';
 import { captureViewport } from './viewport-capture.mjs';
-import { inspectLayout, inspectDrawer, visitTabs } from './shell-audit.mjs';
+import { inspectLayout, inspectDrawer, inspectSignOutFailure, visitTabs } from './shell-audit.mjs';
 import { captureWorkflows } from './workflows.mjs';
 import { buildWalkthrough } from './walkthrough.mjs';
 
@@ -226,6 +226,12 @@ for (theme of ['light','dark']) {
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), target);
   assertions.push(`${theme}: theme preference survives reload`);
 }
+}
+if (!workflowsOnly) {
+  for (const view of [{width:320,height:568}, {width:1440,height:900}]) {
+    await inspectSignOutFailure(browser, origin, view, view.width === 320);
+    assertions.push(`${view.width}px: sign-out failure keeps header controls and content visible, then permits retry`);
+  }
 }
 assert.equal(consoleErrors.length, 0, `Browser errors: ${consoleErrors.join('; ')}`);
 const report = { captureVersion: 2, fixtureCapabilities:bootstrap.capabilities, fixturePermissions:bootstrap.permissions, layoutAudit:'layout-audit.json', fixtureNotice: 'Isolated synthetic responses. Live authentication, authorization enforcement and backend mutations are not verified.', routes: new Set(slides.map(s => s.route).filter(r => routes.some(item => item.route === r))).size, viewports, themes: ['light','dark'], screenshotCount: slides.length, failures, consoleErrors, assertions, slides };

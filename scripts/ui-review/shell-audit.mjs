@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { fixture, fixtureStatus } from './fixtures.mjs';
 
 export async function inspectLayout(page, routes) {
   return page.evaluate(async (routes) => {
@@ -158,4 +159,62 @@ export async function inspectDrawer(page, dialog) {
   await page.keyboard.press('Tab');
   assert(await dialog.evaluate(d=>d.contains(document.activeElement)),'Keyboard focus escaped drawer');
   return {lastControl:await last.textContent(),tabStops,closeAtBottom:true,backgroundScrollRange:pos.max,backdropTested:outside!==null};
+}
+
+export async function inspectSignOutFailure(browser, origin, viewport, touch) {
+  const context = await browser.newContext({ viewport, isMobile: touch, hasTouch: touch, reducedMotion: 'reduce' });
+  let attempts = 0;
+  try {
+    await context.route('**/*', async route => {
+      const request = route.request(), url = new URL(request.url());
+      if (url.origin !== new URL(origin).origin) return route.abort();
+      if (!url.pathname.startsWith('/api/v1/')) return route.continue();
+      if (request.method() === 'POST' && url.pathname === '/api/v1/session/sign-out') {
+        if (++attempts === 2) return route.fulfill({status:204});
+        return route.fulfill({status:503, json:{code:'provider_unavailable', message:'Review sign out failure',
+          retryable:true, correlation_id:'pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'}});
+      }
+      if (request.method() !== 'GET') return route.fulfill({status:405});
+      return route.fulfill({status:fixtureStatus(url), json:fixture(url), headers:{'Cache-Control':'no-store', ETag:'"1"'}});
+    });
+    const page = await context.newPage();
+    await page.goto(new URL('/policies', origin).href);
+    await page.getByRole('heading', {name:'Policies', exact:true}).waitFor();
+    const header = page.locator('.topbar');
+    const signOut = header.getByRole('button', {name:'Sign out', exact:true});
+    // Inspect the layout in the DOM update that reveals the alert. Waiting for
+    // a screenshot can hide a transient overlap if a layout transition runs.
+    const probe = await header.evaluateHandle(bar => ({
+      shown: new Promise(resolve => {
+        const observer = new MutationObserver(() => {
+          const alert = bar.querySelector('[role="alert"]');
+          if (!alert) return;
+          observer.disconnect();
+          const headerBox = bar.getBoundingClientRect();
+          const targets = [...bar.querySelectorAll('button, input, [role="alert"]'), document.querySelector('.theme-control')]
+            .filter(node => node && node.checkVisibility({visibilityProperty:true}) && node.getClientRects().length);
+          const obscured = targets.filter(node => {
+            const box = node.getBoundingClientRect();
+            const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+            return !node.contains(hit) || box.width < 1 || box.height < 1 ||
+              box.left < 0 || box.right > innerWidth + 1 || box.top < 0 || box.bottom > headerBox.bottom + 1;
+          }).map(node => node.getAttribute('aria-label') || node.textContent.trim());
+          const heading = document.querySelector('main h1').getBoundingClientRect();
+          resolve({obscured, contentClear:heading.top >= headerBox.bottom - 1});
+        });
+        observer.observe(bar, {childList:true, subtree:true});
+      }),
+    }));
+    const activate = () => touch ? signOut.tap() : signOut.click();
+    await activate();
+    await header.getByRole('alert').filter({hasText:'Sign out failed'}).waitFor();
+    const result = await probe.evaluate(value => value.shown);
+    assert.deepEqual(result.obscured, [], `Header controls are clipped or covered at ${viewport.width}px`);
+    assert(result.contentClear, `Sign-out feedback covers page content at ${viewport.width}px`);
+    await activate();
+    await page.getByRole('heading', {name:'Sign in to Zasp'}).waitFor();
+    assert.equal(attempts, 2);
+  } finally {
+    await context.close();
+  }
 }

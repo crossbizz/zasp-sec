@@ -635,7 +635,7 @@ html:has(body > [data-dialog-layer]) { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
 
 /* Signed-out, sign-in callback and session-state pages: one centred card. */
