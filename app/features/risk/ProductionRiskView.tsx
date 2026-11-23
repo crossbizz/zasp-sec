@@ -18,6 +18,7 @@ import { useOptionalSession } from "../../auth/SessionProvider";
 import { createSecurityAgentsAPI } from "../securityagents/SecurityAgentsView";
 import { FindingRemediation, findingRemediation, type FindingRemediationAPI } from "./FindingRemediation";
 import { createFindingRemediationAPI } from "./remediation-api";
+import { AttackPathEvidence, PathBreakOptions } from "./AttackPathEvidence";
 import { Time } from "../../components/time";
 
 export function ProductionRiskView({ path, canWrite, api: suppliedAPI, remediationAPI: suppliedRemediationAPI, canRemediate = false, onNavigate = navigateInBrowser, selectedID, activityScope, canReadRuns = false }: { path: "/violations" | "/exposure/attack-paths"; canWrite: boolean; canReadRuns?: boolean; api?: ProductionRiskAPI; remediationAPI?: FindingRemediationAPI; canRemediate?: boolean; onNavigate?: (path: string) => void; selectedID?: string; activityScope?: ActivityScope }) {
@@ -247,7 +248,7 @@ function ProductionAttackPathsView({ api, selectedID, onNavigate, activityScope,
   const open = async (path: AttackPath) => {
     request.current?.abort();
     const controller = new AbortController(); request.current = controller;
-    setSelectedPathID(path.id); setDetailError(null); setOptionsError(null); setDetail(null); setOptions(null);
+    setNodes({}); setSelectedPathID(path.id); setDetailError(null); setOptionsError(null); setDetail(null); setOptions(null);
     const isCurrent = () => !controller.signal.aborted && request.current === controller;
     const detailRequest = api.getAttackPath(path.id, controller.signal).then(value => {
       if (!isCurrent()) return;
@@ -286,18 +287,14 @@ function ProductionAttackPathsView({ api, selectedID, onNavigate, activityScope,
   if (query.status === "forbidden") return <RiskState title="Attack Paths" alert="Attack paths are not authorized in this scope." />;
   if (query.status === "error") return <RiskState title="Attack Paths" alert="Attack paths are unavailable." retry={() => void query.retry()} />;
   const paths = query.data ?? [];
-  return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry conditions to impact." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale attack paths.</div>}<Card>{selectedID ? <><p>Linked attack path <code>{selectedID}</code></p><Button onClick={() => onNavigate("/exposure/attack-paths")}>All attack paths</Button></> : paths.length === 0 ? <p>No attack paths in this scope.</p> : <PagedTable items={paths} text={(path) => JSON.stringify(path)} label="attack paths" placeholder="Filter by path, severity or status" head={<tr><th>Path</th><th>State</th><th>Nodes</th><th>Updated</th></tr>} row={(path) => <tr key={path.id}><td><button className="row-title" aria-label={`Open attack path ${path.id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button></td><td>{path.state}</td><td>{path.node_ids.length}</td><td><Time value={path.updated_at} /></td></tr>} />}</Card>{selectedPathID === null ? null : <Drawer open title="Attack path detail" onClose={close}>{detailError ? <p role="alert">{detailError}</p> : detail ? <>{detail.node_ids.some((id) => nodes[id]) && <ol aria-label="Path steps">{detail.node_ids.map((id) => <li key={id}>{nodes[id] ? `${pathNodeLabel(nodes[id])} · ${nodes[id].name}` : "Object outside your access"}</li>)}</ol>}<p className="path-ids">{detail.node_ids.join(" → ")}</p><p><span className="label">State</span> {detail.state}{detail.state === "blocked" ? ` · blocked edge ${detail.blocked_edge}` : ""}</p><h3>Evidence</h3><ul>{detail.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul>{activityScope && <SecurityAgentActivityPanel direction="runs" kind="attack_path" entityID={detail.id} scope={activityScope} permitted={canReadRuns} onNavigate={onNavigate} />}</> : <p role="status">Loading path detail…</p>}<h3>Break path</h3>{optionsError ? <p role="alert">{optionsError}</p> : options === null ? <p role="status">Loading break options…</p> : options.length === 0 ? <p>No deterministic break options are available.</p> : <ol>{options.map((option) => <li key={`${option.kind}/${option.target_id}`}>{option.rank}. {option.kind === "remove_node" ? "Remove node" : "Enforce policy"} at {nodes[option.target_id] ? `${nodes[option.target_id].name} ` : ""}<code>{option.target_id}</code> · evidence <code>{option.evidence_id}</code></li>)}</ol>}</Drawer>}</div>;
-}
-
-// What a node of a path is, in the words of the inventory.
-function pathNodeLabel(node: PathNode): string {
-  if (node.kind === "agent") return "Agent";
-  if (node.kind === "identity") return "Identity";
-  if (node.kind === "runtime") return "Runtime";
-  if (node.sourceKind.endsWith("_mcp_tool")) return "MCP tool";
-  if (node.sourceKind.endsWith("_mcp_server") || node.sourceKind === "aws_agentcore_gateway") return "MCP server";
-  if (node.sourceKind === "aws_data_store") return "Data store";
-  return node.kind === "tool" ? "Tool" : "Asset";
+  return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry conditions to impact." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale attack paths.</div>}<Card>{selectedID ? <><p>Linked attack path <code>{selectedID}</code></p><Button onClick={() => onNavigate("/exposure/attack-paths")}>All attack paths</Button></> : paths.length === 0 ? <p>No attack paths in this scope.</p> : <PagedTable items={paths} text={(path) => JSON.stringify(path)} label="attack paths" placeholder="Filter by path, severity or status" head={<tr><th>Path</th><th>State</th><th>Nodes</th><th>Updated</th></tr>} row={(path) => <tr key={path.id}><td><button className="row-title" aria-label={`Open attack path ${path.id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button></td><td>{path.state}</td><td>{path.node_ids.length}</td><td><Time value={path.updated_at} /></td></tr>} />}</Card>{selectedPathID === null ? null : <section className="card path-detail" aria-label="Attack path detail">
+    <header><h2>Attack path detail</h2><Button onClick={selectedID ? () => onNavigate("/exposure/attack-paths") : close}>Close</Button></header>
+    {detailError ? <p role="alert">{detailError}</p> : detail ? <>
+      <AttackPathEvidence key={detail.id} path={detail} nodes={nodes} />
+      {activityScope && <SecurityAgentActivityPanel direction="runs" kind="attack_path" entityID={detail.id} scope={activityScope} permitted={canReadRuns} onNavigate={onNavigate} />}
+    </> : <p role="status">Loading path detail…</p>}
+    <PathBreakOptions options={options} error={optionsError} nodes={nodes} />
+  </section>}</div>;
 }
 
 function RiskState({ title, status, alert, retry }: { title: string; status?: string; alert?: string; retry?: () => void }) {

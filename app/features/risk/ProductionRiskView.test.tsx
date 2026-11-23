@@ -115,9 +115,9 @@ describe("production risk views", () => {
     const get = vi.fn(async (id: string) => { expect(id).toBe(path.id); return path; });
     const options = vi.fn(fixtureAPI().getAttackPathBreakOptions);
     renderRisk("/exposure/attack-paths", fixtureAPI({ listAttackPaths: list, getAttackPath: get, getAttackPathBreakOptions: options }), false, vi.fn(), path.id);
-    const dialog = await screen.findByRole("dialog", { name: "Attack path detail" });
+    const dialog = await screen.findByRole("region", { name: "Attack path detail" });
     await waitFor(() => expect(dialog).toHaveTextContent("1. Remove node"));
-    expect(dialog).toHaveTextContent(path.node_ids.join(" → "));
+    expect(within(dialog).getAllByRole("button", { pressed: true })).toHaveLength(1);
     expect(options).toHaveBeenCalledWith(path, expect.any(AbortSignal));
     expect(list).not.toHaveBeenCalled();
     expect(screen.queryByText("No attack paths in this scope.")).not.toBeInTheDocument();
@@ -233,8 +233,8 @@ describe("production risk views", () => {
   it("renders API attack-path order, evidence, and ranked path-local break options", async () => {
     renderRisk("/exposure/attack-paths", fixtureAPI());
     await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
-    const dialog = await screen.findByRole("dialog", { name: "Attack path detail" });
-    expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
+    const dialog = await screen.findByRole("region", { name: "Attack path detail" });
+    expect(dialog).toHaveTextContent(path.entry_id);
     expect(dialog).toHaveTextContent("1. Remove node");
     expect(dialog).not.toHaveTextContent(/ticket|rerun|simulate/i);
   });
@@ -286,15 +286,15 @@ describe("production risk views", () => {
     }));
     await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
 
-    const dialog = screen.getByRole("dialog", { name: "Attack path detail" });
+    const dialog = screen.getByRole("region", { name: "Attack path detail" });
     expect(dialog).toHaveTextContent("Loading path detail…");
     expect(dialog).toHaveTextContent("Loading break options…");
     await act(async () => detail.resolve(path));
-    await waitFor(() => expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`));
+    await waitFor(() => expect(dialog).toHaveTextContent(path.entry_id));
     expect(dialog).toHaveTextContent("Loading break options…");
     await act(async () => options.reject(new Error("Break-option provider unavailable")));
     expect(await screen.findByText("Break-option provider unavailable")).toHaveAttribute("role", "alert");
-    expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
+    expect(dialog).toHaveTextContent(path.entry_id);
   });
 
   it("aborts finding detail on route unmount and ignores a late response", async () => {
@@ -326,6 +326,6 @@ describe("production risk views", () => {
     view.rerender(<APIProvider><QueryScope><ProductionRiskView path="/violations" api={api} canWrite={false} /></QueryScope></APIProvider>);
     expect(signals.every((signal) => signal.aborted)).toBe(true);
     await act(async () => { detail.resolve(path); options.resolve([]); });
-    expect(screen.queryByRole("dialog", { name: "Attack path detail" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Attack path detail" })).not.toBeInTheDocument();
   });
 });

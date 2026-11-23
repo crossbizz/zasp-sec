@@ -66,10 +66,34 @@ dependencies:
     review: approved
   - ecosystem: npm
     manifest: package.json
+    name: "@dagrejs/dagre"
+    version: 2.0.4
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: "@xyflow/react"
+    version: 12.12.1
+    license: MIT
+    owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
     name: drizzle-orm
     version: 0.45.2
     license: Apache-2.0
     owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: npm
+    manifest: package.json
+    name: echarts
+    version: 6.1.0
+    license: Apache-2.0
+    owner: web-platform
     scope: runtime
     review: approved
   - ecosystem: npm
