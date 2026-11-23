@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { APITransportError, requireAPIData, type APIClient } from "../../apps/web/api/client";
 import { decodeGlobalSearchPage, decodeInventoryDetail } from "../../apps/web/api/decoders";
@@ -63,21 +63,23 @@ export function ProductionGlobalSearch({ client, scope, onNavigate }: { client: 
     const path = result.type === "finding" ? activityLink({ kind: "finding", id: result.id }, scope) : `${inventoryRoutes[result.type]}?inventory=${result.id}`;
     onNavigate(path);
   };
+  const dismissOnEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || state === "idle") return;
+    event.preventDefault();
+    event.stopPropagation();
+    dismiss();
+    form.current?.querySelector("input")?.focus();
+  };
   return <>
-    <form ref={form} role="search" className="global-search production-global-search" onSubmit={(event) => void submit(event)}
-      onKeyDown={event => {
-        if (event.key !== "Escape" || state === "idle") return;
-        event.preventDefault(); event.stopPropagation();
-        dismiss(); form.current?.querySelector("input")?.focus();
-      }}>
-      <SearchBox aria-label="Search product entities" value={query} maxLength={128} placeholder="Search agents, tools, identities, runtimes, and findings" onChange={(event) => { dismiss(); setQuery(event.target.value); }} />
-      <button type="submit" className="global-search-submit" disabled={state === "loading"}>Search</button>
+    <form ref={form} role="search" className="global-search production-global-search" onSubmit={(event) => void submit(event)}>
+      <SearchBox aria-label="Search product entities" value={query} maxLength={128} placeholder="Search agents, tools, identities, runtimes, and findings" onKeyDown={dismissOnEscape} onChange={(event) => { dismiss(); setQuery(event.target.value); }} />
+      <button type="submit" className="global-search-submit" disabled={state === "loading"} onKeyDown={dismissOnEscape}>Search</button>
       {state !== "idle" && <div className="global-results" aria-live="polite">
         {state === "loading" && <span>Searching authorized scope</span>}
         {state === "invalid" && <span role="alert">Enter 2–128 valid search characters.</span>}
         {state === "error" && <span role="alert">Search could not be completed. Retry your search.</span>}
         {state === "ready" && results.length === 0 && <span>No matching product entities</span>}
-        {state === "ready" && results.map((result) => <button type="button" key={`${result.type}/${result.id}`} aria-label={`Open ${result.name}`} onClick={() => open(result)}><span>{result.name}<small>{result.type} · {result.id}</small></span></button>)}
+        {state === "ready" && results.map((result) => <button type="button" key={`${result.type}/${result.id}`} aria-label={`Open ${result.name}`} onKeyDown={dismissOnEscape} onClick={() => open(result)}><span>{result.name}<small>{result.type} · {result.id}</small></span></button>)}
       </div>}
     </form>
     {asset && <AssetSearchDetail key={asset.id} asset={asset} client={client} onClose={() => setAsset(null)} />}

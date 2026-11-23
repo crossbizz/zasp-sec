@@ -59,6 +59,17 @@ describe("Production global search", () => {
     expect(screen.queryByRole("button", { name: "Open Example result" })).toBeNull();
   });
 
+  it.each(["input", "submit"])("dismisses results from the %s and returns focus to the search box", async control => {
+    const { user, input } = mount(vi.fn().mockResolvedValue(ok([row("tool")])));
+    await user.type(input, "Example{enter}");
+    const result = await screen.findByRole("button", { name: "Open Example result" });
+    if (control === "submit") await user.tab();
+    expect(control === "submit" ? screen.getByRole("button", { name: "Search" }) : input).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(result).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
+
   it("reads a generic asset from its own authorized detail endpoint", async () => {
     const get = vi.fn().mockResolvedValueOnce(ok([row("asset")])).mockRejectedValueOnce(new Error("Unavailable"));
     const { user, input, navigate } = mount(get);
