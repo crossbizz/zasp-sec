@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { APIProvider } from "../../api/APIProvider";
@@ -82,6 +82,13 @@ it("distinguishes assigned fleet from current coverage and confirms retirement",
     </APIProvider>,
   );
   expect(await screen.findByText("3 assigned · 2 enrolled · 1 online · 1 acknowledged policy")).toBeVisible();
+  const table = screen.getByRole("table");
+  expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+    "Device", "Cohort", "Connection", "Policy",
+  ]);
+  expect(within(table).getByRole("row", { name: new RegExp(device.id) })).toHaveAccessibleName(
+    [device.id, device.cohort, device.connection, "No current acknowledgment"].join(" "),
+  );
   await user.click(screen.getByRole("button", { name: device.id }));
   expect(await screen.findByText("7 / 6")).toBeVisible();
   expect(screen.getByText("macOS · Claude Code ticket hook")).toBeVisible();

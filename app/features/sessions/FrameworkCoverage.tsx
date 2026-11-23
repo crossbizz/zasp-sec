@@ -68,8 +68,8 @@ function EvidenceList({ api, selector, scope }: { api: CoverageAPI; selector: Ev
       const key = [row.framework, row.edition, row.upstream_id, row.source_kind, row.source_id, row.rule, row.rule_version, row.evidence_kind, row.occurred_at].join("/");
       return <li key={key}>
         <strong>{evidenceNames[row.evidence_kind]}</strong> · {row.rule} ({row.rule_version}) · <Time value={row.occurred_at} />{" "}
-        {fromSource ? <a href={catalogLink(row, scope)}>{frameworkNames[row.framework]} {row.edition} · {row.upstream_id}</a> :
-          target ? <a href={target.href}>{target.label}</a> : <span>Decision <code>{row.source_id}</code> · linked product session unavailable</span>}
+        {fromSource ? <a className="evidence-reference-link" href={catalogLink(row, scope)}>{frameworkNames[row.framework]} {row.edition} · {row.upstream_id}</a> :
+          target ? <a className="evidence-reference-link" href={target.href}>{target.label}</a> : <span>Decision <code>{row.source_id}</code> · linked product session unavailable</span>}
         {row.manifest_digest && <details><summary>Skill manifest digest</summary><code>{row.manifest_digest}</code></details>}
       </li>;
     })}</ul>}
@@ -184,7 +184,7 @@ function ControlRow({ row, api, scope, selector, initialOpen, exportable, create
     <p><Badge>{entryKinds[c.kind]}</Badge> {c.status === "retired" && <Badge>Retired</Badge>} {c.parent_id && <>Parent {c.parent_id}</>}</p>
     <dl><dt>Owner</dt><dd>{c.owner}</dd><dt>Scope</dt><dd>{c.scope}</dd><dt>Applicability rationale</dt><dd>{c.rationale}</dd></dl>
     <FrameworkSurfaceReview scope={c.scope} applicability={c.applicability} />
-    <a href={c.source_url} target="_blank" rel="noreferrer">Upstream reference</a> · {c.attribution} · {c.license}
+    <a className="evidence-reference-link" href={c.source_url} target="_blank" rel="noreferrer">Upstream reference</a> · {c.attribution} · {c.license}
     <details><summary>Catalog source digest</summary><p>{c.digest_basis === "upstream_bytes" ? "Upstream source bytes" : "Reviewed catalog index"}</p><code>{c.source_digest}</code></details>
     <EvidenceList api={api} selector={target} scope={scope} />
     {!selector.upstream_id && <Button disabled={!exportable} onClick={() => create(target)}>Export {c.upstream_id} evidence</Button>}

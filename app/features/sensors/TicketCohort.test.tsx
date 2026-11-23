@@ -92,6 +92,8 @@ it("separates signing from publication and recovers an acknowledged cohort recei
   expect(
     await screen.findByRole("button", { name: "Download signing plan" }),
   ).toBeVisible();
+  expect(screen.getByRole("rowheader", { name: member.id })).toHaveAttribute("scope", "row");
+  expect(screen.getByRole("columnheader", { name: "Observed ticket calls" })).toHaveAttribute("scope", "col");
   expect(put).not.toHaveBeenCalled();
   const raw = JSON.stringify({
     schema_version: "ticket-cohort-bundle.v1",

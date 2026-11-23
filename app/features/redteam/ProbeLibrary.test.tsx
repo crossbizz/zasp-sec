@@ -53,6 +53,7 @@ describe("red team probe library views", () => {
     render(<ProbeLibraryCard api={fakeAPI({})} />);
     expect(await screen.findByText(/1080 reviewed probes in 9 categories/)).toBeTruthy();
     expect(screen.getAllByText("120")).toHaveLength(9);
+    expect(screen.getByRole("table", { name: "Probe library categories" })).toBeVisible();
     expect(probeCountLabel({ status: "ready", catalog }, "poisoned_resource")).toBe(" (120 probes)");
     expect(probeCountLabel({ status: "unavailable" }, "poisoned_resource")).toBe("");
   });
@@ -65,6 +66,7 @@ describe("red team probe library views", () => {
   it("lists which probes ran in an attempt with their outcome", () => {
     const { rerender } = render(<ProbeResults results={attempt.probe_results} />);
     expect(screen.getByText("2 probes · 1 protected · 1 unsafe")).toBeTruthy();
+    expect(screen.getByRole("table", { name: "Probe results" })).toBeVisible();
     expect(screen.getByText("zasp.indirect_injection.multilingual.suppress_answer.tool_result.v1")).toBeTruthy();
     expect(screen.getByText("unsafe")).toBeTruthy();
     expect(screen.getByText("role play")).toBeTruthy();

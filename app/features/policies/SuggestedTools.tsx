@@ -6,7 +6,7 @@ import { decodeAgentSuggestions } from "../../../apps/web/api/decoders";
 import type { AgentSuggestion, AgentSuggestionPage, InventorySummary, Policy } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
-import { Button, Field } from "../../components/ui";
+import { Badge, Button, Field } from "../../components/ui";
 
 export function SuggestedTools({ agent, revision, tools, onCreate, disabled, canManage }: { canManage:boolean; agent: string; revision: number; tools: readonly InventorySummary[]; disabled: boolean; onCreate(policy: Policy): void }) {
   const { client } = useAPI();
@@ -65,25 +65,28 @@ export function SuggestedTools({ agent, revision, tools, onCreate, disabled, can
     finally { setBusy(false); }
   };
   const reload = async () => { setSaved(undefined); setReview(""); await result.retry(); };
-  return <fieldset disabled={disabled || busy}><legend>Observed tool deviations</legend>
-    {canManage && <><Field type="datetime-local" label="Observation window from (UTC)" value={from} onChange={e=>setFrom(e.target.value)} />
+  return <fieldset className="policy-section" disabled={disabled || busy}><legend>Observed tool deviations</legend>
+    <div className="policy-stack">
+    {canManage && <div className="policy-fields"><Field type="datetime-local" label="Observation window from (UTC)" value={from} onChange={e=>setFrom(e.target.value)} />
     <Field type="datetime-local" label="Observation window to (UTC, exclusive)" value={to} onChange={e=>setTo(e.target.value)} />
-    <Button onClick={() => void refresh()}>Check runtime observations</Button></>} <Button onClick={() => void reload()}>Reload saved reviews</Button>
+    </div>}
+    <div className="button-row">{canManage && <Button onClick={() => void refresh()}>Check runtime observations</Button>} <Button onClick={() => void reload()}>Reload saved reviews</Button></div>
     {!available && result.status !== "loading" && <p>Saved reviews are unavailable for this purpose revision.</p>}
     {error && <p role="alert">{error}</p>}
     {available && page && <>
       {page.last_scan ? <p>From {page.last_scan.from} to {page.last_scan.to}, {page.last_scan.eligible} of {page.last_scan.examined} indexed events had an exact agent, session and inventory tool match. {page.last_scan.truncated && "Additional indexed events matched this window. Narrow the window to review older activity."} Unreported activity and adapter coverage are unknown.</p> : <p>No runtime observation window has been reviewed.</p>}
       {page.last_scan && page.items.length === 0 && <p>No saved deviations on this page.</p>}
-      <ul>{page.items.map(item => <li key={item.tool_id}><strong>{label(item.tool_id)}</strong> · {item.state.replaceAll("_", " ")}
+      {page.items.length > 0 && <ul className="policy-suggestions">{page.items.map(item => <li key={item.tool_id}><div className="policy-suggestion-title"><strong>{label(item.tool_id)}</strong> <Badge>{item.state.replaceAll("_", " ")}</Badge></div>
         <Button onClick={() => setReview(item.tool_id)}>{item.state === "suggested" ? "Review" : "View evidence for"} {label(item.tool_id)}</Button>
         {canManage && item.state === "draft_requested" && <Button onClick={() => void decide(item, "request_draft")}>Resume inactive draft</Button>}
         {item.state === "draft_linked" && <p>Linked policy <code>{item.policy_id}</code> · Creation audit <code>{item.draft_audit_id}</code></p>}
         {review === item.tool_id && <div><p>Block calls by agent <code>{agent}</code> to tool <code>{item.tool_id}</code> outside purpose revision {revision}.</p><p>Evidence recorded between {item.from} and {item.to}</p>
           <ul>{item.evidence_ids.map(id=><li key={id}><code>{id}</code></li>)}</ul>
           {canManage && item.state === "suggested" && <><Button variant="primary" onClick={() => void decide(item, "request_draft")}>Save as inactive draft</Button> <Button onClick={() => void decide(item, "dismiss")}>Dismiss suggestion</Button></>}</div>}
-      </li>)}</ul>
+      </li>)}</ul>}
       {page.more && page.items.length > 0 && <Button onClick={() => {setSaved(undefined); setReview(""); setAfter(page.items[page.items.length-1].tool_id);}}>Next suggestions</Button>}
       {after && <Button onClick={() => {setSaved(undefined); setReview(""); setAfter("");}}>First suggestions</Button>}
     </>}
+    </div>
   </fieldset>;
 }

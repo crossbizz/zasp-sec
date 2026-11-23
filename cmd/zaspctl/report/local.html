@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-{{styleHash}}'; img-src data:; base-uri 'none'; form-action 'none'">
+  <title>Local add-on {{.Command}} · Zasp</title>
+  <style>{{stylesheet}}</style>
+</head>
+<body>
+  <header class="masthead"><div class="wrap masthead-inner">
+    <img class="wordmark" src="{{wordmark}}" width="96" height="42" alt="Zasp">
+    <p class="privacy">No data uploaded.</p>
+  </div></header>
+  <main class="wrap">
+    <div class="heading">
+      <h1>Local add-on {{.Command}}</h1>
+      <span class="status" data-status="{{.Status}}">{{if .Result}}Static scan{{else}}Inventory{{end}} {{label .Status}}</span>
+    </div>
+    <dl class="metrics">
+      {{with .Result}}
+      <div><dt>Files inspected</dt><dd>{{len .Files}}</dd></div>
+      <div><dt>Static findings</dt><dd>{{len .Findings}}</dd></div>
+      <div><dt>Skipped entries</dt><dd>{{len .Skipped}}</dd></div>
+      {{else}}
+      <div><dt>Locations checked</dt><dd>{{len .Coverage.Roots}}</dd></div>
+      <div><dt>Observed add-ons</dt><dd>{{len .Items}}</dd></div>
+      {{end}}
+    </dl>
+    <div class="layout">
+      <div class="results">
+      {{with .Result}}
+        <section aria-labelledby="findings">
+          <h2 id="findings">Static rule findings</h2>
+          {{if .Findings}}<ul class="cards">{{range .Findings}}
+            <li class="card">
+              <div class="row"><span class="severity" data-severity="{{.Severity}}">{{.Severity}}</span><code>{{.RuleID}}</code></div>
+              <h3>{{.Message}}</h3>
+              <p class="filepath"><code>{{.Path}}</code></p>
+              {{with .Remediation}}<p class="recommendation"><strong>Recommendation</strong><br>{{.}}</p>{{end}}
+              {{if .FrameworkEvidence}}<details><summary>Framework mappings ({{len .FrameworkEvidence}})</summary>
+                <ul class="mapping">{{range .FrameworkEvidence}}
+                  <li><strong>{{.UpstreamID}} · {{.Title}}</strong><br><code>{{.Framework}}</code> · {{.Edition}} · <code>{{.EvidenceKind}}</code></li>
+                {{end}}</ul>
+              </details>{{end}}
+            </li>
+          {{end}}</ul>{{else}}<p class="empty">No static rule findings.</p>{{end}}
+        </section>
+        {{with .AdvisoryCoverage}}{{if .Matches}}<section aria-labelledby="matches">
+          <h2 id="matches">Dependency advisories</h2><ul class="cards">{{range .Matches}}
+            <li class="card"><div class="row"><span class="severity" data-severity="{{.Severity}}">{{.Severity}}</span><code>{{.ID}}</code></div>
+              <h3>{{.Dependency.Name}}@{{.Dependency.Version}}</h3><p class="filepath"><code>{{.Dependency.Path}}</code></p>
+              {{with .FixedVersion}}<p class="recommendation"><strong>Reviewed fix</strong><br><code>{{.}}</code></p>{{end}}
+            </li>
+          {{end}}</ul>
+        </section>{{end}}{{end}}
+        {{if .Notices}}<section aria-labelledby="notices"><h2 id="notices">Package and coverage notices</h2>
+          <ul class="records">{{range .Notices}}<li><p>{{.Message}}</p><code>{{.ID}}</code></li>{{end}}</ul>
+        </section>{{end}}
+        {{if .Skipped}}<section aria-labelledby="skipped"><h2 id="skipped">Skipped entries</h2>
+          <ul class="records">{{range .Skipped}}<li><code>{{.Path}}</code><p>{{label .Reason}}</p></li>{{end}}</ul>
+        </section>{{end}}
+      {{else}}
+        <section aria-labelledby="addons"><h2 id="addons">Observed add-ons</h2>
+          {{if .Items}}<ul class="cards">{{range .Items}}<li class="card">
+            <div class="row"><span class="status" data-status="{{.Status}}">{{label .Status}}</span><span>{{.Harness}} · {{label .Scope}}</span></div>
+            <h3>{{if .Name}}{{.Name}}{{else}}{{label .Type}}{{end}}</h3><p class="filepath"><code>{{.Path}}</code></p>
+            <dl class="facts">
+              <div><dt>Type</dt><dd>{{label .Type}}</dd></div><div><dt>Static findings</dt><dd>{{.Findings}}</dd></div>
+              {{with .DeclarationSummary}}<div><dt>Declaration</dt><dd>{{.}}</dd></div>{{end}}
+              {{with .ManifestDigest}}<div><dt>Manifest digest</dt><dd><code>{{.}}</code></dd></div>{{end}}
+            </dl>
+            {{if .Skipped}}<details><summary>Skipped entries ({{len .Skipped}})</summary><ul class="mapping">
+              {{range .Skipped}}<li><code>{{.Path}}</code><br>{{label .Reason}}</li>{{end}}</ul></details>{{end}}
+          </li>{{end}}</ul>{{else}}<p class="empty">No add-ons observed in the selected locations.</p>{{end}}
+        </section>
+        <section aria-labelledby="locations"><h2 id="locations">Locations checked</h2>
+          {{if .Coverage.Roots}}<ul class="records">{{range .Coverage.Roots}}
+            <li><div class="row"><strong>{{.Harness}} · {{label .Scope}}</strong><span class="status" data-status="{{.Status}}">{{label .Status}}</span></div>
+              <p class="filepath"><code>{{.Path}}</code></p>{{with .Reason}}<p>{{label .}}</p>{{end}}
+            </li>{{end}}</ul>{{else}}<p class="empty">No locations checked.</p>{{end}}
+        </section>
+      {{end}}
+      </div>
+      <aside aria-labelledby="coverage">
+        <div class="panel"><h2 id="coverage">Scan coverage</h2>
+          <dl class="facts"><div><dt>Usage</dt><dd>Unknown</dd></div>
+            {{with .Result}}<div><dt>Ruleset</dt><dd><code>{{.Ruleset}}</code></dd></div>
+            {{with .ManifestDigest}}<div><dt>Manifest digest</dt><dd><code>{{.}}</code></dd></div>{{end}}{{end}}
+          </dl>
+          {{if .Coverage.Limits}}<ul class="limits">{{range .Coverage.Limits}}<li>{{.}}</li>{{end}}</ul>{{end}}
+        </div>
+        {{with .Result}}<div class="panel"><h2>Advisory coverage</h2>
+          <p class="advisory-status">{{advisoryLabel .AdvisoryStatus}}</p>
+          {{with .AdvisoryCoverage}}<dl class="facts">
+            <div><dt>Catalog age</dt><dd>{{.AgeDays}} days</dd></div>
+            <div><dt>Authentication</dt><dd>{{label .Authentication}}</dd></div>
+            <div><dt>Declarations evaluated</dt><dd>{{.Evaluated}}</dd></div>
+            <div><dt>Unresolved versions</dt><dd>{{.Unresolved}}</dd></div>
+            <div><dt>Releases absent</dt><dd>{{.MissingReleases}}</dd></div>
+            {{with .SignerSHA256}}<div><dt>Signer SHA-256</dt><dd><code>{{.}}</code></dd></div>{{end}}
+            {{with .Source}}<div><dt>Source</dt><dd>{{.}}</dd></div>{{end}}
+            {{with .SourceRevision}}<div><dt>Source revision</dt><dd><code>{{.}}</code></dd></div>{{end}}
+          </dl>{{end}}
+        </div>{{end}}
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

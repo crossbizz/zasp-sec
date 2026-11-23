@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -114,23 +117,47 @@ func readable(report localReport) string {
 	return strings.TrimSpace(text.String())
 }
 
-var htmlTemplate = template.Must(template.New("local").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Zasp local {{.Command}}</title></head><body>
-<h1>Zasp local {{.Command}}</h1><p>Coverage: <strong>{{.Status}}</strong>. Usage unknown. No data uploaded.</p>
-{{if .Result}}{{with .Result}}<p>Ruleset: {{.Ruleset}}. Advisory coverage: {{.AdvisoryStatus}}.</p>
-{{with .AdvisoryCoverage}}<p>Catalog age {{.AgeDays}} days. Verified by {{.Authentication}}. Declarations evaluated {{.Evaluated}}. Unresolved versions {{.Unresolved}}. Releases absent {{.MissingReleases}}.{{if .SignerSHA256}} Signer <code>{{.SignerSHA256}}</code>. {{.Source}} at <code>{{.SourceRevision}}</code>.{{end}}</p>
-{{if .Matches}}<ul>{{range .Matches}}<li>{{.Severity}} {{.ID}} in {{.Dependency.Name}}@{{.Dependency.Version}} ({{.Dependency.Path}}){{with .FixedVersion}}. Reviewed fix: {{.}}{{end}}</li>{{end}}</ul>{{end}}{{end}}
-{{if .ManifestDigest}}<p>Version: <code>{{.ManifestDigest}}</code></p>{{end}}
-{{if .Notices}}<h2>Package and coverage notices</h2><ul>{{range .Notices}}<li>{{.ID}} · {{.Message}}</li>{{end}}</ul>{{end}}<h2>Static rule findings</h2>{{if .Findings}}<ul>{{range .Findings}}<li><strong>{{.Severity}} · {{.RuleID}}</strong> in <code>{{.Path}}</code>. {{.Message}} {{.Remediation}}{{if .FrameworkEvidence}}<ul>{{range .FrameworkEvidence}}<li>{{.Framework}} {{.Edition}} · {{.UpstreamID}} {{.Title}} ({{.EvidenceKind}})</li>{{end}}</ul>{{end}}</li>{{end}}</ul>{{else}}<p>No static rule findings.</p>{{end}}
-{{if .Skipped}}<h2>Skipped files</h2><ul>{{range .Skipped}}<li><code>{{.Path}}</code> — {{.Reason}}</li>{{end}}</ul>{{end}}
-{{end}}{{else}}
-<h2>Locations checked</h2><ul>{{range .Coverage.Roots}}<li>{{.Harness}} · {{.Scope}} <code>{{.Path}}</code> — {{.Status}} {{.Reason}}</li>{{end}}</ul>
-<h2>Observed add-ons</h2>{{if .Items}}<table><thead><tr><th>Harness</th><th>Scope</th><th>Type</th><th>Location</th><th>Scan</th><th>Version</th><th>Findings</th></tr></thead><tbody>
-{{range .Items}}<tr><td>{{.Harness}}</td><td>{{.Scope}}</td><td>{{.Type}}{{with .DeclarationSummary}}<br>{{.}}{{end}}</td><td>{{.Path}}</td><td>{{.Status}}{{range .Skipped}}<br>{{.Path}} — {{.Reason}}{{end}}</td><td><code>{{.ManifestDigest}}</code></td><td>{{.Findings}}</td></tr>{{end}}
-</tbody></table>{{else}}<p>No add-ons observed in the selected locations.</p>{{end}}{{end}}
-<h2>Scan coverage</h2><ul>{{range .Coverage.Limits}}<li>{{.}}</li>{{end}}</ul></body></html>`))
+//go:embed report/local.html
+var reportHTML string
+
+//go:embed report/local.css
+var reportCSS string
+
+// The offline image is a 192×84 raster of public/brand/zasp-wordmark-light.svg.
+//
+//go:embed report/wordmark.png
+var reportWordmark []byte
+
+var htmlTemplate = func() *template.Template {
+	// Only bundled assets enter trusted template contexts. All scan data passes
+	// through html/template's contextual escaping.
+	digest := sha256.Sum256([]byte(reportCSS))
+	logo := template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(reportWordmark))
+	return template.Must(template.New("local").Funcs(template.FuncMap{
+		"stylesheet":    func() template.CSS { return template.CSS(reportCSS) },
+		"styleHash":     func() string { return base64.StdEncoding.EncodeToString(digest[:]) },
+		"wordmark":      func() template.URL { return logo },
+		"label":         func(value string) string { return strings.ReplaceAll(value, "_", " ") },
+		"advisoryLabel": advisoryStatusLabel,
+	}).Parse(reportHTML))
+}()
+
+func advisoryStatusLabel(status string) string {
+	switch status {
+	case "not_evaluated_no_offline_snapshot":
+		return "No offline catalog supplied."
+	case "evaluated_exact_releases":
+		return "Evaluated against exact releases."
+	case "partial_exact_release_coverage":
+		return "Only some exact releases could be evaluated."
+	case "unrated_exact_release_match":
+		return "An exact release matched an advisory with unknown severity."
+	case "stale_snapshot":
+		return "The supplied advisory catalog is stale."
+	default:
+		return status
+	}
+}
 
 func writeHTML(path string, report localReport) error {
 	// Never replace a user's existing file or follow an existing destination symlink.

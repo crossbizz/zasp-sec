@@ -6,7 +6,7 @@ import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import type { EnvironmentMutation, EnvironmentPage, WorkspaceMutation, WorkspacePage } from "../../../apps/web/api/generated";
 import { decodeEnvironment, decodeEnvironmentPage, decodeOrganization, decodeWorkspace, decodeWorkspacePage } from "../../../apps/web/api/administration-decoders";
-import { Button, Card, EmptyState, Field, LoadingState, Select } from "../../components/ui";
+import { Button, Card, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
 import { useOptionalSession } from "../../auth/SessionProvider";
 
 export interface ScopeWorkspace { id: string; name: string; version?: number; initialEnvironmentId?: string }
@@ -79,7 +79,9 @@ export function ScopeOnboardingView({ api: suppliedAPI, client, onScopeChange }:
   if (loading) return <LoadingState label="Loading authorized scopes…" />;
 
   const run = async (operation: () => Promise<void>, message: string) => { setError(null); try { await operation(); setNotice(message); } catch { setError("Scope action could not be completed"); } };
+  const scopeOnly = session?.status === "authenticated" && !session.hasCapability("identity.manage") && !session.hasCapability("identity.groups.manage");
   return <section id="scope-onboarding" className="page identity-access">
+    {scopeOnly && <PageHeader title="Identity & Access" eyebrow="Administration" description="Manage authorized workspaces and environments." />}
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
     {!fresh && <div className="error-banner" role="alert">Fresh authentication expired. <Button onClick={() => session?.reauthenticate()}>Reauthenticate</Button></div>}
     <div className="identity-grid">

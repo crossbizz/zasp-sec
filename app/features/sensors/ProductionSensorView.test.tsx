@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Sensor, SensorCoverage, SensorEnrollment } from "../../../apps/web/api/generated";
-import { ProductionSensorView, type SensorsAPI } from "./ProductionSensorView";
+import { APIProvider } from "../../api/APIProvider";
+import { createAPIClient } from "../../../apps/web/api/client";
+import { ProductionSensorSurface, ProductionSensorView, type SensorsAPI } from "./ProductionSensorView";
 
 const sensorID = "pid_10000001-0000-4000-8000-000000000001";
 const token = "zasp_sensor_v1.EREREREREREREREREREREQ.IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI";
@@ -25,6 +27,26 @@ function sensorAPI(overrides: Partial<SensorsAPI> = {}): SensorsAPI {
 }
 
 describe("production sensor management", () => {
+  it("provides one visible page heading when switching between sensors and devices", async () => {
+    const client = createAPIClient({
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname;
+        const data = path.endsWith("/devices")
+          ? { items: [], counts: { expected: 0, enrolled: 0, online: 0, acknowledged: 0 }, next_after_id: null }
+          : { items: [] };
+        return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+      },
+    });
+    const user = userEvent.setup();
+    render(<APIProvider client={client}><ProductionSensorSurface canWrite={false} fresh onReauthenticate={() => undefined} /></APIProvider>);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Runtime sensors");
+    await user.click(screen.getByRole("tab", { name: "Devices" }));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Managed devices");
+    expect(screen.getByRole("heading", { level: 2, name: "Device inventory" })).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Sensors" }));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Runtime sensors");
+  });
+
   it("pairs OTLP only with an active scoped runtime and clears selection when kind changes", async () => {
     const user = userEvent.setup();
     const paired = { ...enrollment, id: "pid_78200002-0000-4000-8000-000000000002", name: "semantic-source", kind: "otlp" as const, runtime_sensor_id: sensorID };
@@ -66,6 +88,8 @@ describe("production sensor management", () => {
     expect(within(dialog).getByText("6.8.0")).toBeVisible();
     expect(within(dialog).getByText("125 events/s")).toBeVisible();
     expect(getSensorCoverage).toHaveBeenCalledWith(sensorID, expect.any(AbortSignal));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open production-runtime" })).toHaveFocus());
   });
 
   it("reveals enrollment material once and clears it from the document on close", async () => {

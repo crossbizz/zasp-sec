@@ -130,11 +130,11 @@ export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReaut
   return <div className="page">
     <PageHeader eyebrow="Administration" title="Recovery operations" description="Create a signed tenant backup and validate it through an isolated restore rehearsal." actions={backupAction} />
     {!canWrite && <p role="status">Recovery operations are read-only for this account.</p>}
-    <Card title="Backup settings"><Field label="Retention days" type="number" min={7} max={90} value={retentionDays} disabled={backup !== null || busy} onChange={(event) => setRetentionDays(Number(event.target.value))} /></Card>
+    <Card title="Backup settings"><Field label="Retention days" type="number" min={7} max={90} value={retentionDays} disabled={!canWrite || backup !== null || busy} onChange={(event) => setRetentionDays(Number(event.target.value))} /></Card>
     {loading && <LoadingState label="Loading recovery state…" />}
     {!loading && backup === null && <EmptyState title="No recovery operation in this scope" description="Start with a signed tenant backup." />}
     {backup && <RecoveryBackupCard value={backup} />}
-    {backup?.state === "succeeded" && <Card title="Restore rehearsal"><Field label="Recovery target" value={targetEnvironment} disabled={restore !== null || busy} onChange={(event) => setTargetEnvironment(event.target.value)} /><Button variant="primary" disabled={!canWrite || busy || restore !== null || !fresh || !validRecoveryTarget(targetEnvironment, expectedScope)} onClick={() => void startRestore(false)}>{fresh ? "Start restore rehearsal" : "Reauthenticate to start restore"}</Button></Card>}
+    {backup?.state === "succeeded" && <Card title="Restore rehearsal"><Field label="Recovery target" value={targetEnvironment} disabled={!canWrite || restore !== null || busy} onChange={(event) => setTargetEnvironment(event.target.value)} /><Button variant="primary" disabled={!canWrite || busy || restore !== null || (fresh && !validRecoveryTarget(targetEnvironment, expectedScope))} onClick={fresh ? () => void startRestore(false) : onReauthenticate}>{fresh ? "Start restore rehearsal" : "Reauthenticate to start restore"}</Button></Card>}
     {restore && <RecoveryRestoreCard value={restore} />}
     {error && <p role="alert">{error}</p>}
     {ambiguous === "backup" && <Button disabled={busy} onClick={() => void startBackup(true)}>Retry retained backup</Button>}

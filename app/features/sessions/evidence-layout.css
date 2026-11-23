@@ -1,0 +1,17 @@
+.evidence-reference-link { text-decoration: underline; text-underline-offset: 0.15em; }
+.pilot-evidence-form fieldset { display: grid; gap: 0.75rem; margin-block: 1rem; min-inline-size: 0; }
+.pilot-evidence-form .button { justify-self: start; }
+.evidence-source { min-width: 0; overflow-wrap: anywhere; }
+.evidence-source-fields { display: grid; gap: 0.75rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.evidence-source-fields dt { color: var(--muted); font-size: 0.875rem; }
+.evidence-source-fields dd { margin: 0.125rem 0 0; }
+.evidence-source h3 { margin-block-start: 1rem; font-size: 1rem; font-weight: 600; }
+.evidence-source pre {
+  margin-block-start: 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  font: 0.8125rem/1.5 var(--font-geist-mono), monospace;
+}

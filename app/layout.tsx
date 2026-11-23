@@ -33,8 +33,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body>
-        <ThemeControl />
         {children}
+        <ThemeControl />
       </body>
     </html>
   );

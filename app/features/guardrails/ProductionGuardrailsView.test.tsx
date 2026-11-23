@@ -158,6 +158,7 @@ describe("Guardrails page", () => {
     expect(content.queryByLabelText("Claude Enterprise callback URL")).toBeNull();
     await user.click(await content.findByRole("button", { name: "Open runtime policies" }));
     expect(onNavigate).toHaveBeenCalledWith("/policies");
+    expect(Boolean(screen.queryByRole("button", { name: "API Access" }))).toBe(managesTokens);
     if (managesTokens) {
       await user.click(content.getByRole("button", { name: "Open API Access" }));
       expect(onNavigate).toHaveBeenCalledWith("/administration/api-access");

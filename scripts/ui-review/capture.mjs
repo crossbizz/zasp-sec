@@ -3,13 +3,17 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { fixture } from './fixtures.mjs';
+import { bootstrap, fixture, fixtureStatus } from './fixtures.mjs';
+import { captureViewport } from './viewport-capture.mjs';
+import { inspectLayout, inspectDrawer, inspectSignOutFailure, visitTabs } from './shell-audit.mjs';
+import { captureWorkflows } from './workflows.mjs';
 import { buildWalkthrough } from './walkthrough.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const output = path.join(root, 'outputs/aegis-review');
+const output = process.env.ZASP_UI_REVIEW_OUTPUT || path.join(root, 'outputs/aegis-review');
+const workflowsOnly = process.argv.includes('--workflows-only');
 await mkdir(path.join(output, 'screenshots'), { recursive: true });
-const { chromium } = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright-core');
 const browser = await chromium.launch({ executablePath: process.env.ZASP_CHROMIUM || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
 const origin = process.env.ZASP_UI_REVIEW_ORIGIN || 'http://localhost:3000';
 const source = await readFile(path.join(root, 'app/components/ZaspProductionApp.tsx'), 'utf8');
@@ -17,31 +21,34 @@ const routes = [...source.matchAll(/\{ path: "([^"]+)", label: "([^"]+)"/g)].map
 assert.equal(routes.length, 24, 'Update review coverage if production routes change');
 const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 1000 }, { width: 1024, height: 768 }, { width: 390, height: 844 }];
 const slides = [], failures = [], consoleErrors = [], assertions = [];
+const audit = [], fallbackReads = new Set();
 let mode = 'normal';
 const context = await browser.newContext();
-await context.route('**/api/v1/**', async route => {
+await context.route('**/*', async route => {
   const request = route.request(), url = new URL(request.url());
+  if (url.origin !== new URL(origin).origin) return route.abort();
+  if (!url.pathname.startsWith('/api/v1/')) return route.continue();
   // Review never changes a real backend, even if a control is activated accidentally.
   if (request.method() !== 'GET') return route.fulfill({ status: 405, json: { code: 'review_read_only', message: 'Visual review does not submit mutations.' } });
   if (mode === 'error' && url.pathname.endsWith('/agents')) return route.fulfill({ status: 503, json: { code: 'service_unavailable', message: 'Review error state', correlation_id: 'pid_00000004-0000-4000-8000-000000000004', retryable: true } });
   if (mode === 'loading' && url.pathname.endsWith('/home/summary')) await new Promise(resolve => setTimeout(resolve, 1500));
-  return route.fulfill({ json: fixture(url), headers: { ETag: '"1"', 'Cache-Control': 'no-store' } });
+  return route.fulfill({ status: fixtureStatus(url), json: fixture(url, path => fallbackReads.add(path)), headers: { ETag: '"1"', 'Cache-Control': 'no-store' } });
 });
 const page = await context.newPage();
 page.on('pageerror', error => consoleErrors.push(error.message));
 let theme = 'light', viewport = viewports[0];
 await context.addInitScript(() => { if (!localStorage.getItem('zasp.theme')) localStorage.setItem('zasp.theme', 'light'); });
 async function open(route) {
+  fallbackReads.clear();
   await page.goto(origin + route, { waitUntil: 'networkidle' });
-  await page.locator('h1').first().waitFor();
+  await page.locator('h1').first().waitFor({state: 'attached'});
   await page.evaluate(theme => { document.documentElement.dataset.theme = theme; localStorage.setItem('zasp.theme', theme); window.dispatchEvent(new Event('zasp-theme-change')); }, theme);
   await page.evaluate(() => document.fonts.ready);
 }
-async function capture(title, route, state = 'Page') {
+async function capture(title, route, state = 'Page', focus, contextLocators) {
   const filename = `${String(slides.length + 1).padStart(3, '0')}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${theme}-${viewport.width}.png`;
   const file = path.join('screenshots', filename);
-  const png = await page.screenshot({ path: path.join(output, file), fullPage: true, animations: 'disabled' });
-  const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
+  const frame = await captureViewport(page, path.join(output, file), focus, contextLocators);
   const overflow = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
   if (overflow.document > overflow.viewport + 1) failures.push({ title, theme, viewport, issue: 'Page horizontal overflow', ...overflow });
   if (route === '/administration/identity-access') {
@@ -63,46 +70,71 @@ async function capture(title, route, state = 'Page') {
     const artwork = await page.locator('.auth-page').evaluate(element => getComputedStyle(element, '::before').backgroundImage);
     if (!artwork.includes(`zasp-wordmark-${theme}.svg`)) failures.push({ title, theme, viewport, issue: 'Wrong sign-in wordmark for theme' });
   }
-  const alerts = await page.getByRole('alert').allTextContents();
+  const layout = await inspectLayout(page, routes.map(r => r.route));
+  const fallback = [...fallbackReads].sort();
+  const intentionalError = ['Error state','Missing callback parameters'].includes(state);
+  const notices = [...layout.alerts,...layout.unavailable];
+  if (layout.problems.length || (notices.length && !intentionalError)) {
+    failures.push({title,route,state,theme,viewport:viewport.width,issue:'Layout or data unavailable',problems:layout.problems,notices});
+  }
+  audit.push({title,route,state,theme,viewport:viewport.width,...layout,fallbackReads:fallback});
+  const alerts = layout.alerts;
   const brokenImages = await page.locator('img').evaluateAll(images => images.filter(img => !img.complete || img.naturalWidth === 0).map(img => img.src));
   if (brokenImages.length) failures.push({ title, theme, viewport, issue: 'Broken image', images: brokenImages });
-  slides.push({ title, route, state, theme, viewport: viewport.width, width, height, file, alerts, source: 'Running Zasp app · synthetic browser API fixtures' });
+  slides.push({ title, route, state, theme, viewport: viewport.width, ...frame, file, alerts, source: 'Running Zasp app · synthetic browser API fixtures' });
   await writeFile(path.join(output, 'capture-progress.json'), JSON.stringify({ slides, failures, consoleErrors, assertions }, null, 2));
 }
 for (viewport of viewports) {
   await page.setViewportSize(viewport);
   for (theme of ['light', 'dark']) {
-    for (const item of routes) {
-      if (process.argv.includes('--reuse-pages') && item.route !== '/discovery/assets') {
-        const filename = `${String(slides.length + 1).padStart(3, '0')}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${theme}-${viewport.width}.png`;
-        const file = path.join('screenshots', filename), png = await readFile(path.join(output, file));
-        const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-        if (width > viewport.width + 1) failures.push({ title: item.title, theme, viewport, issue: 'Page horizontal overflow', width });
-        slides.push({ ...item, state: 'Page', theme, viewport: viewport.width, width, height, file, alerts: [], source: 'Running Zasp app · synthetic browser API fixtures' });
-      } else { await open(item.route); await capture(item.title, item.route); }
+    if (!workflowsOnly) {
+      for (const item of routes) {
+        await open(item.route);
+        await capture(item.title, item.route);
+        if (viewport.width === 390) {
+          const menu = page.getByRole('button',{name:'Open navigation',exact:true});
+          await menu.click();
+          const nav = page.getByRole('dialog',{name:'Navigation',exact:true}).getByRole('navigation');
+          assert.deepEqual(await nav.getByRole('link').evaluateAll(links=>links.map(a=>a.getAttribute('href'))),routes.map(r=>r.route));
+          assert.equal(await nav.locator('[aria-current=page]').getAttribute('href'),item.route);
+          await page.keyboard.press('Escape');
+          await nav.waitFor({state:'hidden'});
+          assert(await menu.evaluate(e=>document.activeElement===e),'Mobile menu must return focus on every route');
+        }
+        if ([1440,390].includes(viewport.width)) {
+          await visitTabs(page, (name, tab) => capture(name, item.route, 'Tab', tab));
+          if (item.route === '/compliance/evidence') {
+            const coverage = page.getByRole('button', {name:'Framework coverage',exact:true});
+            await coverage.click();
+            await page.getByRole('table',{name:'Coverage by control'}).waitFor();
+            await capture('Framework coverage', item.route, 'View', coverage);
+          }
+          if (item.route === '/investigate/sessions') {
+            const consoleLogins = page.getByRole('button', {name:'Console logins',exact:true});
+            await consoleLogins.click();
+            await page.getByText('session-review', {exact:true}).waitFor();
+            await capture('Console logins', item.route, 'View', consoleLogins);
+          }
+        }
+      }
     }
-    console.log(`Captured ${routes.length} routes at ${viewport.width}px in ${theme} theme`);
+    await captureWorkflows({page, open, capture});
+    console.log(`Captured ${workflowsOnly ? 'workflows' : 'pages and workflows'} at ${viewport.width}px in ${theme} theme`);
   }
 }
-// Inspect every tabbed section at a readable desktop size in both palettes.
-viewport = viewports[1]; await page.setViewportSize(viewport);
+if (!workflowsOnly) {
+// Exercise detail, filter and retry states after capturing every route and visible tab.
+for (viewport of [viewports[1],viewports[3]]) {
+await page.setViewportSize(viewport);
 for (theme of ['light', 'dark']) {
-  for (const route of ['/inventory/tools','/red-team/results','/protect/guardrails','/protect/security-agents']) {
-    await open(route);
-    const tabs = await page.getByRole('tab').allTextContents();
-    for (let i = 1; i < tabs.length; i++) {
-      await page.getByRole('tab').nth(i).click();
-      await page.waitForLoadState('networkidle');
-      await capture(tabs[i].trim(), route, 'Tab');
-    }
-  }
   await open('/discovery/assets');
   const firstRow = page.getByRole('button', { name: 'Open Support agent', exact: true });
   await firstRow.click();
   await page.getByRole('dialog', { name: 'Support agent', exact: true }).waitFor();
   await page.getByRole('heading', { name: 'Canonical record', exact: true }).waitFor();
-  await capture('Agent details', '/discovery/assets', 'Drawer');
+  await capture('Agent details', '/discovery/assets', 'Drawer', page.getByRole('heading', {name:'Canonical record', exact:true}));
   const dialog = page.getByRole('dialog');
+  audit.push({title:'Agent details',theme,viewport:viewport.width,drawer:await inspectDrawer(page,dialog)});
   await page.keyboard.press('Shift+Tab');
   assert(await dialog.evaluate(dialog => dialog.contains(document.activeElement)), 'Drawer must trap focus');
   await page.keyboard.press('Escape');
@@ -113,7 +145,7 @@ for (theme of ['light', 'dark']) {
   await filter.fill('no-matching-record');
   await page.getByText('Nothing matches', { exact: false }).waitFor();
   assert.equal(await page.locator('.data-table tbody tr').count(), 0);
-  await capture('Filtered empty results', '/discovery/assets', 'Empty state');
+  await capture('Filtered empty results', '/discovery/assets', 'Empty state', page.getByText('Nothing matches', {exact:false}));
   await filter.fill('Support');
   assert.equal(await page.locator('.data-table tbody tr').count(), 1);
   assertions.push(`${theme}: inventory search filters rows and handles empty results`);
@@ -121,10 +153,10 @@ for (theme of ['light', 'dark']) {
   await page.getByRole('button', { name: 'Unmanaged (4)' }).click();
   assert.equal(await page.locator('.data-table tbody tr').count(), 4);
   assertions.push(`${theme}: unmanaged filter retains correct rows`);
-  await capture('Unmanaged agents', '/discovery/assets', 'Selected filter');
+  await capture('Unmanaged agents', '/discovery/assets', 'Selected filter', page.getByRole('button',{name:'Unmanaged (4)'}));
   mode = 'error'; await open('/discovery/assets');
   await page.getByRole('alert').filter({ hasText: 'Product API unavailable' }).waitFor();
-  await capture('API error', '/discovery/assets', 'Error state');
+  await capture('API error', '/discovery/assets', 'Error state', page.getByRole('button',{name:'Retry',exact:true}));
   mode = 'normal'; await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await page.getByRole('button', { name: 'Open Support agent', exact: true }).waitFor();
   assertions.push(`${theme}: error retry restores inventory`);
@@ -132,20 +164,58 @@ for (theme of ['light', 'dark']) {
   await page.goto(origin + '/', { waitUntil: 'domcontentloaded' });
   await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
   await page.getByRole('status').filter({ hasText: 'Loading authorized data' }).waitFor();
-  await capture('Loading data', '/', 'Loading state');
+  await capture('Loading data', '/', 'Loading state', page.getByRole('status').filter({hasText:'Loading authorized data'}));
   mode = 'normal';
+  await open('/');
+  const search = page.getByRole('search'), input = search.getByRole('searchbox');
+  await input.fill('agent'); await input.press('Enter');
+  const results = search.locator('.global-results'), options = results.getByRole('button');
+  await options.last().waitFor();
+  assert.equal(await options.count(),12);
+  await options.first().focus();
+  for(let n=1;n<12;n++) await page.keyboard.press('Tab');
+  const lastMatch=options.last();
+  assert(await lastMatch.evaluate(el=>el===document.activeElement),'All search results must be keyboard reachable');
+  const dimensions = await results.evaluate(el=>{
+    const r=el.getBoundingClientRect();return {top:r.top,left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight};
+  });
+  assert(dimensions.top>=0 && dimensions.left>=-1 && dimensions.right<=dimensions.width+1 && dimensions.bottom<=dimensions.height+1,'Search results exceed the visible viewport');
+  await capture('Search results','/','Search menu',lastMatch);
+  await page.keyboard.press('Escape');
+  await results.waitFor({state:'detached'});
+  assert(await input.evaluate(el=>el===document.activeElement),'Escape must restore search focus');
+  assertions.push(`${theme}/${viewport.width}: 12 search results reachable and Escape returns focus`);
   await open('/sign-in'); await capture('Sign in', '/sign-in');
   await open('/auth/callback'); await capture('Sign in callback', '/auth/callback', 'Missing callback parameters');
+}
 }
 // Mobile navigation uses the production links inside the existing accessible drawer.
 viewport = viewports[3]; await page.setViewportSize(viewport);
 for (theme of ['light','dark']) {
   await open('/');
+  const skip = page.getByRole('link', {name:'Skip to content',exact:true});
+  const skipVisible = () => skip.evaluate(node => {
+    const r = node.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !!hit && node.contains(hit);
+  });
+  assert(!await skipVisible(), 'Unfocused skip link must not cover the header');
+  await page.keyboard.press('Tab');
+  assert(await skip.evaluate(node => node === document.activeElement) && await skipVisible(), 'First Tab must expose skip navigation');
+  const pageURL = page.url();
+  await page.keyboard.press('Enter');
+  assert.equal(page.url(), pageURL, 'Skipping to main content must preserve scoped navigation');
+  assert(await page.locator('#main-content').evaluate(node => node === document.activeElement));
+  await page.getByRole('button', {name:'Sign out',exact:true}).focus();
+  await page.keyboard.press('Tab');
+  assert(await page.locator('#main-content').evaluate(node => node.contains(document.activeElement)), 'Collapsed navigation must be excluded from the tab order');
+  assertions.push(`${theme}: mobile skip link and collapsed navigation tab order`);
   const toggle = page.getByRole('button', { name: 'Open navigation' });
   await toggle.click();
   await page.getByRole('dialog', { name: 'Navigation', exact: true }).waitFor();
-  assert.equal(await page.getByRole('dialog').getByRole('link').count(), routes.length);
-  await capture('Mobile navigation', '/', 'Navigation drawer');
+  const mobileDialog=page.getByRole('dialog',{name:'Navigation'});
+  assert.deepEqual(await mobileDialog.getByRole('link').evaluateAll(links=>links.map(a=>a.getAttribute('href'))), routes.map(r=>r.route));
+  audit.push({title:'Mobile navigation',theme,viewport:viewport.width,drawer:await inspectDrawer(page,mobileDialog)});
+  await capture('Mobile navigation', '/', 'Navigation drawer', page.getByRole('dialog').getByRole('link').first());
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   assert(await toggle.evaluate(node => node === document.activeElement));
@@ -156,8 +226,16 @@ for (theme of ['light','dark']) {
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), target);
   assertions.push(`${theme}: theme preference survives reload`);
 }
+}
+if (!workflowsOnly) {
+  for (const view of [{width:320,height:568}, {width:1440,height:900}]) {
+    await inspectSignOutFailure(browser, origin, view, view.width === 320);
+    assertions.push(`${view.width}px: sign-out failure keeps header controls and content visible, then permits retry`);
+  }
+}
 assert.equal(consoleErrors.length, 0, `Browser errors: ${consoleErrors.join('; ')}`);
-const report = { fixtureNotice: 'Isolated synthetic responses. Live authentication, authorization enforcement and backend mutations are not verified.', routes: routes.length, viewports, themes: ['light','dark'], screenshotCount: slides.length, failures, consoleErrors, assertions, slides };
+const report = { captureVersion: 2, fixtureCapabilities:bootstrap.capabilities, fixturePermissions:bootstrap.permissions, layoutAudit:'layout-audit.json', fixtureNotice: 'Isolated synthetic responses. Live authentication, authorization enforcement and backend mutations are not verified.', routes: new Set(slides.map(s => s.route).filter(r => routes.some(item => item.route === r))).size, viewports, themes: ['light','dark'], screenshotCount: slides.length, failures, consoleErrors, assertions, slides };
+await writeFile(path.join(output,'layout-audit.json'), JSON.stringify(audit,null,2));
 await writeFile(path.join(output,'manifest.json'), JSON.stringify(report,null,2));
 await buildWalkthrough(output, report);
 await browser.close();

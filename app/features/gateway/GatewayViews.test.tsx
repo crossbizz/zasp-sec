@@ -238,9 +238,14 @@ describe("Hosted gateway on the Guardrails page", () => {
     expect(onNavigate).toHaveBeenCalledWith("/inventory/tools");
   });
 
-  it("renders the setup without navigation", () => {
-    render(<HostedGatewaySetupCard origin="https://zasp.example" />);
+  it("offers only the setup destinations available to the operator", () => {
+    const links = render(<HostedGatewaySetupCard origin="https://zasp.example" openTools={vi.fn()} />);
     expect(screen.getByText(/Administration, API Access/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "API Access" })).toBeNull();
+    expect(screen.getByRole("button", { name: "MCP servers" })).toBeInTheDocument();
+    links.rerender(<HostedGatewaySetupCard origin="https://zasp.example" openAPIAccess={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "API Access" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "MCP servers" })).toBeNull();
   });
 });
 

@@ -1,0 +1,11 @@
+.identity-access .identity-section-nav { flex-wrap: wrap; }
+.identity-access .identity-grid h2[id] {
+  scroll-margin-top: calc(var(--topbar) + 16px);
+}
+.release-checks-table.data-table {
+  table-layout: fixed;
+  white-space: normal;
+}
+.release-checks-table caption { padding: 8px 16px 12px; text-align: start; }
+.release-checks-table :is(th, td) { overflow-wrap: anywhere; vertical-align: top; }
+.release-checks-table th[scope="col"]:first-child { width: 25%; }

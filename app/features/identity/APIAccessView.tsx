@@ -210,8 +210,11 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       <Button disabled={!fresh || !revealed || acknowledging} onClick={() => void (async () => { try { if (!fresh || !revealed) return; await navigator.clipboard.writeText(revealed.rawToken); setSecretStatus("Token copied to clipboard"); } catch { setSecretStatus("Copy failed. Select and copy the token manually."); } })()}>Copy token</Button>
       <p role="status" aria-live="polite">{secretStatus}</p>
     </Modal>
-    <Card title={<h2>Pending reveal grants</h2>}>
-      {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
+    <Card
+      title={<h2>Pending reveal grants</h2>}
+      action={grants.length === 0 && <span className="api-grants-empty">No pending credentials</span>}
+    >
+      {grants.length > 0 && <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
     <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} />
       <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => {

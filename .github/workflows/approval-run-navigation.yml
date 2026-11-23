@@ -4,6 +4,8 @@ name: Approval run navigation component
     paths:
       - 'app/**'
       - 'apps/web/**'
+      - 'public/**'
+      - 'scripts/ui-review/**'
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig.json'
@@ -14,6 +16,8 @@ name: Approval run navigation component
     paths:
       - 'app/**'
       - 'apps/web/**'
+      - 'public/**'
+      - 'scripts/ui-review/**'
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig.json'
@@ -25,7 +29,7 @@ permissions:
 jobs:
   verify-component:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -49,3 +53,38 @@ jobs:
       - name: Build runnable UI
         timeout-minutes: 5
         run: npm run build
+      - name: Audit console layouts in Chromium
+        timeout-minutes: 15
+        env:
+          ZASP_UI_REVIEW_OUTPUT: ${{ runner.temp }}/console-layout
+          ZASP_UI_REVIEW_ORIGIN: http://127.0.0.1:4173
+          ZASP_UI_WALKTHROUGH_ORIGIN: http://127.0.0.1:4174/walkthrough.html
+        run: |
+          npm ci --include=dev --ignore-scripts --prefix scripts/ui-review
+          chrome_zip="$RUNNER_TEMP/console-layout-chrome.zip"
+          curl --fail --silent --show-error --retry 2 --location 'https://storage.googleapis.com/chrome-for-testing-public/145.0.7632.45/linux64/chrome-linux64.zip?generation=1770164293455913' -o "$chrome_zip"
+          echo "6a586dcc9d4676b5f4b421f80a5406256e5687fb0d1b3479ceb9dd4eb37a6548  $chrome_zip" | sha256sum -c -
+          unzip -q "$chrome_zip" -d "$RUNNER_TEMP/console-layout-browser"
+          export ZASP_CHROMIUM="$RUNNER_TEMP/console-layout-browser/chrome-linux64/chrome"
+          node --test scripts/ui-review/viewport-capture.test.mjs
+          mkdir -p "$ZASP_UI_REVIEW_OUTPUT"
+          HOST=127.0.0.1 PORT=4173 node dist/standalone/server.js > "$RUNNER_TEMP/layout-app.log" 2>&1 &
+          app_pid=$!
+          python3 -m http.server 4174 --bind 127.0.0.1 --directory "$ZASP_UI_REVIEW_OUTPUT" > "$RUNNER_TEMP/layout-viewer.log" 2>&1 &
+          viewer_pid=$!
+          trap 'kill "$app_pid" "$viewer_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 15 --retry-connrefused --retry-delay 1 "$ZASP_UI_REVIEW_ORIGIN" -o /dev/null
+          node scripts/ui-review/capture.mjs
+          node scripts/ui-review/verify-walkthrough.mjs
+      - name: Save the console walkthrough and layout audit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: console-layout-review
+          path: |
+            ${{ runner.temp }}/console-layout/walkthrough.html
+            ${{ runner.temp }}/console-layout/manifest.json
+            ${{ runner.temp }}/console-layout/layout-audit.json
+            ${{ runner.temp }}/console-layout/walkthrough-verification.json
+          if-no-files-found: ignore
+          retention-days: 7

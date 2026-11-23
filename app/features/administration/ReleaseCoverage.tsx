@@ -1,3 +1,4 @@
+import "../admin-surface-layout.css";
 import { Card } from "../../components/ui";
 
 // These describe tests shipped with this build. Live availability comes from the
@@ -16,9 +17,9 @@ export function ReleaseCoverage({ version }: { version: string }) {
     <Card title="Release test coverage">
       <p>Build {version}. Use the fleet and run records to verify a deployment against these tests.</p>
       <div className="table-scroll">
-        <table className="data-table">
+        <table className="data-table release-checks-table">
           <caption>Test scope and evidence needed for a live deployment</caption>
-          <thead><tr><th>Surface</th><th>Covered by release tests</th><th>Verify in this Environment</th></tr></thead>
+          <thead><tr><th scope="col">Surface</th><th scope="col">Covered by release tests</th><th scope="col">Verify in this Environment</th></tr></thead>
           <tbody>{releaseChecks.map(([surface, tests, proof]) =>
             <tr key={surface}><th scope="row">{surface}</th><td>{tests}</td><td>{proof}</td></tr>)}</tbody>
         </table>
