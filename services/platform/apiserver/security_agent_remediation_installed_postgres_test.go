@@ -334,7 +334,11 @@ func installedVersion(value int64) string { return `"` + strconv.FormatInt(value
 // step as the API login inside a checked request, every worker step as the
 // worker's own login.
 func TestProviderRemediationOnInstalledBaselinePostgres(t *testing.T) {
-	baseline := startInstalledBaseline(t)
+	exerciseInstalledProviderRemediation(t, startInstalledBaseline(t), nil)
+}
+
+func exerciseInstalledProviderRemediation(t *testing.T, baseline *installedBaseline, before func(installedPrincipal, string)) (installedPrincipal, installedPrincipal, string, string) {
+	t.Helper()
 	ctx := baseline.ctx
 	requester := baseline.member("security_engineer", "investigate_sessions", "manage_findings", "manage_workflows", "run_tests", "view")
 	administrator := baseline.member("security_admin", "investigate_sessions", "manage_api_tokens", "manage_data_controls", "manage_findings", "manage_identity", "manage_workflows", "revoke_sessions", "run_tests", "view", "view_audit", "view_compliance")
@@ -366,6 +370,9 @@ VALUES($1,$2,$3,$4,$5,'aws',$6,$7,$8,'uses_identity',$9,now(),now())`, baseline.
 	// The product's handlers on the API logins, with current authorization on.
 	if err := baseline.product.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
+	}
+	if before != nil {
+		before(administrator, agent)
 	}
 	if err := baseline.agents.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
@@ -660,6 +667,7 @@ VALUES($1,$2,$3,$4,$5,'aws',$6,$7,$8,'uses_identity',$9,now(),now())`, baseline.
 			t.Fatalf("%s answered the API login outside a checked request: %s", name, raw)
 		}
 	}
+	return administrator, requester, guardrailRun, agent
 }
 
 // TestGuardrailDecisionPermissionOnInstalledBaselinePostgres proves on an

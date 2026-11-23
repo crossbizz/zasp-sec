@@ -191,7 +191,9 @@ completion_sources=(
   "$HERE/policy_replay.sql"
   "$HERE/provider_readiness.sql"
 )
-while IFS= read -r release_source; do
+release_order_digest="$(sha256sum < "$HERE/feature_v3.order")"
+while IFS= read -r release_source || [[ -n "$release_source" ]]; do
+  [[ -n "$release_source" ]] || continue
   completion_sources+=("$HERE/$release_source")
 done < "$HERE/feature_v3.order"
 if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
@@ -290,6 +292,12 @@ grep -q '^zasp_authorization80\.release_readiness_predicates_match=t$' "$WORK/ba
 grep -q '^zasp_authorization80_worker\.runtime_ready=t$' "$WORK/baseline.predicates" || fail "worker gate is not open"
 
 dump "$CONTAINER-replay" "$REPLAY_PORT" pg_dump -d baseline --inserts --rows-per-insert=200 | grep -v '^\\' > "$WORK/baseline.sql"
+# A concurrent source edit would otherwise publish a dump for different
+# definitions than those embedded by the upgrade binary.
+if [[ "$(sha256sum < "$HERE/feature_v3.order")" != "$release_order_digest" ]] ||
+   ! cmp -s "$WORK/completion-run.sql" <({ echo "BEGIN;"; cat "${completion_sources[@]}"; echo "COMMIT;"; }); then
+  fail "schema sources changed during generation; rerun against a stable tree"
+fi
 gzip -n -9 -c "$WORK/baseline.sql" > "$HERE/baseline.sql.gz"
 cp "$WORK/roles.sql" "$HERE/roles.sql"
 sha256sum < "$WORK/baseline.sql" | cut -d' ' -f1 > "$HERE/baseline.sha256"

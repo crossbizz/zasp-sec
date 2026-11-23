@@ -79,7 +79,7 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 	apply := baseline.Install
 	resultKey := "installed"
 	if arguments[0] == "upgrade-feature-v2" || arguments[0] == "upgrade-feature-v3" {
-		apply = baseline.UpgradeToV2
+		apply = baseline.UpgradeToV3
 		resultKey = "upgraded"
 	}
 	err = apply(ctx, conn, baseline.Check{

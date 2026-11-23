@@ -34,9 +34,10 @@ END $chat_rls$;
 -- pins residency, credential material, model and the qualified deployment.
 ALTER TABLE public.zasp_security_agent_chat_messages
  ADD COLUMN IF NOT EXISTS approved_session_read boolean NOT NULL DEFAULT false,
+ ADD COLUMN IF NOT EXISTS approved_external_read boolean NOT NULL DEFAULT false,
  ADD COLUMN IF NOT EXISTS reserved_nano_credits bigint CHECK(reserved_nano_credits>0);
 
-CREATE OR REPLACE FUNCTION zasp_authorization80.chat_allowed(o text,w text,e text,config jsonb) RETURNS boolean
+CREATE OR REPLACE FUNCTION zasp_authorization80.cloud_job_allowed(o text,w text,e text,job text,config jsonb) RETURNS boolean
 LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $allowed$
  SELECT EXISTS(
   SELECT FROM public.zasp_organization_ai_controls org
@@ -46,7 +47,7 @@ LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $allowed$
    AND org.ai_enabled AND org.require_zero_retention AND env.mode=ANY(org.allowed_modes)
    AND env.mode IN ('privatelink_bedrock','privatelink_vertex') AND env.tier3_provider=env.mode AND env.tier3_security_agent_planner_enabled
    AND env.allow_redacted_summaries AND env.monthly_budget_nano_credits>0
-   AND q.provider=env.mode AND q.model=env.tier3_model_pin AND q.purpose='security_agent_triage'
+   AND q.provider=env.mode AND q.model=env.tier3_model_pin AND q.purpose=job AND job IN('security_agent_triage','security_agent_remediate')
    AND q.qualified AND q.deployment_digest IS NOT NULL AND q.checked_at<=now() AND q.expires_at>now()
    AND (zasp_authorization80.ai_data_limits(o,w,e,false)->>'collection_mode') IN('extended','metadata_only')
    AND org.allowed_residency IN('us_only','eu_only','us_eu')
@@ -57,6 +58,10 @@ LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $allowed$
    AND EXISTS(SELECT FROM public.zasp_security_agent_kill_switches k WHERE (k.organization_id,k.workspace_id,k.environment_id,k.action_key,k.execution_enabled)=(o,w,e,'*',true))
  );
 $allowed$;
+CREATE OR REPLACE FUNCTION zasp_authorization80.chat_allowed(o text,w text,e text,config jsonb) RETURNS boolean
+LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $$
+ SELECT zasp_authorization80.cloud_job_allowed(o,w,e,'security_agent_triage',config);
+$$;
 
 CREATE OR REPLACE FUNCTION zasp_authorization80.analyst_threads(o text,w text,e text,a text,s text,op text,t text,studio text,revision bigint) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $threads$
@@ -101,6 +106,11 @@ BEGIN
    AND (zasp_authorization80.studio_revision(o,w,e,x.studio_id,x.studio_revision)#>'{definition,approval_required_tools}')?'inspect_session') THEN
    value:=value||jsonb_build_object('requires_session_read_approval',true);
   END IF;
+  IF EXISTS (SELECT FROM public.zasp_security_agent_chat_threads x
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.id)=(o,w,e,a,s,t) AND x.studio_id IS NOT NULL
+   AND (zasp_authorization80.studio_revision(o,w,e,x.studio_id,x.studio_revision)#>'{definition,read_tools}')?'external_inventory_status') THEN
+   value:=value||jsonb_build_object('requires_external_inventory_approval',true);
+  END IF;
   -- Return a handoff descriptor only for an admitted, current Studio revision
   -- and a committed, cited answer. The approval itself has a separate object
   -- check through the product's existing authorized workflow read routes.
@@ -120,7 +130,7 @@ END $threads$;
 
 CREATE OR REPLACE FUNCTION zasp_authorization80.analyst_turn(o text,w text,e text,a text,s text,t text,k text,q jsonb,cfg jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $turn$
-DECLARE proof jsonb; prior public.zasp_security_agent_chat_messages%ROWTYPE;assistant text; cost bigint; cap bigint;
+DECLARE proof jsonb; prior public.zasp_security_agent_chat_messages%ROWTYPE;assistant text; cost bigint; cap bigint; approved jsonb; external_read boolean; external_agent text;
  pinned public.zasp_security_agent_chat_threads%ROWTYPE; profile jsonb; month_key date:=date_trunc('month',now() AT TIME ZONE 'UTC')::date;content jsonb;
 BEGIN
  proof:=zasp_authorization80.product_request(o,w,e,a,'streamAnalystThread','investigate_sessions','session',s,false,true,false,true);
@@ -135,10 +145,15 @@ BEGIN
  END IF;
  SELECT * INTO prior FROM public.zasp_security_agent_chat_messages x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id,x.request_id)=(o,w,e,a,s,t,k);
  IF q->>'phase'='start' THEN
-  IF (profile#>'{definition,approval_required_tools}')?'inspect_session' THEN
-   IF q->'approved_read_tools' IS DISTINCT FROM '["inspect_session"]'::jsonb THEN RETURN '"approval_required"'::jsonb; END IF;
-   IF proof->'fresh_auth' IS DISTINCT FROM 'true'::jsonb THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='fresh session read approval required'; END IF;
-  ELSIF coalesce(jsonb_array_length(q->'approved_read_tools'),0)>0 THEN RETURN '"ineligible"'::jsonb; END IF;
+  external_read:=coalesce((profile#>'{definition,read_tools}')?'external_inventory_status',false);
+  approved:='[]'::jsonb;
+  IF external_read THEN approved:=approved||'["external_inventory_status"]'::jsonb; END IF;
+  IF (profile#>'{definition,approval_required_tools}')?'inspect_session' THEN approved:=approved||'["inspect_session"]'::jsonb; END IF;
+  IF coalesce(q->'approved_read_tools','[]'::jsonb) IS DISTINCT FROM approved THEN
+   IF approved='[]'::jsonb THEN RETURN '"ineligible"'::jsonb; END IF;
+   RETURN '"approval_required"'::jsonb;
+  END IF;
+  IF approved<>'[]'::jsonb THEN PERFORM zasp_authorization80.identity_fence(proof||'{"fresh_auth":true}'::jsonb); END IF;
   IF NOT coalesce(length(q->>'question') BETWEEN 1 AND 1000 AND public.zasp_valid_product_id(q->>'assistant_id'),false) THEN RAISE EXCEPTION USING ERRCODE='22023';END IF;
   IF prior.request_id IS NOT NULL THEN
    IF prior.question IS DISTINCT FROM q->>'question' OR prior.status<>'answered' THEN RETURN '"conflict"'::jsonb;END IF;
@@ -150,8 +165,8 @@ BEGIN
   IF pinned.studio_id IS NOT NULL AND EXISTS(
    SELECT FROM public.zasp_security_agent_chat_messages x
    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id)=(o,w,e,a,s,t)
-   HAVING count(*)>=(profile#>>'{definition,max_steps}')::int OR count(*)>count(x.reserved_nano_credits)
-    OR coalesce(sum(x.reserved_nano_credits),0)+cost>(profile#>>'{definition,budget_nano_credits}')::bigint
+   HAVING coalesce(sum(1+x.approved_external_read::int),0)+(SELECT count(*) FROM public.zasp_studio_advisories j WHERE (j.organization_id,j.workspace_id,j.environment_id,j.owner_id,j.session_id,j.thread_id)=(o,w,e,a,s,t))+1+external_read::int>(profile#>>'{definition,max_steps}')::int OR count(*)>count(x.reserved_nano_credits)
+    OR coalesce(sum(x.reserved_nano_credits),0)+(SELECT coalesce(sum(j.reserved_nano_credits),0) FROM public.zasp_studio_advisories j WHERE (j.organization_id,j.workspace_id,j.environment_id,j.owner_id,j.session_id,j.thread_id)=(o,w,e,a,s,t))+cost>(profile#>>'{definition,budget_nano_credits}')::bigint
   ) THEN RETURN '"limit"'::jsonb; END IF;
   SELECT monthly_budget_nano_credits INTO cap FROM public.zasp_environment_ai_controls WHERE (organization_id,workspace_id,environment_id)=(o,w,e) FOR SHARE;
   IF cost IS NULL OR cost<=0 OR cap IS NULL OR cost>cap THEN RETURN '"budget"'::jsonb;END IF;
@@ -161,14 +176,20 @@ BEGIN
    WHERE item->>'confidence'='exact' OR (profile#>>'{definition,minimum_evidence_confidence}'='strong' AND item->>'confidence'='strong');
   END IF;
   IF content IS NULL OR content='null'::jsonb OR jsonb_array_length(content)=0 THEN RETURN '"no_evidence"'::jsonb;END IF;
+  IF external_read THEN
+   SELECT CASE WHEN count(*)=count(item->>'agent_id') AND count(DISTINCT item->>'agent_id')=1 AND bool_and(item->>'confidence'='exact')
+    THEN min(item->>'agent_id') END INTO external_agent FROM jsonb_array_elements(content) item;
+   IF NOT coalesce(public.zasp_valid_product_id(external_agent),false) THEN RETURN '"no_evidence"'::jsonb; END IF;
+  END IF;
   INSERT INTO public.zasp_ai_monthly_usage AS u VALUES(o,w,e,month_key,cost) ON CONFLICT(organization_id,workspace_id,environment_id,month_start)
   DO UPDATE SET reserved_nano_credits=u.reserved_nano_credits+cost WHERE u.reserved_nano_credits<=cap-cost;
   IF NOT FOUND THEN RETURN '"budget"'::jsonb;END IF;
-  INSERT INTO public.zasp_security_agent_chat_messages(organization_id,workspace_id,environment_id,owner_id,session_id,thread_id,request_id,assistant_id,question,status,approved_session_read,reserved_nano_credits)
-  VALUES(o,w,e,a,s,t,k,q->>'assistant_id',q->>'question','pending',coalesce(q->'approved_read_tools'='["inspect_session"]'::jsonb,false),cost);
+  INSERT INTO public.zasp_security_agent_chat_messages(organization_id,workspace_id,environment_id,owner_id,session_id,thread_id,request_id,assistant_id,question,status,approved_session_read,approved_external_read,reserved_nano_credits)
+  VALUES(o,w,e,a,s,t,k,q->>'assistant_id',q->>'question','pending',approved?'inspect_session',external_read,cost);
   PERFORM zasp_authorization80.product_settled(proof);
-  RETURN jsonb_build_object('assistant_id',q->>'assistant_id','evidence',content);
+  RETURN jsonb_strip_nulls(jsonb_build_object('assistant_id',q->>'assistant_id','external_agent_id',external_agent))||jsonb_build_object('evidence',content);
  END IF;
+ IF prior.approved_session_read OR prior.approved_external_read THEN PERFORM zasp_authorization80.identity_fence(proof||'{"fresh_auth":true}'::jsonb); END IF;
  IF prior.status IS DISTINCT FROM 'pending' OR prior.assistant_id IS DISTINCT FROM q->>'assistant_id' OR prior.created_at<now()-interval '2 minutes' THEN RETURN '"conflict"'::jsonb; END IF;
  IF q->>'phase'='finish' AND length(q->>'text') BETWEEN 1 AND 4096 AND jsonb_typeof(q->'evidence_ids')='array' AND jsonb_array_length(q->'evidence_ids') BETWEEN 1 AND 6 THEN
   UPDATE public.zasp_security_agent_chat_messages x SET status='answered',answer=q->>'text',evidence_ids=q->'evidence_ids',finished_at=clock_timestamp()
@@ -181,9 +202,9 @@ BEGIN
  RETURN jsonb_build_object('assistant_id',prior.assistant_id,'text',q->>'text','evidence_ids',q->'evidence_ids');
 END $turn$;
 DO $chat_grants$ DECLARE f text; BEGIN
- FOREACH f IN ARRAY ARRAY['chat_allowed(text,text,text,jsonb)','analyst_threads(text,text,text,text,text,text,text,text,bigint)','analyst_turn(text,text,text,text,text,text,text,jsonb,jsonb)'] LOOP
+ FOREACH f IN ARRAY ARRAY['cloud_job_allowed(text,text,text,text,jsonb)','chat_allowed(text,text,text,jsonb)','analyst_threads(text,text,text,text,text,text,text,text,bigint)','analyst_turn(text,text,text,text,text,text,text,jsonb,jsonb)'] LOOP
   EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',f);
   EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',f);
-  IF f NOT LIKE 'chat_allowed%' THEN EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);END IF;
+  IF f LIKE 'analyst_%' THEN EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);END IF;
  END LOOP;
 END $chat_grants$;

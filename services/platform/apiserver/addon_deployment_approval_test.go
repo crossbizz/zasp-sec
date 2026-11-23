@@ -26,7 +26,7 @@ func exerciseDeploymentReview(t *testing.T, b *installedBaseline, admin installe
 	b.seed(func() {
 		b.exec("INSERT INTO zasp_addon_versions(organization_id,workspace_id,environment_id,id,manifest_digest,origin,origin_credential,ruleset,findings,review_state) VALUES($1,$2,$3,$4,$5,'local',$6,'zasp-static.v2','[]','approved')", b.o, b.w, b.e, version, digest, b.id())
 		for id, kind := range map[string]string{agent: "agent", role: "identity"} {
-			b.exec("INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,first_seen_at,last_seen_at,product_kind,winning_provider) VALUES($1,$2,$3,$4,$5,'registered','{}',now(),now(),$5,'github')", b.o, b.w, b.e, id, kind)
+			b.exec("INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,first_seen_at,last_seen_at,product_kind,winning_provider) VALUES($1,$2,$3,$4,$5,'registered','{}',now(),now(),$5,'github') ON CONFLICT(organization_id,workspace_id,environment_id,id) DO NOTHING", b.o, b.w, b.e, id, kind)
 		}
 		b.exec("INSERT INTO zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,source,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,first_seen_at,last_seen_at) VALUES($1,$2,$3,$4,$5,'aws',$6,$7,$8,'uses_identity','role',now(),now())", b.o, b.w, b.e, b.id(), b.id(), b.id(), agent, role)
 		b.exec("INSERT INTO zasp_agent_purpose_versions(organization_id,workspace_id,environment_id,agent_id,revision,actor,request_key,allowed_tool_ids) VALUES($1,$2,$3,$4,1,$5,$6,'[]')", b.o, b.w, b.e, agent, b.id(), b.id())

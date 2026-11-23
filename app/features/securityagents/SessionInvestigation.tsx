@@ -21,6 +21,7 @@ function decodeHistory(value: unknown, sessionID: string, id: string): AnalystTh
   const summary = decodeSummary(value, sessionID);
   if (summary.id !== id || !("messages" in summary) || !Array.isArray(summary.messages) || summary.messages.length > 48 ||
     summary.messages.some(m => !m || !productID.test(m.id) || !["user", "assistant"].includes(m.role) || typeof m.text !== "string" || !Array.isArray(m.evidence_ids) || !m.evidence_ids.every((e: string) => productID.test(e)))) throw Error("Invalid thread history");
+  if ("requires_external_inventory_approval" in summary && typeof summary.requires_external_inventory_approval !== "boolean") throw Error("Invalid inventory read approval");
   if ("requires_session_read_approval" in summary && typeof summary.requires_session_read_approval !== "boolean") throw Error("Invalid session read approval");
   if ("handoff" in summary && summary.handoff !== undefined) {
     const handoff = summary.handoff as NonNullable<AnalystThread["handoff"]>;

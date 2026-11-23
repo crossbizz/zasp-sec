@@ -164,7 +164,7 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 				return
 			}
 			request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, routed))
-			if operation.operationID == "getAgentEvidencePack" || operation.operationID == "callZaspMCP" {
+			if operation.operationID == "getAgentEvidencePack" || operation.operationID == "callZaspMCP" || operation.operationID == "streamAnalystThread" {
 				// The evidence pack reads other operations through this router,
 				// each as a request of its own.
 				request = request.WithContext(context.WithValue(request.Context(), productRouterContextKey{}, http.Handler(router)))

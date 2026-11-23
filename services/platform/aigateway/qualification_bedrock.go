@@ -33,6 +33,20 @@ type VertexQualificationProfile struct {
 	MaximumNanoCredits  int64  `json:"maximum_nano_credits"`
 }
 
+func (a DeploymentAttestation) ScopedTo(o, w, e string) bool {
+	var ref string
+	switch {
+	case a.Vertex != nil:
+		ref = a.Vertex.CredentialReference
+	case a.Bedrock != nil:
+		ref = a.Bedrock.CredentialReference
+	default:
+		return a.Deployment.ScopedTo(o, w, e)
+	}
+	prefix := "secret_ref_planner/" + o + "/" + w + "/" + e + "/"
+	return o != "" && w != "" && e != "" && strings.HasPrefix(ref, prefix) && len(ref) > len(prefix)
+}
+
 func (a DeploymentAttestation) ProviderMode() string {
 	if a.Vertex != nil {
 		return ModeVertex
@@ -133,6 +147,7 @@ type deepFixture struct {
 
 var expectedFields = map[Purpose][]string{
 	PurposeTriage:          {"evidence_ids"},
+	PurposeRemediate:       {"steps"},
 	PurposeDiscoveryVerify: {"kind", "evidence_refs"},
 	PurposeDraft:           {"allowed_tool_ids", "iam_mismatches"},
 	PurposeAddonAudit:      {"threat_score", "risk_score", "citations"},
@@ -169,7 +184,7 @@ func MeasureCloud(ctx context.Context, driver ProviderDriver, a DeploymentAttest
 	}
 	var times []time.Duration
 	seen := map[[32]byte]bool{}
-	var isolated int
+	var isolated, selected, declined int
 	scan := bufio.NewScanner(bytes.NewReader(data))
 	for scan.Scan() {
 		if err := ctx.Err(); err != nil {
@@ -178,6 +193,27 @@ func MeasureCloud(ctx context.Context, driver ProviderDriver, a DeploymentAttest
 		var f deepFixture
 		if json.Unmarshal(scan.Bytes(), &f) != nil || len(f.Expected) == 0 || len(f.Input) == 0 || len(f.Input) > d.MaxInputBytes || r.Total >= 1024 {
 			return r, ErrInvalidRequest
+		}
+		if a.Purpose == PurposeRemediate {
+			expected, err := json.Marshal(f.Expected)
+			if err != nil || !ValidateRemediationProposal(f.Input, expected) {
+				return r, ErrInvalidRequest
+			}
+			var projection struct {
+				Steps []advisoryStep `json:"steps"`
+			}
+			if json.Unmarshal(expected, &projection) != nil {
+				return r, ErrInvalidRequest
+			}
+			if len(projection.Steps) == 0 {
+				declined++
+			} else {
+				selected++
+				if f.CounterfeitPolicy {
+					return r, ErrInvalidRequest
+				}
+			}
+
 		}
 		var canonical bytes.Buffer
 		if json.Compact(&canonical, f.Input) != nil {
@@ -196,6 +232,9 @@ func MeasureCloud(ctx context.Context, driver ProviderDriver, a DeploymentAttest
 		raw, err := driver.Evaluate(ctx, a.Purpose, f.Input)
 		times = append(times, time.Since(start))
 		valid := err == nil && ValidateSemanticOutput(a.Purpose, raw)
+		if a.Purpose == PurposeRemediate {
+			valid = valid && ValidateRemediationProposal(f.Input, raw)
+		}
 		if valid {
 			r.Valid++
 		}
@@ -206,11 +245,11 @@ func MeasureCloud(ctx context.Context, driver ProviderDriver, a DeploymentAttest
 			}
 		}
 	}
-	if scan.Err() != nil || r.Total < 100 || isolated == 0 {
+	if scan.Err() != nil || r.Total < 100 || isolated == 0 || a.Purpose == PurposeRemediate && (selected == 0 || declined == 0) {
 		return r, ErrInvalidRequest
 	}
 	slices.Sort(times)
 	r.P95Millis = float64(times[(95*r.Total+99)/100-1]) / float64(time.Millisecond)
-	r.Qualified = r.Valid*100 >= 99*r.Total && r.SemanticFailures*100 <= r.Total && r.CounterfeitFailures == 0 && r.P95Millis <= float64(d.MaxLatency)/float64(time.Millisecond)
+	r.Qualified = r.Valid*100 >= 99*r.Total && r.SemanticFailures*100 <= r.Total && (a.Purpose != PurposeRemediate || r.SemanticFailures == 0) && r.CounterfeitFailures == 0 && r.P95Millis <= float64(d.MaxLatency)/float64(time.Millisecond)
 	return r, nil
 }

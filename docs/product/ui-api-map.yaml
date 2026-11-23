@@ -42,6 +42,12 @@ screens:
   - id: recovery_operations
     label: Recovery Operations
     actions:
+      - id: put_recovery_intent
+        operation_id: putRecoveryIntent
+        availability: available
+      - id: get_recovery_intent
+        operation_id: getRecoveryIntent
+        availability: available
       - id: start_recovery_backup
         operation_id: startRecoveryBackup
         availability: available
@@ -233,6 +239,9 @@ screens:
         availability: available
       - id: delete_integration
         operation_id: deleteIntegration
+        availability: available
+      - id: get_saa_ssign_in_attempt
+        operation_id: getSaaSSignInAttempt
         availability: available
       - id: authorize_integration
         operation_id: authorizeIntegration
@@ -602,6 +611,12 @@ screens:
         availability: available
       - id: create_analyst_thread
         operation_id: createAnalystThread
+        availability: available
+      - id: get_studio_remediation_advisory
+        operation_id: getStudioRemediationAdvisory
+        availability: available
+      - id: request_studio_remediation_advisory
+        operation_id: requestStudioRemediationAdvisory
         availability: available
       - id: get_analyst_thread
         operation_id: getAnalystThread

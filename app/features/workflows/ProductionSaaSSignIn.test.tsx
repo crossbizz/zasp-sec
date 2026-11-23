@@ -58,13 +58,10 @@ function renderIntegrations(client: APIClient, navigateAuthorization = vi.fn()) 
 	return navigateAuthorization;
 }
 
-afterEach(() => {
-	window.sessionStorage.clear();
-	window.history.replaceState(null, "", "/connectors");
-});
+afterEach(() => { window.history.replaceState(null, "", "/connectors"); });
 
 describe("SaaS sign-in from the Integrations page", () => {
-	it("sets a sign-in platform up with its tenant only and sends the browser to the provider", async () => {
+	it("sets up a sign-in platform with its tenant and exposes a user-activated provider link", async () => {
 		const user = userEvent.setup();
 		const authorizationURL = "https://login.acme.example/oauth/authorize?client_id=zasp&state=nango_state_12345678";
 		const POST = vi.fn(async (path: string) => {
@@ -91,81 +88,82 @@ describe("SaaS sign-in from the Integrations page", () => {
 		expect(within(detail).getByText(/Sign in to the platform to connect this integration/)).toBeVisible();
 		await user.click(within(detail).getByRole("button", { name: "Sign in to Acme AI" }));
 
-		await waitFor(() => expect(navigate).toHaveBeenCalledWith(authorizationURL));
-		const [path, options] = POST.mock.calls[1] as unknown as [string, { params: { path: { id: string } } }];
-		expect(path).toBe("/api/v1/integrations/{id}/authorize");
-		expect(options.params.path.id).toBe(integrationID);
-		// This tab started the sign-in of this integration.
-		expect(window.sessionStorage.getItem("zasp.saas-sign-in")).toBe(integrationID);
-	});
+		const link = await within(detail).findByRole("link", { name: "Continue to provider" });
+        expect(link).toHaveAttribute("href",authorizationURL);
+        expect(link).toHaveAttribute("target","_blank");expect(link).toHaveAttribute("rel","noopener noreferrer");
+        expect(navigate).not.toHaveBeenCalled();
+    });
 
-	it("stores the connection the sign-in created and then offers the reference authorization", async () => {
-		window.sessionStorage.setItem("zasp.saas-sign-in", integrationID);
-		window.history.replaceState(null, "", `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
-		let current = waiting;
-		const PATCH = vi.fn(async () => { current = connected; return jsonResult(connected, 200, { ...receiptHeaders, ETag: '"2"' }); });
-		renderIntegrations({ GET: reads(() => current), PATCH } as unknown as APIClient);
-
-		const detail = await screen.findByRole("dialog", { name: "Acme production" });
-		await waitFor(() => expect(PATCH).toHaveBeenCalledOnce());
-		const [path, options] = PATCH.mock.calls[0] as unknown as [string, { params: { path: { id: string }; header: Record<string, string> }; body: unknown }];
-		expect(path).toBe("/api/v1/integrations/{id}");
-		expect(options.params.path.id).toBe(integrationID);
-		expect(options.params.header["If-Match"]).toBe('"1"');
-		// The update adds the reference and changes nothing else.
-		expect(options.body).toEqual({ name: "Acme production", configuration: connected.configuration });
-		expect(await screen.findByText("Signed in. Authorize the integration to start collecting.")).toBeVisible();
-		expect(await within(detail).findByRole("button", { name: "Authorize Acme AI reference" })).toBeVisible();
-		expect(within(detail).queryByRole("button", { name: "Sign in to Acme AI" })).toBeNull();
-		// The return is used once: the address and the tab's marker are cleared.
-		expect(window.location.search).toBe("");
-		expect(window.sessionStorage.getItem("zasp.saas-sign-in")).toBeNull();
-	});
-
-	it("does not store a connection for a sign-in this tab did not start", async () => {
-		// A link with a connection id, opened without having started a sign-in.
-		window.history.replaceState(null, "", `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
-		const PATCH = vi.fn();
-		const GET = reads(() => waiting);
-		renderIntegrations({ GET, PATCH } as unknown as APIClient);
-
-		expect(await screen.findByText(/This sign-in was not started from this browser tab/)).toBeVisible();
-		expect(PATCH).not.toHaveBeenCalled();
-		expect(GET.mock.calls.some(([path]) => path === "/api/v1/integrations/{id}")).toBe(false);
-		expect(window.location.search).toBe("");
-	});
-
-	it("does not store a connection for another integration than the one this tab signed in for", async () => {
-		window.sessionStorage.setItem("zasp.saas-sign-in", "pid_20000009-0000-4000-8000-000000000009");
-		window.history.replaceState(null, "", `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
-		const PATCH = vi.fn();
-		renderIntegrations({ GET: reads(() => waiting), PATCH } as unknown as APIClient);
-
-		expect(await screen.findByText(/This sign-in was not started from this browser tab/)).toBeVisible();
-		expect(PATCH).not.toHaveBeenCalled();
-	});
-
-	it("explains a sign-in that failed and connects nothing", async () => {
-		window.sessionStorage.setItem("zasp.saas-sign-in", integrationID);
-		window.history.replaceState(null, "", `/connectors?saas_sign_in=${integrationID}&saas_sign_in_error=tenant_mismatch`);
-		const PATCH = vi.fn();
-		renderIntegrations({ GET: reads(() => waiting), PATCH } as unknown as APIClient);
-
-		expect(await screen.findByText(/The sign-in did not reach the tenant this integration names/)).toBeVisible();
-		expect(PATCH).not.toHaveBeenCalled();
-		expect(window.location.search).toBe("");
-	});
-
-	it("ignores an address that is not a sign-in return", async () => {
-		for (const search of [`?saas_sign_in=${integrationID}`, `?saas_sign_in=not-an-id&saas_connection=${connectionID}`, `?saas_sign_in=${integrationID}&saas_connection=ref:nango/connection/x`, `?saas_sign_in=${integrationID}&saas_connection=${connectionID}&saas_sign_in_error=denied`]) {
-			window.sessionStorage.setItem("zasp.saas-sign-in", integrationID);
-			window.history.replaceState(null, "", `/connectors${search}`);
-			const PATCH = vi.fn();
-			const view = render(<APIProvider client={{ GET: reads(() => waiting), PATCH } as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
-			await screen.findByRole("button", { name: "Open Acme production" });
-			expect(PATCH).not.toHaveBeenCalled();
-			expect(screen.queryByRole("alert")).toBeNull();
-			view.unmount();
-		}
-	});
+  const attemptID = "pid_40000001-0000-4000-8000-000000000001";
+  const statusPath = "/api/v1/integrations/{id}/sign-in-attempts/{attemptId}";
+  const result = { attempt_id: attemptID, integration_id: integrationID, integration_version: 1, status: "completed", connection_reference: connected.configuration.connection_reference, failure_code: null };
+  function workflow(status: () => unknown, version = () => '"1"') {
+    const user = userEvent.setup();
+    let current = waiting;
+    const listing = reads(() => current);
+    const GET = vi.fn(async (path: string, options?: {params?:{path?:Record<string,string>}}) => {
+      if (path === statusPath) return jsonResult(status(),200,{"Cache-Control":"no-store"});
+      if (path === "/api/v1/integrations/{id}") return jsonResult(current,200,{ETag:current===waiting?version():'"2"'});
+      return listing(path);
+    });
+    const PATCH = vi.fn(async (_path: string, _options: unknown) => { current = connected; return jsonResult(connected,200,{...receiptHeaders,ETag:'"2"'}); });
+    const POST = vi.fn(async (path: string) => {
+      if (path === "/api/v1/integrations/{id}/authorize") return jsonResult({authorization_attempt_id:attemptID,authorization_url:"https://login.acme.example/sign-in",expires_at:new Date(Date.now()+540000).toISOString()},200,{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"});
+      if(path === "/api/v1/integrations/{id}/reference-authorization")return jsonResult({...connected,status:"active"},200,{...receiptHeaders,ETag:'"3"'});
+      throw new Error(path);
+    });
+    const client = {GET,POST,PATCH} as unknown as APIClient;
+    const view = (canWrite:boolean) => <APIProvider client={client}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite={canWrite} /></WorkflowMutationProvider></SessionProvider></APIProvider>;
+    const rendered = render(view(true));
+    const start=async()=>{
+      await user.click(await screen.findByRole("button",{name:"Open Acme production"}));
+      await user.click(await screen.findByRole("button",{name:"Sign in to Acme AI"}));
+      return screen.findByRole("button",{name:"Finish sign-in"});
+    };
+    return {user,GET,POST,PATCH,start,disable:()=>rendered.rerender(view(false)),unmount:()=>rendered.unmount()};
+  }
+  it("uses the initiating attempt and checked version before saving and authorizing the provider reference", async()=>{
+    let state="pending";
+    const m=workflow(()=>({...result,status:state,connection_reference:state==="completed"?result.connection_reference:null}));
+    const finish=await m.start();
+    await m.user.click(finish);
+    expect(await screen.findByText(/Waiting for the provider/)).toBeVisible();
+    expect(m.PATCH).not.toHaveBeenCalled();
+    state="completed";await m.user.click(finish);
+    expect(await screen.findByText(/Signed in. Authorize the integration/)).toBeVisible();
+    expect(m.GET.mock.calls.filter(([p])=>p===statusPath).map(([,o])=>o?.params?.path)).toEqual([1,2].map(()=>({id:integrationID,attemptId:attemptID})));
+    expect(m.PATCH).toHaveBeenCalledWith("/api/v1/integrations/{id}", expect.objectContaining({params:expect.objectContaining({path:{id:integrationID},header:expect.objectContaining({"If-Match":'"1"'})}),body:{name:waiting.name,configuration:connected.configuration}}));
+    await m.user.click(await screen.findByRole("button",{name:"Authorize Acme AI reference"}));
+    expect(m.POST.mock.calls.map(([path])=>path)).toContain("/api/v1/integrations/{id}/reference-authorization");
+  });
+  it.each([
+    ["superseded",{...result,status:"superseded",connection_reference:null}],
+    ["stale version",{...result,integration_version:2}],
+    ["different attempt",{...result,attempt_id:"pid_40000002-0000-4000-8000-000000000002"}],
+    ["missing version",{...result,integration_version:undefined}],
+    ["different integration",{...result,integration_id:"pid_20000003-0000-4000-8000-000000000003"}],
+    ["failed",{...result,status:"failed",connection_reference:null,failure_code:"tenant_mismatch"}],
+  ])("refuses to save a %s result",async(_label,value)=>{
+    const m=workflow(()=>value);await m.user.click(await m.start());
+    await waitFor(()=>expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
+    expect(m.PATCH).not.toHaveBeenCalled();
+  });
+  it("requires the same current integration version at save time",async()=>{
+    let version='"1"';const m=workflow(()=>result,()=>version);const finish=await m.start();version='"2"';
+    await m.user.click(finish);expect(await screen.findByText(/integration configuration changed/)).toBeVisible();
+    expect(m.PATCH).not.toHaveBeenCalled();
+  });
+  it("drops authority after write capability is lost",async()=>{
+    const m=workflow(()=>result);await m.start();m.disable();
+    expect(screen.queryByRole("button",{name:"Finish sign-in"})).toBeNull();
+    expect(m.PATCH).not.toHaveBeenCalled();
+  });
+  it.each([`saas_connection=${connectionID}&saas_sign_in=${integrationID}`,`saas_sign_in=${integrationID}&saas_sign_in_error=provider_access_denied`])("renders the return address passively",async(search)=>{
+    window.history.replaceState(null,"","/connectors?"+search);
+    const GET=reads(()=>waiting),PATCH=vi.fn(),POST=vi.fn();
+    renderIntegrations({GET,POST,PATCH} as unknown as APIClient);
+    expect(await screen.findByText(/Return to the Zasp tab/)).toBeVisible();
+    expect(PATCH).not.toHaveBeenCalled();expect(POST).not.toHaveBeenCalled();
+    expect(GET.mock.calls.filter(([path])=>path.startsWith("/api/v1/integrations"))).toEqual([]);
+  });
 });

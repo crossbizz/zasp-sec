@@ -68,6 +68,9 @@ spec:
             - { name: ZASP_DEPLOYMENT_MODE, value: {{ $root.Values.global.deploymentMode | quote }} }
             - { name: ZASP_PUBLIC_ORIGIN, value: {{ required "global.publicOrigin is required" $root.Values.global.publicOrigin | quote }} }
             {{- if eq .name "agentsec-api" }}
+            {{- with $root.Values.studioInventory.bindingFile }}
+            - { name: ZASP_STUDIO_INVENTORY_MCP_FILE, value: {{ . | quote }} }
+            {{- end }}
             {{- with $root.Values.taskDelegation.authorityFile }}
             - { name: ZASP_DELEGATION_AUTHORITY_FILE, value: {{ . | quote }} }
             {{- end }}

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS public.calibration_daily_rollups (
  PRIMARY KEY(organization_id,workspace_id,environment_id,day,bucket),
  FOREIGN KEY(organization_id,workspace_id,environment_id) REFERENCES public.zasp_data_controls ON DELETE CASCADE
 );
+ALTER TABLE public.calibration_daily_rollups ADD COLUMN IF NOT EXISTS serious_positives bigint NOT NULL DEFAULT 0 CHECK(serious_positives>=0 AND serious_positives<=tp+fn);
 CREATE TABLE IF NOT EXISTS public.zasp_calibration_dirty_days (
  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,day date NOT NULL,
  PRIMARY KEY(organization_id,workspace_id,environment_id,day),
@@ -94,7 +95,7 @@ BEGIN
     coalesce(sum(s.threat_probability) FILTER(WHERE f.label IS NOT NULL),0),
     coalesce(sum((s.threat_probability-(f.label='confirm_tp')::int)^2),0),
     count(*) FILTER(WHERE s.threat_probability>=0.5 AND f.label='confirm_tp'),count(*) FILTER(WHERE s.threat_probability>=0.5 AND f.label='mark_fp'),
-    count(*) FILTER(WHERE s.threat_probability<0.5 AND f.label='mark_fp'),count(*) FILTER(WHERE s.threat_probability<0.5 AND f.label='confirm_tp')
+    count(*) FILTER(WHERE s.threat_probability<0.5 AND f.label='mark_fp'),count(*) FILTER(WHERE s.threat_probability<0.5 AND f.label='confirm_tp'),count(*) FILTER(WHERE s.serious AND f.label='confirm_tp')
    FROM public.semantic_evaluations s LEFT JOIN public.analyst_feedback f USING(organization_id,workspace_id,environment_id,decision_id,rule_id)
    WHERE (s.organization_id,s.workspace_id,s.environment_id)=(o,w,e) AND s.evaluated_at>=d::timestamp AT TIME ZONE 'UTC' AND s.evaluated_at<(d+1)::timestamp AT TIME ZONE 'UTC'
    GROUP BY floor(s.threat_probability*10);
@@ -111,13 +112,13 @@ BEGIN
  PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getCalibrationMetrics','view','environment',e,false,true,false,false);
  PERFORM zasp_authorization80.refresh_calibration_days(o,w,e,oldest);
  WITH boundary AS MATERIALIZED (
- SELECT s.threat_probability AS p, (f.label='confirm_tp')::int AS y FROM public.semantic_evaluations s
+ SELECT s.threat_probability AS p, (f.label='confirm_tp')::int AS y,s.serious FROM public.semantic_evaluations s
  LEFT JOIN public.analyst_feedback f USING(organization_id,workspace_id,environment_id,decision_id,rule_id)
  WHERE (s.organization_id,s.workspace_id,s.environment_id)=(o,w,e) AND s.evaluated_at>=cutoff AND s.evaluated_at<(oldest+1)::timestamp AT TIME ZONE 'UTC'
- ), days AS MATERIALIZED (SELECT bucket,evaluated,n,psum,tp+fn AS positives,squares FROM public.calibration_daily_rollups
+ ), days AS MATERIALIZED (SELECT bucket,evaluated,n,psum,tp+fn AS positives,squares,serious_positives FROM public.calibration_daily_rollups
  WHERE (organization_id,workspace_id,environment_id)=(o,w,e) AND day>oldest
- UNION ALL SELECT floor(p*10)::int,count(*),count(y),coalesce(sum(p) FILTER(WHERE y IS NOT NULL),0),coalesce(sum(y),0),coalesce(sum((p-y)^2),0) FROM boundary GROUP BY 1),
- buckets AS (SELECT bucket,sum(n) AS n,sum(psum) AS psum,sum(positives) AS positives,sum(squares) AS squares FROM days WHERE n>0 GROUP BY bucket),
+ UNION ALL SELECT floor(p*10)::int,count(*),count(y),coalesce(sum(p) FILTER(WHERE y IS NOT NULL),0),coalesce(sum(y),0),coalesce(sum((p-y)^2),0),count(*) FILTER(WHERE serious AND y=1) FROM boundary GROUP BY 1),
+ buckets AS (SELECT bucket,sum(n) AS n,sum(psum) AS psum,sum(positives) AS positives,sum(squares) AS squares,sum(serious_positives) AS serious_positives FROM days WHERE n>0 GROUP BY bucket),
  recent AS (SELECT d.id AS decision_id,m->>'id' AS rule_id,d.created_at AS occurred_at,f.label
  FROM (SELECT * FROM public.zasp_guardrail_decisions WHERE (organization_id,workspace_id,environment_id)=(o,w,e) AND created_at>=now()-interval '30 days' AND jsonb_array_length(rules)>0 ORDER BY created_at DESC,id LIMIT 30) d
  CROSS JOIN LATERAL jsonb_array_elements(d.rules) m LEFT JOIN public.analyst_feedback f ON (f.organization_id,f.workspace_id,f.environment_id,f.decision_id,f.rule_id)=(o,w,e,d.id,m->>'id')

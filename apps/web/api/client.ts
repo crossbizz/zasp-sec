@@ -177,12 +177,12 @@ export function createAPIClient(options: APIClientOptions = {}) {
       if (settling) onAuthorizationSettling(false);
     }
   };
-  const openAuthorizedEventStream = async (threadID: string, sessionID: string, message: string, requestID: string, callerSignal?: AbortSignal, approveSessionRead = false): Promise<Response> => {
+  const openAuthorizedEventStream = async (threadID: string, sessionID: string, message: string, requestID: string, callerSignal?: AbortSignal, approvedReads: readonly ("inspect_session" | "external_inventory_status")[] = []): Promise<Response> => {
     const expected = getExpectedScope();
     const csrf = getCSRFToken();
     const correlation = generateCorrelationID();
     if (![threadID, sessionID, requestID, correlation].every(id => PRODUCT_ID.test(id)) || !expected || !validExpectedScope(expected)
-      || !csrf || !message.trim() || new TextEncoder().encode(message).byteLength > 2048) {
+      || !csrf || approvedReads.length > 2 || new Set(approvedReads).size !== approvedReads.length || approvedReads.some(tool => tool !== "inspect_session" && tool !== "external_inventory_status") || !message.trim() || new TextEncoder().encode(message).byteLength > 2048) {
       throw new APITransportError("invalid_configuration", "Invalid scoped investigation request");
     }
     const signal = AbortSignal.any([AbortSignal.timeout(60_000), ...(callerSignal ? [callerSignal] : [])]);
@@ -191,7 +191,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
       method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store", signal,
       headers: { Accept: "text/event-stream", "Content-Type": "application/json", "Cache-Control": "no-store",
         [EXPECTED_SCOPE_HEADER]: expected, "X-CSRF-Token": csrf, "X-Correlation-ID": correlation },
-      body: JSON.stringify({ message, request_id: requestID, ...(approveSessionRead ? {approved_read_tools:["inspect_session"]} : {}) }),
+      body: JSON.stringify({ message, request_id: requestID, ...(approvedReads.length ? {approved_read_tools:approvedReads} : {}) }),
     }));
     if (!response.ok) {
       await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);

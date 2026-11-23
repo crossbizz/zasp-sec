@@ -766,7 +766,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 278);
+    assert.equal(operations.size, 283);
     for (const operation of ["listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence"]) assert.ok(operations.has(operation));
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);

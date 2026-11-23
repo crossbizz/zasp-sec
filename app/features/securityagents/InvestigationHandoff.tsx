@@ -14,13 +14,11 @@ import { useSession } from "../../auth/SessionProvider";
 import { activityLink } from "../../domain/activity-links";
 import { Button } from "../../components/ui";
 import { Time } from "../../components/time";
+import { StudioRemediationReview } from "./StudioRemediationReview";
 import { InvestigationPolicyDraft } from "./InvestigationPolicyDraft";
 import { createSecurityAgentsAPI } from "./SecurityAgentsView";
 
-const actionFor = {
-  request_containment: "isolate_session",
-  propose_policy: "create_temporary_policy",
-} as const;
+type HandoffProps = { thread: AnalystThread; handoff: StudioReviewHandoff };
 
 export function pendingSessionApproval(
   thread: AnalystThread,
@@ -31,11 +29,12 @@ export function pendingSessionApproval(
   const step = run.plan?.steps[0];
   const target = run.run_context?.trigger;
   return (
+    handoff.proposal === "request_containment" &&
     target?.kind === "runtime_decision" &&
     target.id === thread.session_id &&
     run.run.state === "waiting_approval" &&
     run.plan?.steps.length === 1 &&
-    step?.action === actionFor[handoff.proposal] &&
+    step?.action === "isolate_session" &&
     step.authorization === "approval_required" &&
     step.id === approval.step_id &&
     approval.run_id === run.run.id &&
@@ -44,18 +43,21 @@ export function pendingSessionApproval(
     approval.approval_context.target_id === thread.session_id &&
     approval.state === "pending" &&
     approval.reversible &&
-    approval.ttl_seconds > 0 &&
+    approval.ttl_seconds >= 60 &&
+    approval.ttl_seconds <= 3600 &&
     Date.parse(approval.expires_at) > Date.now()
   );
 }
 
-export default function InvestigationHandoff({
-  thread,
-  handoff,
-}: {
-  thread: AnalystThread;
-  handoff: StudioReviewHandoff;
-}) {
+export default function InvestigationHandoff(props: HandoffProps) {
+  return props.handoff.proposal === "propose_policy" ? (
+    <InvestigationPolicyDraft {...props} />
+  ) : (
+    <ContainmentReview {...props} />
+  );
+}
+
+function ContainmentReview({ thread, handoff }: HandoffProps) {
   const session = useSession();
   const {
     client,
@@ -102,7 +104,7 @@ export default function InvestigationHandoff({
         const run = await api.getSecurityAgentRun(listed.id, signal);
         if (
           run.plan?.steps.length !== 1 ||
-          run.plan.steps[0].action !== actionFor[handoff.proposal] ||
+          run.plan.steps[0].action !== "isolate_session" ||
           run.approvals.length !== 1
         )
           continue;
@@ -118,8 +120,6 @@ export default function InvestigationHandoff({
     read,
     allowed && open,
   );
-  if (handoff.proposal === "propose_policy")
-    return <InvestigationPolicyDraft thread={thread} handoff={handoff} />;
   if (!allowed) return null;
   const cited = thread.messages.find((m) => m.id === handoff.message_id && m.role === "assistant");
   if (!cited?.evidence_ids.length) return null;
@@ -142,6 +142,12 @@ export default function InvestigationHandoff({
                     <li key={a.id}>
                       <strong>{a.expected_effect}</strong> · Expires <Time value={a.expires_at} /> ·{" "}
                       <a href={activityLink({ kind: "approval", id: a.id }, session)}>Review approval</a>
+                      <StudioRemediationReview
+                        thread={thread.id}
+                        sessionID={thread.session_id}
+                        message={handoff.message_id}
+                        approval={a.id}
+                      />
                     </li>
                   ))}
                 </ul>

@@ -16,7 +16,7 @@ import "./studio.css";
 type Definition = CustomSecurityAgentDefinition;
 type Tool = Definition["read_tools"][number];
 const labels: Record<Tool, string> = {
-  list_agents: "Agent inventory", get_posture_summary: "Agent posture", inspect_session: "Session evidence", get_addon_drift: "Add-on drift",
+  list_agents: "Agent inventory", get_posture_summary: "Agent posture", inspect_session: "Session evidence", get_addon_drift: "Add-on drift", external_inventory_status: "External inventory status",
 };
 const tools = Object.keys(labels) as Tool[];
 const defaultDefinition: Definition = { name: "", mission: "", trigger: "manual", read_tools: ["inspect_session"], proposal: "none", require_approval: true, max_steps: 3, budget_nano_credits: 0, model_pin: "" };
@@ -37,8 +37,8 @@ function decodeAgent(value: unknown): CustomSecurityAgent {
 const stageNames = { trigger: "Trigger", tools: "Read tools", approval: "Approval", bounds: "Run limits" } as const;
 type Stage = keyof typeof stageNames;
 
-function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose }: {
-  saved?: CustomSecurityAgent; canWrite: boolean; fresh: boolean; reauthenticate?: () => void; onSaved: (agent: CustomSecurityAgent) => void; onClose: () => void;
+function StudioEditor({ saved, canWrite, externalAvailable, fresh, reauthenticate, onSaved, onClose }: {
+  saved?: CustomSecurityAgent; canWrite: boolean; externalAvailable: boolean; fresh: boolean; reauthenticate?: () => void; onSaved: (agent: CustomSecurityAgent) => void; onClose: () => void;
 }) {
   const { client } = useAPI();
   const session = useOptionalSession();
@@ -62,10 +62,19 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
   const attempt = useRef<{ body: string; key: string } | null>(null);
   const change = (patch: Partial<Definition>) => setDraft(value => ({ ...value, ...patch }));
   function toggleReadTool(tool: Tool, enabled: boolean) {
+    if (enabled && tool === "external_inventory_status") {
+      change({
+        read_tools: [...new Set<Tool>([...draft.read_tools, "inspect_session", tool])],
+        approval_required_tools: [...new Set<Tool>([...(draft.approval_required_tools ?? []), tool])],
+        max_steps: Math.max(2, draft.max_steps),
+      });
+      return;
+    }
     if (enabled) { change({ read_tools: [...draft.read_tools, tool] }); return; }
+    const removed = tool === "inspect_session" ? [tool, "external_inventory_status"] : [tool];
     change({
-      read_tools: draft.read_tools.filter(value => value !== tool),
-      approval_required_tools: draft.approval_required_tools?.filter(value => value !== tool),
+      read_tools: draft.read_tools.filter(value => !removed.includes(value)),
+      approval_required_tools: draft.approval_required_tools?.filter(value => !removed.includes(value)),
     });
   }
   function toggleApproval(tool: Tool, required: boolean) {
@@ -73,7 +82,8 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
     change({ approval_required_tools: required ? [...approvals, tool] : approvals.filter(value => value !== tool) });
   }
   const stages = Object.entries(stageNames).map(([id, label]) => ({ id, label }));
-  const valid = draft.name.trim() && draft.mission.trim() && draft.read_tools.length && draft.max_steps >= 1 && draft.max_steps <= 6 &&
+  const externalInventory = draft.read_tools.includes("external_inventory_status");
+  const valid = (!externalInventory || (draft.trigger === "manual" && draft.max_steps >= 2)) && draft.name.trim() && draft.mission.trim() && draft.read_tools.length && draft.max_steps >= 1 && draft.max_steps <= 6 &&
     Number.isSafeInteger(draft.budget_nano_credits) && draft.budget_nano_credits >= 0 && draft.budget_nano_credits <= 1e12;
   const editable = canWrite && !busy;
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved?.definition);
@@ -98,15 +108,16 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
       <Field label="Mission" maxLength={512} value={draft.mission} onChange={e => change({mission:e.target.value})} /></fieldset>
     <EvidenceGraph label="Investigation workflow" nodes={stages} edges={stages.slice(1).map((s, i) => ({ source: stages[i].id, target: s.id, kind: "configured" }))} selectedID={stage} onSelect={id => setStage(id as Stage)} />
     <fieldset disabled={!editable} className="studio-fields"><legend>{stageNames[stage]}</legend>
-      {stage === "trigger" && <Select label="Start this workflow" value={draft.trigger} onChange={e => change({trigger:e.target.value as Definition["trigger"]})}><option value="manual">Manually</option><option value="finding_opened">When a finding opens</option></Select>}
+      {stage === "trigger" && <Select label="Start this workflow" value={draft.trigger} onChange={e => change({trigger:e.target.value as Definition["trigger"]})}><option value="manual">Manually</option><option value="finding_opened" disabled={externalInventory}>When a finding opens</option></Select>}
       {stage === "tools" && tools.map(tool => <div key={tool}>
-        <label><input type="checkbox" checked={draft.read_tools.includes(tool)} onChange={event => toggleReadTool(tool, event.target.checked)} /> {labels[tool]}</label>
-        {draft.read_tools.includes(tool) && <label><input type="checkbox" checked={draft.approval_required_tools?.includes(tool) ?? false} onChange={event => toggleApproval(tool, event.target.checked)} /> Require approval for {labels[tool].toLowerCase()}</label>}
+        <label><input type="checkbox" checked={draft.read_tools.includes(tool)} disabled={tool === "external_inventory_status" && !draft.read_tools.includes(tool) && (draft.trigger !== "manual" || !externalAvailable)} onChange={event => toggleReadTool(tool, event.target.checked)} /> {labels[tool]}</label>
+        {tool === "external_inventory_status" && <small>{externalAvailable ? "Requires a manual trigger and fresh approval for each read." : "A private inventory connector has not been configured in this environment."}</small>}
+        {draft.read_tools.includes(tool) && tool !== "external_inventory_status" && <label><input type="checkbox" checked={draft.approval_required_tools?.includes(tool) ?? false} onChange={event => toggleApproval(tool, event.target.checked)} /> Require approval for {labels[tool].toLowerCase()}</label>}
       </div>)}
       {stage === "approval" && <><Select label="Proposal allowed" value={draft.proposal} onChange={e => change({proposal:e.target.value as Definition["proposal"]})}><option value="none">Read-only investigation</option><option value="propose_policy">Propose a policy</option><option value="request_containment">Request containment</option></Select><p>Each proposed change requires an authorized reviewer.</p></>}
       {stage === "bounds" && <><Select label="Minimum evidence confidence" value={draft.minimum_evidence_confidence ?? ""} onChange={event => change({ minimum_evidence_confidence: event.target.value === "" ? undefined : event.target.value as Definition["minimum_evidence_confidence"] })}>
         <option value="">Use the existing evidence policy</option><option value="strong">Strong or exact attribution</option><option value="exact">Exact attribution only</option>
-        </Select><Field label="Maximum steps" type="number" min={1} max={6} value={draft.max_steps} onChange={e => change({max_steps:e.target.valueAsNumber})} />
+        </Select><Field label="Maximum steps" type="number" min={externalInventory ? 2 : 1} max={6} value={draft.max_steps} onChange={e => change({max_steps:e.target.valueAsNumber})} />
         <Field label="Budget in nano-credits" type="number" min={0} max={1e12} value={draft.budget_nano_credits} onChange={e => change({budget_nano_credits:e.target.valueAsNumber})} />
         <Select label="Investigation model" value={draft.model_pin} onChange={e => change({ model_pin: e.target.value })}>
           <option value="">Deterministic handling</option>
@@ -131,7 +142,7 @@ export function SecurityAgentStudio({ canWrite, fresh, reauthenticate }: { canWr
   const list = useAPIQuery("studio:list:"+(cursor ?? ""), useCallback(async (signal?: AbortSignal) =>
     requireAPIData(await client.GET("/api/v1/security-agents/custom", { params: { query: { limit: 25, cursor: cursor ?? undefined } }, signal }), value => {
       if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items) || !("next_cursor" in value) || (value.next_cursor !== null && typeof value.next_cursor !== "string")) throw Error("Invalid workflow page");
-      return { items: value.items.map(decodeAgent), next: value.next_cursor };
+      return { items: value.items.map(decodeAgent), next: value.next_cursor, externalAvailable: "external_inventory_available" in value && value.external_inventory_available === true };
     }), [cursor, client]));
   const detail = useAPIQuery("studio:definition:"+selected, useCallback(async (signal?: AbortSignal) =>
     requireAPIData(await client.GET("/api/v1/security-agents/custom/{id}", { params: { path: {id: selected ?? ""} }, signal }), value => {
@@ -143,7 +154,7 @@ export function SecurityAgentStudio({ canWrite, fresh, reauthenticate }: { canWr
       {(cursor || list.data.next) && <div className="row-actions"><Button disabled={!cursor} onClick={() => setCursor(null)}>First page</Button><Button disabled={!list.data.next} onClick={() => setCursor(list.data?.next ?? null)}>Next page</Button></div>}</>
       : list.status === "loading" ? <p role="status">Loading workflows…</p> : <p role="status">Workflows are unavailable. <Button onClick={() => void list.retry()}>Retry</Button></p>}
   </Card>
-  {selected && (selected === "new" || detail.data ? <StudioEditor key={selected + "/" + detail.data?.revision} saved={selected === "new" ? undefined : detail.data} canWrite={canWrite} fresh={fresh} reauthenticate={reauthenticate} onClose={() => setSelected(null)} onSaved={a => {setNotice("Saved revision "+a.revision+" of "+a.definition.name+".");setSelected(null);void list.retry();}} />
+  {selected && (selected === "new" || detail.data ? <StudioEditor externalAvailable={list.data?.externalAvailable === true} key={selected + "/" + detail.data?.revision} saved={selected === "new" ? undefined : detail.data} canWrite={canWrite} fresh={fresh} reauthenticate={reauthenticate} onClose={() => setSelected(null)} onSaved={a => {setNotice("Saved revision "+a.revision+" of "+a.definition.name+".");setSelected(null);void list.retry();}} />
     : <p role="status">{detail.status === "loading" ? "Loading definition…" : "Definition is unavailable."}</p>)}
   </div>;
 }

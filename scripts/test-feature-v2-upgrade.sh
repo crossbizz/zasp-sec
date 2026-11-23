@@ -137,4 +137,4 @@ go test -C "$repo_dir/services/platform" -count=1 -timeout=10m -v \
 
 # Exercise V3 routes against the installed database and its real role grants.
 go test -C "$repo_dir/services/platform" -count=1 -timeout=15m -v -run \
-  '^Test(V3|AIControlsInstalled|PrivatePlannerPricingInstalled|Calibration.*OnInstalledPostgres|QualificationRequestOnInstalledPostgres|CustomStudioRevisionProofOnInstalledDatabase|DeploymentReviewReopens|AgentPostureSeparates|RuntimeDelegationOnInstalledPostgres|ProductMCPTenantIsolated|InventoryReviewQualifiedDispatch|OfflineAddonObservationBinds|WorkforceInventoryRegisters)' ./apiserver
+  '^Test(V3|AIControlsInstalled|PrivatePlannerPricingInstalled|Calibration.*OnInstalledPostgres|QualificationRequestOnInstalledPostgres|CustomStudioRevisionProofOnInstalledDatabase|DeploymentReviewReopens|AgentPostureSeparates|RuntimeDelegationOnInstalledPostgres|ProductMCPTenantIsolated|InventoryReviewQualifiedDispatch|SyncDiscoveryReviewQualifies|OfflineAddonObservationBinds|WorkforceInventoryRegisters)' ./apiserver

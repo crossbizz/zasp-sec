@@ -1,6 +1,6 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, configure, getConfig, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZaspProductionApp } from "./ZaspProductionApp";
 
 // Keep the real provider/client/session flow; expose only its existing cache
@@ -13,6 +13,11 @@ vi.mock("../api/APIProvider", async importOriginal => {
   }
   return { ...actual, APIProvider: (props: React.ComponentProps<typeof actual.APIProvider>) => <actual.APIProvider {...props}><InvalidationControl />{props.children}</actual.APIProvider> };
 });
+
+const originalWait = getConfig().asyncUtilTimeout;
+// Production navigation loads session authorization, then the selected record.
+beforeAll(() => configure({ asyncUtilTimeout: 3_000 }));
+afterAll(() => configure({ asyncUtilTimeout: originalWait }));
 
 const organization = "pid_10000001-0000-4000-8000-000000000001";
 const workspace = "pid_10000002-0000-4000-8000-000000000002";

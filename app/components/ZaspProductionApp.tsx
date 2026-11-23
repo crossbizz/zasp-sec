@@ -1,5 +1,6 @@
 "use client";
 
+import { isSaaSCallback } from "../features/workflows/saasSignIn";
 import { AuthPage } from "./AuthPage";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
@@ -87,7 +88,8 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
       isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration(),
     }} />;
   }
-  const activity = parseActivityLink(location, session);
+  if (path === "/connectors" && isSaaSCallback(location)) return <ProductionIntegrationsView canWrite={false} location={location} />;
+  const activity = parseActivityLink(location, { ...session, principalID: session.principal.id });
   if (activity.state === "scope_mismatch") return <div className="page" role="alert">This activity link belongs to a different organization, workspace or environment. Select the authorized scope explicitly before opening it.</div>;
   if (activity.state === "invalid") return <div className="page" role="alert">This activity link is invalid. Open the record from an authorized product page.</div>;
   const selected = activity.state === "selected" ? activity.target : undefined;
@@ -101,7 +103,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     const initialSection = new URL(location, "https://zasp.invalid").searchParams.get("tab") === "calibration" ? "calibration" : "rules";
     return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}/${initialSection}`} initialSection={initialSection} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   }
-  if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
+  if (path === "/connectors") return <ProductionIntegrationsView key={`${session.principal.id}/${queryScopeKey}/${queryGeneration}`} location={location} canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" selectedID={selected?.kind === "approval" ? selected.id : undefined} onNavigate={navigate} />;
@@ -110,7 +112,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/investigate/sessions") return <ProductionSessionsView enableInvestigation={session.hasCapability("sessions.read")} key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
   if (path === "/administration/ai-controls") return <AIControlsView expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} key={`${session.principal.id}/${queryGeneration}`} client={client} canEditOrganization={session.hasCapability("identity.manage")} canEditEnvironment={session.hasCapability("data-controls.manage")} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} />;
   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} onNavigate={navigate} canMutate={session.hasCapability("data-controls.manage")} />;
-  if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
+  if (path === "/administration/recovery") return <RecoveryOperationsView key={session.principal.id} client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
   if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
   if (path === "/administration/audit-log") {

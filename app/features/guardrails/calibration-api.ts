@@ -17,7 +17,7 @@ export function decodeCalibration(value: unknown): CalibrationMetrics {
   if (m.days !== 30 || typeof m.environment_id !== "string" || !count(m.labelled) || !count(m.evaluated)
     || !rate(m.brier) || !rate(m.ece) || ![d.tp, d.fp, d.fn].every(count) || ![d.precision, d.recall].every(rate)
     || !rows(m.bins, 10, b => score(b.lower) && score(b.upper) && count(b.count) && rate(b.mean_probability) && rate(b.observed_rate))
-    || !rows(m.thresholds, 101, t => score(t.threshold) && [t.tp, t.fp, t.tn, t.fn].every(count))
+    || !rows(m.thresholds, 101, t => score(t.threshold) && [t.tp, t.fp, t.tn, t.fn].every(count) && [t.serious_tp, t.serious_fn].every(n => n === undefined || count(n)))
     || !rows(m.recent, 100, r => typeof r.decision_id === "string" && typeof r.rule_id === "string" && typeof r.occurred_at === "string" && (r.label === null || label(r.label))))
     throw Error("Invalid calibration response");
   return value as CalibrationMetrics;

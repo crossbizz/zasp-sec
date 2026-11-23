@@ -1,4 +1,9 @@
 [
+  {"ID":"getRecoveryIntent","Method":"GET","Path":"/api/v1/recovery/intents/{id}","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
+  {"ID":"putRecoveryIntent","Method":"PUT","Path":"/api/v1/recovery/intents/{id}","Permission":"manage_identity","Relation":"manage_identity","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"getStudioRemediationAdvisory","Method":"GET","Path":"/api/v1/security-agents/chat/threads/{id}/advisory","Permission":"investigate_sessions","Relation":"investigate_sessions","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
+  {"ID":"requestStudioRemediationAdvisory","Method":"POST","Path":"/api/v1/security-agents/chat/threads/{id}/advisory","Permission":"investigate_sessions","Relation":"investigate_sessions","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"getSaaSSignInAttempt","Method":"GET","Path":"/api/v1/integrations/{id}/sign-in-attempts/{attemptId}","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"createCalibrationExport","Method":"POST","Path":"/api/v1/calibration/exports","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"getCalibrationExport","Method":"GET","Path":"/api/v1/calibration/exports/{id}","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"createCalibrationDownloadGrant","Method":"POST","Path":"/api/v1/calibration/exports/{id}/download-grants","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},

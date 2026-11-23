@@ -1,3 +1,6 @@
+import {parseRedTeamStatusLink} from "./red-team-status-link";
+import { parseRecoveryLink } from "./recovery-links";
+import { parseAuditExportLink } from "../features/administration/audit-export-resume";
 import { scopedAddonFromSearch } from "./addon-links";
 
 export const calibrationLocation = "/protect/guardrails?tab=calibration";
@@ -37,9 +40,18 @@ export function activityLink(target: ActivityTarget, scope: ActivityScope): stri
 // Parse only canonical relative locations. URL normalization must not turn
 // an external, encoded or ambiguous input into a trusted product destination.
 // This validates navigation context, not record existence or authorization.
-export function parseActivityLink(location: string, scope: ActivityScope): ActivityLinkResult {
+export function parseActivityLink(location: string, scope: ActivityScope & { principalID?: string }): ActivityLinkResult {
   const invalid: ActivityLinkResult = { state: "invalid" };
   if (!validScope(scope)) return invalid;
+  const recordStatus=parseRedTeamStatusLink(location,[scope.principalID,scope.organizationID,scope.workspaceID,scope.environmentID].join("/"));
+  if(recordStatus.state==="selected")return {state:"none"};
+  if(recordStatus.state==="invalid"||recordStatus.state==="scope_mismatch")return {state:recordStatus.state};
+  const recovery = parseRecoveryLink(location, scope);
+  if (recovery.state === "selected") return {state: "none"};
+  if (recovery.state !== "none") return recovery;
+  const auditExport = parseAuditExportLink(location, scope.principalID ? { ...scope, principalID: scope.principalID } : null);
+  if (auditExport.state === "selected") return { state: "none" };
+  if (auditExport.state !== "none") return auditExport;
   if (location === calibrationLocation || location === calibrationExportLocation) return { state: "none" };
   if (!/^\/(?:[a-z0-9/-]*)(?:\?[^?#]*)?$(?![\s\S])/.test(location) || location.startsWith("//") || location.includes("//")) return invalid;
   const separator = location.indexOf("?");

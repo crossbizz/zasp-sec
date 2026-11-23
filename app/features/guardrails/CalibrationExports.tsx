@@ -126,7 +126,8 @@ function ExportForm({ environment, scope, fresh, reauthenticate }: {
     const link = document.createElement("a");
     link.href = url; link.download = file.filename;
     document.body.appendChild(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const releaseURL = URL.revokeObjectURL.bind(URL);
+    setTimeout(() => releaseURL(url), 1000);
   }
   return <section id="calibration-exports" ref={section} tabIndex={-1}><Card title={<h2>Export calibration labels</h2>}>
     <p>Download up to 2,048 redacted samples from the past 30 days as JSON Lines.</p>

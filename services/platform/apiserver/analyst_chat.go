@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -8,18 +9,20 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/aigateway"
+	"github.com/zasp-ai/zasp-sec/services/platform/inventorymcp"
 )
 
 const chatThreadsSQL = `SELECT zasp_authorization80.analyst_threads($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 const chatTurnSQL = `SELECT zasp_authorization80.analyst_turn($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)`
 
 type analystChat struct {
-	driver  aigateway.ProviderDriver
-	binding aigateway.BedrockBinding
+	inventoryStatus func(context.Context, inventorymcp.Target) (string, error)
+	driver          aigateway.ProviderDriver
+	binding         aigateway.BedrockBinding
 }
 
 func analystChatOperation(op string) bool {
-	return stringIn(op, "getAnalystThreads", "createAnalystThread", "getAnalystThread", "streamAnalystThread")
+	return stringIn(op, "getAnalystThreads", "createAnalystThread", "getAnalystThread", "streamAnalystThread", "getStudioRemediationAdvisory", "requestStudioRemediationAdvisory")
 }
 
 func init() {
@@ -74,12 +77,13 @@ type studioHandoff struct {
 }
 
 type analystThread struct {
-	RequiresReadApproval bool             `json:"requires_session_read_approval,omitempty"`
-	Handoff              *studioHandoff   `json:"handoff,omitempty"`
-	ID                   string           `json:"id"`
-	Session              string           `json:"session_id"`
-	Created              time.Time        `json:"created_at"`
-	Messages             []analystMessage `json:"messages,omitempty"`
+	RequiresExternalApproval bool             `json:"requires_external_inventory_approval,omitempty"`
+	RequiresReadApproval     bool             `json:"requires_session_read_approval,omitempty"`
+	Handoff                  *studioHandoff   `json:"handoff,omitempty"`
+	ID                       string           `json:"id"`
+	Session                  string           `json:"session_id"`
+	Created                  time.Time        `json:"created_at"`
+	Messages                 []analystMessage `json:"messages,omitempty"`
 }
 type analystMessage struct {
 	ID          string    `json:"id"`

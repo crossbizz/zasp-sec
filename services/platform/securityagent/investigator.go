@@ -42,7 +42,14 @@ func investigationFocus(question string) string {
 // Authority: a read-only projection of action outcomes, with no dispatch tools.
 // Fallback: reject missing, unbounded or unrelated model citations.
 func InvestigateSession(ctx context.Context, d aigateway.ProviderDriver, question string, actions []InvestigationAction) (InvestigationResult, error) {
+	return InvestigateSessionWithInventory(ctx, d, question, actions, "")
+}
+
+func InvestigateSessionWithInventory(ctx context.Context, d aigateway.ProviderDriver, question string, actions []InvestigationAction, inventoryStatus string) (InvestigationResult, error) {
 	var result InvestigationResult
+	if inventoryStatus != "" && !slices.Contains([]string{"present", "not_listed", "unknown"}, inventoryStatus) {
+		return result, ErrInvestigationUnavailable
+	}
 	if ctx == nil || d == nil || len(actions) == 0 || len(actions) > 101 || len(question) > 4000 {
 		return result, ErrInvestigationUnavailable
 	}
@@ -61,7 +68,11 @@ func InvestigateSession(ctx context.Context, d aigateway.ProviderDriver, questio
 	if len(rows) == 0 {
 		return InvestigationResult{Text: "The inspected receipts contain no actions with this outcome.", EvidenceIDs: []string{actions[0].ID}}, nil
 	}
-	input, _ := json.Marshal(map[string]any{"question_category": focus, "counts": counts, "receipts": rows})
+	contextData := map[string]any{"question_category": focus, "counts": counts, "receipts": rows}
+	if inventoryStatus != "" {
+		contextData["external_inventory_status"] = inventoryStatus
+	}
+	input, _ := json.Marshal(contextData)
 	raw, err := d.Evaluate(ctx, aigateway.PurposeTriage, input)
 	if err != nil || !aigateway.ValidateSemanticOutput(aigateway.PurposeTriage, raw) || json.Unmarshal(raw, &result) != nil || strings.TrimSpace(result.Text) == "" || len(result.EvidenceIDs) < 1 || len(result.EvidenceIDs) > len(rows) {
 		return InvestigationResult{}, ErrInvestigationUnavailable

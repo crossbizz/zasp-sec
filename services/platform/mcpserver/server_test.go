@@ -68,3 +68,31 @@ func TestBatchCannotBypassPerRequestBound(t *testing.T) {
 		t.Fatalf("batch status %d", w.Code)
 	}
 }
+
+func TestAddonDriftNeedsAnAuthorizedVersionAndDeployment(t *testing.T) {
+	const version = "pid_10000001-0000-4000-8000-000000000001"
+	const agent = "pid_10000002-0000-4000-8000-000000000002"
+	calls := 0
+	for _, arguments := range []string{`{"id":"` + version + `"}`, `{"id":"` + version + `","agent_id":"` + agent + `"}`} {
+		r := httptest.NewRequest("POST", "https://zasp.example/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_addon_drift","arguments":`+arguments+`}}`))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept", "application/json, text/event-stream")
+		w := httptest.NewRecorder()
+		Serve(w, r, func(op string) bool { return op == "getAddonDeploymentApproval" }, func(_ context.Context, op, id string, q url.Values) (int, []byte) {
+			calls++
+			if op != "getAddonDeploymentApproval" || id != version || q.Get("agent_id") != agent || len(q) != 1 {
+				t.Fatalf("unexpected reader arguments %s %s %s", op, id, q)
+			}
+			return 200, []byte(`{"state":"approved"}`)
+		}, nil)
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body)
+		}
+		if strings.Contains(arguments, "agent_id") != strings.Contains(w.Body.String(), "approved") {
+			t.Fatal(w.Body)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("expected one scoped read, got %d", calls)
+	}
+}

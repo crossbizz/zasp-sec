@@ -717,6 +717,13 @@ paths:
       x-fern-sdk-method-name: getSync
       x-fern-audiences:
         - api-token
+  /api/v1/integrations/{id}/sign-in-attempts/{attemptId}:
+    get:
+      tags:
+        - Integrations
+      x-fern-sdk-group-name: integrations
+      x-fern-sdk-method-name: getSaaSSignInAttempt
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/integrations/{id}/schedule:
     get:
       tags:
@@ -2146,6 +2153,19 @@ paths:
       x-fern-sdk-group-name: sessions
       x-fern-sdk-method-name: getAnalystThread
       description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/security-agents/chat/threads/{id}/advisory:
+    get:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: getStudioRemediationAdvisory
+      description: 'Authentication: a browser session only. An API token is refused.'
+    post:
+      tags:
+        - Sessions
+      x-fern-sdk-group-name: sessions
+      x-fern-sdk-method-name: requestStudioRemediationAdvisory
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/security-agents/chat/threads/{id}/stream:
     post:
       tags:
@@ -2208,6 +2228,19 @@ paths:
         - System
       x-fern-sdk-group-name: system
       x-fern-sdk-method-name: getVersion
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/recovery/intents/{id}:
+    get:
+      tags:
+        - Recovery
+      x-fern-sdk-group-name: recovery
+      x-fern-sdk-method-name: getRecoveryIntent
+      description: 'Authentication: a browser session only. An API token is refused.'
+    put:
+      tags:
+        - Recovery
+      x-fern-sdk-group-name: recovery
+      x-fern-sdk-method-name: putRecoveryIntent
       description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/recovery/backups:
     post:

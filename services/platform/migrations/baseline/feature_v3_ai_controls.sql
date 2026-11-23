@@ -155,17 +155,19 @@ BEGIN
  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='environment settings exceed the AI ceiling or data controls'; END IF;
 END $bounds$;
 
--- Each opt-in must have current evidence for the exact deployed model and purpose.
+-- A capability can serve several independently qualified purposes. Enable
+-- the capability once its pinned model has a live result for one of them;
+-- every runtime reservation separately checks the exact purpose and digest.
 CREATE OR REPLACE FUNCTION zasp_authorization80.ai_check_qualifications(o text,w text,e text,env jsonb) RETURNS void
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $qualify$
 DECLARE binding record; mode text:=env->>'mode'; pin text;
 BEGIN
- FOR binding IN SELECT * FROM (VALUES
+ FOR binding IN SELECT b.capability,array_agg(b.purpose) AS purposes FROM (VALUES
   ('tier2_prompt_injection_enabled','indirect_injection_screen'),('tier2_purpose_drift_enabled','purpose_alignment_check'),
   ('tier2_heuristic_fp_suppression_enabled','heuristic_fp_verify'),('tier3_discovery_purpose_enabled','agent_discovery_verify'),
   ('tier3_discovery_purpose_enabled','agent_purpose_draft'),('tier3_addon_audit_enabled','addon_semantic_audit'),
   ('tier3_security_agent_planner_enabled','security_agent_triage'),('tier3_security_agent_planner_enabled','security_agent_remediate')
- ) b(capability,purpose) WHERE (env->>b.capability)::boolean LOOP
+ ) b(capability,purpose) WHERE (env->>b.capability)::boolean GROUP BY b.capability LOOP
   IF starts_with(binding.capability,'tier2_') THEN
    pin:=env->>'tier2_profile';
    IF mode NOT IN ('zasp_vpc_slm','byoc_self_hosted','dev_openrouter') THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='capability needs a Tier 2 mode'; END IF;
@@ -174,7 +176,7 @@ BEGIN
    IF mode NOT IN ('privatelink_bedrock','privatelink_vertex','dev_openrouter') OR env->>'tier3_provider'<>mode THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='capability needs a matching Tier 3 provider'; END IF;
   END IF;
   IF NOT EXISTS(SELECT FROM public.model_qualifications q
-   WHERE (q.organization_id,q.workspace_id,q.environment_id,q.provider,q.model,q.purpose)=(o,w,e,mode,pin,binding.purpose)
+   WHERE (q.organization_id,q.workspace_id,q.environment_id,q.provider,q.model)=(o,w,e,mode,pin) AND q.purpose=ANY(binding.purposes)
    AND q.qualified AND q.checked_at<=now() AND q.expires_at>now() AND q.deployment_digest IS NOT NULL)
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='current deployment qualification required for the selected job'; END IF;
  END LOOP;

@@ -7,5 +7,5 @@ func configuredPrivateModel(p aigateway.Purpose, bedrockPrefix string) *analystC
 	if model == nil {
 		return nil
 	}
-	return &analystChat{model.Driver, model.Binding}
+	return &analystChat{driver: model.Driver, binding: model.Binding}
 }

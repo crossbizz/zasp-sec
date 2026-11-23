@@ -39,6 +39,9 @@ func TestPrivateFederationPinsIssuerRoleRegionAndRotation(t *testing.T) {
 				profile.TokenAudience = profile.WorkloadProvider
 				a.Vertex = &VertexQualificationProfile{Location: region, Project: "tenant-stage", PrivateIP: "10.1.2.4", Model: modelGemini, CredentialReference: ref, MaximumNanoCredits: 10}
 			}
+			if !a.ScopedTo("org", "workspace", "environment") || a.ScopedTo("other", "workspace", "environment") {
+				t.Fatal("cloud qualification credential scope")
+			}
 			file := filepath.Join(t.TempDir(), "projected.jwt")
 			setToken := func(value string) {
 				if err := os.WriteFile(file, []byte(value+"\n"), 0600); err != nil {

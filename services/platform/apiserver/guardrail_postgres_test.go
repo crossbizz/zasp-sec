@@ -37,7 +37,7 @@ func TestGuardrailDecisionSectionPostgres(t *testing.T) {
 		if columns != want {
 			t.Fatalf("columns=%s", columns)
 		}
-		const privacyID = "pid_70000000-0000-4000-8000-000000000011"
+		const privacyID = "pid_70000000-0000-4000-8000-000000000099"
 		if _, err := decide(record(privacyID, "[]")); err != nil {
 			t.Fatal(err)
 		}
@@ -47,6 +47,7 @@ func TestGuardrailDecisionSectionPostgres(t *testing.T) {
 				t.Fatalf("privacy constraint for %s returned %s", column, code)
 			}
 		}
+		database.exec(`DELETE FROM public.zasp_guardrail_decisions WHERE id=$1`, privacyID)
 		for name, q := range map[string]string{
 			"a text member":             strings.Replace(record("pid_70000000-0000-4000-8000-000000000001", "[]"), `"matched":[]`, `"matched":[],"text":"hello"`, 1),
 			"a text member in a match":  record("pid_70000000-0000-4000-8000-000000000002", `[{"id":"pii.email","category":"sensitive_data","default_mode":"redact","redactable":true,"count":1,"sample":"maria@example.com"}]`),

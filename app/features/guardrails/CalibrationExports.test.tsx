@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAPIClient } from "../../../apps/web/api/client";
@@ -76,4 +76,41 @@ it("requires export access and asks for fresh authentication", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Verify identity to export" }));
   expect(state.reauthenticate).toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: "Create export" })).toBeNull();
+});
+
+it("downloads the verified JSONL as a file and discards the spent grant", async () => {
+  const user = userEvent.setup();
+  const { createHash, webcrypto } = await import("node:crypto");
+  const content = '{"schema_version":"zasp.calibration.v1","samples":0}\n';
+  const filename = "calibration-" + ids[3] + ".jsonl";
+  const createURL = vi.fn(() => "blob:https://app.test/calibration");
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+    expect(this.download).toBe(filename);
+    expect(this.href).toBe(createURL.mock.results[0].value);
+  });
+  const originalCreateURL = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+  const originalRevokeURL = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+  Object.defineProperty(URL, "createObjectURL", { value: createURL, configurable: true });
+  Object.defineProperty(URL, "revokeObjectURL", { value: vi.fn(), configurable: true });
+  vi.stubGlobal("crypto", webcrypto);
+  state.client = createAPIClient({ fetch: async request => {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/exports")) return json(job());
+    if (path.endsWith("/download-grants")) return json({ grant: "b".repeat(64), expires_at: job().expires_at });
+    return json({ environment_id: ids[2], filename, sha256: createHash("sha256").update(content).digest("hex"), jsonl: content });
+  } });
+  try {
+    render(<CalibrationExports />);
+    await user.click(screen.getByRole("button", { name: "Create export" }));
+    await user.click(await screen.findByRole("button", { name: "Get download grant" }));
+    await user.click(screen.getByRole("button", { name: "Download JSONL" }));
+    await waitFor(() => expect(click).toHaveBeenCalledOnce());
+    expect(createURL).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Download JSONL" })).toBeNull();
+  } finally {
+    click.mockRestore();
+    vi.unstubAllGlobals();
+    if (originalCreateURL) Object.defineProperty(URL, "createObjectURL", originalCreateURL); else Reflect.deleteProperty(URL, "createObjectURL");
+    if (originalRevokeURL) Object.defineProperty(URL, "revokeObjectURL", originalRevokeURL); else Reflect.deleteProperty(URL, "revokeObjectURL");
+  }
 });

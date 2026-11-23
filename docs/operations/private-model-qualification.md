@@ -54,16 +54,21 @@ The **Guardrails → Calibration** panel collects analyst labels on recent match
 
 ## Bind an API job to a private provider
 
-The API reads one provider configuration at startup for investigation and one for inventory review. Each configuration binds the provider, region, model, credential reference and per-call budget to a qualified deployment. Configure one provider per job. After rotating credentials, update their scoped reference and digest under **Administration → AI & Models** and restart the API.
+The API reads the private provider configurations for investigation, inventory review and remediation advice at startup. Each configuration binds the provider, region, model, credential reference and per-call budget to a qualified deployment. Configure one provider per job. After rotating credentials, update their scoped reference and digest under **Administration → AI & Models** and restart the API.
 
 | Job | Bedrock variable prefix | Vertex variable prefix |
 | --- | --- | --- |
 | Session investigation | `ZASP_BEDROCK_TRIAGE_` | `ZASP_VERTEX_TRIAGE_` |
 | Inventory review | `ZASP_BEDROCK_INVENTORY_` | `ZASP_VERTEX_INVENTORY_` |
+| Pending session-isolation advisory | `ZASP_BEDROCK_REMEDIATION_` | `ZASP_VERTEX_REMEDIATION_` |
 
 Append `MODEL`, `TOKEN_FILE`, `CREDENTIAL_REFERENCE` and `MAX_NANO_CREDITS` to the selected prefix. Mount the bearer credential in a regular file with write access restricted to its owner. Use the exact reference under `secret_ref_planner/{organization}/{workspace}/{environment}/` and a positive integer upper cost in nano-credits. For a mounted bearer token, arrange rotation before expiry with the infrastructure credential broker. Mount the refreshed token, update the environment’s SHA-256 credential digest, and roll the API, discovery scheduler and qualification worker that use it. An expired token or mismatched binding suspends optional coverage.
 
 For Bedrock, supply `VPCE_HOST` and `VPCE_IP` for the regional Bedrock Runtime interface endpoint. For Vertex, supply `LOCATION`, `PROJECT` and `PSC_IP` for the Google Cloud project and Private Service Connect endpoint. For example, `ZASP_VERTEX_TRIAGE_LOCATION=europe-west4` selects the regional Vertex API in the Netherlands. The API dials the pinned private address with TLS verification of the regional service hostname.
+
+For `security_agent_remediate`, the signed oracle supplies an array of zero or one already-admitted candidates and up to six evidence IDs. The only supported candidate is a reversible `isolate_session` action with the selected session ID and `ttl_release` rollback. A proposed step must equal that candidate. The oracle must cover recommending it, declining it, and declining on a policy-isolation fixture. Test inference produces advice for human review.
+
+In a Studio containment investigation, open **Find pending approvals** after a cited answer, then select **Request private review** on a matching session-isolation approval. The API reserves one advisory against the shared environment and workflow budgets. The review runs in the background and its status is available when you revisit the thread. Use **Review approval** to make the separate human decision.
 
 Qualification evidence and policy consent must match the runtime binding before it can serve customer traffic. The no-retention agreement, US or EU hosting and model provenance are operator-signed facts about the real deployment.
 
@@ -104,3 +109,7 @@ Set `ZASP_API_URL` to your HTTPS API origin. Run `zaspctl calibration export --e
 ```sh
 zaspctl calibration export --environment ENVIRONMENT_ID --export-id EXPORT_ID --output calibration.jsonl
 ```
+
+## Run the standalone development benchmark
+
+A developer can run three compiled synthetic scope comparisons against OpenRouter using a dedicated development token. The command accepts no input data or model URL. Set `ZASP_DEPLOYMENT_ENV=development`, `ZASP_DEV_MODEL_MODE=dev_openrouter` and `ZASP_DEV_EVAL_OPENROUTER_TOKEN_FILE` to an owner-only file containing the development key, then run `go run -C services/platform ./cmd/zasp-model-dev-eval`. It requests zero retention, disables provider fallback, and prints the count of matching comparisons. Benchmark output stays local and grants no production qualification.

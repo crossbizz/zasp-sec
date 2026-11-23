@@ -11,6 +11,7 @@ import type {
 } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { InvestigationPolicyDraft } from "./InvestigationPolicyDraft";
+import { StudioRemediationReview } from "./StudioRemediationReview";
 import { pendingSessionApproval } from "./InvestigationHandoff";
 
 const sessionID = "pid_10000000-0000-4000-8000-000000000001",
@@ -139,4 +140,34 @@ it("offers only an unexpired reversible single-step approval with the exact sess
   expect(pendingSessionApproval(thread, containment, run, { ...approval, approval_context: undefined })).toBe(
     false,
   );
+});
+
+it("runs an optional private advisory only on request and reads its target-bound recommendation", async () => {
+  let requested = false;
+  const row = { approval_id: receipt, session_id: sessionID, message_id: receipt };
+  const GET = vi.fn(async () =>
+    result(
+      requested
+        ? {
+            ...row,
+            state: "reviewed",
+            candidate: { action: "isolate_session", target_id: sessionID, rollback: "ttl_release" },
+          }
+        : { ...row, state: "available" },
+    ),
+  );
+  const POST = vi.fn(async () => {
+    requested = true;
+    return result({ ...row, state: "pending" }, 202);
+  });
+  render(
+    <APIProvider client={{ GET, POST } as unknown as APIClient}>
+      <StudioRemediationReview thread={receipt} sessionID={sessionID} approval={receipt} message={receipt} />
+    </APIProvider>,
+  );
+  const request = await screen.findByRole("button", { name: "Request private review" });
+  expect(POST).not.toHaveBeenCalled();
+  await userEvent.click(request);
+  expect(await screen.findByText(/recommends the proposed session isolation/)).toBeVisible();
+  expect(POST).toHaveBeenCalledTimes(1);
 });

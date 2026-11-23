@@ -107,6 +107,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/system/status", "getSystemStatus", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/components", "listSystemComponents", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/version", "getSystemVersion", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/recovery/intents/{id}", "getRecoveryIntent", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/recovery/intents/{id}", "putRecoveryIntent", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/recovery/backups", "startRecoveryBackup", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/recovery/backups/{id}", "getRecoveryBackup", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/recovery/restores", "startRecoveryRestore", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -133,6 +135,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/security-agents/chat/threads", "createAnalystThread", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agents/chat/threads/{id}", "getAnalystThread", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents/chat/threads/{id}/stream", "streamAnalystThread", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/chat/threads/{id}/advisory", "getStudioRemediationAdvisory", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/chat/threads/{id}/advisory", "requestStudioRemediationAdvisory", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/sessions/{id}/intent", "getSessionIntent", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agents/cases/{id}/verify", "getSecurityCaseVerification", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents/cases/{id}/verify", "verifySecurityCase", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
@@ -208,6 +212,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/sync", "syncIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/syncs", "listIntegrationSyncs", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/syncs/{syncId}", "getIntegrationSync", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/integrations/{id}/sign-in-attempts/{attemptId}", "getSaaSSignInAttempt", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/schedule", "getIntegrationSchedule", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/integrations/{id}/schedule", "putIntegrationSchedule", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/integrations/{id}/schedule", "deleteIntegrationSchedule", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -397,6 +402,13 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 		if definition.dependency == evidencePackDependency {
 			handler = evidencePack
 		}
+		if stringIn(definition.OperationID, "getRecoveryIntent", "putRecoveryIntent") {
+			endpoint := recoveryIntentEndpoint{}
+			if surface, ok := handler.(*discoveryWorkflowSurface); ok {
+				endpoint.db = surface.evidenceDB
+			}
+			handler = endpoint
+		}
 		if calibrationExportOperation(definition.OperationID) {
 			endpoint := calibrationExportHTTP{}
 			if surface, ok := handler.(*discoveryWorkflowSurface); ok {
@@ -465,7 +477,7 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
-	case "verifySecurityCase", "createCalibrationExport", "createCalibrationDownloadGrant", "runModelQualification", "submitAnalystFeedback", "putRuleSuppressionMode", "updateOrganizationAIControls", "updateEnvironmentAIControls", "registerBrowserProfile", "retireBrowserProfile":
+	case "requestStudioRemediationAdvisory", "verifySecurityCase", "createCalibrationExport", "createCalibrationDownloadGrant", "runModelQualification", "submitAnalystFeedback", "putRuleSuppressionMode", "updateOrganizationAIControls", "updateEnvironmentAIControls", "registerBrowserProfile", "retireBrowserProfile":
 		return true
 	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "publishTicketCohort", "updateEndpointPolicyCohort":
 		return true
@@ -476,7 +488,7 @@ func requiresFreshAuthentication(operationID string) bool {
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
-	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "setSecurityAgentPlannerPricing", "startRecoveryBackup", "startRecoveryRestore":
+	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "setSecurityAgentPlannerPricing", "startRecoveryBackup", "startRecoveryRestore", "putRecoveryIntent":
 		return true
 	default:
 		return false

@@ -7,7 +7,7 @@ import { Button, Select } from "../../components/ui";
 import { workflowIdempotencyKey } from "../workflows/api";
 
 const localJobs = ["indirect_injection_screen", "purpose_alignment_check", "heuristic_fp_verify"] as const;
-const managedJobs = ["agent_discovery_verify", "agent_purpose_draft", "addon_semantic_audit", "security_agent_triage"] as const;
+const managedJobs = ["agent_discovery_verify", "agent_purpose_draft", "addon_semantic_audit", "security_agent_triage", "security_agent_remediate"] as const;
 type Purpose = typeof localJobs[number] | typeof managedJobs[number];
 type Status = "queued" | "running" | "passed" | "failed";
 type Run = { id: string; environment_id: string; purpose: string; provider: string; model: string; status: Status; requested_at: string; finished_at: string | null };
@@ -24,7 +24,11 @@ function decodedRun(value: unknown, job: Job, id?: string): Run {
 function availableJobs(environment: AISettings["environment"]) {
   const mode = environment.effective_mode;
   if (mode === "zasp_vpc_slm" || mode === "byoc_self_hosted") return { provider: mode, purposes: localJobs, model: environment.tier2_profile };
-  if (mode === "privatelink_bedrock" || mode === "privatelink_vertex") return { provider: mode, purposes: managedJobs, model: environment.tier3_provider === mode ? environment.tier3_model_pin : "" };
+  if (mode === "privatelink_bedrock" || mode === "privatelink_vertex") {
+    const model = environment.tier3_provider === mode ? environment.tier3_model_pin : "";
+    const remediationPin = mode === "privatelink_bedrock" ? "anthropic.claude-sonnet-4-6" : "gemini-2.5-pro";
+    return { provider: mode, model, purposes: managedJobs.filter(job => job !== "security_agent_remediate" || model === remediationPin) };
+  }
   return null;
 }
 const terminal = (run: Run) => run.status === "passed" || run.status === "failed";

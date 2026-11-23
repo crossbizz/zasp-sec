@@ -1,7 +1,7 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
 import { decodeRecoveryBackup, decodeRecoveryRestore } from "../../../apps/web/api/decoders";
-import type { RecoveryBackup, RecoveryManifestLocator, RecoveryRestore } from "../../../apps/web/api/generated";
+import type { RecoveryBackup, RecoveryIntent, RecoveryIntentInput, RecoveryManifestLocator, RecoveryRestore } from "../../../apps/web/api/generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
@@ -11,6 +11,8 @@ export type StartBackupInput = Readonly<{ backupID: string; retentionDays: numbe
 export type StartRestoreInput = Readonly<{ restoreID: string; targetEnvironment: string; manifest: RecoveryManifestLocator; idempotencyKey: string }>;
 
 export type RecoveryAPI = Readonly<{
+  putIntent(id: string, parameters: RecoveryIntentInput, signal: AbortSignal): Promise<RecoveryIntent>;
+  getIntent(id: string, signal: AbortSignal): Promise<RecoveryIntent>;
   startBackup(input: StartBackupInput, signal?: AbortSignal): Promise<RecoveryBackup>;
   getBackup(id: string, signal?: AbortSignal): Promise<RecoveryBackup>;
   startRestore(input: StartRestoreInput, signal?: AbortSignal): Promise<RecoveryRestore>;
@@ -19,7 +21,28 @@ export type RecoveryAPI = Readonly<{
 
 export function createRecoveryAPI(client: APIClient, expectedScope: string): RecoveryAPI {
   requireScope(expectedScope);
+  function intent(value: unknown, id: string): RecoveryIntent {
+    const raw = value as Partial<RecoveryIntent> | null;
+    const p = raw?.parameters;
+    if (raw?.id !== id || !p || !PRODUCT_ID.test(p.backup_id)) invalidResponse("Unexpected recovery request");
+    if (p.kind === "backup" && p.backup_id === id && Number.isSafeInteger(p.retention_days) && p.retention_days >= 7 && p.retention_days <= 90) return raw as RecoveryIntent;
+    if (p.kind !== "restore" || p.backup_id === id) invalidResponse("Unexpected recovery request type");
+    requireTarget(p.target_environment, expectedScope);
+    return raw as RecoveryIntent;
+  }
   return {
+    async getIntent(id, signal) {
+      requireProductID(id);
+      const response = await client.GET("/api/v1/recovery/intents/{id}", {params: {path: {id}}, headers: {"X-Zasp-Expected-Scope": expectedScope}, signal});
+      return requireAPIData(response, raw => intent(raw, id));
+    },
+    async putIntent(id, parameters, signal) {
+      requireProductID(id);
+      const response = await client.PUT("/api/v1/recovery/intents/{id}", {params: {path: {id}, header: {"X-CSRF-Token": ""}}, headers: {"X-Zasp-Expected-Scope": expectedScope}, body: parameters, signal});
+      const saved = requireAPIData(response, raw => intent(raw, id));
+      if (saved.parameters.kind !== parameters.kind || saved.parameters.backup_id !== parameters.backup_id || (parameters.kind === "restore" && (saved.parameters.kind !== "restore" || saved.parameters.target_environment !== parameters.target_environment)) || (parameters.kind === "backup" && (saved.parameters.kind !== "backup" || saved.parameters.retention_days !== parameters.retention_days))) invalidResponse("Saved recovery parameters changed");
+      return saved;
+    },
     async startBackup(input, signal) {
       requireProductID(input.backupID); requireIdempotencyKey(input.idempotencyKey);
       if (!Number.isSafeInteger(input.retentionDays) || input.retentionDays < 7 || input.retentionDays > 90) invalidConfiguration();

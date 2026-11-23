@@ -39,12 +39,31 @@ function Reliability({ data, group }: { data: CalibrationMetrics; group: string 
 }
 function ThresholdCurve({ data, group, cutoff }: { data: CalibrationMetrics; group: string; cutoff: number }) {
   const host = useRef<HTMLDivElement>(null);
-  useEChart(host, { ...base, xAxis: {...base.xAxis, name:"Confidence cutoff"}, series: [
-    { name:"Recall", type:"line", data:data.thresholds.map(t=>[t.threshold,ratio(t.tp,t.fn)]),
-      markLine:{ symbol:"none", data:[{xAxis:cutoff}], label:{show:false}} },
-    { name:"False positive rate", type:"line", data:data.thresholds.map(t=>[t.threshold,ratio(t.fp,t.tn)]) },
-  ] },group);
-  return <div style={{height:230}} ref={host} aria-label="Recall and false positive rate by cutoff" />;
+  const seriousRecall = data.thresholds.map(row => [
+    row.threshold,
+    row.serious_tp === undefined || row.serious_fn === undefined ? null : ratio(row.serious_tp, row.serious_fn),
+  ]);
+  const hasSeriousLabels = seriousRecall.some(([, value]) => value !== null);
+  useEChart(host, {
+    ...base,
+    grid: { ...base.grid, top: 65 },
+    xAxis: { ...base.xAxis, name: "Confidence cutoff" },
+    series: [
+      { name: "Recall", type: "line", data: data.thresholds.map(row => [row.threshold, ratio(row.tp, row.fn)]),
+        markLine: { symbol: "none", data: [{ xAxis: cutoff }], label: { show: false } } },
+      { name: "False positive rate", type: "line", data: data.thresholds.map(row => [row.threshold, ratio(row.fp, row.tn)]) },
+      ...(hasSeriousLabels ? [{
+        name: "Serious detection recall", type: "line", data: seriousRecall,
+        markLine: { symbol: "none", data: [{ yAxis: 1 }], lineStyle: { type: "dashed" }, label: { show: false } },
+      }] : []),
+    ],
+  }, group);
+  return <>
+    <div style={{ height: 250 }} ref={host} aria-label="Recall and false positive rate by cutoff" />
+    <p>{hasSeriousLabels
+      ? "The dashed line marks the required 100% recall for labelled serious detections."
+      : "Serious detection recall needs at least one labelled serious detection."}</p>
+  </>;
 }
 function ConfusionMatrix({ row }: { row: CalibrationMetrics["thresholds"][number] }) {
   const host=useRef<HTMLDivElement>(null);

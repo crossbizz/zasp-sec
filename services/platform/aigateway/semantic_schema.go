@@ -43,7 +43,7 @@ func buildSchemas() map[Purpose]*jsonschema.Schema {
 		PurposeDraft:           {"allowed_tool_ids": toolIDs, "iam_mismatches": refs},
 		PurposeAddonAudit:      {"threat_score": score, "risk_score": score, "tags": refs, "citations": refs},
 		PurposeTriage:          {"summary": boundedString(2048), "evidence_ids": refs},
-		PurposeRemediate:       {"steps": array(object(map[string]any{"action": boundedString(63), "target_id": boundedString(128), "rollback": boundedString(512)}), 6)},
+		PurposeRemediate:       {"steps": array(object(map[string]any{"action": enumeration("isolate_session"), "target_id": boundedString(128), "rollback": enumeration("ttl_release")}), 1)},
 	}
 	result := make(map[Purpose]*jsonschema.Schema, len(defs))
 	for p, fields := range defs {

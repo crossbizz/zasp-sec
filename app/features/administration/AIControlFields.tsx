@@ -48,7 +48,7 @@ function qualificationLock(key: keyof typeof requiredJobs, env: AISettings["envi
   if (!tier2 && env.tier3_provider !== env.mode) return "Bind a matching reasoning provider";
   const model = tier2 ? env.tier2_profile : env.tier3_model_pin;
   if (!model) return tier2 ? "Choose a private model profile" : "Choose a pinned model";
-  if (!requiredJobs[key].every(purpose => rows.some(r => r.qualified && r.provider === env.mode && r.model === model && r.purpose === purpose))) return "Requires model qualification";
+  if (!requiredJobs[key].some(purpose => rows.some(r => r.qualified && r.provider === env.mode && r.model === model && r.purpose === purpose))) return "Requires model qualification";
 }
 export function EnvironmentFields({ settings, draft, change }: { settings: AISettings; draft: EnvironmentInput; change(patch: EnvironmentInput): void }) {
   const env = { ...settings.environment, ...draft };

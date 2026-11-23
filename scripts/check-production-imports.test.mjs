@@ -83,16 +83,14 @@ test("source graph permits only the exact scoped retry-recovery storage boundari
     "app/[...path]/page.tsx": "export {};",
     "app/features/risk/ProductionRiskView.tsx": 'export const Risk = window.sessionStorage.getItem("zasp:finding-ticket:v1");',
   });
-  const result = await checkSourceGraph({ root: approved });
-  assert.ok(result.files.includes("app/features/risk/ProductionRiskView.tsx"));
+  await assert.rejects(() => checkSourceGraph({ root: approved }), /browser storage/);
 
   const recovery = await fixture({
     "app/page.tsx": 'export { RecoveryOperationsView } from "./features/recovery/RecoveryOperationsView";',
     "app/[...path]/page.tsx": "export {};",
     "app/features/recovery/RecoveryOperationsView.tsx": 'export const RecoveryOperationsView = window.sessionStorage.getItem("zasp:recovery:v1:scope");',
   });
-  const recoveryResult = await checkSourceGraph({ root: recovery });
-  assert.ok(recoveryResult.files.includes("app/features/recovery/RecoveryOperationsView.tsx"));
+  await assert.rejects(() => checkSourceGraph({ root: recovery }), /browser storage/);
 
   const redTeam = await fixture({
     "app/page.tsx": 'export { ProductionRedTeamView } from "./features/redteam/ProductionRedTeamView";',
@@ -108,20 +106,19 @@ test("source graph permits only the exact scoped retry-recovery storage boundari
     "app/[...path]/page.tsx": "export {};",
     "app/features/administration/AuditExportPanel.tsx": 'export const AuditExportPanel = window.sessionStorage.getItem("zasp.audit-export.resume.v1");',
   });
-  const auditExportResult = await checkSourceGraph({ root: auditExport });
-  assert.ok(auditExportResult.files.includes("app/features/administration/AuditExportPanel.tsx"));
+  await assert.rejects(() => checkSourceGraph({ root: auditExport }), /browser storage/);
 
   const complianceExport = await fixture({
     "app/page.tsx": 'export { ComplianceEvidenceView } from "./features/sessions/ComplianceEvidenceView";',
     "app/[...path]/page.tsx": "export {};",
     "app/features/sessions/ComplianceEvidenceView.tsx": 'export const ComplianceEvidenceView = window.sessionStorage.getItem("zasp.compliance.export/principal/organization/workspace/environment");',
   });
-  const complianceExportResult = await checkSourceGraph({ root: complianceExport });
-  assert.ok(complianceExportResult.files.includes("app/features/sessions/ComplianceEvidenceView.tsx"));
+  await assert.rejects(() => checkSourceGraph({ root: complianceExport }), /browser storage/);
 
   for (const [entry, source] of [
     ["app/features/risk/OtherRiskView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
     ["app/features/recovery/OtherRecoveryView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
+    ["app/features/workflows/ProductionWorkflowViews.tsx", 'export const View = window.sessionStorage.getItem("sign-in");'],
     ["app/features/administration/OtherAuditExportPanel.tsx", 'export const View = window.sessionStorage.getItem("state");'],
     ["app/features/sessions/OtherComplianceEvidenceView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
   ]) {

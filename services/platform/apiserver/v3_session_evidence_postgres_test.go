@@ -73,30 +73,35 @@ VALUES($1,$2,$3,$4,$5,$6,'strong','gateway','policy','block','Gateway request bl
 
 func TestV3CaseVerificationInstalledBoundOwnerFixture(t *testing.T) {
 	b := startInstalledV2Baseline(t)
-	owner := b.member("security_admin", "investigate_sessions", "manage_api_tokens", "manage_data_controls", "manage_findings", "manage_identity", "manage_workflows", "revoke_sessions", "run_tests", "view", "view_audit", "view_compliance")
-	other := b.member("security_engineer", "investigate_sessions", "manage_findings", "manage_workflows", "run_tests", "view")
-	if err := b.product.RequireCurrentAuthorization(); err != nil {
-		t.Fatal(err)
-	}
-	r, step, target, fixture := b.id(), b.id(), b.id(), b.id()
-	// One Environment, browser principal and agent flow through deployment
-	// approval, widened permissions, session evidence, and the verified case.
-	exerciseDeploymentReview(t, b, owner, target)
-	exerciseSessionOutcomes(t, b, owner, target)
+	// The same deployed Bedrock agent flows through deployment approval,
+	// widened permissions and session evidence before a person approves the
+	// remediation and its leased worker commits provider readback.
+	owner, other, r, target := exerciseInstalledProviderRemediation(t, b, func(owner installedPrincipal, target string) {
+		exerciseDeploymentReview(t, b, owner, target)
+		exerciseSessionOutcomes(t, b, owner, target)
+	})
+	fixture, step := b.id(), b.id()
 	record := caseFixture(t)
 	bundle := record.Bundle
 	scope := &bundle.Scenario.Scope
 	scope.OrganizationID, scope.WorkspaceID, scope.EnvironmentID = b.o, b.w, b.e
 	bundle.Scenario.RunID, bundle.Scenario.TargetID = fixture, target
 	bundle.Adapter.TicketRunBinding, bundle.Recorder.TicketRunBinding = bundle.Scenario.TicketRunBinding, bundle.Scenario.TicketRunBinding
-	start := time.Now().UTC().Add(-3 * time.Minute)
-	end := start.Add(time.Minute)
+	var finished time.Time
+	if err := b.admin.QueryRow(b.ctx, `SELECT completed_at FROM public.zasp_security_agent_provider_remediations WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, b.o, b.w, b.e, r).Scan(&finished); err != nil {
+		t.Fatal(err)
+	}
+	start := finished.Add(time.Microsecond)
+	end := start.Add(5 * time.Millisecond)
+	issued := end.Add(time.Millisecond)
+	if wait := time.Until(issued); wait > 0 {
+		time.Sleep(wait)
+	}
 	bundle.Scenario.WindowStart, bundle.Scenario.WindowEnd = start, end
-	bundle.Adapter.Decisions[0].DecidedAt = start.Add(time.Second)
-	bundle.Recorder.Writes[0].RecordedAt = start.Add(2 * time.Second)
-	bundle.Adapter.Decisions[1].DecidedAt = start.Add(3 * time.Second)
+	bundle.Adapter.Decisions[0].DecidedAt = start.Add(time.Millisecond)
+	bundle.Recorder.Writes[0].RecordedAt = start.Add(2 * time.Millisecond)
+	bundle.Adapter.Decisions[1].DecidedAt = start.Add(3 * time.Millisecond)
 	bundle.Recorder.CompleteFrom, bundle.Recorder.CompleteThrough = start, end
-	issued := end.Add(time.Minute)
 	key := installTestTicketAttestations(t, bundle, issued)
 	t.Setenv("ZASP_TICKET_ATTESTATION_TRUST_FILE", key)
 	blob, _ := json.Marshal(bundle)
@@ -106,7 +111,6 @@ func TestV3CaseVerificationInstalledBoundOwnerFixture(t *testing.T) {
 	}
 	fallbackRun := b.id()
 	b.seed(func() {
-		seedRemediated(r)
 		seedRemediated(fallbackRun)
 		b.exec(`INSERT INTO zasp_inventory_annotations(organization_id,workspace_id,environment_id,entity_id,owner_value) VALUES($1,$2,$3,$4,$5)`, b.o, b.w, b.e, target, owner.identity.PrincipalID.String())
 		def := b.id()

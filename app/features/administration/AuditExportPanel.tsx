@@ -18,13 +18,8 @@ export function AuditExportSaveNotice() {
   const notice = useSyncExternalStore(exportSaveNotice.subscribe, exportSaveNotice.snapshot, () => "");
   return notice ? <p role="status">Last finalized local export: {notice}</p> : null;
 }
-function browserStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem"> {
-  try { return window.sessionStorage; } catch {
-    return { getItem: () => null, setItem: () => { throw new Error("Per-tab resume storage is unavailable"); }, removeItem: () => {} };
-  }
-}
 function ActiveAuditExportPanel({ api, authority, retrySession, reauthenticate }: AuditExportPanelProps) {
-  const [controller] = useState(() => new AuditExportController({ api, authority, retrySession, storage: browserStorage() }));
+  const [controller] = useState(() => new AuditExportController({ api, authority, retrySession }));
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot);
   useEffect(() => { controller.attach(); return () => { void controller.dispose(); }; }, [controller]);
   useEffect(() => { controller.setFresh(authority.fresh); }, [controller, authority.fresh]);

@@ -50,18 +50,24 @@ var v3Order string
 //go:embed feature_v3_*.sql
 var v3Sources embed.FS
 
-// UpgradeToV2 applies the same DDL used by the fresh-install generator. The
+// UpgradeToV2 preserves the original operator API for deployments that
+// update their binary before they update their release command.
+func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+	return UpgradeToV3(ctx, conn, checks...)
+}
+
+// UpgradeToV3 applies the same DDL used by the fresh-install generator. The
 // transaction includes temporary privileges, all new objects, the new catalog
 // seal and caller-supplied readiness checks. Preserve preexisting privileges.
-func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+func UpgradeToV3(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	if ctx == nil || conn == nil {
 		return refuse(StagePreconditions, "no connection", nil)
 	}
 	if _, err := loadArtifact(); err != nil {
 		return refuse(StageArtifact, "invalid release artifact", err)
 	}
-	if Checksum() == precedingV2Artifact {
-		return refuse(StageArtifact, "V2 artifact required", nil)
+	if Checksum() == precedingV2Artifact || Checksum() == precedingFrameworkArtifact || Checksum() == precedingV3Artifact {
+		return refuse(StageArtifact, "V3 artifact required", nil)
 	}
 	tx, err := conn.Begin(ctx)
 	if err != nil {

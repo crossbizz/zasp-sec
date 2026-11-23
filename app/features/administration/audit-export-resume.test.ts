@@ -1,28 +1,26 @@
-import { beforeEach, expect, it } from "vitest";
-import { loadAuditExportResume, storeAuditExportResume, type AuditExportIdentity } from "./audit-export-resume";
+import { beforeEach, expect, it, vi } from "vitest";
+import { loadAuditExportResume, parseAuditExportLink, storeAuditExportResume, type AuditExportIdentity } from "./audit-export-resume";
 const id = "pid_10000001-0000-4000-8000-000000000001";
 const identity: AuditExportIdentity = { principalID: id, organizationID: id, workspaceID: id, environmentID: id };
-beforeEach(() => sessionStorage.clear());
-it("restores only a bounded exact-identity key/job record in a new reader", () => {
-  storeAuditExportResume(sessionStorage, { ...identity, key: "audit_export_0123456789", exportID: id });
-  expect(loadAuditExportResume(sessionStorage, { ...identity })).toEqual({ ...identity, key: "audit_export_0123456789", exportID: id });
-  expect(sessionStorage.length).toBe(1);
-  expect(sessionStorage.getItem(sessionStorage.key(0)!)).not.toMatch(/csrf|cursor|contents|cookie/);
+const key = "audit_export_10000002-0000-4000-8000-000000000002";
+beforeEach(() => window.history.replaceState({}, "", "/administration/audit-log"));
+it("resumes an opaque audit request and status from the exact scoped link", () => {
+  const record = { ...identity, key, exportID: id };
+  storeAuditExportResume(record);
+  expect(loadAuditExportResume(identity)).toEqual(record);
+  expect(window.location.href).not.toMatch(/token|grant|cursor|audit_export_|secret/);
+  expect(window.location.search).toContain("export_request=10000002");
 });
-it.each(["principalID", "organizationID", "workspaceID", "environmentID"] as const)("never restores a different %s", field => {
-  storeAuditExportResume(sessionStorage, { ...identity, key: "audit_export_0123456789" });
-  expect(loadAuditExportResume(sessionStorage, { ...identity, [field]: "pid_10000002-0000-4000-8000-000000000002" })).toBeNull();
+it.each(["principalID", "organizationID", "workspaceID", "environmentID"] as const)("rejects a changed %s", field => {
+  storeAuditExportResume({ ...identity, key });
+  expect(loadAuditExportResume({ ...identity, [field]: "pid_10000002-0000-4000-8000-000000000002" })).toBeNull();
 });
-it("rejects oversized, malformed and extra-field storage without replay", () => {
-  storeAuditExportResume(sessionStorage, { ...identity, key: "audit_export_0123456789" });
-  const storageKey = sessionStorage.key(0)!;
-  for (const value of ["x".repeat(2049), "{", JSON.stringify({ ...identity, key: "audit_export_0123456789", cursor: "secret" }), JSON.stringify({ ...identity, key: "short" })]) {
-    sessionStorage.setItem(storageKey, value);
-    expect(loadAuditExportResume(sessionStorage, identity)).toBeNull();
-  }
+it("rejects malformed or expanded selectors without replay", () => {
+  storeAuditExportResume({ ...identity, key });
+  const link = window.location.pathname + window.location.search;
+  for (const target of [link + "&cursor=extra", link + "&export_id=bad", link + "#grant", link.replace("export_request=1", "export_request=Z")]) expect(parseAuditExportLink(target, identity)).toEqual({ state: "invalid" });
 });
-it("fails closed for unavailable persistence before a new POST can be attempted", () => {
-  const unavailable = { getItem: () => { throw new Error("disabled"); }, setItem: () => { throw new Error("disabled"); }, removeItem: () => {} };
-  expect(loadAuditExportResume(unavailable, identity)).toBeNull();
-  expect(() => storeAuditExportResume(unavailable, { ...identity, key: "audit_export_0123456789" })).toThrow();
+it("fails before sending if the request cannot be bookmarked", () => {
+  const save = vi.spyOn(window.history, "replaceState").mockImplementation(() => { throw Error("unavailable"); });
+  try { expect(() => storeAuditExportResume({ ...identity, key })).toThrow(); } finally { save.mockRestore(); }
 });

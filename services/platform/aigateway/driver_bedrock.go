@@ -85,6 +85,11 @@ func (d *BedrockDriver) Evaluate(ctx context.Context, p Purpose, input json.RawM
 	if ctx == nil || d == nil || !ok || p != d.purpose || !json.Valid(input) || len(input) > rule.MaxInputBytes {
 		return nil, ErrInvalidRequest
 	}
+	if p == PurposeRemediate {
+		if _, ok := admittedAdvisory(input); !ok {
+			return nil, ErrInvalidRequest
+		}
+	}
 	data, _ := json.Marshal(map[string]json.RawMessage{"untrusted_data": input})
 	body, _ := json.Marshal(map[string]any{"system": []map[string]string{{"text": bedrockInstructions[p]}}, "messages": []any{map[string]any{"role": "user", "content": []map[string]string{{"text": string(data)}}}}, "inferenceConfig": map[string]any{"temperature": 0, "maxTokens": 512}})
 	limited, cancel := context.WithTimeout(ctx, rule.MaxLatency)
@@ -126,7 +131,7 @@ func (d *BedrockDriver) Evaluate(ctx context.Context, p Purpose, input json.RawM
 		return nil, ErrGeneration
 	}
 	answer := json.RawMessage(output.Output.Message.Content[0].Text)
-	if !ValidateSemanticOutput(p, answer) {
+	if !ValidateSemanticOutput(p, answer) || p == PurposeRemediate && !ValidateRemediationProposal(input, answer) {
 		return nil, ErrGeneration
 	}
 	return answer, nil

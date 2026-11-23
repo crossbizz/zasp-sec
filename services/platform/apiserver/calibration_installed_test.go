@@ -57,9 +57,9 @@ func TestCalibrationOnInstalledPostgres(t *testing.T) {
 		t.Fatal(res.Code, res.Body)
 	}
 	rollup := func() string {
-		return b.text(`SELECT concat(n,'/',tn,'/',fn) FROM public.calibration_daily_rollups WHERE (organization_id,workspace_id,environment_id,bucket)=($1,$2,$3,2)`, b.o, b.w, b.e)
+		return b.text(`SELECT concat(n,'/',tn,'/',fn,'/',serious_positives) FROM public.calibration_daily_rollups WHERE (organization_id,workspace_id,environment_id,bucket)=($1,$2,$3,2)`, b.o, b.w, b.e)
 	}
-	if v := rollup(); v != "1/1/0" {
+	if v := rollup(); v != "1/1/0/0" {
 		t.Fatal("initial day", v)
 	}
 	if res := feedback("confirm_tp", "calibration-relabel-123"); res.Code != 200 {
@@ -68,7 +68,7 @@ func TestCalibrationOnInstalledPostgres(t *testing.T) {
 	if res := get(); res.Code != 200 {
 		t.Fatal(res.Code, res.Body)
 	}
-	if v := rollup(); v != "1/0/1" {
+	if v := rollup(); v != "1/0/1/1" {
 		t.Fatal("relabelled day", v)
 	}
 	mode := func(id, value, match, key string) *httptest.ResponseRecorder {

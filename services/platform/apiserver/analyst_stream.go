@@ -5,25 +5,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"slices"
 	"strings"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/inventorymcp"
 	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessionintent"
 )
 
 type analystTurn struct {
-	AssistantID string                  `json:"assistant_id"`
-	Text        string                  `json:"text"`
-	Evidence    []sessionActionEvidence `json:"evidence"`
-	EvidenceIDs []string                `json:"evidence_ids"`
+	ExternalAgent string                  `json:"external_agent_id,omitempty"`
+	AssistantID   string                  `json:"assistant_id"`
+	Text          string                  `json:"text"`
+	Evidence      []sessionActionEvidence `json:"evidence"`
+	EvidenceIDs   []string                `json:"evidence_ids"`
 }
 
 func (f analystTurn) answered() bool {
-	if !validProductID(f.AssistantID) || f.Text == "" || len(f.EvidenceIDs) == 0 || len(f.EvidenceIDs) > 6 || f.Evidence != nil {
+	if !validProductID(f.AssistantID) || f.Text == "" || len(f.EvidenceIDs) == 0 || len(f.EvidenceIDs) > 6 || f.Evidence != nil || f.ExternalAgent != "" {
 		return false
 	}
 	for _, id := range f.EvidenceIDs {
 		if !validProductID(id) {
+			return false
+		}
+	}
+	return true
+}
+
+func validTurnApprovals(values []string) bool {
+	if len(values) > 2 {
+		return false
+	}
+	slices.Sort(values)
+	for n, s := range values {
+		if s != "inspect_session" && s != inventorymcp.Tool || n > 0 && s == values[n-1] {
 			return false
 		}
 	}
@@ -37,7 +54,7 @@ func serveAnalystTurn(db JSONDatabase, h *analystChat, w http.ResponseWriter, r 
 		Message   string   `json:"message"`
 		RequestID string   `json:"request_id"`
 	}
-	if r.Method != http.MethodPost || !validProductID(id) || decodeProductionJSON(r, &msg) != nil || !validQuestion(msg.Message) || !validProductID(msg.RequestID) || len(msg.Approved) > 1 || len(msg.Approved) == 1 && msg.Approved[0] != "inspect_session" {
+	if r.Method != http.MethodPost || !validProductID(id) || decodeProductionJSON(r, &msg) != nil || !validQuestion(msg.Message) || !validProductID(msg.RequestID) || !validTurnApprovals(msg.Approved) {
 		writeProductionError(w, r, ErrRepositoryOperation)
 		return
 	}
@@ -83,11 +100,32 @@ func serveAnalystTurn(db JSONDatabase, h *analystChat, w http.ResponseWriter, r 
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
-	answer, err := investigateAuthorizedRows(r.Context(), h, msg.Message, turn.Evidence)
+	inventoryStatus := ""
+	if turn.ExternalAgent != "" || slices.Contains(msg.Approved, inventorymcp.Tool) {
+		if !validProductID(turn.ExternalAgent) || !slices.Contains(msg.Approved, inventorymcp.Tool) {
+			writeProductionError(w, r, ErrRepositoryAuthorization)
+			return
+		}
+		inventoryStatus, err = studioInventoryStatus(r, op, turn.ExternalAgent, turn.Evidence, h.inventoryStatus)
+		if err != nil {
+			_, _ = query(r.Context(), map[string]any{"phase": "fail", "assistant_id": assistant})
+			writeProductionStatusError(w, r, http.StatusServiceUnavailable, "coverage_degraded", "The private inventory status could not be verified for this session agent", true)
+			return
+		}
+	}
+	answer, err := investigateAuthorizedRowsWithInventory(r.Context(), h, msg.Message, turn.Evidence, inventoryStatus)
 	if err != nil {
 		_, _ = query(r.Context(), map[string]any{"phase": "fail", "assistant_id": assistant})
 		writeProductionStatusError(w, r, http.StatusServiceUnavailable, "coverage_degraded", "The private investigation model did not return a verified response", true)
 		return
+	}
+	switch inventoryStatus {
+	case "present":
+		answer.Text += "\n\nThe private inventory lists this agent."
+	case "not_listed":
+		answer.Text += "\n\nThe private inventory reports that this agent is absent from its records."
+	case "unknown":
+		answer.Text += "\n\nThe private inventory reports this agent’s status as unknown."
 	}
 	ctx, err := refreshChatAuthorization(r, op)
 	if err != nil {
@@ -121,6 +159,10 @@ func refreshChatAuthorization(r *http.Request, op RoutedOperation) (context.Cont
 }
 
 func investigateAuthorizedRows(ctx context.Context, h *analystChat, question string, rows []sessionActionEvidence) (securityagent.InvestigationResult, error) {
+	return investigateAuthorizedRowsWithInventory(ctx, h, question, rows, "")
+}
+
+func investigateAuthorizedRowsWithInventory(ctx context.Context, h *analystChat, question string, rows []sessionActionEvidence, inventoryStatus string) (securityagent.InvestigationResult, error) {
 	actions := make([]securityagent.InvestigationAction, 0, len(rows))
 	for _, row := range rows {
 		if !validProductID(row.ID) || len(row.EvidenceIDs) < 1 || len(row.EvidenceIDs) > 2 {
@@ -132,7 +174,7 @@ func investigateAuthorizedRows(ctx context.Context, h *analystChat, question str
 		}
 		actions = append(actions, securityagent.InvestigationAction{ID: evidenceID, Source: row.Source, Outcome: string(sessionintent.Evaluate(row.Source, row.Class, row.Action, row.Receipt))})
 	}
-	return securityagent.InvestigateSession(ctx, h.driver, question, actions)
+	return securityagent.InvestigateSessionWithInventory(ctx, h.driver, question, actions, inventoryStatus)
 }
 
 // Send only committed responses. Reconnecting with the same request ID replays
@@ -155,4 +197,40 @@ func writeAnalystSSE(w http.ResponseWriter, t analystTurn) {
 	}
 	_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
 	_ = flush.Flush()
+}
+
+// Admission identifies one agent from exact local observations. Recheck both
+// the current session grant and the agent's own product read before sending
+// any identifiers to the operator-bound peer.
+func studioInventoryStatus(r *http.Request, op RoutedOperation, agent string, rows []sessionActionEvidence, read func(context.Context, inventorymcp.Target) (string, error)) (string, error) {
+	if len(rows) == 0 || !validProductID(agent) {
+		return "", ErrRepositoryAuthorization
+	}
+	for _, row := range rows {
+		if row.AgentID == nil || *row.AgentID != agent || row.Confidence != "exact" {
+			return "", ErrRepositoryAuthorization
+		}
+	}
+	ctx, err := refreshChatAuthorization(r, op)
+	i, ok := IdentityFromRequest(r)
+	if err != nil || !ok || i.CredentialKind != CredentialBrowserSession || !i.FreshAuthenticated {
+		return "", ErrRepositoryAuthorization
+	}
+	agentRoute := RoutedOperation{OperationID: "getAgent", PathParameters: map[string]string{"id": agent}}
+	if _, err := secondaryRequestAuthorization(ctx, i, agentRoute); err != nil {
+		return "", err
+	}
+	status, raw := dispatchScopedProduct(r.WithContext(ctx), http.MethodGet, "/api/v1/agents/"+agent, nil, nil, "")
+	var item InventoryDetail
+	if status != http.StatusOK || json.Unmarshal(raw, &item) != nil || item.Summary.ID != agent || item.Summary.Kind != InventoryKindAgent {
+		return "", ErrRepositoryAuthorization
+	}
+	if read == nil {
+		c, err := inventorymcp.Load(os.Getenv("ZASP_STUDIO_INVENTORY_MCP_FILE"))
+		if err != nil {
+			return "", err
+		}
+		read = c.Status
+	}
+	return read(ctx, inventorymcp.Target{Organization: i.Scope.OrganizationID().String(), Workspace: i.Scope.WorkspaceID().String(), Environment: i.Scope.EnvironmentID().String(), Agent: agent})
 }

@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	currentRiskFindingGetSQL         = `SELECT zasp_authorization80.finding_with_ticket($1,$2,$3,$4,$5)`
 	postgresRiskFindingGetSQL        = `SELECT zasp_risk_finding_get($1, $2, $3, $4)`
 	postgresRiskFindingPageSQL       = `SELECT zasp_risk_finding_page($1, $2, $3, NULLIF($4, ''), $5)`
 	postgresRiskAttackPathGetSQL     = `SELECT zasp_risk_attack_path_get($1, $2, $3, $4)`
@@ -48,6 +49,8 @@ type RiskFactor struct {
 }
 
 type RiskFinding struct {
+	CurrentTicketID   string       `json:"current_ticket_id,omitempty"`
+	PendingTicketKey  string       `json:"pending_ticket_key,omitempty"`
 	ID                string       `json:"id"`
 	Source            string       `json:"source"`
 	Rule              string       `json:"rule,omitempty"`
@@ -254,7 +257,13 @@ func (repository *PostgresRepository) GetRiskFinding(ctx context.Context, scope 
 	if !validRiskRead(repository, ctx, scope, id) {
 		return RiskFinding{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRiskFindingGetSQL, id, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
+	statement := postgresRiskFindingGetSQL
+	args := []any{id, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()}
+	if grant, ok := requestAuthorizationFromContext(ctx); ok {
+		statement = currentRiskFindingGetSQL
+		args = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), grant.Identity.PrincipalID.String(), id}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, args...)
 	if err != nil {
 		return RiskFinding{}, riskProviderError(err)
 	}
@@ -525,6 +534,9 @@ func validProductID(value string) bool {
 }
 
 func validRiskFinding(value RiskFinding) bool {
+	if value.CurrentTicketID != "" && (!findingTicketProviderIDPattern.MatchString(value.CurrentTicketID) || value.PendingTicketKey != "") || value.PendingTicketKey != "" && (len(value.PendingTicketKey) < 16 || len(value.PendingTicketKey) > 128 || !workflowKeyPattern.MatchString(value.PendingTicketKey)) {
+		return false
+	}
 	if !validProductID(value.ID) || value.Source != "posture" && value.Source != "prowler" || len(value.Title) < 1 || len(value.Title) > 256 || !stringIn(value.Severity, "critical", "high", "medium", "low") || !stringIn(value.Status, "open", "under_review", "resolved", "accepted") || len(value.EvidenceIDs) < 1 || len(value.EvidenceIDs) > 64 || value.RiskFactors == nil || len(value.RiskFactors) > 16 || value.Version < 1 || value.CreatedAt.IsZero() || value.UpdatedAt.Before(value.CreatedAt) {
 		return false
 	}

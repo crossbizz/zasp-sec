@@ -1701,6 +1701,18 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/sign-in-attempts/{attemptId}:
+    get:
+      operationId: getSaaSSignInAttempt
+      summary: Read the provider sign-in result for this browser session
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: attemptId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Current sign-in result., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SaaSSignInStatus' } } } }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/schedule:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -4881,6 +4893,37 @@ paths:
         '200': { description: Read an investigation and its evidence history., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystThread' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/chat/threads/{id}/advisory:
+    get:
+      operationId: getStudioRemediationAdvisory
+      summary: Read the review of a pending containment approval
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: approval_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: message_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Current advisory for this approved candidate., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/StudioRemediationAdvisory' } } } }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: requestStudioRemediationAdvisory
+      summary: Request a bounded private review of an existing containment approval
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: approval_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: message_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
+      responses:
+        '200': { description: Current advisory for this approved candidate., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/StudioRemediationAdvisory' } } } }
+        '202': { description: Private review pending., content: { application/json: { schema: { $ref: '#/components/schemas/StudioRemediationAdvisory' } } } }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/chat/threads/{id}/stream:
     post:
       operationId: streamAnalystThread
@@ -4990,6 +5033,31 @@ paths:
       responses:
         '200': { description: Product service version., content: { application/json: { schema: { $ref: '#/components/schemas/SystemVersion' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/recovery/intents/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getRecoveryIntent
+      summary: Read the current actor's saved backup or restore parameters
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200': { description: Saved request, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntent' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putRecoveryIntent
+      summary: Save immutable request parameters before starting a backup or restore
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntentInput' } } } }
+      responses:
+        '200': { description: Saved or previously recorded request, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntent' } } } }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/recovery/backups:
     post:
@@ -5777,6 +5845,29 @@ components:
       {"type": "object", "additionalProperties": false, "required": ["partition_id", "snapshot_generation", "complete", "installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "snapshot_generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "installations": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}}}}}
     EndpointObservationBatch:
       {"type": "object", "additionalProperties": false, "required": ["receipts"], "properties": {"receipts": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/components/schemas/EndpointSigned"}}}}
+    RecoveryIntentInput:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, backup_id, retention_days]
+          properties:
+            kind: { type: string, enum: [backup] }
+            backup_id: { $ref: '#/components/schemas/ProductID' }
+            retention_days: { type: integer, minimum: 7, maximum: 90 }
+        - type: object
+          additionalProperties: false
+          required: [kind, backup_id, target_environment]
+          properties:
+            kind: { type: string, enum: [restore] }
+            backup_id: { $ref: '#/components/schemas/ProductID' }
+            target_environment: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
+    RecoveryIntent:
+      type: object
+      additionalProperties: false
+      required: [id, parameters]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        parameters: { $ref: '#/components/schemas/RecoveryIntentInput' }
     RecoveryBackupInput:
       type: object
       additionalProperties: false
@@ -7894,6 +7985,8 @@ components:
       additionalProperties: false
       required: [threshold, tp, fp, tn, fn]
       properties:
+        serious_tp: { type: integer, minimum: 0, maximum: 9007199254740991, description: Confirmed serious observations at or above this threshold. }
+        serious_fn: { type: integer, minimum: 0, maximum: 9007199254740991, description: Confirmed serious observations below this threshold. }
         threshold: { type: number, minimum: 0, maximum: 1 }
         tp: { type: integer, minimum: 0, maximum: 9007199254740991 }
         fp: { type: integer, minimum: 0, maximum: 9007199254740991 }
@@ -7941,8 +8034,8 @@ components:
         name: { type: string, maxLength: 80 }
         mission: { type: string, maxLength: 512 }
         trigger: { type: string, enum: [manual, finding_opened] }
-        read_tools: { type: array, maxItems: 4, minItems: 1, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift] } }
-        approval_required_tools: { type: array, maxItems: 4, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift] } }
+        read_tools: { type: array, maxItems: 5, minItems: 1, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift, external_inventory_status] } }
+        approval_required_tools: { type: array, maxItems: 5, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift, external_inventory_status] } }
         minimum_evidence_confidence: { type: string, enum: [strong, exact] }
         proposal: { type: string, enum: [none, propose_policy, request_containment] }
         require_approval: { type: boolean, const: true }
@@ -7962,6 +8055,7 @@ components:
       additionalProperties: false
       required: [items, next_cursor]
       properties:
+        external_inventory_available: { type: boolean }
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/CustomSecurityAgent' } }
         next_cursor: { type: [string, 'null'] }
     AnalystThreadInput:
@@ -8005,6 +8099,7 @@ components:
       required: [id, session_id, created_at, messages]
       properties:
         requires_session_read_approval: { type: boolean }
+        requires_external_inventory_approval: { type: boolean }
         id: { $ref: '#/components/schemas/ProductID' }
         session_id: { $ref: '#/components/schemas/ProductID' }
         created_at: { type: string, format: date-time }
@@ -8016,13 +8111,41 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AnalystThreadSummary' } }
+    StudioRemediationAdvisory:
+      type: object
+      additionalProperties: false
+      required: [state, approval_id, session_id, message_id]
+      properties:
+        state: { type: string, enum: [available, pending, reviewed, no_recommendation, unavailable] }
+        approval_id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        message_id: { $ref: '#/components/schemas/ProductID' }
+        candidate:
+          type: object
+          additionalProperties: false
+          required: [action, target_id, rollback]
+          properties:
+            action: { type: string, const: isolate_session }
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            rollback: { type: string, const: ttl_release }
+    SaaSSignInStatus:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, integration_id, integration_version, status, connection_reference, failure_code]
+      properties:
+        attempt_id: { $ref: '#/components/schemas/ProductID' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        integration_version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [pending, consumed, completed, failed, superseded] }
+        connection_reference: { type: [string, 'null'], maxLength: 64 }
+        failure_code: { type: [string, 'null'], maxLength: 64 }
     AnalystQuestion:
       type: object
       additionalProperties: false
       required: [message, request_id]
       properties:
         message: { type: string, maxLength: 1000 }
-        approved_read_tools: { type: array, maxItems: 1, uniqueItems: true, items: { type: string, const: inspect_session } }
+        approved_read_tools: { type: array, maxItems: 2, uniqueItems: true, items: { type: string, enum: [inspect_session, external_inventory_status] } }
         request_id: { $ref: '#/components/schemas/ProductID' }
     DelegationHop:
       type: object
@@ -11366,6 +11489,8 @@ components:
         compliance_context: { type: string, minLength: 1, maxLength: 128 }
         evidence_ids: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
         risk_factors: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/RiskFactor' } }
+        current_ticket_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: Completed ticket for this principal and finding version. }
+        pending_ticket_key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$', description: Existing request key for a pending ticket for this principal and finding version. }
         acceptance_reason: { type: string, minLength: 1, maxLength: 512 }
         frameworks:
           type: array

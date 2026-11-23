@@ -39,11 +39,14 @@ BEGIN
  OR jsonb_typeof(d->'budget_nano_credits') IS DISTINCT FROM 'number' OR (d->>'budget_nano_credits')!~'^(0|[1-9][0-9]{0,12})$' THEN RETURN false; END IF;
  IF d?'minimum_evidence_confidence' AND (jsonb_typeof(d->'minimum_evidence_confidence') IS DISTINCT FROM 'string' OR d->>'minimum_evidence_confidence' NOT IN ('strong','exact')) THEN RETURN false; END IF;
  IF d?'approval_required_tools' THEN
-  IF jsonb_typeof(d->'approval_required_tools') IS DISTINCT FROM 'array' OR jsonb_array_length(d->'approval_required_tools')>4 OR NOT ((d->'read_tools') @> (d->'approval_required_tools')) THEN RETURN false; END IF;
+  IF jsonb_typeof(d->'approval_required_tools') IS DISTINCT FROM 'array' OR jsonb_array_length(d->'approval_required_tools')>5 OR NOT ((d->'read_tools') @> (d->'approval_required_tools')) THEN RETURN false; END IF;
   IF EXISTS(SELECT FROM jsonb_array_elements_text(d->'approval_required_tools') t GROUP BY t HAVING count(*)>1) THEN RETURN false; END IF;
  END IF;
- RETURN (d->>'budget_nano_credits')::bigint<=1000000000000 AND jsonb_array_length(d->'read_tools') BETWEEN 1 AND 4
- AND (SELECT count(DISTINCT t)=count(*) AND bool_and(t IN ('list_agents','get_posture_summary','inspect_session','get_addon_drift'))
+ IF (d->'read_tools')?'external_inventory_status' AND (
+  d->>'trigger' IS DISTINCT FROM 'manual' OR (d->>'max_steps')::int<2 OR NOT (d->'read_tools'?'inspect_session')
+  OR NOT coalesce((d->'approval_required_tools')?'external_inventory_status',false)) THEN RETURN false; END IF;
+ RETURN (d->>'budget_nano_credits')::bigint<=1000000000000 AND jsonb_array_length(d->'read_tools') BETWEEN 1 AND 5
+ AND (SELECT count(DISTINCT t)=count(*) AND bool_and(t IN ('list_agents','get_posture_summary','inspect_session','get_addon_drift','external_inventory_status'))
       FROM jsonb_array_elements_text(d->'read_tools') t);
 END $valid$;
 

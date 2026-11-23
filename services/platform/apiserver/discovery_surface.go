@@ -16,6 +16,7 @@ type discoveryWorkflowSurface struct {
 	inventoryModels map[string]*analystChat
 	evidenceDB      JSONDatabase
 	analyst         *analystChat
+	advisory        *analystChat
 	// guardrail serves the guardrail decision API and the Environment's
 	// guardrail policy. It is nil where they are not composed.
 	addons    *addonReviewHandler
@@ -48,6 +49,8 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		serveTicketProof(surface.evidenceDB, writer, request, routed)
+	case "getStudioRemediationAdvisory", "requestStudioRemediationAdvisory":
+		serveStudioAdvisory(surface.evidenceDB, surface.advisory, writer, request, routed)
 	case "getAnalystThreads", "getAnalystThread", "createAnalystThread", "streamAnalystThread":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryUnavailable)
@@ -82,6 +85,8 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		serveInventoryReview(surface.evidenceDB, surface.inventoryModels[routed.OperationID], writer, request, routed)
+	case "getSaaSSignInAttempt":
+		serveSaaSAttemptStatus(surface.evidenceDB, writer, request, routed)
 	case "listWorkforceInventory":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)

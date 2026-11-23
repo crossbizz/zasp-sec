@@ -72,7 +72,7 @@ func run(manifest, signature, key, corpus string, workQueue bool, ids []string) 
 	if err != nil {
 		return errors.New("deployment attestation rejected")
 	}
-	if !a.Deployment.ScopedTo(ids[0], ids[1], ids[2]) {
+	if !a.ScopedTo(ids[0], ids[1], ids[2]) {
 		return errors.New("deployment scope does not match qualification scope")
 	}
 	token := ""

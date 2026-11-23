@@ -55,6 +55,11 @@ func (d *VertexDriver) Evaluate(ctx context.Context, p Purpose, input json.RawMe
 	if ctx == nil || d == nil || !ok || p != d.purpose || !json.Valid(input) || len(input) > rule.MaxInputBytes {
 		return nil, ErrInvalidRequest
 	}
+	if p == PurposeRemediate {
+		if _, ok := admittedAdvisory(input); !ok {
+			return nil, ErrInvalidRequest
+		}
+	}
 	data, _ := json.Marshal(map[string]json.RawMessage{"untrusted_data": input})
 	type part struct {
 		Text string `json:"text"`
@@ -94,7 +99,11 @@ func (d *VertexDriver) Evaluate(ctx context.Context, p Purpose, input json.RawMe
 	if err != nil || len(raw) > 32768 || limited.Err() != nil {
 		return nil, ErrGeneration
 	}
-	return d.response(raw, p)
+	answer, err := d.response(raw, p)
+	if err != nil || p == PurposeRemediate && !ValidateRemediationProposal(input, answer) {
+		return nil, ErrGeneration
+	}
+	return answer, nil
 }
 
 func (d *VertexDriver) response(raw []byte, p Purpose) (json.RawMessage, error) {

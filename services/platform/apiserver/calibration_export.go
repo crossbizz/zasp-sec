@@ -68,9 +68,9 @@ func (h calibrationExportHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	var grant string
 	switch route.OperationID {
 	case "createCalibrationExport":
-		var empty struct{}
+		var empty *struct{}
 		keys := r.Header.Values("Idempotency-Key")
-		if len(keys) != 1 || !validPublicIdempotency(keys[0]) || decodeProductionJSON(r, &empty) != nil {
+		if len(keys) != 1 || !validPublicIdempotency(keys[0]) || decodeProductionJSON(r, &empty) != nil || empty == nil {
 			writeProductionError(w, r, ErrRepositoryOperation)
 			return
 		}
@@ -89,8 +89,8 @@ func (h calibrationExportHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		}
 		args = append(args, id)
 		if route.OperationID == "createCalibrationDownloadGrant" {
-			var empty struct{}
-			if decodeProductionJSON(r, &empty) != nil {
+			var empty *struct{}
+			if decodeProductionJSON(r, &empty) != nil || empty == nil {
 				writeProductionError(w, r, ErrRepositoryOperation)
 				return
 			}

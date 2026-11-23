@@ -12,7 +12,9 @@ type Counts struct {
 type Threshold struct {
 	Threshold float64 `json:"threshold"`
 	Counts
-	TN int64 `json:"tn"`
+	TN        int64 `json:"tn"`
+	SeriousTP int64 `json:"serious_tp"`
+	SeriousFN int64 `json:"serious_fn"`
 }
 type Reliability struct {
 	Lower           float64  `json:"lower"`
@@ -22,11 +24,12 @@ type Reliability struct {
 	ObservedRate    *float64 `json:"observed_rate"`
 }
 type Bucket struct {
-	Bucket    int     `json:"bucket"`
-	N         int64   `json:"n"`
-	PSum      float64 `json:"psum"`
-	Positives int64   `json:"positives"`
-	Squares   float64 `json:"squares"`
+	Bucket           int     `json:"bucket"`
+	N                int64   `json:"n"`
+	PSum             float64 `json:"psum"`
+	Positives        int64   `json:"positives"`
+	Squares          float64 `json:"squares"`
+	SeriousPositives int64   `json:"serious_positives"`
 }
 type Curves struct {
 	Bins       [10]Reliability `json:"bins"`
@@ -57,7 +60,7 @@ func Compute(buckets []Bucket) (Curves, bool) {
 		curves.Thresholds[i].Threshold = float64(i) / 10
 	}
 	for _, b := range buckets {
-		if b.Bucket < 0 || b.Bucket > 10 || seen[b.Bucket] || b.N < 1 || b.N > 1e12 || b.Positives < 0 || b.Positives > b.N || !bounded(b.PSum, float64(b.N)) || !bounded(b.Squares, float64(b.N)) {
+		if b.Bucket < 0 || b.Bucket > 10 || seen[b.Bucket] || b.N < 1 || b.N > 1e12 || b.Positives < 0 || b.Positives > b.N || b.SeriousPositives < 0 || b.SeriousPositives > b.Positives || !bounded(b.PSum, float64(b.N)) || !bounded(b.Squares, float64(b.N)) {
 			return Curves{}, false
 		}
 		seen[b.Bucket] = true
@@ -71,9 +74,11 @@ func Compute(buckets []Bucket) (Curves, bool) {
 			t := &curves.Thresholds[j]
 			if b.Bucket >= j {
 				t.TP += b.Positives
+				t.SeriousTP += b.SeriousPositives
 				t.FP += b.N - b.Positives
 			} else {
 				t.FN += b.Positives
+				t.SeriousFN += b.SeriousPositives
 				t.TN += b.N - b.Positives
 			}
 		}

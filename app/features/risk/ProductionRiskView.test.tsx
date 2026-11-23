@@ -197,38 +197,36 @@ describe("production risk views", () => {
 		expect(screen.queryByRole("button", { name: "Create ticket" })).not.toBeInTheDocument();
   });
 
-	it("restores an exact scoped ticket result after reload without a second delivery", async () => {
-		window.sessionStorage.clear();
-		const createTicket = vi.fn(fixtureAPI().createFindingTicket);
-		const api = fixtureAPI({ createFindingTicket: createTicket });
-		const first = renderRisk("/violations", api, true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		await userEvent.click(screen.getByRole("button", { name: "Create ticket" }));
-		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
-		first.unmount();
+  it("reads the reviewer's current ticket after reload without a second delivery", async () => {
+    const createTicket = vi.fn(fixtureAPI().createFindingTicket);
+    const getFinding = vi.fn(fixtureAPI().getFinding);
+    const api = fixtureAPI({ createFindingTicket: createTicket, getFinding });
+    const first = renderRisk("/violations", api, true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create ticket" }));
+    expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
+    first.unmount();
+    getFinding.mockResolvedValue({ value: { ...finding, current_ticket_id: "SEC-1234" }, version: '"1"' });
+    const second = renderRisk("/violations", api, true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
+    expect(createTicket).toHaveBeenCalledTimes(1);
+    second.unmount();
+    getFinding.mockResolvedValue({ value: { ...finding, version: 2 }, version: '"2"' });
+    renderRisk("/violations", api, true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    expect(await screen.findByRole("button", { name: "Create ticket" })).toBeEnabled();
+    expect(screen.queryByText("Ticket SEC-1234 created.")).not.toBeInTheDocument();
+  });
 
-		renderRisk("/violations", api, true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
-		expect(createTicket).toHaveBeenCalledTimes(1);
-		window.sessionStorage.clear();
-	});
-
-	it("removes a stored ticket result when the authoritative finding version changes", async () => {
-		window.sessionStorage.clear();
-		const first = renderRisk("/violations", fixtureAPI(), true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		await userEvent.click(screen.getByRole("button", { name: "Create ticket" }));
-		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
-		expect(window.sessionStorage.length).toBe(1);
-		first.unmount();
-
-		const changedFinding = { ...finding, status: "under_review" as const, version: 2 };
-		renderRisk("/violations", fixtureAPI({ getFinding: async () => ({ value: changedFinding, version: '"2"' }) }), true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		expect(screen.queryByText("Ticket SEC-1234 created.")).not.toBeInTheDocument();
-		expect(window.sessionStorage.length).toBe(0);
-	});
+  it("reuses an outstanding ticket request created before the upgrade", async () => {
+    const key = "finding-ticket-existing-attempt";
+    const createFindingTicket = vi.fn(fixtureAPI().createFindingTicket);
+    renderRisk("/violations", fixtureAPI({ getFinding: async () => ({ value: { ...finding, pending_ticket_key: key }, version: '"1"' }), createFindingTicket }), true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Retry ticket creation" }));
+    expect(createFindingTicket).toHaveBeenCalledWith(finding.id, '"1"', { idempotencyKey: key });
+  });
 
   it("renders API attack-path order, evidence, and ranked path-local break options", async () => {
     renderRisk("/exposure/attack-paths", fixtureAPI());

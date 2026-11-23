@@ -159,6 +159,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if surface, composed := workflowSurface.(*discoveryWorkflowSurface); composed {
 			surface.evidenceDB = repository.database
 			surface.analyst = configuredAnalystChat()
+			surface.advisory = configuredStudioAdvisory()
 			surface.inventoryModels = map[string]*analystChat{}
 			for op, p := range inventoryReviewPurposes {
 				surface.inventoryModels[op] = configuredPrivateModel(p, "ZASP_BEDROCK_INVENTORY_")

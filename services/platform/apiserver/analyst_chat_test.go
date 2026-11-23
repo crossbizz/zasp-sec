@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/aigateway"
 )
@@ -29,8 +30,8 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	}
 	s, event, agent, receipt := b.id(), b.id(), b.id(), b.id()
 	model := &testAnalystModel{id: receipt}
-	cfg := aigateway.BedrockBinding{Provider: aigateway.ModeBedrock, Model: "anthropic.claude-haiku-4-5", Region: "us", CredentialReference: "secret_ref_planner/" + b.o + "/" + b.w + "/" + b.e + "/v1", CredentialDigest: "sha256:" + strings.Repeat("a", 64), DeploymentDigest: "sha256:" + strings.Repeat("b", 64), Cost: 20}
-	h := &discoveryWorkflowSurface{evidenceDB: b.product, analyst: &analystChat{model, cfg}}
+	cfg := aigateway.BedrockBinding{Provider: aigateway.ModeBedrock, Model: "anthropic.claude-sonnet-4-6", Region: "us", CredentialReference: "secret_ref_planner/" + b.o + "/" + b.w + "/" + b.e + "/v1", CredentialDigest: "sha256:" + strings.Repeat("a", 64), DeploymentDigest: "sha256:" + strings.Repeat("b", 64), Cost: 20}
+	h := &discoveryWorkflowSurface{evidenceDB: b.product, analyst: &analystChat{driver: model, binding: cfg}}
 	b.seed(func() {
 		b.exec(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$5,$6,'strong','gateway','policy','block','Gateway blocked the request',$7,now())`, b.o, b.w, b.e, event, s, agent, receipt)
 		b.exec(`INSERT INTO zasp_runtime_session_summaries(organization_id,workspace_id,environment_id,id,first_event_at,last_event_at,projected_at,event_count,exact_count,strong_count,probable_count,unattributed_count,minimum_agent_id,maximum_agent_id) VALUES($1,$2,$3,$4,now(),now(),now(),1,0,1,0,0,$5,$5)`, b.o, b.w, b.e, s, agent)
@@ -46,12 +47,29 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	}
 	b.seed(func() {
 		b.exec(`INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled) VALUES($1,$2,$3,'production','metadata_only',30,true) ON CONFLICT DO NOTHING`, b.o, b.w, b.e)
-		b.exec(`INSERT INTO zasp_organization_ai_controls(organization_id,ai_enabled,allowed_modes,allowed_residency) VALUES($1,true,ARRAY['deterministic_only','privatelink_bedrock'],'us_only')`, b.o)
-		b.exec(`INSERT INTO zasp_environment_ai_controls(organization_id,workspace_id,environment_id,environment_class,mode,tier3_provider,tier3_model_pin,tier3_security_agent_planner_enabled,allow_redacted_summaries,monthly_budget_nano_credits,credential_reference,credential_digest) VALUES($1,$2,$3,'production','privatelink_bedrock','privatelink_bedrock',$4,true,true,20,$5,$6)`, b.o, b.w, b.e, cfg.Model, cfg.CredentialReference, cfg.CredentialDigest)
 		b.exec(`INSERT INTO model_qualifications(organization_id,workspace_id,environment_id,provider,model,purpose,qualified,deployment_digest,evidence_digest,expires_at) VALUES($1,$2,$3,'privatelink_bedrock',$4,'security_agent_triage',true,$5,$5,now()+interval '1 hour')`, b.o, b.w, b.e, cfg.Model, cfg.DeploymentDigest)
 		b.exec(`INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$2,$3,'*',true,'fixture') ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true`, b.o, b.w, b.e)
 	})
-	workflow := studioDefinition{ApprovalTools: []string{"inspect_session"}, MinimumConfidence: "strong", Name: "Session containment review", Mission: "Review recorded session activity", Trigger: "manual", Tools: []string{"inspect_session"}, Proposal: "request_containment", Approval: true, Steps: 3, Budget: 20, Model: cfg.Model}
+	settingsOwner := b.member("organization_admin", "manage_data_controls", "manage_identity", "view", "view_compliance")
+	repo, err := NewPostgresRepository(b.product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := &identityHTTPHandler{administration: repo, now: time.Now}
+	control := func(op, path, method, body, match string) {
+		t.Helper()
+		r := b.serve(settings, settingsOwner, op, method, path, nil, body, map[string]string{"If-Match": match})
+		if r.Code != 200 {
+			t.Fatalf("%s returned %d: %s", op, r.Code, r.Body)
+		}
+	}
+	orgControls, envControls := "/api/v1/organization/ai-controls", "/api/v1/settings/ai-controls"
+	control("getOrganizationAIControls", orgControls, "GET", "", "")
+	control("getEnvironmentAIControls", envControls, "GET", "", "")
+	control("updateOrganizationAIControls", orgControls, "PATCH", `{"ai_enabled":true,"allowed_modes":["deterministic_only","privatelink_bedrock"],"allowed_residency":"us_only"}`, `"1"`)
+	enable, _ := json.Marshal(map[string]any{"mode": cfg.Provider, "tier3_provider": cfg.Provider, "tier3_model_pin": cfg.Model, "tier3_security_agent_planner_enabled": true, "allow_redacted_summaries": true, "monthly_budget_nano_credits": 25, "credential_reference": cfg.CredentialReference, "credential_digest": cfg.CredentialDigest})
+	control("updateEnvironmentAIControls", envControls, "PATCH", string(enable), `"1"`)
+	workflow := studioDefinition{ApprovalTools: []string{"inspect_session"}, MinimumConfidence: "strong", Name: "Session containment review", Mission: "Review recorded session activity", Trigger: "manual", Tools: []string{"inspect_session"}, Proposal: "request_containment", Approval: true, Steps: 3, Budget: 25, Model: cfg.Model}
 	save, _ := json.Marshal(workflow)
 	saved := b.serve(h, admin, "createCustomSecurityAgent", "POST", "/api/v1/security-agents/custom", nil, string(save), map[string]string{"Idempotency-Key": b.id()})
 	var definition struct {
@@ -122,6 +140,8 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	if limited := stream(b.id()); limited.Code != 409 || model.calls != 1 {
 		t.Fatalf("budget ignored: %d", limited.Code)
 	}
+	control("updateEnvironmentAIControls", envControls, "PATCH", `{"monthly_budget_nano_credits":30}`, `"2"`)
+	exerciseStudioAdvisory(t, b, h, admin, cfg, thread, *persisted.Handoff)
 	workflow.Proposal = "none"
 	save, _ = json.Marshal(workflow)
 	updated := b.serve(h, admin, "updateCustomSecurityAgent", "PUT", "/api/v1/security-agents/custom/"+definition.ID, map[string]string{"id": definition.ID}, string(save), map[string]string{"Idempotency-Key": b.id(), "If-Match": `"1"`})
@@ -132,9 +152,7 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	if history.Code != 200 || strings.Contains(history.Body.String(), `"handoff"`) {
 		t.Fatalf("superseded proposal survived: %d %s", history.Code, history.Body)
 	}
-	b.seed(func() {
-		b.exec(`UPDATE zasp_environment_ai_controls SET tier3_security_agent_planner_enabled=false WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, b.o, b.w, b.e)
-	})
+	control("updateEnvironmentAIControls", envControls, "PATCH", `{"tier3_security_agent_planner_enabled":false}`, `"3"`)
 	disabled := b.serve(h, admin, "getAnalystThread", "GET", path+"/"+thread.ID+query, params, "", nil)
 	if disabled.Code != 409 || strings.Contains(disabled.Body.String(), receipt) {
 		t.Fatalf("disabled history leaked: %d", disabled.Code)
@@ -142,4 +160,6 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	if denied := stream(k); denied.Code != 409 || model.calls != 1 {
 		t.Fatalf("disabled replay=%d calls=%d", denied.Code, model.calls)
 	}
+	control("updateEnvironmentAIControls", envControls, "PATCH", `{"tier3_security_agent_planner_enabled":true,"monthly_budget_nano_credits":1000}`, `"4"`)
+	exerciseStudioInventoryTurn(t, b, h, admin, s, event, agent)
 }

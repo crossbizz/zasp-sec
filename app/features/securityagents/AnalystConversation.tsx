@@ -13,19 +13,27 @@ import type { AnalystThread } from "../../../apps/web/api/generated";
 
 // One confirmation is consumed by the next outbound question, including an
 // interrupted request. Retries require a new operator confirmation.
+type ReadTool = "inspect_session" | "external_inventory_status";
 class SingleQuestionApproval {
-  private granted = false;
-  select(value:boolean) { this.granted = value; }
-  take() { const current=this.granted; this.granted=false; return current; }
+  private granted = new Set<ReadTool>();
+  select(tool: ReadTool, value:boolean) { if (value) this.granted.add(tool); else this.granted.delete(tool); }
+  take() { const approved=Array.from(this.granted).sort(); this.granted.clear(); return approved; }
+}
+function requiredReads(thread:AnalystThread):ReadTool[] {
+  const tools:ReadTool[]=[];
+  if(thread.requires_session_read_approval)tools.push("inspect_session");
+  if(thread.requires_external_inventory_approval)tools.push("external_inventory_status");
+  return tools;
 }
 
 export class InvestigationTransport extends DefaultChatTransport<UIMessage> {
-  constructor(private readonly product: APIClient, private readonly thread: AnalystThread, private readonly consumeApproval: () => boolean = () => false) { super({}); }
+  constructor(private readonly product: APIClient, private readonly thread: AnalystThread, private readonly consumeApproval: () => readonly ReadTool[] = () => []) { super({}); }
   override async sendMessages({ messages, chatId, trigger, abortSignal }: Parameters<ChatTransport<UIMessage>["sendMessages"]>[0]) {
     const last = messages.at(-1);
     if (chatId !== this.thread.id || trigger !== "submit-message" || last?.role !== "user" || last.parts.length !== 1 || last.parts[0].type !== "text") throw Error("A session question is required");
-    const approved = this.thread.requires_session_read_approval ? this.consumeApproval() : false;
-    if (this.thread.requires_session_read_approval && !approved) throw Error("Approve the session read for this question");
+    const required = requiredReads(this.thread);
+    const approved = required.length ? this.consumeApproval() : [];
+    if (required.some(tool => !approved.includes(tool))) throw Error("Approve each required read for this question");
     const result = await this.product.openAuthorizedEventStream(this.thread.id, this.thread.session_id, last.parts[0].text, last.id, abortSignal, approved);
     if (!result.body) throw Error("Empty investigation response");
     return this.processResponseStream(result.body);
@@ -43,12 +51,13 @@ function AssistantMessage() {
 export default function AnalystConversation({ thread, onCommitted }: { thread: AnalystThread; onCommitted?(): void }) {
   const { client } = useAPI();
   const session = useOptionalSession();
-  const [approved, setApproved] = useState(false);
+  const [approved, setApproved] = useState<ReadTool[]>([]);
+  const required = requiredReads(thread);
   const [approval] = useState(() => new SingleQuestionApproval());
   const consumeApproval = useCallback(() => {
     const confirmed = approval.take();
-    setApproved(false);
-    return confirmed && session?.status === "authenticated" && session.isFreshAuthenticated;
+    setApproved([]);
+    return session?.status === "authenticated" && session.isFreshAuthenticated ? confirmed : [];
   }, [approval, session]);
   const transport = useMemo(() => new InvestigationTransport(client, thread, consumeApproval), [client, thread, consumeApproval]);
   const chat = useChat({
@@ -63,10 +72,14 @@ export default function AnalystConversation({ thread, onCommitted }: { thread: A
     {chat.error && <p role="alert">The analyst could not confirm an answer. Reopen this investigation to check its saved history.</p>}
     <ComposerPrimitive.Root>
       <ComposerPrimitive.Input aria-label="Question about this session" maxLength={1000} placeholder="Ask about blocked actions or missing evidence…" />
-      {thread.requires_session_read_approval && (session?.status === "authenticated" && session.isFreshAuthenticated
-        ? <label><input type="checkbox" checked={approved} onChange={e => {approval.select(e.target.checked);setApproved(e.target.checked);}}/> Approve reading this session’s evidence for this question</label>
-        : session?.status === "authenticated" ? <Button onClick={session.reauthenticate}>Verify identity to approve this read</Button> : <p>Sign in to approve this read.</p>)}
-      <div className="row-actions"><ComposerPrimitive.Send disabled={Boolean(thread.requires_session_read_approval && !approved)} className="button button--primary">Send question</ComposerPrimitive.Send>
+      {required.length > 0 && (session?.status === "authenticated" && session.isFreshAuthenticated
+        ? required.map(tool => <label key={tool}><input type="checkbox" checked={approved.includes(tool)} onChange={e => {
+          const selected=e.target.checked;
+          approval.select(tool,selected);
+          setApproved(current=>selected ? [...current,tool] : current.filter(value=>value!==tool));
+        }}/>{tool === "inspect_session" ? " Approve reading this session’s evidence for this question" : " Approve a private connector read of this session’s agent inventory status for this question"}</label>)
+        : session?.status === "authenticated" ? <Button onClick={session.reauthenticate}>Verify identity to approve these reads</Button> : <p>Sign in to approve these reads.</p>)}
+      <div className="row-actions"><ComposerPrimitive.Send disabled={required.some(tool=>!approved.includes(tool))} className="button button--primary">Send question</ComposerPrimitive.Send>
         {chat.status === "streaming" && <ComposerPrimitive.Cancel className="button">Stop response</ComposerPrimitive.Cancel>}</div>
     </ComposerPrimitive.Root>
   </ThreadPrimitive.Root></AssistantRuntimeProvider>;

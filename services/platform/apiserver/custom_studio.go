@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -11,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/inventorymcp"
 )
 
 const (
@@ -52,15 +55,18 @@ func (d studioDefinition) valid() bool {
 	if !studioText(d.Name, 80, false) || !studioText(d.Mission, 512, false) || !studioText(d.Model, 128, true) || !d.Approval || d.Steps < 1 || d.Steps > 6 || d.Budget < 0 || d.Budget > 1000000000000 {
 		return false
 	}
-	if !stringIn(d.Trigger, "manual", "finding_opened") || !stringIn(d.Proposal, "none", "propose_policy", "request_containment") || len(d.Tools) == 0 || len(d.Tools) > 4 {
+	if !stringIn(d.Trigger, "manual", "finding_opened") || !stringIn(d.Proposal, "none", "propose_policy", "request_containment") || len(d.Tools) == 0 || len(d.Tools) > 5 {
 		return false
 	}
 	seen := map[string]bool{}
 	for _, tool := range d.Tools {
-		if seen[tool] || !stringIn(tool, "list_agents", "get_posture_summary", "inspect_session", "get_addon_drift") {
+		if seen[tool] || !stringIn(tool, "list_agents", "get_posture_summary", "inspect_session", "get_addon_drift", "external_inventory_status") {
 			return false
 		}
 		seen[tool] = true
+	}
+	if seen["external_inventory_status"] && (d.Trigger != "manual" || d.Steps < 2 || !seen["inspect_session"] || !slices.Contains(d.ApprovalTools, "external_inventory_status")) {
+		return false
 	}
 	if d.MinimumConfidence != "" && !stringIn(d.MinimumConfidence, "strong", "exact") {
 		return false
@@ -153,6 +159,10 @@ func saveStudioDefinition(db JSONDatabase, w http.ResponseWriter, r *http.Reques
 		writeProductionError(w, r, ErrRepositoryOperation)
 		return
 	}
+	if slices.Contains(def.Tools, inventorymcp.Tool) && !studioInventoryAvailable(r) {
+		writeProductionStatusError(w, r, 409, "external_inventory_unavailable", "A private inventory binding is required in this Environment", false)
+		return
+	}
 	sort.Strings(def.Tools)
 	sort.Strings(def.ApprovalTools)
 	encoded, _ := json.Marshal(def)
@@ -183,6 +193,15 @@ func saveStudioDefinition(db JSONDatabase, w http.ResponseWriter, r *http.Reques
 	body, err := db.QueryJSON(r.Context(), studioSaveSQL, append(args, id, key, n, string(encoded))...)
 	writeStudioResult(w, r, body, err, expectedID, false)
 }
+func studioInventoryAvailable(r *http.Request) bool {
+	i, ok := IdentityFromRequest(r)
+	if !ok {
+		return false
+	}
+	c, err := inventorymcp.Load(os.Getenv("ZASP_STUDIO_INVENTORY_MCP_FILE"))
+	return err == nil && c.Available(i.Scope)
+}
+
 func writeStudioResult(w http.ResponseWriter, r *http.Request, body json.RawMessage, err error, expectedID string, page bool) {
 	if err != nil {
 		writeProductionError(w, r, err)
@@ -201,12 +220,16 @@ func writeStudioResult(w http.ResponseWriter, r *http.Request, body json.RawMess
 	}
 	if page {
 		var p struct {
-			Items []json.RawMessage `json:"items"`
+			Items    []json.RawMessage `json:"items"`
+			Next     *string           `json:"next_cursor"`
+			External bool              `json:"external_inventory_available,omitempty"`
 		}
 		if json.Unmarshal(body, &p) != nil || p.Items == nil || len(p.Items) > 100 {
 			writeProductionError(w, r, ErrRepositoryUnavailable)
 			return
 		}
+		p.External = studioInventoryAvailable(r)
+		body, _ = json.Marshal(p)
 	} else {
 		var v struct {
 			ID         string           `json:"id"`

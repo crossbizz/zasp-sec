@@ -43,16 +43,6 @@ const allowedExactSources = new Set([
   "services/platform/compliancemap/surfaces.json",
 ]);
 const allowedBrowserStorageSources = new Set([
-  // Metadata-only, identity-checked resume for a server-owned export job.
-  "app/features/administration/AuditExportPanel.tsx",
-	"app/features/sessions/ComplianceEvidenceView.tsx",
-	"app/features/redteam/ProductionRedTeamView.tsx",
-	"app/features/recovery/RecoveryOperationsView.tsx",
-  "app/features/risk/ProductionRiskView.tsx",
-  // sessionStorage holds one validated SaaS integration id (no token, no
-  // secret) so that an OAuth return is accepted only in the tab that started
-  // the sign-in. It is read once and removed.
-  "app/features/workflows/ProductionWorkflowViews.tsx",
 ]);
 const forbiddenExactSources = new Set([
   "app/domain/store.tsx",

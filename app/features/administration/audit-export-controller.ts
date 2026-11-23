@@ -25,8 +25,8 @@ export class AuditExportController {
   private delay = 2000;
   private readRetry: (() => void) | null = null;
   private fresh: boolean;
-  constructor(private readonly options: { api: AuditExportsAPI; authority: AuditExportAuthority; storage: Pick<Storage, "getItem" | "setItem" | "removeItem">; retrySession(): Promise<void> }) {
-    const resume = loadAuditExportResume(options.storage, options.authority);
+  constructor(private readonly options: { api: AuditExportsAPI; authority: AuditExportAuthority; retrySession(): Promise<void> }) {
+    const resume = loadAuditExportResume(options.authority);
     this.fresh = options.authority.fresh;
     this.state = { phase: "idle", descriptor: null, resume, progress: null, message: null, busy: false };
   }
@@ -38,7 +38,7 @@ export class AuditExportController {
     // joins its prior aborted physical operation through the same API lane.
     if (this.disposed) {
       this.disposed = false;
-      this.patch({ resume: loadAuditExportResume(this.options.storage, this.options.authority) });
+      this.patch({ resume: loadAuditExportResume(this.options.authority) });
     }
   };
   private patch(update: Partial<AuditExportState>) {
@@ -91,7 +91,7 @@ export class AuditExportController {
       // The pending key was durable before POST. Even a failed ID update can
       // still recover the original exact operation after reload.
       this.patch({ resume });
-      try { storeAuditExportResume(this.options.storage, resume); }
+      try { storeAuditExportResume(resume); }
       catch { this.patch({ message: "Job received. Resume storage could not be updated; keep this tab open." }); }
     }
   }
@@ -106,7 +106,7 @@ export class AuditExportController {
       if (!resume) {
         const a = this.options.authority;
         resume = { principalID: a.principalID, organizationID: a.organizationID, workspaceID: a.workspaceID, environmentID: a.environmentID, key: `audit_export_${crypto.randomUUID()}` };
-        storeAuditExportResume(this.options.storage, resume);
+        storeAuditExportResume(resume);
         this.patch({ resume });
       }
       this.patch({ phase: "creating", descriptor: null, progress: null, message: null });

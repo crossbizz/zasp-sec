@@ -59,8 +59,8 @@ function Metrics({ data }: { data: CalibrationMetrics }) {
       <Suspense fallback={<p>Loading chart…</p>}><Chart metrics={data} /></Suspense>
       <details><summary>Confidence bins</summary><div className="table-scroll"><table className="data-table"><thead><tr><th>Predicted range</th><th>Labels</th><th>Observed rate</th></tr></thead>
         <tbody>{data.bins.map(b => <tr key={b.lower}><td>{percent(b.lower)}–{percent(b.upper)}</td><td>{b.count}</td><td>{percent(b.observed_rate)}</td></tr>)}</tbody></table></div></details>
-      <details><summary>Threshold trade-offs</summary><div className="table-scroll"><table className="data-table"><thead><tr>{["Threshold","True positives","False positives","True negatives","False negatives"].map(t => <th key={t}>{t}</th>)}</tr></thead>
-        <tbody>{data.thresholds.map(t => <tr key={t.threshold}>{[percent(t.threshold), t.tp, t.fp, t.tn, t.fn].map((v, i) => <td key={i}>{v}</td>)}</tr>)}</tbody></table></div></details>
+      <details><summary>Threshold trade-offs</summary><div className="table-scroll"><table className="data-table"><thead><tr>{["Threshold","True positives","False positives","True negatives","False negatives","Serious detections retained","Serious detections missed"].map(t => <th key={t}>{t}</th>)}</tr></thead>
+        <tbody>{data.thresholds.map(t => <tr key={t.threshold}>{[percent(t.threshold), t.tp, t.fp, t.tn, t.fn, t.serious_tp ?? "Unavailable", t.serious_fn ?? "Unavailable"].map((v, i) => <td key={i}>{v}</td>)}</tr>)}</tbody></table></div></details>
     </>}</Card>
     <Card title={<h2>Deployed-agent discovery</h2>}>{data.discovery.precision === null && data.discovery.recall === null ? <p>No labelled deployments in this period.</p>
       : <p>Precision <strong>{percent(data.discovery.precision)}</strong> · Recall <strong>{percent(data.discovery.recall)}</strong></p>}</Card>
