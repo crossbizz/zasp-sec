@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -5,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { APIClient } from "../../../apps/web/api/client";
 import type { Integration } from "../../../apps/web/api/generated";
 import { APIProvider, useAPI } from "../../api/APIProvider";
+import { ZaspProductionApp } from "../../components/ZaspProductionApp";
 import { SessionProvider } from "../../auth/SessionProvider";
+import { isSaaSCallback } from "./saasSignIn";
 import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
 import { WorkflowMutationProvider } from "./useRetainedWorkflowMutation";
 
@@ -71,7 +74,7 @@ describe("SaaS sign-in from the Integrations page", () => {
     });
     const navigate = renderIntegrations({ GET: reads(() => waiting), POST } as unknown as APIClient);
 
-    await user.click(await screen.findByRole("button", { name: "Configure Acme AI" }));
+    await user.click(await screen.findByRole("button", { name: "Configure Acme AI" }, { timeout: 4000 }));
     const dialog = screen.getByRole("dialog", { name: "Configure Acme AI" });
     // No reference is asked for: the person will sign in instead.
     expect(within(dialog).queryByLabelText(/Nango connection/)).toBeNull();
@@ -97,9 +100,10 @@ describe("SaaS sign-in from the Integrations page", () => {
   const attemptID = "pid_40000001-0000-4000-8000-000000000001";
   const statusPath = "/api/v1/integrations/{id}/sign-in-attempts/{attemptId}";
   const result = { attempt_id: attemptID, integration_id: integrationID, integration_version: 1, status: "completed", connection_reference: connected.configuration.connection_reference, failure_code: null };
-  function ScopeControls() {
+  function ScopeControls({ suspended }: { suspended: boolean }) {
     const { suspendQueryCache } = useAPI();
-    return <button onClick={suspendQueryCache}>Suspend the current scope</button>;
+    useEffect(() => { if (suspended) suspendQueryCache(); }, [suspended, suspendQueryCache]);
+    return null;
   }
   function workflow(status: () => unknown, version = () => '"1"') {
     const user = userEvent.setup();
@@ -111,20 +115,21 @@ describe("SaaS sign-in from the Integrations page", () => {
       return listing(path);
     });
     const PATCH = vi.fn(async (_path: string, _options: unknown) => { current = connected; return jsonResult(connected, 200, { ...receiptHeaders, ETag: '"2"' }); });
+    let authorizationCount = 0;
     const POST = vi.fn(async (path: string) => {
-      if (path === "/api/v1/integrations/{id}/authorize") return jsonResult({ authorization_attempt_id: attemptID, authorization_url: "https://login.acme.example/sign-in", expires_at: new Date(Date.now() + 540000).toISOString() }, 200, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
+      if (path === "/api/v1/integrations/{id}/authorize") return jsonResult({ authorization_attempt_id: ++authorizationCount === 1 ? attemptID : "pid_40000002-0000-4000-8000-000000000002", authorization_url: "https://login.acme.example/sign-in", expires_at: new Date(Date.now() + 540000).toISOString() }, 200, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
       if (path === "/api/v1/integrations/{id}/reference-authorization") return jsonResult({ ...connected, status: "active" }, 200, { ...receiptHeaders, ETag: '"3"' });
       throw new Error(path);
     });
     const client = { GET, POST, PATCH } as unknown as APIClient;
-    const view = (canWrite: boolean) => <APIProvider client={client}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ScopeControls /><ProductionIntegrationsView canWrite={canWrite} /></WorkflowMutationProvider></SessionProvider></APIProvider>;
+    const view = (canWrite: boolean, suspended = false) => <APIProvider client={client}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ScopeControls suspended={suspended} /><ProductionIntegrationsView canWrite={canWrite} /></WorkflowMutationProvider></SessionProvider></APIProvider>;
     const rendered = render(view(true));
     const start = async () => {
-      await user.click(await screen.findByRole("button", { name: "Open Acme production" }));
+      await user.click(await screen.findByRole("button", { name: "Open Acme production" }, { timeout: 4000 }));
       await user.click(await screen.findByRole("button", { name: "Sign in to Acme AI" }));
       return screen.findByRole("button", { name: "Finish sign-in" });
     };
-    return { user, GET, POST, PATCH, start, disable: () => rendered.rerender(view(false)), unmount: () => rendered.unmount() };
+    return { user, GET, POST, PATCH, start, disable: () => rendered.rerender(view(false)), suspend: () => rendered.rerender(view(true, true)), unmount: () => rendered.unmount() };
   }
   it("uses the initiating attempt and checked version before saving and authorizing the provider reference", async () => {
     let state = "pending";
@@ -162,21 +167,49 @@ describe("SaaS sign-in from the Integrations page", () => {
     expect(screen.queryByRole("button", { name: "Finish sign-in" })).toBeNull();
     expect(m.PATCH).not.toHaveBeenCalled();
   });
+  it("expires the attempt before issuing a status request", async () => {
+    const m = workflow(() => result);
+    const finish = await m.start();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 600000);
+    try {
+      await m.user.click(finish);
+      expect(await screen.findByText("This provider sign-in expired. Start a new sign-in.")).toBeVisible();
+      expect(m.GET.mock.calls.filter(([path]) => path === statusPath)).toHaveLength(0);
+      expect(m.PATCH).not.toHaveBeenCalled();
+    } finally { clock.mockRestore(); }
+  });
+  it("checks only the latest attempt after signing in again", async () => {
+    const next = "pid_40000002-0000-4000-8000-000000000002";
+    const m = workflow(() => ({ ...result, attempt_id: next }));
+    await m.start();
+    await m.user.click(screen.getByRole("button", { name: "Start a new sign-in" }));
+    await m.user.click(await screen.findByRole("button", { name: "Finish sign-in" }));
+    expect(await screen.findByText(/Signed in. Authorize the integration/)).toBeVisible();
+    expect(m.GET.mock.calls.filter(([p]) => p === statusPath).map(([, o]) => o?.params?.path)).toEqual([{ id: integrationID, attemptId: next }]);
+  });
   it("requires current scope after the status request returns", async () => {
     let complete: (value: typeof result) => void = () => { throw new Error("missing status request"); };
     const m = workflow(() => new Promise<typeof result>(resolve => { complete = resolve; }));
     const finish = await m.start();
     await m.user.click(finish);
     await waitFor(() => expect(m.GET.mock.calls.some(([p]) => p === statusPath)).toBe(true));
-    await m.user.click(screen.getByRole("button", { name: "Suspend the current scope" }));
+    m.suspend();
     await act(async () => { complete(result); });
     expect(m.PATCH).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Finish sign-in" })).toBeNull();
   });
+  it("accepts only the exact provider return route as a display page", () => {
+    const valid = `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`;
+    expect(isSaaSCallback(valid)).toBe(true);
+    for (const address of [valid + "&extra=1", valid + "#extra", valid + "&saas_connection=" + connectionID,
+      valid.replace("/connectors", "/agents"), valid.replace(connectionID, "invalid"), valid.replace("&", "&saas_sign_in_error=test&")]) {
+      expect(isSaaSCallback(address)).toBe(false);
+    }
+  });
   it.each([`saas_connection=${connectionID}&saas_sign_in=${integrationID}`, `saas_sign_in=${integrationID}&saas_sign_in_error=provider_access_denied`])("renders the return address passively", async (search) => {
     window.history.replaceState(null, "", "/connectors?" + search);
     const GET = reads(() => waiting), PATCH = vi.fn(), POST = vi.fn();
-    renderIntegrations({ GET, POST, PATCH } as unknown as APIClient);
+    render(<ZaspProductionApp client={{ GET, POST, PATCH } as unknown as APIClient} />);
     expect(await screen.findByText(/Return to the Zasp tab/)).toBeVisible();
     expect(PATCH).not.toHaveBeenCalled(); expect(POST).not.toHaveBeenCalled();
     expect(GET.mock.calls.filter(([path]) => path.startsWith("/api/v1/integrations"))).toEqual([]);

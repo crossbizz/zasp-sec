@@ -171,15 +171,18 @@ BEGIN
   SELECT monthly_budget_nano_credits INTO cap FROM public.zasp_environment_ai_controls WHERE (organization_id,workspace_id,environment_id)=(o,w,e) FOR SHARE;
   IF cost IS NULL OR cost<=0 OR cap IS NULL OR cost>cap THEN RETURN '"budget"'::jsonb;END IF;
   content:=zasp_authorization80.session_intent_evidence(o,w,e,s);
-  IF (profile#>>'{definition,minimum_evidence_confidence}') IS NOT NULL AND jsonb_typeof(content)='array' THEN
-   SELECT coalesce(jsonb_agg(item ORDER BY pos),'[]'::jsonb) INTO content FROM jsonb_array_elements(content) WITH ORDINALITY obs(item,pos)
-   WHERE item->>'confidence'='exact' OR (profile#>>'{definition,minimum_evidence_confidence}'='strong' AND item->>'confidence'='strong');
-  END IF;
   IF content IS NULL OR content='null'::jsonb OR jsonb_array_length(content)=0 THEN RETURN '"no_evidence"'::jsonb;END IF;
   IF external_read THEN
+   -- session_intent_evidence uses the 101st row to signal potentially truncated history.
+   IF jsonb_array_length(content)>=101 THEN RETURN '"no_evidence"'::jsonb; END IF;
    SELECT CASE WHEN count(*)=count(item->>'agent_id') AND count(DISTINCT item->>'agent_id')=1 AND bool_and(item->>'confidence'='exact')
     THEN min(item->>'agent_id') END INTO external_agent FROM jsonb_array_elements(content) item;
    IF NOT coalesce(public.zasp_valid_product_id(external_agent),false) THEN RETURN '"no_evidence"'::jsonb; END IF;
+  END IF;
+  IF (profile#>>'{definition,minimum_evidence_confidence}') IS NOT NULL AND jsonb_typeof(content)='array' THEN
+   SELECT coalesce(jsonb_agg(item ORDER BY pos),'[]'::jsonb) INTO content FROM jsonb_array_elements(content) WITH ORDINALITY obs(item,pos)
+   WHERE item->>'confidence'='exact' OR (profile#>>'{definition,minimum_evidence_confidence}'='strong' AND item->>'confidence'='strong');
+   IF jsonb_array_length(content)=0 THEN RETURN '"no_evidence"'::jsonb; END IF;
   END IF;
   INSERT INTO public.zasp_ai_monthly_usage AS u VALUES(o,w,e,month_key,cost) ON CONFLICT(organization_id,workspace_id,environment_id,month_start)
   DO UPDATE SET reserved_nano_credits=u.reserved_nano_credits+cost WHERE u.reserved_nano_credits<=cap-cost;

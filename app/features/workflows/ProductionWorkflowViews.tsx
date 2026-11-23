@@ -178,7 +178,7 @@ export function ProductionIntegrationsView(props: IntegrationsProps) {
   return <IntegrationsWorkspace key={JSON.stringify([principal,queryScopeKey,queryGeneration,props.canWrite])} {...props} />;
 }
 
-type InPageSignIn = { authorization: IntegrationAuthorization; integrationID: string; version: string; owner: string; epoch: number };
+type InPageSignIn = { authorization: IntegrationAuthorization; integrationID: string; version: string; owner: string; epoch: number; sessionGeneration: number; scopeGeneration: number };
 
 function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNavigateAuthorization, navigate = defaultNavigateProduct }: IntegrationsProps) {
   const { client, invalidate, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
@@ -189,6 +189,7 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
     ? `${session.principal.id}/${scope}/${queryGeneration}` : null;
   const activeOwner = useRef<string | null>(null);
   const epoch = useRef(0);
+  const initiatingRequest = useRef<{ id: string; version: string; epoch: number } | null>(null);
   const [pendingSignIn, setPendingSignIn] = useState<InPageSignIn | null>(null);
   useLayoutEffect(() => {
     activeOwner.current = owner;
@@ -340,14 +341,22 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
           return { kind: "authorized", receipt };
         })));
   };
-  const startOAuth = async (intent: Extract<IntegrationMutationIntent, { kind: "authorize-oauth" }>, request: () => Promise<IntegrationAuthorization>) => {
+  const startOAuth = async (intent: Extract<IntegrationMutationIntent, { kind: "authorize-oauth" }>, request: () => Promise<IntegrationAuthorization>, replay = false) => {
     if (intent.connectorKey !== SAAS_CONNECTOR_KEY) { navigateAuthorization((await request()).authorization_url); return; }
     if (!owner || !fresh) throw new Error("Sign-in requires current access");
+    const previous = initiatingRequest.current;
+    if (replay && (previous?.id !== intent.id || previous.version !== intent.version || previous.epoch !== epoch.current)) {
+      // Resolve the retained transport result without adopting another view's sign-in.
+      await request();
+      if (activeOwner.current === owner) setFeedback({ tone: "status", message: "The earlier request was reconciled. Start a new sign-in in this tab." });
+      return;
+    }
     const sequence = ++epoch.current;
+    initiatingRequest.current = {id: intent.id, version: intent.version, epoch: sequence};
     const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
     setPendingSignIn(null);
     const authorization = await request();
-    if (ownsSignIn(owner, sequence, expiry, stale)) setPendingSignIn({ authorization, integrationID: intent.id, version: intent.version, owner, epoch: sequence });
+    if (ownsSignIn(owner, sequence, expiry, stale)) setPendingSignIn({ authorization, integrationID: intent.id, version: intent.version, owner, epoch: sequence, sessionGeneration: expiry, scopeGeneration: stale });
   };
   const authorizeOAuth = () => {
     if (!selected || !isOAuthAuthorizationCandidate(selected.value, selectedManifest) || session?.status !== "authenticated") return;
@@ -371,23 +380,45 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
   const finishSignIn = () => {
     const pending = activeSignIn;
     if (!pending || busy) return;
-    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
-    const owns = () => ownsSignIn(pending.owner, pending.epoch, expiry, stale) && Date.now() < Date.parse(pending.authorization.expires_at);
-    const stop = (message: string) => { epoch.current += 1; setPendingSignIn(null); setFeedback({ tone: "alert", message }); };
+    const owns = () => ownsSignIn(pending.owner, pending.epoch, pending.sessionGeneration, pending.scopeGeneration) && Date.now() < Date.parse(pending.authorization.expires_at);
+    const stop = (message: string) => {
+      epoch.current += 1;
+      setPendingSignIn(null);
+      setFeedback({ tone: "alert", message });
+    };
+    if (Date.now() >= Date.parse(pending.authorization.expires_at)) {
+      stop("This provider sign-in expired. Start a new sign-in.");
+      return;
+    }
     void run(async () => {
       if (!owns()) return;
-      let status;
-      try { status = await api.getSaaSSignInStatus(pending.integrationID, pending.authorization.authorization_attempt_id); }
-      catch (error) {
+      let status: Awaited<ReturnType<typeof api.getSaaSSignInStatus>>;
+      try {
+        status = await api.getSaaSSignInStatus(pending.integrationID, pending.authorization.authorization_attempt_id);
+      } catch (error) {
         if (!owns()) return;
-        if (error instanceof APIProductError && [401,403,404,409,410].includes(error.status)) { stop("This sign-in is no longer available in this session. Start a new sign-in."); return; }
+        if ((error instanceof APIProductError && [401, 403, 404, 409, 410].includes(error.status)) || (error instanceof APITransportError && error.kind === "invalid_response")) {
+          stop("This sign-in is no longer available in this session. Start a new sign-in.");
+          return;
+        }
         setFeedback({ tone: "alert", message: "Could not verify the sign-in. Select Finish sign-in to check again." }); return;
       }
       if (!owns()) return;
       if (pending.version !== `"${status.integration_version}"` || status.status === "superseded") { stop("The integration or sign-in attempt changed. Reopen the integration and start again."); return; }
       if (status.status === "failed") { stop(saasSignInFailure(status.failure_code ?? "")); return; }
       if (status.status !== "completed" || !status.connection_reference) { setFeedback({ tone: "status", message: "Waiting for the provider. Complete sign-in in the provider tab, then check again." }); return; }
-      const current = await api.getIntegration(pending.integrationID);
+      let current: Versioned<Integration>;
+      try {
+        current = await api.getIntegration(pending.integrationID);
+      } catch (error) {
+        if (!owns()) return;
+        if (error instanceof APIProductError && [401, 403, 404].includes(error.status)) {
+          stop("The integration is no longer available in this session.");
+        } else {
+          setFeedback({ tone: "alert", message: "Could not confirm the integration version. Select Finish sign-in to check again." });
+        }
+        return;
+      }
       if (!owns()) return;
       if (current.value.id !== pending.integrationID || current.version !== pending.version || current.value.connector_key !== SAAS_CONNECTOR_KEY || current.value.configuration.connection_reference !== undefined) { stop("The integration configuration changed. Reopen the integration before signing in again."); return; }
       const value = { name: current.value.name, configuration: { ...current.value.configuration, connection_reference: status.connection_reference } };
@@ -488,7 +519,7 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
     void run(() => retainedReferenceAuthorization
       ? applyReferenceAuthorization(() => mutation.retry<IntegrationMutationResult>())
       : retainedOAuthAuthorization
-        ? startOAuth(mutation.retainedIntent as Extract<IntegrationMutationIntent, { kind: "authorize-oauth" }>, () => mutation.retry<IntegrationAuthorization>())
+        ? startOAuth(mutation.retainedIntent as Extract<IntegrationMutationIntent, { kind: "authorize-oauth" }>, () => mutation.retry<IntegrationAuthorization>(), true)
       : mutation.retry<IntegrationMutationResult>().then((result) => { applyMutation(result); }));
   };
   const retryReferenceConflictRefetch = () => pendingReferenceConflict && void run(() => reconcileReferenceConflict(pendingReferenceConflict.integrationID));

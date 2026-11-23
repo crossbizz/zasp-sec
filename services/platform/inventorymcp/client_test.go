@@ -121,8 +121,9 @@ func TestOnlyCurrentBoundInventoryAttestationIsAccepted(t *testing.T) {
 	}
 	r.Signature = ed25519.Sign(key, receiptInput(r))
 	raw, _ = json.Marshal(r)
-	raw = append(raw[:len(raw)-1], []byte(`,"instructions":"extra text"}`)...)
-	if _, err := verify(raw, req, pub, now); err == nil {
-		t.Fatal("accepted free-form data")
+	for _, extra := range []string{`,"instructions":"extra text"}`, `,"status":"unknown"}`, `,"ſtatus":"unknown"}`} {
+		if _, err := verify(append(raw[:len(raw)-1:len(raw)-1], extra...), req, pub, now); err == nil {
+			t.Fatal("accepted an unrecognized or repeated receipt field")
+		}
 	}
 }

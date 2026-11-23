@@ -8,8 +8,10 @@ import (
 
 func TestV3SaaSSignInAttemptOnInstalledBaseline(t *testing.T) {
 	b := startInstalledV2Baseline(t)
-	owner := b.member("security_admin", "view", "manage_workflows")
-	peer := b.member("security_admin", "view", "manage_workflows")
+	operator := func() installedPrincipal {
+		return b.member("security_engineer", "investigate_sessions", "manage_findings", "manage_workflows", "run_tests", "view")
+	}
+	owner, peer := operator(), operator()
 	if err := b.product.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
 	}
@@ -18,6 +20,7 @@ func TestV3SaaSSignInAttemptOnInstalledBaseline(t *testing.T) {
 	cookie := "session-secret-" + user
 	const reference = "ref:nango/connection/11111111-1111-4111-8111-111111111111"
 	b.seed(func() {
+		b.exec(`INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state) VALUES($1,$2,$3,$4,'saas','1','Sign in','{"platform":"servicenow","tenant_id":"acme"}','active')`, b.o, b.w, b.e, integration)
 		b.exec(`INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body) VALUES($1,$2,$3,'integration',$4,jsonb_build_object('id',$4::text,'name','Sign in','connector_key','saas','configuration',jsonb_build_object('platform','servicenow','tenant_id','acme'),'status','pending_authorization'))`, b.o, b.w, b.e, integration)
 		b.exec(`INSERT INTO zasp_saas_sign_in_attempts(organization_id,workspace_id,environment_id,id,integration_id,integration_version,platform,tenant_id,principal_id,session_digest,state_hash,status,connection_reference,consumed_at,finished_at,expires_at) VALUES($1,$2,$3,$4,$5,1,'servicenow','acme',$6,$7,$8,'completed',$9,now(),now(),now()+interval '5 minutes')`, b.o, b.w, b.e, attempt, integration, user, connectorDigest(cookie), connectorDigest(attempt), reference)
 	})

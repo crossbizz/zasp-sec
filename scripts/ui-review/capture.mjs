@@ -70,6 +70,9 @@ async function capture(title, route, state = 'Page') {
     if (!artwork.includes(`zasp-wordmark-${theme}.svg`)) failures.push({ title, theme, viewport, issue: 'Wrong sign-in wordmark for theme' });
   }
   const alerts = await page.getByRole('alert').allTextContents();
+  if (alerts.length && state !== 'Error state' && state !== 'Missing callback parameters') {
+    failures.push({ title, route, state, theme, viewport, issue: 'Unexpected page alert', alerts });
+  }
   const brokenImages = await page.locator('img').evaluateAll(images => images.filter(img => !img.complete || img.naturalWidth === 0).map(img => img.src));
   if (brokenImages.length) failures.push({ title, theme, viewport, issue: 'Broken image', images: brokenImages });
   slides.push({ title, route, state, theme, viewport: viewport.width, width, height, file, alerts, source: 'Running Zasp app · synthetic browser API fixtures' });

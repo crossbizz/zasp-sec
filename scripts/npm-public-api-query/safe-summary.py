@@ -43,7 +43,8 @@ if paths:
         raise ValueError("result grammar")
     summary["resultSHA256"] = digest
     failure = value.get("failureClass")
-    summary["failureClass"] = failure if failure is None or isinstance(failure, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,47}", failure) else "omitted"
+    known_classes = {"RuntimeError", "Refused", "TimeoutExpired", "PermissionError", "FileNotFoundError", "ProcessLookupError", "UnicodeDecodeError", "ValueError", "OSError", "IndexError", "OverflowError", "MemoryError", "JSONDecodeError", "KeyboardInterrupt"}
+    summary["failureClass"] = failure if failure is None or isinstance(failure, str) and failure in known_classes else "omitted"
     for key, allowed in (("failureCode", CODES), ("failurePhase", PHASES)):
         diagnostic = value.get(key)
         if isinstance(diagnostic, str) and diagnostic in allowed:

@@ -51,13 +51,20 @@ func (d Deployment) Digest() string {
 	raw, _ := json.Marshal(d)
 	return fmt.Sprintf("sha256:%x", sha256.Sum256(raw))
 }
-func (d Deployment) Driver() (ProviderDriver, error) {
+func (d Deployment) privateEndpoint() (PrivateEndpoint, error) {
 	ip, err := netip.ParseAddr(d.PrivateIP)
 	weights, errDigest := hex.DecodeString(d.WeightsSHA256)
 	if !d.validScope() || err != nil || ip.String() != d.PrivateIP || errDigest != nil || len(weights) != sha256.Size || d.MaximumNanoCredits < 1 || d.MaximumNanoCredits > 1000000000000 || (d.Region != "eu" && d.Region != "us") {
-		return nil, ErrInvalidConfiguration
+		return PrivateEndpoint{}, ErrInvalidConfiguration
 	}
-	ep := PrivateEndpoint{URL: d.Endpoint, IP: ip}
+	return PrivateEndpoint{URL: d.Endpoint, IP: ip}, nil
+}
+
+func (d Deployment) Driver() (ProviderDriver, error) {
+	ep, err := d.privateEndpoint()
+	if err != nil {
+		return nil, err
+	}
 	if EligibleModel(PurposeInjectionScreen, ModeVPC, d.Model) {
 		return NewONNXDriver(ep, d.Model, d.SafeLabel, d.MaliciousLabel)
 	}

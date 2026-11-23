@@ -68,6 +68,15 @@ func TestProductMCPTenantIsolatedAgentListingOnInstalledPostgres(t *testing.T) {
 		return w
 	}
 	for _, tc := range []struct{ token, own, other string }{{a, agentA, agentB}, {b, agentB, agentA}} {
+		catalog := call(tc.token, "tools/list", `{}`)
+		if catalog.Code != 200 || !strings.Contains(catalog.Body.String(), "list_agents") {
+			t.Fatalf("scoped MCP catalog %d %s", catalog.Code, catalog.Body)
+		}
+		for _, action := range []string{"propose_policy", "request_containment", "trigger_verification"} {
+			if strings.Contains(catalog.Body.String(), action) {
+				t.Fatal("read-only credential advertised action", action)
+			}
+		}
 		w := call(tc.token, "tools/call", `{"name":"list_agents","arguments":{}}`)
 		if w.Code != 200 || !strings.Contains(w.Body.String(), tc.own) || strings.Contains(w.Body.String(), tc.other) {
 			t.Fatalf("MCP scoped read %d %s", w.Code, w.Body)

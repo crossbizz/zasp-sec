@@ -46,7 +46,7 @@ func exerciseStudioInventoryTurn(t *testing.T, b *installedBaseline, h *discover
 		}
 		return "present", nil
 	}
-	studio := studioDefinition{Name: "Inventory review", Mission: "Check the assigned inventory record", Trigger: "manual", Tools: []string{"inspect_session", inventorymcp.Tool}, ApprovalTools: []string{"inspect_session", inventorymcp.Tool}, Proposal: "none", Approval: true, Steps: 2, Budget: 100, Model: h.analyst.binding.Model}
+	studio := studioDefinition{MinimumConfidence: "exact", Name: "Inventory review", Mission: "Check the assigned inventory record", Trigger: "manual", Tools: []string{"inspect_session", inventorymcp.Tool}, ApprovalTools: []string{"inspect_session", inventorymcp.Tool}, Proposal: "none", Approval: true, Steps: 2, Budget: 100, Model: h.analyst.binding.Model}
 	raw, _ := json.Marshal(studio)
 	saved := b.serve(h, admin, "createCustomSecurityAgent", "POST", "/api/v1/security-agents/custom", nil, string(raw), map[string]string{"Idempotency-Key": b.id()})
 	var def struct {
@@ -99,6 +99,17 @@ func exerciseStudioInventoryTurn(t *testing.T, b *installedBaseline, h *discover
 	}
 	b.seed(func() {
 		b.exec(`UPDATE zasp_runtime_session_events SET confidence='exact' WHERE (organization_id,workspace_id,environment_id,event_id)=($1,$2,$3,$4)`, b.o, b.w, b.e, event)
+	})
+	// An exact record cannot hide a second, weaker agent under the Studio filter.
+	otherEvent := b.id()
+	b.seed(func() {
+		b.exec(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$5,$6,'strong','gateway','policy','block','Separate observation',$7,now())`, b.o, b.w, b.e, otherEvent, session, b.id(), b.id())
+	})
+	if v := run(b.id(), required); v.Code != 409 || !strings.Contains(v.Body.String(), "session_evidence_missing") || calls != 0 {
+		t.Fatalf("ambiguous attribution %d %s", v.Code, v.Body)
+	}
+	b.seed(func() {
+		b.exec(`DELETE FROM zasp_runtime_session_events WHERE (organization_id,workspace_id,environment_id,event_id)=($1,$2,$3,$4)`, b.o, b.w, b.e, otherEvent)
 	})
 	key := b.id()
 	for range 2 {

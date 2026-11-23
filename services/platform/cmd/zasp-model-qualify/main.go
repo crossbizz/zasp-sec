@@ -22,6 +22,7 @@ import (
 )
 
 func main() {
+	candidate := flag.Bool("offline-candidate", false, "measure a signed, offline-only candidate without activating or recording a tenant model")
 	workQueue := flag.Bool("work", false, "poll and measure authorized requests for this signed profile")
 	corpus := flag.String("corpus", "", "signed corpus JSONL for screening or false-positive verification")
 	manifest := flag.String("manifest", "", "signed deployment manifest file")
@@ -31,7 +32,7 @@ func main() {
 	work := flag.String("workspace", "", "workspace product ID")
 	env := flag.String("environment", "", "environment product ID")
 	flag.Parse()
-	if err := run(*manifest, *sig, *key, *corpus, *workQueue, []string{*org, *work, *env}); err != nil {
+	if err := run(*manifest, *sig, *key, *corpus, *workQueue, *candidate, []string{*org, *work, *env}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -44,7 +45,10 @@ func readBase64(name string) ([]byte, error) {
 	}
 	return base64.StdEncoding.DecodeString(string(b))
 }
-func run(manifest, signature, key, corpus string, workQueue bool, ids []string) error {
+func run(manifest, signature, key, corpus string, workQueue, candidate bool, ids []string) error {
+	if len(ids) != 3 || (workQueue && candidate) {
+		return errors.New("invalid qualification scope or mode")
+	}
 	var scopeIDs []domain.ProductID
 	for _, id := range ids {
 		parsed, err := domain.ParseProductID(id)
@@ -67,6 +71,9 @@ func run(manifest, signature, key, corpus string, workQueue bool, ids []string) 
 	pub, err := readBase64(key)
 	if err != nil {
 		return err
+	}
+	if candidate {
+		return runOfflineCandidate(raw, sig, pub, corpus, [3]string{ids[0], ids[1], ids[2]})
 	}
 	a, err := aigateway.VerifyAttestation(raw, sig, ed25519.PublicKey(pub), time.Now())
 	if err != nil {
@@ -151,6 +158,9 @@ type executor interface {
 }
 
 func record(ctx context.Context, conn executor, ids []string, manifest []byte, a aigateway.DeploymentAttestation, r aigateway.QualificationResult) error {
+	if !aigateway.EligibleModel(a.Purpose, a.ProviderMode(), a.ModelName()) {
+		return errors.New("model is ineligible for tenant qualification")
+	}
 	data, err := json.Marshal(r)
 	if err != nil {
 		return err

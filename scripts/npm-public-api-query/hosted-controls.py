@@ -26,6 +26,6 @@ for name,cwd,args,expected in [
  text=raw.decode('utf-8','strict')
  if rc!=expected:raise ValueError('control exit refusal')
  if name=='omitted-malware-red' and not all(s in text for s in ['66 != 99','Ran 1 test','FAILED (failures=1)']):raise ValueError('causal baseline refusal')
- if name=='grouped-green' and not all(s in text for s in ['Ran 16 tests','\nOK\n']):raise ValueError('grouped census refusal')
+ if name=='grouped-green' and not all(s in text for s in ['Ran 19 tests','\nOK\n']):raise ValueError('grouped census refusal')
  rows.append(dict(stage=name,normalWaitExit=rc,elapsedSeconds=time.monotonic()-started,stdoutSHA256=hashlib.sha256((OUT/(name+'.stdout')).read_bytes()).hexdigest(),stderrSHA256=hashlib.sha256(raw).hexdigest()))
-(OUT/'controls-result.json').write_text(json.dumps(dict(stages=rows,scope='Offline source-adapted omission RED and sixteen grouped component controls only; no upstream acquisition or release clearance.'),indent=2)+'\n')
+(OUT/'controls-result.json').write_text(json.dumps(dict(stages=rows,scope='Offline source-adapted omission RED and nineteen grouped component controls only; no upstream acquisition or release clearance.'),indent=2)+'\n')

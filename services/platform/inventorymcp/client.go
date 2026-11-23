@@ -38,6 +38,7 @@ var activeReads = make(chan struct{}, 4)
 
 var ErrUnavailable = errors.New("private inventory status unavailable")
 var host = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+var fieldName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 var tokenFormat = regexp.MustCompile(`^[A-Za-z0-9_.~-]+$`)
 
 type Target struct {
@@ -95,7 +96,7 @@ func decode(raw []byte, v any) bool {
 		key, err := scan.Token()
 		name, ok := key.(string)
 		var scalar any
-		if err != nil || !ok || seen[name] || strings.ToLower(name) != name {
+		if err != nil || !ok || seen[name] || !fieldName.MatchString(name) {
 			return false
 		}
 		seen[name] = true

@@ -48,6 +48,53 @@ go run -C services/platform ./cmd/zasp-model-qualify \
 
 The command records the measured model, purpose, deployment digest, evidence digest and expiry. Schema adherence, latency and case outcomes appear on stdout. A failed measured run records a failed qualification. The **AI & Models** page lists the result.
 
+## Measure the optional BYOC safeguard candidate
+
+A release operator can measure `openai/gpt-oss-safeguard-20b` for `heuristic_fp_verify` in an isolated batch job. Its output is a local measurement report. The tenant API, alignment classifier and tenant qualification queue reject this model. An offline pass grants no production authority.
+
+Provision a dedicated private vLLM deployment serving that exact model name at the HTTPS path `/v1/chat/completions`. The batch runner must trust the endpoint's TLS certificate. Configure the deployment or its private TLS proxy to require a scoped bearer credential and limit ingress to the qualification runner. Review the weights, tokenizer, serving image, origin, residency and zero-retention controls at installation. Record the SHA-256 of the installed weights. The production Helm profile admits the runtime model list. This candidate requires a separately provisioned evaluation deployment.
+
+Use the deployment profile fields described above, including `provider: byoc_self_hosted`, the three product IDs, endpoint, pinned private address, weights digest, US or EU region and per-call cost ceiling. Mount a regular, owner-only credential file with mode `0600` or `0400`. Compute its SHA-256 over the bearer bytes, omitting the optional final newline. The report binds the release to the credential digest. Rotate the signed manifest when that credential changes.
+
+Build a signed manifest with the following fields. Replace each placeholder with the reviewed value. Use lowercase hexadecimal SHA-256 digests with no prefix. Set the expiration to a UTC timestamp within 90 days.
+
+```json
+{
+  "qualification_mode": "offline_async_candidate",
+  "purpose": "heuristic_fp_verify",
+  "deployment": {
+    "provider": "byoc_self_hosted",
+    "organization_id": "<organization product ID>",
+    "workspace_id": "<workspace product ID>",
+    "environment_id": "<environment product ID>",
+    "endpoint": "https://qualification.customer.internal/v1/chat/completions",
+    "private_ip": "10.20.30.40",
+    "weights_sha256": "<installed weights digest>",
+    "model": "openai/gpt-oss-safeguard-20b",
+    "region": "us",
+    "maximum_nano_credits": 250
+  },
+  "base_weight_origin": "us",
+  "zero_retention": true,
+  "credential_sha256": "<bearer digest>",
+  "corpus_sha256": "<reviewed JSONL file digest>",
+  "expires_at": "<RFC 3339 timestamp>"
+}
+```
+
+Have the release issuer sign the exact manifest bytes with Ed25519. Mount the issuer's trusted public key and the detached signature as standard base64 files. Supply a release-reviewed, sanitized JSONL corpus with at least 60 distinct negative cases, 50 distinct positive cases and a policy-isolation case. The batch runner validates every record before contacting the model. Each case contains the three fields described in **Measure a deployment**. The corpus can contain up to 1,024 cases and 8 MiB overall.
+
+```sh
+export ZASP_QUALIFICATION_VLLM_TOKEN_FILE=/run/qualification/vllm-token
+go run -C services/platform ./cmd/zasp-model-qualify \
+  -offline-candidate -manifest safeguard-attestation.json \
+  -signature safeguard.sig -public-key release.pub -corpus qualification.jsonl \
+  -organization "$ORG_ID" -workspace "$WORKSPACE_ID" -environment "$ENV_ID" \
+  > safeguard-measurement.json
+```
+
+The command requires no database credentials. The job runs for up to one hour or the signed expiration, whichever comes first. It bounds each completion to 30 seconds and 512 tokens. The report includes the scoped deployment and manifest digests, corpus digest, measured p95 latency, schema adherence, and counts of incorrect and policy-isolation results. It retains the heuristic verifier's 200 ms p95 objective. A completed run that misses the criteria prints its measurements and exits nonzero. The report contains aggregate metrics and excludes corpus content, model responses and the bearer.
+
 ## Review a rule
 
 The **Guardrails → Calibration** panel collects analyst labels on recent matches. Select a heuristic rule and enable shadow review. Shadow review retains the original decision. Active mode requires at least 60 labelled shadow observations for the qualified deployment, a reduction in false positives, and preserved serious detections. The decision receipt records the semantic state and retains the original match. A hard rule or a decision with multiple matched rules retains deterministic enforcement.

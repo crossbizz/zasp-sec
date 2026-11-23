@@ -89,15 +89,22 @@ func (d *VLLMDriver) Evaluate(ctx context.Context, p Purpose, input json.RawMess
 	if ctx == nil || d == nil || !ok || !EligibleModel(p, ModeVPC, d.model) || systemMessages[p] == "" || len(input) > rule.MaxInputBytes || !json.Valid(input) {
 		return nil, ErrInvalidRequest
 	}
+	return d.exchange(ctx, p, input, rule.MaxLatency, 128, "")
+}
+
+func (d *VLLMDriver) exchange(ctx context.Context, p Purpose, input json.RawMessage, timeout time.Duration, maxTokens int, bearer string) (json.RawMessage, error) {
 	data, _ := json.Marshal(map[string]json.RawMessage{"untrusted_data": input})
-	body, _ := json.Marshal(map[string]any{"model": d.model, "temperature": 0, "max_tokens": 128, "response_format": map[string]string{"type": "json_object"}, "messages": []modelMessage{{"system", systemMessages[p]}, {"user", string(data)}}})
-	bounded, cancel := context.WithTimeout(ctx, rule.MaxLatency)
+	body, _ := json.Marshal(map[string]any{"model": d.model, "temperature": 0, "max_tokens": maxTokens, "response_format": map[string]string{"type": "json_object"}, "messages": []modelMessage{{"system", systemMessages[p]}, {"user", string(data)}}})
+	bounded, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	request, err := http.NewRequestWithContext(bounded, http.MethodPost, d.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, ErrGeneration
 	}
 	request.Header.Set("Content-Type", "application/json")
+	if bearer != "" {
+		request.Header.Set("Authorization", "Bearer "+bearer)
+	}
 	resp, err := d.client.Do(request)
 	if err != nil {
 		return nil, ErrGeneration
