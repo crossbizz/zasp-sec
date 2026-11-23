@@ -210,8 +210,8 @@ func evaluateVulnerabilitiesAt(values []Vulnerability, evaluatedAt time.Time) (S
 		}
 		// A date-only exception expires exclusively at midnight UTC on that date.
 		expiry, expiryErr := time.Parse("2006-01-02", value.ExceptionExpires)
-		accepted := value.Severity != "critical" || value.ExceptionApproved && validIdentifier(value.ExceptionOwner) && expiryErr == nil && expiry.After(evaluatedAt)
-		checks = append(checks, check(value.ID, accepted, true, "remediate the critical finding or attach an approved owner and expiry"))
+		accepted := (value.Severity != "critical" && value.Severity != "high") || value.ExceptionApproved && validIdentifier(value.ExceptionOwner) && expiryErr == nil && expiry.After(evaluatedAt)
+		checks = append(checks, check(value.ID, accepted, true, "remediate the high or critical finding or attach an approved owner and expiry"))
 	}
 	return requireSecurityChecks(checks)
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { BrowserProfiles } from "./BrowserProfiles";
+import { WorkloadControls } from "./WorkloadControls";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
@@ -91,6 +93,17 @@ export function createAPIAccessAPI(client: APIClient): APIAccessAPI {
 }
 
 type CreateTokenInput = Parameters<APIAccessAPI["createToken"]>[0];
+const tokenUses = {
+  view: "Read the Environment (view)",
+  decide_guardrails: "Guardrail decisions only (decide_guardrails)",
+  use_gateway: "Hosted gateway only (use_gateway)",
+  decide_actions: "Workload action decisions and outcomes (decide_actions)",
+  submit_addon_scans: "Submit add-on findings only (submit_addon_scans)",
+  report_browser_usage: "Report one managed browser profile (report_browser_usage)",
+  sync_endpoint: "Sync one managed endpoint (sync_endpoint)",
+} as const;
+type TokenUse = keyof typeof tokenUses;
+
 type PendingMutation = { kind: "create"; key: string; input: CreateTokenInput } | { kind: "rotate"; key: string; tokenID: string };
 
 export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI; client?: APIClient }) {
@@ -110,7 +123,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [name, setName] = useState("");
   // What the new token may do. A gateway that only asks for guardrail
   // decisions gets a token that can read nothing.
-  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails" | "use_gateway">("view");
+  const [tokenUse, setTokenUse] = useState<TokenUse>("view");
   // How long the new token lives. One day unless the person chooses more.
   const [lifetimeDays, setLifetimeDays] = useState(1);
   const [policy, setPolicy] = useState<APIAccessPolicy | null>(null);
@@ -169,7 +182,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const reconcileMutation = async () => { await load(); };
   // The longest lifetime of the token being created: a decisions-only token
   // may live longer than one that reads the Environment.
-  const longestLifetimeDays = policy === null ? 1 : tokenUse !== "view" ? policy.decisionTokenMaxLifetimeDays : policy.tokenMaxLifetimeDays;
+  const longestLifetimeDays = policy === null ? 1 : (tokenUse === "decide_guardrails" || tokenUse === "use_gateway") ? policy.decisionTokenMaxLifetimeDays : policy.tokenMaxLifetimeDays;
   const lifetimeChoices = LIFETIME_CHOICES.filter((choice) => choice.days <= longestLifetimeDays);
   const chosenLifetimeDays = lifetimeChoices.some((choice) => choice.days === lifetimeDays) ? lifetimeDays : 1;
   const expiresAt = () => new Date(Date.now() + chosenLifetimeDays * DAY_MILLISECONDS).toISOString();
@@ -201,9 +214,12 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
     <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} />
-      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : event.target.value === "use_gateway" ? "use_gateway" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option><option value="use_gateway">Hosted gateway only (use_gateway)</option></Select>
+      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => {
+        const use = event.target.value;
+        if (Object.hasOwn(tokenUses, use)) setTokenUse(use as TokenUse);
+      }}>{Object.entries(tokenUses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
       <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Expires after" value={String(chosenLifetimeDays)} onChange={(event) => setLifetimeDays(Number(event.target.value))}>{lifetimeChoices.map((choice) => <option key={choice.days} value={choice.days}>{choice.label}</option>)}</Select></div>
-      <p>{tokenUse === "decide_guardrails" ? "A token for guardrail decisions only can read nothing, so it may live up to a year." : tokenUse === "use_gateway" ? "A token for the hosted gateway only can read nothing, so it may live up to a year." : "A token that reads the Environment may live up to 90 days."}{policy !== null && policy.maxLifetimeDays < 365 && ` This Environment limits new tokens to ${policy.maxLifetimeDays} ${policy.maxLifetimeDays === 1 ? "day" : "days"}.`}{policy === null && " The lifetime setting could not be loaded; only the one-day lifetime is offered."}</p>
+      <p>{tokenUse === "decide_guardrails" ? "A token for guardrail decisions only can read nothing, so it may live up to a year." : tokenUse === "use_gateway" ? "A token for the hosted gateway only can read nothing, so it may live up to a year." : tokenUse === "decide_actions" ? "This token admits tool actions and reports their outcomes for one workload." : tokenUse === "submit_addon_scans" ? "This token submits findings to this Environment. AppSec reviews them through a separate browser session." : tokenUse === "report_browser_usage" ? "One managed browser profile must also prove possession of its registered signing key." : tokenUse === "sync_endpoint" ? "A registered endpoint also proves possession of its device key on every sync." : "A token that reads the Environment may live up to 90 days."}{policy !== null && policy.maxLifetimeDays < 365 && ` This Environment limits new tokens to ${policy.maxLifetimeDays} ${policy.maxLifetimeDays === 1 ? "day" : "days"}.`}{policy === null && " The lifetime setting could not be loaded; only the one-day lifetime is offered."}</p>
       {tokenUse === "decide_guardrails" && <p>This token can call the guardrail decision API and nothing else: it cannot read inventory, findings or settings.</p>}
       {tokenUse === "use_gateway" && <p>This token can send an agent&apos;s MCP and model traffic through the hosted gateway and nothing else: it cannot read inventory, findings, settings or the gateway&apos;s activity.</p>}
       {activeScope && <p>New credentials use the authenticated active scope <code>{activeScope.workspaceId}/{activeScope.environmentId}</code>.</p>}
@@ -221,6 +237,8 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
         <Button disabled={!fresh || savingLimit || selectedLimitDays === policy.maxLifetimeDays} onClick={() => void saveLimit()}>Save limit</Button>
       </>}
     </Card>
+    {client && activeScope && <WorkloadControls key={activeScope.environmentId} client={client} fresh={fresh} canContain={session?.status === "authenticated" && session.permissions.includes("revoke_sessions")} tokens={tokens.filter(token => token.environmentId === activeScope.environmentId && token.workspaceId === activeScope.workspaceId)} />}
+    {client && activeScope && <BrowserProfiles key={activeScope.environmentId} client={client} tokens={tokens} fresh={fresh} environment={activeScope.environmentId} />}
     <Card title={<h2>API tokens</h2>}>{tokens.length === 0 ? <EmptyState title="No API tokens" description="Create a scoped credential for automation." /> : <ul className="identity-list">{tokens.map((token) => <li key={token.id}><span><strong>{token.name}</strong><small>{token.permissions.join(" · ")} · expires {token.expiresAt} · {token.lastUsedAt ? `last used ${token.lastUsedAt}` : "never used"}</small></span><div className="row-actions">{token.revokedAt ? <Badge tone="neutral">Revoked</Badge> : Date.parse(token.expiresAt) <= now ? <Badge tone="neutral">Expired</Badge> : daysLeft(token) <= EXPIRY_WARNING_DAYS ? <Badge tone="warning">{daysLeft(token) <= 1 ? "Expires within a day" : `Expires in ${daysLeft(token)} days`}</Badge> : <Badge tone="success">Active</Badge>}{!token.revokedAt && <><Button disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation !== null && (unresolvedMutation.kind !== "rotate" || unresolvedMutation.tokenID !== token.id)} aria-label={`Rotate ${token.name}`} onClick={() => void (async () => { if (!api) return; const retained = pendingMutation.current; const key = retained?.kind === "rotate" && retained.tokenID === token.id ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "rotate", key, tokenID: token.id }); try { const rotated = await api.rotateToken(token.id, token.version, key); setTokens((current) => [...current.filter((item) => item.id !== token.id && item.id !== rotated.token.id), rotated.token]); setGrants((current) => [...current.filter((item) => item.grantId !== rotated.grant.grantId), rotated.grant]); retainMutation(null); setNotice("API token rotated; the old token is revoked"); await reveal(rotated.grant); } catch { await reconcileMutation(); setError("Rotate response was interrupted. Recover a pending grant or retry the exact retained operation."); } })()}>{unresolvedMutation?.kind === "rotate" && unresolvedMutation.tokenID === token.id ? "Retry rotate" : "Rotate"}</Button><Button disabled={!fresh || revealed !== null || recoveryLocked} variant="danger" aria-label={`Revoke ${token.name}`} onClick={() => { if (window.confirm(`Revoke ${token.name}?`)) void (async () => { try { if (!api) throw new Error(); const revoked = await api.revokeToken(token.id, token.version); setTokens((current) => current.map((item) => item.id === token.id ? revoked : item)); setGrants((current) => current.filter((grant) => grant.tokenId !== token.id)); setNotice("API token revoked"); } catch { setError("API token could not be revoked"); } })(); }}>Revoke</Button></>}</div></li>)}</ul>}</Card>
   </div>;
 }

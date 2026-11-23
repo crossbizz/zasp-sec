@@ -89,6 +89,11 @@ replicas:
   runtimeCorrelation: 2
   runtimeProjection: 2
   runtimeComplete: 2
+privateAddonWorker:
+  retained: false
+  origin: ""
+  scope: ""
+  resultCredentialID: ""
 ingress:
   enabled: true
   className: nginx

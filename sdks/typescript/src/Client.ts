@@ -41,10 +41,11 @@ export class ZaspClient {
     protected _integrations: IntegrationsClient | undefined;
     protected _sensors: SensorsClient | undefined;
     protected _guardrails: GuardrailsClient | undefined;
+    protected _tools: ToolsClient | undefined;
     protected _gateway: GatewayClient | undefined;
     protected _gatewayTraffic: GatewayTrafficClient | undefined;
     protected _agents: AgentsClient | undefined;
-    protected _tools: ToolsClient | undefined;
+    protected _policies: PoliciesClient | undefined;
     protected _mcpServers: McpServersClient | undefined;
     protected _identities: IdentitiesClient | undefined;
     protected _runtimes: RuntimesClient | undefined;
@@ -52,7 +53,6 @@ export class ZaspClient {
     protected _findings: FindingsClient | undefined;
     protected _attackPaths: AttackPathsClient | undefined;
     protected _search: SearchClient | undefined;
-    protected _policies: PoliciesClient | undefined;
     protected _securityAgents: SecurityAgentsClient | undefined;
     protected _securityAgentRuns: SecurityAgentRunsClient | undefined;
     protected _securityAgentApprovals: SecurityAgentApprovalsClient | undefined;
@@ -83,6 +83,10 @@ export class ZaspClient {
         return (this._guardrails ??= new GuardrailsClient(this._options));
     }
 
+    public get tools(): ToolsClient {
+        return (this._tools ??= new ToolsClient(this._options));
+    }
+
     public get gateway(): GatewayClient {
         return (this._gateway ??= new GatewayClient(this._options));
     }
@@ -95,8 +99,8 @@ export class ZaspClient {
         return (this._agents ??= new AgentsClient(this._options));
     }
 
-    public get tools(): ToolsClient {
-        return (this._tools ??= new ToolsClient(this._options));
+    public get policies(): PoliciesClient {
+        return (this._policies ??= new PoliciesClient(this._options));
     }
 
     public get mcpServers(): McpServersClient {
@@ -125,10 +129,6 @@ export class ZaspClient {
 
     public get search(): SearchClient {
         return (this._search ??= new SearchClient(this._options));
-    }
-
-    public get policies(): PoliciesClient {
-        return (this._policies ??= new PoliciesClient(this._options));
     }
 
     public get securityAgents(): SecurityAgentsClient {

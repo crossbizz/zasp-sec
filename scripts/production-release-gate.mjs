@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import { verifyReleaseSources } from "../deploy/production/release-gates.mjs";
 
+import { verifyPromotion } from './release-security/verify.mjs';
+
 const exec = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -18,10 +20,9 @@ await run("go", ["test", "-C", "cmd/agentsecctl", "-race", "-count=1", "./..."])
 for (const moduleRoot of ["services/health", "services/platform"]) {
   await run("go", ["list", "-mod=readonly", "-m", "all"], { cwd: path.join(root, moduleRoot) });
 }
-// Offline npm audit skips advisory lookup but can still return zero counters.
-// No approved advisory source is wired yet. Do not enable network disclosure or
-// accept historical reports as a substitute. See the offline-audit gate-gap note.
-throw new Error("production dependency audit evidence unavailable: release blocked until an approved advisory source supplies fresh, exact-lock scan evidence; offline zero counters are not clearance (docs/internal/2026-09-15-offline-audit-gate-gap.md)");
+// Missing or unauthenticated advisory evidence fails before promotion.
+const receipt = await verifyPromotion({dir:process.env.ZASP_RELEASE_EVIDENCE_DIR});
+console.log(JSON.stringify(receipt));
 
 async function run(command, args, options = {}) {
   try {

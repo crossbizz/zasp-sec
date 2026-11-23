@@ -155,8 +155,9 @@ func (resolver *projectionNeo4jAuthenticationResolver) readBasicToken(ctx contex
 
 type productionProjectionProjector struct {
 	projectionProjector
-	ready func(context.Context) error
-	close func() error
+	actionEvidence actionEvidenceStore
+	ready          func(context.Context) error
+	close          func() error
 }
 
 func newProductionSearchProjection(ctx context.Context, config workerRuntimeConfig) (productionProjectionProjector, error) {
@@ -280,6 +281,7 @@ func newProductionGraphProjectionWithDevelopment(ctx context.Context, config wor
 	}
 	return productionProjectionProjector{
 		projectionProjector: projector,
+		actionEvidence:      store,
 		ready:               ready,
 		close: func() error {
 			closeCtx, cancel := context.WithTimeout(context.Background(), minDuration(config.ShutdownTimeout, config.LeaseDuration/3))

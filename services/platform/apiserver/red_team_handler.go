@@ -178,6 +178,7 @@ func (handler *redTeamPublicHTTPHandler) getDefinition(writer http.ResponseWrite
 		writeProductionError(writer, request, err)
 		return
 	}
+	writer.Header().Set("X-Zasp-Verified-Scope", expectedScopeValue(identity.Scope))
 	writer.Header().Set("ETag", `"`+strconv.FormatInt(result.Version, 10)+`"`)
 	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
@@ -273,6 +274,7 @@ func (handler *redTeamPublicHTTPHandler) getRun(writer http.ResponseWriter, requ
 		writeProductionError(writer, request, err)
 		return
 	}
+	writer.Header().Set("X-Zasp-Verified-Scope", expectedScopeValue(identity.Scope))
 	writer.Header().Set("ETag", `"`+strconv.FormatInt(result.Version, 10)+`"`)
 	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }

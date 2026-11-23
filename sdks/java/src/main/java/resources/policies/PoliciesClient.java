@@ -19,10 +19,9 @@ import ai.zasp.api.resources.policies.requests.UpdatePoliciesRequest;
 import ai.zasp.api.types.Policy;
 import ai.zasp.api.types.PolicyRollout;
 import ai.zasp.api.types.PolicySimulation;
+import ai.zasp.api.types.PolicySimulationInput;
 import ai.zasp.api.types.RuntimeDecisionPage;
-import java.lang.Object;
 import java.lang.String;
-import java.util.Map;
 
 public class PoliciesClient {
   protected final ClientOptions clientOptions;
@@ -107,11 +106,11 @@ public class PoliciesClient {
     return this.rawClient.rollout(id, request, requestOptions).body();
   }
 
-  public PolicySimulation simulate(String id, Map<String, Object> body) {
+  public PolicySimulation simulate(String id, PolicySimulationInput body) {
     return this.rawClient.simulate(id, body).body();
   }
 
-  public PolicySimulation simulate(String id, Map<String, Object> body,
+  public PolicySimulation simulate(String id, PolicySimulationInput body,
       RequestOptions requestOptions) {
     return this.rawClient.simulate(id, body, requestOptions).body();
   }

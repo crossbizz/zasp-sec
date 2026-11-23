@@ -39,6 +39,34 @@ const receiptHeaders = {
 const runtimePolicy: Policy = { id: "policy-runtime-history", name: "Runtime history", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "invoke" }], action: "block", rollout: "monitor", failure_mode: "closed" };
 
 describe("production policy evidence", () => {
+  it("creates a provider tool-class draft and edits its exact condition with the acknowledged revision", async () => {
+    const GET = vi.fn(async (path: string) => {
+      if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));
+      if (path === "/api/v1/policies") return jsonResult({items:[],page_info:{next_cursor:null,has_more:false}});
+      throw new Error(path);
+    });
+    const POST = vi.fn(async (_path: string, options: {body:Policy}) => jsonResult(options.body,201,receiptHeaders));
+    const PATCH = vi.fn(async (_path: string, options: {body:Policy}) => jsonResult(options.body,200,{...receiptHeaders,ETag:'"3"'}));
+    render(<APIProvider client={{GET,POST,PATCH} as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Fill conditions from a provider template"), "third_party");
+    await user.selectOptions(screen.getByLabelText("New policy action"), "block");
+    await user.click(screen.getByRole("button",{name:"Create policy"}));
+    const body = {id:"policy-production",name:"Production runtime policy",scope:"environment",trigger:"tool",rollout:"draft",action:"block",failure_mode:"open",
+      conditions:[{field:"action",operator:"equals",value:"claude.tool_frame"},{field:"resource",operator:"equals",value:"claude.tool_frame.third_party"}]};
+    expect(POST).toHaveBeenCalledWith("/api/v1/policies", expect.objectContaining({body}));
+    const field = await screen.findByLabelText("Draft policy condition 2 equals");
+    fireEvent.change(field,{target:{value:" "}});
+    expect(screen.getByRole("button",{name:"Save changes"})).toBeDisabled();
+    fireEvent.change(field,{target:{value:"claude.tool_frame.client"}});
+    await user.selectOptions(screen.getByLabelText("Draft policy failure mode"), "closed");
+    await user.click(screen.getByRole("button",{name:"Save changes"}));
+    await waitFor(()=>expect(PATCH).toHaveBeenCalledWith("/api/v1/policies/{id}",expect.objectContaining({
+      params:expect.objectContaining({header:expect.objectContaining({"If-Match":'"2"'})}),
+      body:{...body,conditions:[body.conditions[0],{...body.conditions[1],value:"claude.tool_frame.client"}],failure_mode:"closed"},
+    })));
+    expect(POST).toHaveBeenCalledTimes(1);
+  });
 	it("loads and edits optional policy risk through the production form", async () => {
 		const annotated = { ...runtimePolicy, risk: "high" };
 		const GET = vi.fn(async (path: string) => {

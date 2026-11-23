@@ -45,13 +45,15 @@ public class Zasp implements AutoCloseable {
 
   protected final Supplier<GuardrailsClient> guardrailsClient;
 
+  protected final Supplier<ToolsClient> toolsClient;
+
   protected final Supplier<GatewayClient> gatewayClient;
 
   protected final Supplier<GatewayTrafficClient> gatewayTrafficClient;
 
   protected final Supplier<AgentsClient> agentsClient;
 
-  protected final Supplier<ToolsClient> toolsClient;
+  protected final Supplier<PoliciesClient> policiesClient;
 
   protected final Supplier<McpServersClient> mcpServersClient;
 
@@ -66,8 +68,6 @@ public class Zasp implements AutoCloseable {
   protected final Supplier<AttackPathsClient> attackPathsClient;
 
   protected final Supplier<SearchClient> searchClient;
-
-  protected final Supplier<PoliciesClient> policiesClient;
 
   protected final Supplier<SecurityAgentsClient> securityAgentsClient;
 
@@ -91,10 +91,11 @@ public class Zasp implements AutoCloseable {
     this.integrationsClient = Suppliers.memoize(() -> new IntegrationsClient(clientOptions));
     this.sensorsClient = Suppliers.memoize(() -> new SensorsClient(clientOptions));
     this.guardrailsClient = Suppliers.memoize(() -> new GuardrailsClient(clientOptions));
+    this.toolsClient = Suppliers.memoize(() -> new ToolsClient(clientOptions));
     this.gatewayClient = Suppliers.memoize(() -> new GatewayClient(clientOptions));
     this.gatewayTrafficClient = Suppliers.memoize(() -> new GatewayTrafficClient(clientOptions));
     this.agentsClient = Suppliers.memoize(() -> new AgentsClient(clientOptions));
-    this.toolsClient = Suppliers.memoize(() -> new ToolsClient(clientOptions));
+    this.policiesClient = Suppliers.memoize(() -> new PoliciesClient(clientOptions));
     this.mcpServersClient = Suppliers.memoize(() -> new McpServersClient(clientOptions));
     this.identitiesClient = Suppliers.memoize(() -> new IdentitiesClient(clientOptions));
     this.runtimesClient = Suppliers.memoize(() -> new RuntimesClient(clientOptions));
@@ -102,7 +103,6 @@ public class Zasp implements AutoCloseable {
     this.findingsClient = Suppliers.memoize(() -> new FindingsClient(clientOptions));
     this.attackPathsClient = Suppliers.memoize(() -> new AttackPathsClient(clientOptions));
     this.searchClient = Suppliers.memoize(() -> new SearchClient(clientOptions));
-    this.policiesClient = Suppliers.memoize(() -> new PoliciesClient(clientOptions));
     this.securityAgentsClient = Suppliers.memoize(() -> new SecurityAgentsClient(clientOptions));
     this.securityAgentRunsClient = Suppliers.memoize(() -> new SecurityAgentRunsClient(clientOptions));
     this.securityAgentApprovalsClient = Suppliers.memoize(() -> new SecurityAgentApprovalsClient(clientOptions));
@@ -129,6 +129,10 @@ public class Zasp implements AutoCloseable {
     return this.guardrailsClient.get();
   }
 
+  public ToolsClient tools() {
+    return this.toolsClient.get();
+  }
+
   public GatewayClient gateway() {
     return this.gatewayClient.get();
   }
@@ -141,8 +145,8 @@ public class Zasp implements AutoCloseable {
     return this.agentsClient.get();
   }
 
-  public ToolsClient tools() {
-    return this.toolsClient.get();
+  public PoliciesClient policies() {
+    return this.policiesClient.get();
   }
 
   public McpServersClient mcpServers() {
@@ -171,10 +175,6 @@ public class Zasp implements AutoCloseable {
 
   public SearchClient search() {
     return this.searchClient.get();
-  }
-
-  public PoliciesClient policies() {
-    return this.policiesClient.get();
   }
 
   public SecurityAgentsClient securityAgents() {

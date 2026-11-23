@@ -63,6 +63,23 @@ func TestSBOMIsDeterministicAndRequiresImmutableImages(t *testing.T) {
 	}
 }
 
+func TestHighSeverityUsesTheSameExpiringExceptionAsCritical(t *testing.T) {
+	at := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	for _, severity := range []string{"high", "critical"} {
+		finding := Vulnerability{ID: "CVE-2026-0001", Severity: severity}
+		if _, err := evaluateVulnerabilitiesAt([]Vulnerability{finding}, at); err == nil {
+			t.Fatalf("accepted an unapproved %s finding", severity)
+		}
+		finding.ExceptionApproved, finding.ExceptionOwner, finding.ExceptionExpires = true, "security", "2026-06-02"
+		if _, err := evaluateVulnerabilitiesAt([]Vulnerability{finding}, at); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := evaluateVulnerabilitiesAt([]Vulnerability{finding}, at.Add(24*time.Hour)); err == nil {
+			t.Fatal("accepted an expired exception")
+		}
+	}
+}
+
 func TestSigningAndVulnerabilityGatesRejectUnsafeRelease(t *testing.T) {
 	reference := "registry.example/zasp/api@sha256:" + repeat("b", 64)
 	if _, err := EvaluateImageSignatures([]ImageSignatureEvidence{{ImageReference: reference, Signed: true, Verified: true, TamperedRejected: true, UnsignedRejected: true}}); err != nil {

@@ -58,6 +58,15 @@ var productWorkflowOperations = map[string]struct{ kind, action string }{
 }
 
 var productStatementRules = map[string]productStatementRule{
+	browserProfileSQL:         {operations: []string{"getBrowserProfile", "registerBrowserProfile", "retireBrowserProfile", "recordBrowserOriginDays"}, arguments: 6, scope: 1, actor: 4, object: 5, check: browserStatementAllowed},
+	currentWorkloadContainSQL: {operations: []string{"authorizeWorkloadContainment", "releaseWorkloadContainment", "getWorkloadContainment"}, arguments: 7, scope: 1, actor: 4, object: 5, browserOnly: true, check: workloadControlStatementAllowed},
+
+	currentWorkloadBindingWriteSQL: {operations: []string{"bindWorkloadCredential"}, arguments: 6, scope: 1, actor: 4, object: 5, browserOnly: true, fresh: true, check: workloadBindingStatementAllowed},
+	currentWorkloadBindingReadSQL:  {operations: []string{"getWorkloadCredentialBinding"}, arguments: 5, scope: 1, actor: 4, object: 5, browserOnly: true, check: workloadBindingStatementAllowed},
+
+	currentWorkloadActionSQL:  {operations: []string{"createWorkloadActionDecision"}, arguments: 6, scope: 1, actor: 4, check: workloadStatementAllowed},
+	currentWorkloadOutcomeSQL: {operations: []string{"recordWorkloadActionOutcome"}, arguments: 6, scope: 1, actor: 4, object: 5, parameter: "actionId", check: workloadStatementAllowed},
+
 	currentReceiptAcknowledgeSQL: {operations: []string{"acknowledgeWorkflowMutationReceipt"}, arguments: 5, scope: 1, actor: 4, object: 5, browserOnly: true},
 	currentPolicyValueSQL:        {operations: []string{"getPolicy", "listPolicyDecisions", "rolloutPolicy", "disablePolicy", "simulatePolicy"}, arguments: 4, scope: 1, object: 4, kind: "policy"},
 	currentWorkflowReplaySQL:     {operations: []string{"createPolicy", "updatePolicy", "rolloutPolicy", "disablePolicy", "deletePolicy", "deleteIntegration"}, arguments: 7, scope: 1, actor: 4, check: productWorkflowReplayAllowed},

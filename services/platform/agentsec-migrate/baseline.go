@@ -15,7 +15,7 @@ import (
 
 // baselineCommand reports whether the arguments select a baseline command.
 func baselineCommand(arguments []string) bool {
-	return len(arguments) == 1 && (arguments[0] == "install-baseline" || arguments[0] == "verify-baseline" || arguments[0] == "baseline-script")
+	return len(arguments) == 1 && (arguments[0] == "upgrade-feature-v2" || arguments[0] == "install-baseline" || arguments[0] == "verify-baseline" || arguments[0] == "baseline-script")
 }
 
 // writeBaselineScript prints the installation as a JSON array of single SQL
@@ -76,7 +76,13 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 		}
 		return 0
 	}
-	err = baseline.Install(ctx, conn, baseline.Check{
+	apply := baseline.Install
+	resultKey := "installed"
+	if arguments[0] == "upgrade-feature-v2" {
+		apply = baseline.UpgradeToV2
+		resultKey = "upgraded"
+	}
+	err = apply(ctx, conn, baseline.Check{
 		Name: "authorization readiness",
 		SQL:  `SELECT zasp_authorization80.ready($1)`,
 		Args: []any{migrations.ProductionAuthorizationEnforcement().Checksum()},
@@ -85,7 +91,7 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 		reportBaselineRefusal(stderr, err)
 		return 1
 	}
-	_ = json.NewEncoder(stdout).Encode(map[string]any{"installed": true, "artifact": baseline.Checksum()})
+	_ = json.NewEncoder(stdout).Encode(map[string]any{resultKey: true, "artifact": baseline.Checksum()})
 	return 0
 }
 

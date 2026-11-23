@@ -50,6 +50,8 @@ public final class InventorySummary {
 
   private final InventoryActivityState activityState;
 
+  private final Optional<InventoryAttribution> attribution;
+
   private final String owner;
 
   private final String team;
@@ -76,10 +78,11 @@ public final class InventorySummary {
 
   private InventorySummary(String id, String name, InventoryKind kind, InventoryProvider provider,
       String sourceKind, InventoryDiscovery discovery, InventoryManagementState managementState,
-      Optional<OffsetDateTime> lastActivityAt, InventoryActivityState activityState, String owner,
-      String team, List<String> tags, String evidenceId, int confidenceBasisPoints,
-      OffsetDateTime firstSeen, OffsetDateTime lastSeen, OffsetDateTime observedAt,
-      OffsetDateTime freshUntil, InventoryFreshnessState freshnessState, int version,
+      Optional<OffsetDateTime> lastActivityAt, InventoryActivityState activityState,
+      Optional<InventoryAttribution> attribution, String owner, String team, List<String> tags,
+      String evidenceId, int confidenceBasisPoints, OffsetDateTime firstSeen,
+      OffsetDateTime lastSeen, OffsetDateTime observedAt, OffsetDateTime freshUntil,
+      InventoryFreshnessState freshnessState, int version,
       Map<String, Object> additionalProperties) {
     this.id = id;
     this.name = name;
@@ -90,6 +93,7 @@ public final class InventorySummary {
     this.managementState = managementState;
     this.lastActivityAt = lastActivityAt;
     this.activityState = activityState;
+    this.attribution = attribution;
     this.owner = owner;
     this.team = team;
     this.tags = tags;
@@ -153,6 +157,11 @@ public final class InventorySummary {
   @JsonProperty("activity_state")
   public InventoryActivityState getActivityState() {
     return activityState;
+  }
+
+  @JsonProperty("attribution")
+  public Optional<InventoryAttribution> getAttribution() {
+    return attribution;
   }
 
   @JsonProperty("owner")
@@ -231,12 +240,12 @@ public final class InventorySummary {
   }
 
   private boolean equalTo(InventorySummary other) {
-    return id.equals(other.id) && name.equals(other.name) && kind.equals(other.kind) && provider.equals(other.provider) && sourceKind.equals(other.sourceKind) && discovery.equals(other.discovery) && managementState.equals(other.managementState) && lastActivityAt.equals(other.lastActivityAt) && activityState.equals(other.activityState) && owner.equals(other.owner) && team.equals(other.team) && tags.equals(other.tags) && evidenceId.equals(other.evidenceId) && confidenceBasisPoints == other.confidenceBasisPoints && firstSeen.equals(other.firstSeen) && lastSeen.equals(other.lastSeen) && observedAt.equals(other.observedAt) && freshUntil.equals(other.freshUntil) && freshnessState.equals(other.freshnessState) && version == other.version;
+    return id.equals(other.id) && name.equals(other.name) && kind.equals(other.kind) && provider.equals(other.provider) && sourceKind.equals(other.sourceKind) && discovery.equals(other.discovery) && managementState.equals(other.managementState) && lastActivityAt.equals(other.lastActivityAt) && activityState.equals(other.activityState) && attribution.equals(other.attribution) && owner.equals(other.owner) && team.equals(other.team) && tags.equals(other.tags) && evidenceId.equals(other.evidenceId) && confidenceBasisPoints == other.confidenceBasisPoints && firstSeen.equals(other.firstSeen) && lastSeen.equals(other.lastSeen) && observedAt.equals(other.observedAt) && freshUntil.equals(other.freshUntil) && freshnessState.equals(other.freshnessState) && version == other.version;
   }
 
   @java.lang.Override
   public int hashCode() {
-    return Objects.hash(this.id, this.name, this.kind, this.provider, this.sourceKind, this.discovery, this.managementState, this.lastActivityAt, this.activityState, this.owner, this.team, this.tags, this.evidenceId, this.confidenceBasisPoints, this.firstSeen, this.lastSeen, this.observedAt, this.freshUntil, this.freshnessState, this.version);
+    return Objects.hash(this.id, this.name, this.kind, this.provider, this.sourceKind, this.discovery, this.managementState, this.lastActivityAt, this.activityState, this.attribution, this.owner, this.team, this.tags, this.evidenceId, this.confidenceBasisPoints, this.firstSeen, this.lastSeen, this.observedAt, this.freshUntil, this.freshnessState, this.version);
   }
 
   @java.lang.Override
@@ -338,6 +347,10 @@ public final class InventorySummary {
 
     _FinalStage lastActivityAt(Nullable<OffsetDateTime> lastActivityAt);
 
+    _FinalStage attribution(Optional<InventoryAttribution> attribution);
+
+    _FinalStage attribution(InventoryAttribution attribution);
+
     _FinalStage tags(List<String> tags);
 
     _FinalStage addTags(String tags);
@@ -387,6 +400,8 @@ public final class InventorySummary {
 
     private List<String> tags = new ArrayList<>();
 
+    private Optional<InventoryAttribution> attribution = Optional.empty();
+
     private Optional<OffsetDateTime> lastActivityAt = Optional.empty();
 
     private Map<String, Object> additionalProperties = new HashMap<>();
@@ -405,6 +420,7 @@ public final class InventorySummary {
       managementState(other.getManagementState());
       lastActivityAt(other.getLastActivityAt());
       activityState(other.getActivityState());
+      attribution(other.getAttribution());
       owner(other.getOwner());
       team(other.getTeam());
       tags(other.getTags());
@@ -572,6 +588,22 @@ public final class InventorySummary {
       return this;
     }
 
+    @java.lang.Override
+    public _FinalStage attribution(InventoryAttribution attribution) {
+      this.attribution = Optional.ofNullable(attribution);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "attribution",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage attribution(Optional<InventoryAttribution> attribution) {
+      this.attribution = attribution;
+      return this;
+    }
+
     /**
      * <p>For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind.</p>
      * @return Reference to {@code this} so that method calls can be chained together.
@@ -615,12 +647,12 @@ public final class InventorySummary {
 
     @java.lang.Override
     public InventorySummary build() {
-      return new InventorySummary(id, name, kind, provider, sourceKind, discovery, managementState, lastActivityAt, activityState, owner, team, tags, evidenceId, confidenceBasisPoints, firstSeen, lastSeen, observedAt, freshUntil, freshnessState, version, additionalProperties);
+      return new InventorySummary(id, name, kind, provider, sourceKind, discovery, managementState, lastActivityAt, activityState, attribution, owner, team, tags, evidenceId, confidenceBasisPoints, firstSeen, lastSeen, observedAt, freshUntil, freshnessState, version, additionalProperties);
     }
 
     @JsonAnySetter
     private void putAdditionalPropertyFromJson(String key, Object value) {
-      if (key.equalsIgnoreCase("id") || key.equalsIgnoreCase("name") || key.equalsIgnoreCase("kind") || key.equalsIgnoreCase("provider") || key.equalsIgnoreCase("source_kind") || key.equalsIgnoreCase("discovery") || key.equalsIgnoreCase("management_state") || key.equalsIgnoreCase("last_activity_at") || key.equalsIgnoreCase("activity_state") || key.equalsIgnoreCase("owner") || key.equalsIgnoreCase("team") || key.equalsIgnoreCase("tags") || key.equalsIgnoreCase("evidence_id") || key.equalsIgnoreCase("confidence_basis_points") || key.equalsIgnoreCase("first_seen") || key.equalsIgnoreCase("last_seen") || key.equalsIgnoreCase("observed_at") || key.equalsIgnoreCase("fresh_until") || key.equalsIgnoreCase("freshness_state") || key.equalsIgnoreCase("version")) {
+      if (key.equalsIgnoreCase("id") || key.equalsIgnoreCase("name") || key.equalsIgnoreCase("kind") || key.equalsIgnoreCase("provider") || key.equalsIgnoreCase("source_kind") || key.equalsIgnoreCase("discovery") || key.equalsIgnoreCase("management_state") || key.equalsIgnoreCase("last_activity_at") || key.equalsIgnoreCase("activity_state") || key.equalsIgnoreCase("attribution") || key.equalsIgnoreCase("owner") || key.equalsIgnoreCase("team") || key.equalsIgnoreCase("tags") || key.equalsIgnoreCase("evidence_id") || key.equalsIgnoreCase("confidence_basis_points") || key.equalsIgnoreCase("first_seen") || key.equalsIgnoreCase("last_seen") || key.equalsIgnoreCase("observed_at") || key.equalsIgnoreCase("fresh_until") || key.equalsIgnoreCase("freshness_state") || key.equalsIgnoreCase("version")) {
         return;
       }
       this.additionalProperties.put(key, value);

@@ -8,6 +8,7 @@ import ai.zasp.api.core.BodyProperties;
 import ai.zasp.api.core.ClientOptions;
 import ai.zasp.api.core.MediaTypes;
 import ai.zasp.api.core.ObjectMappers;
+import ai.zasp.api.core.PathSegments;
 import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.core.RetryInterceptor;
 import ai.zasp.api.core.ZaspApiException;
@@ -17,13 +18,19 @@ import ai.zasp.api.errors.BadRequestError;
 import ai.zasp.api.errors.ConflictError;
 import ai.zasp.api.errors.ContentTooLargeError;
 import ai.zasp.api.errors.ForbiddenError;
+import ai.zasp.api.errors.NotFoundError;
 import ai.zasp.api.errors.ServiceUnavailableError;
 import ai.zasp.api.errors.UnauthorizedError;
+import ai.zasp.api.errors.UnprocessableEntityError;
 import ai.zasp.api.resources.guardrails.requests.GuardrailInteraction;
 import ai.zasp.api.resources.guardrails.requests.GuardrailPolicyInput;
+import ai.zasp.api.resources.guardrails.requests.WorkloadActionOutcome;
+import ai.zasp.api.resources.guardrails.requests.WorkloadActionRequest;
 import ai.zasp.api.types.GuardrailDecision;
 import ai.zasp.api.types.GuardrailPolicy;
 import ai.zasp.api.types.ProductError;
+import ai.zasp.api.types.WorkloadActionDecision;
+import ai.zasp.api.types.WorkloadOutcomeAck;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.lang.Exception;
@@ -51,21 +58,21 @@ public class AsyncRawGuardrailsClient {
   }
 
   /**
-   * For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the decide_guardrails permission; a browser session is not accepted, and a token with view alone is refused. decide_guardrails is a permission of API tokens only: a token created with it and nothing else can ask for decisions and cannot read anything. The owner of the token must be able to view the Environment. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
+   * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
    */
-  public CompletableFuture<ZaspHttpResponse<GuardrailDecision>> createDecision(
-      GuardrailInteraction request) {
-    return createDecision(request,null);
+  public CompletableFuture<ZaspHttpResponse<WorkloadActionDecision>> decideAction(
+      WorkloadActionRequest request) {
+    return decideAction(request,null);
   }
 
   /**
-   * For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the decide_guardrails permission; a browser session is not accepted, and a token with view alone is refused. decide_guardrails is a permission of API tokens only: a token created with it and nothing else can ask for decisions and cannot read anything. The owner of the token must be able to view the Environment. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
+   * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
    */
-  public CompletableFuture<ZaspHttpResponse<GuardrailDecision>> createDecision(
-      GuardrailInteraction request, RequestOptions requestOptions) {
+  public CompletableFuture<ZaspHttpResponse<WorkloadActionDecision>> decideAction(
+      WorkloadActionRequest request, RequestOptions requestOptions) {
     HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-      .addPathSegments("api/v1/guardrails/decisions");if (requestOptions != null) {
+      .addPathSegments("api/v1/runtime/action-decisions");if (requestOptions != null) {
         requestOptions.getQueryParameters().forEach((_key, _value) -> {
           httpUrl.addQueryParameter(_key, _value);
         } );
@@ -74,16 +81,17 @@ public class AsyncRawGuardrailsClient {
       try {
         body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
       }
-      catch(JsonProcessingException e) {
-        throw new ZaspException("Failed to serialize request", e);
+      catch(Exception e) {
+        throw new RuntimeException(e);
       }
-      Request okhttpRequest = new Request.Builder()
+      Request.Builder _requestBuilder = new Request.Builder()
         .url(httpUrl.build())
         .method("POST", body)
         .headers(Headers.of(clientOptions.headers(requestOptions)))
         .addHeader("Content-Type", "application/json")
-        .addHeader("Accept", "application/json")
-        .build();
+        .addHeader("Accept", "application/json");
+      _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+      Request okhttpRequest = _requestBuilder.build();
       OkHttpClient client = clientOptions.httpClient();
       if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
         client = clientOptions.httpClientWithTimeout(requestOptions);
@@ -91,7 +99,7 @@ public class AsyncRawGuardrailsClient {
       if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
         okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
       }
-      CompletableFuture<ZaspHttpResponse<GuardrailDecision>> future = new CompletableFuture<>();
+      CompletableFuture<ZaspHttpResponse<WorkloadActionDecision>> future = new CompletableFuture<>();
       RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
       okhttpCall.enqueue(new Callback() {
         @Override
@@ -99,7 +107,7 @@ public class AsyncRawGuardrailsClient {
           try (ResponseBody responseBody = response.body()) {
             String responseBodyString = responseBody != null ? responseBody.string() : "{}";
             if (response.isSuccessful()) {
-              future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, GuardrailDecision.class), response));
+              future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, WorkloadActionDecision.class), response));
               return;
             }
             try {
@@ -110,7 +118,11 @@ public class AsyncRawGuardrailsClient {
                 return;
                 case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                 return;
-                case 413:future.completeExceptionally(new ContentTooLargeError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                return;
+                case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                return;
+                case 422:future.completeExceptionally(new UnprocessableEntityError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                 return;
                 case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                 return;
@@ -145,30 +157,42 @@ public class AsyncRawGuardrailsClient {
     }
 
     /**
-     * Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+     * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
      */
-    public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> getPolicy() {
-      return getPolicy(null);
+    public CompletableFuture<ZaspHttpResponse<WorkloadOutcomeAck>> recordActionOutcome(
+        String pathActionId, WorkloadActionOutcome request) {
+      return recordActionOutcome(pathActionId,request,null);
     }
 
     /**
-     * Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+     * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
      */
-    public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> getPolicy(
-        RequestOptions requestOptions) {
+    public CompletableFuture<ZaspHttpResponse<WorkloadOutcomeAck>> recordActionOutcome(
+        String pathActionId, WorkloadActionOutcome request, RequestOptions requestOptions) {
       HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-        .addPathSegments("api/v1/guardrails/policy");if (requestOptions != null) {
+        .addPathSegments("api/v1/runtime/actions")
+        .addPathSegment(PathSegments.validate(pathActionId))
+        .addPathSegments("outcomes");if (requestOptions != null) {
           requestOptions.getQueryParameters().forEach((_key, _value) -> {
             httpUrl.addQueryParameter(_key, _value);
           } );
         }
-        Request okhttpRequest = new Request.Builder()
+        RequestBody body;
+        try {
+          body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+        }
+        catch(Exception e) {
+          throw new RuntimeException(e);
+        }
+        Request.Builder _requestBuilder = new Request.Builder()
           .url(httpUrl.build())
-          .method("GET", null)
+          .method("POST", body)
           .headers(Headers.of(clientOptions.headers(requestOptions)))
-          .addHeader("Accept", "application/json")
-          .build();
+          .addHeader("Content-Type", "application/json")
+          .addHeader("Accept", "application/json");
+        _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+        Request okhttpRequest = _requestBuilder.build();
         OkHttpClient client = clientOptions.httpClient();
         if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
           client = clientOptions.httpClientWithTimeout(requestOptions);
@@ -176,7 +200,7 @@ public class AsyncRawGuardrailsClient {
         if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
           okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
         }
-        CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> future = new CompletableFuture<>();
+        CompletableFuture<ZaspHttpResponse<WorkloadOutcomeAck>> future = new CompletableFuture<>();
         RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
         okhttpCall.enqueue(new Callback() {
           @Override
@@ -184,7 +208,7 @@ public class AsyncRawGuardrailsClient {
             try (ResponseBody responseBody = response.body()) {
               String responseBodyString = responseBody != null ? responseBody.string() : "{}";
               if (response.isSuccessful()) {
-                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, GuardrailPolicy.class), response));
+                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, WorkloadOutcomeAck.class), response));
                 return;
               }
               try {
@@ -194,6 +218,12 @@ public class AsyncRawGuardrailsClient {
                   case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                   return;
                   case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                  return;
+                  case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                  return;
+                  case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                  return;
+                  case 422:future.completeExceptionally(new UnprocessableEntityError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                   return;
                   case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                   return;
@@ -228,21 +258,21 @@ public class AsyncRawGuardrailsClient {
       }
 
       /**
-       * BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version (&quot;0&quot; when no policy was saved); a stale version is refused with 409, which also makes a repeated request safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+       * For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the decide_guardrails permission; a browser session is not accepted, and a token with view alone is refused. decide_guardrails is a permission of API tokens only: a token created with it and nothing else can ask for decisions and cannot read anything. The owner of the token must be able to view the Environment. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
        */
-      public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> putPolicy(
-          GuardrailPolicyInput request) {
-        return putPolicy(request,null);
+      public CompletableFuture<ZaspHttpResponse<GuardrailDecision>> createDecision(
+          GuardrailInteraction request) {
+        return createDecision(request,null);
       }
 
       /**
-       * BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version (&quot;0&quot; when no policy was saved); a stale version is refused with 409, which also makes a repeated request safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+       * For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the decide_guardrails permission; a browser session is not accepted, and a token with view alone is refused. decide_guardrails is a permission of API tokens only: a token created with it and nothing else can ask for decisions and cannot read anything. The owner of the token must be able to view the Environment. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
        */
-      public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> putPolicy(
-          GuardrailPolicyInput request, RequestOptions requestOptions) {
+      public CompletableFuture<ZaspHttpResponse<GuardrailDecision>> createDecision(
+          GuardrailInteraction request, RequestOptions requestOptions) {
         HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-          .addPathSegments("api/v1/guardrails/policy");if (requestOptions != null) {
+          .addPathSegments("api/v1/guardrails/decisions");if (requestOptions != null) {
             requestOptions.getQueryParameters().forEach((_key, _value) -> {
               httpUrl.addQueryParameter(_key, _value);
             } );
@@ -251,21 +281,16 @@ public class AsyncRawGuardrailsClient {
           try {
             body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
           }
-          catch(Exception e) {
-            throw new RuntimeException(e);
+          catch(JsonProcessingException e) {
+            throw new ZaspException("Failed to serialize request", e);
           }
-          Request.Builder _requestBuilder = new Request.Builder()
+          Request okhttpRequest = new Request.Builder()
             .url(httpUrl.build())
-            .method("PUT", body)
+            .method("POST", body)
             .headers(Headers.of(clientOptions.headers(requestOptions)))
             .addHeader("Content-Type", "application/json")
-            .addHeader("Accept", "application/json");
-          if (request.getCsrfToken().isPresent()) {
-            _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
-          }
-          _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
-          _requestBuilder.addHeader("If-Match", request.getIfMatch());
-          Request okhttpRequest = _requestBuilder.build();
+            .addHeader("Accept", "application/json")
+            .build();
           OkHttpClient client = clientOptions.httpClient();
           if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
             client = clientOptions.httpClientWithTimeout(requestOptions);
@@ -273,7 +298,7 @@ public class AsyncRawGuardrailsClient {
           if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
             okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
           }
-          CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> future = new CompletableFuture<>();
+          CompletableFuture<ZaspHttpResponse<GuardrailDecision>> future = new CompletableFuture<>();
           RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
           okhttpCall.enqueue(new Callback() {
             @Override
@@ -281,7 +306,7 @@ public class AsyncRawGuardrailsClient {
               try (ResponseBody responseBody = response.body()) {
                 String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                 if (response.isSuccessful()) {
-                  future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, GuardrailPolicy.class), response));
+                  future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, GuardrailDecision.class), response));
                   return;
                 }
                 try {
@@ -292,7 +317,7 @@ public class AsyncRawGuardrailsClient {
                     return;
                     case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                     return;
-                    case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                    case 413:future.completeExceptionally(new ContentTooLargeError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                     return;
                     case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                     return;
@@ -325,4 +350,186 @@ public class AsyncRawGuardrailsClient {
           });
           return future;
         }
-      }
+
+        /**
+         * Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+         */
+        public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> getPolicy() {
+          return getPolicy(null);
+        }
+
+        /**
+         * Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+         */
+        public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> getPolicy(
+            RequestOptions requestOptions) {
+          HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+            .addPathSegments("api/v1/guardrails/policy");if (requestOptions != null) {
+              requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                httpUrl.addQueryParameter(_key, _value);
+              } );
+            }
+            Request okhttpRequest = new Request.Builder()
+              .url(httpUrl.build())
+              .method("GET", null)
+              .headers(Headers.of(clientOptions.headers(requestOptions)))
+              .addHeader("Accept", "application/json")
+              .build();
+            OkHttpClient client = clientOptions.httpClient();
+            if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+              client = clientOptions.httpClientWithTimeout(requestOptions);
+            }
+            if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+              okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+            }
+            CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> future = new CompletableFuture<>();
+            RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+            okhttpCall.enqueue(new Callback() {
+              @Override
+              public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                try (ResponseBody responseBody = response.body()) {
+                  String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                  if (response.isSuccessful()) {
+                    future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, GuardrailPolicy.class), response));
+                    return;
+                  }
+                  try {
+                    switch (response.code()) {
+                      case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                      return;
+                      case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                      return;
+                      case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                      return;
+                      case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                      return;
+                    }
+                  }
+                  catch (JsonProcessingException ignored) {
+                    // unable to map error response, throwing generic error
+                  }
+                  Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                  future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                  return;
+                }
+                catch (JsonProcessingException e) {
+                  future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                }
+                catch (IOException e) {
+                  future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                }
+              }
+
+              @Override
+              public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+              }
+            });
+            future.whenComplete((result_, throwable_) -> {
+              if (future.isCancelled()) {
+                okhttpCall.cancel();
+              }
+            });
+            return future;
+          }
+
+          /**
+           * BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version (&quot;0&quot; when no policy was saved); a stale version is refused with 409, which also makes a repeated request safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+           */
+          public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> putPolicy(
+              GuardrailPolicyInput request) {
+            return putPolicy(request,null);
+          }
+
+          /**
+           * BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version (&quot;0&quot; when no policy was saved); a stale version is refused with 409, which also makes a repeated request safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+           */
+          public CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> putPolicy(
+              GuardrailPolicyInput request, RequestOptions requestOptions) {
+            HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+              .addPathSegments("api/v1/guardrails/policy");if (requestOptions != null) {
+                requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                  httpUrl.addQueryParameter(_key, _value);
+                } );
+              }
+              RequestBody body;
+              try {
+                body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+              }
+              catch(Exception e) {
+                throw new RuntimeException(e);
+              }
+              Request.Builder _requestBuilder = new Request.Builder()
+                .url(httpUrl.build())
+                .method("PUT", body)
+                .headers(Headers.of(clientOptions.headers(requestOptions)))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json");
+              if (request.getCsrfToken().isPresent()) {
+                _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
+              }
+              _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+              _requestBuilder.addHeader("If-Match", request.getIfMatch());
+              Request okhttpRequest = _requestBuilder.build();
+              OkHttpClient client = clientOptions.httpClient();
+              if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                client = clientOptions.httpClientWithTimeout(requestOptions);
+              }
+              if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+              }
+              CompletableFuture<ZaspHttpResponse<GuardrailPolicy>> future = new CompletableFuture<>();
+              RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+              okhttpCall.enqueue(new Callback() {
+                @Override
+                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                  try (ResponseBody responseBody = response.body()) {
+                    String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                    if (response.isSuccessful()) {
+                      future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, GuardrailPolicy.class), response));
+                      return;
+                    }
+                    try {
+                      switch (response.code()) {
+                        case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                        return;
+                        case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                        return;
+                        case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                        return;
+                        case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                        return;
+                        case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                        return;
+                      }
+                    }
+                    catch (JsonProcessingException ignored) {
+                      // unable to map error response, throwing generic error
+                    }
+                    Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                    future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                    return;
+                  }
+                  catch (JsonProcessingException e) {
+                    future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                  }
+                  catch (IOException e) {
+                    future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                  }
+                }
+
+                @Override
+                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                  future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                }
+              });
+              future.whenComplete((result_, throwable_) -> {
+                if (future.isCancelled()) {
+                  okhttpCall.cancel();
+                }
+              });
+              return future;
+            }
+          }

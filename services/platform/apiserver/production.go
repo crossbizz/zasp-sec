@@ -155,6 +155,10 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		// The guardrail decision API and the Environment's guardrail policy
 		// are served from the same surface.
 		if surface, composed := workflowSurface.(*discoveryWorkflowSurface); composed {
+			surface.evidenceDB = repository.database
+			surface.addons = &addonReviewHandler{database: repository.database, newProductID: newWorkflowProductID}
+			surface.actions = &workloadActionHandler{database: repository.database, newProductID: newWorkflowProductID}
+			surface.fleet = &endpointFleetHandler{database: repository.database, clock: cookie.Clock, newID: newWorkflowProductID}
 			surface.guardrail = &guardrailHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}
 			// The hosted gateway: its management always, its traffic routes
 			// where the deployment hosts them.
@@ -519,7 +523,7 @@ func capabilitiesForPermissions(permissions []string) []string {
 		case "manage_data_controls":
 			capabilities = append(capabilities, "data-controls.manage")
 		case "run_tests":
-			capabilities = append(capabilities, "red-team.write")
+			capabilities = append(capabilities, "red-team.write", "addon-scans.share")
 		}
 	}
 	return capabilities
@@ -540,6 +544,19 @@ type identityHTTPHandler struct {
 }
 
 func (handler *identityHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if route, ok := RoutedOperationFromRequest(request); ok && route.OperationID == "createPrivateAddonUpload" {
+		handler.servePrivateAddonUpload(writer, request)
+		return
+	}
+	if route, ok := RoutedOperationFromRequest(request); ok && stringIn(route.OperationID, "startCLILogin", "approveCLILogin", "exchangeCLILogin") {
+		repository, supported := handler.repository.(*PostgresRepository)
+		if !supported {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		handler.serveCLILogin(writer, request, route.OperationID, repository)
+		return
+	}
 	bound := *handler
 	bound.signingKey = authorizationCursorKey(request.Context(), handler.signingKey)
 	handler = &bound
@@ -1262,7 +1279,16 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 		if providerHealthy {
 			state = "healthy"
 		}
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}}, nil)
+		items := []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}
+		intent, err := handler.externalIntentFlow(request)
+		if err != nil {
+			writeProductionError(writer, request, err)
+			return true
+		}
+		if intent != nil {
+			items = append(items, intent)
+		}
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": items}, nil)
 	case "getSystemStatus", "listSystemComponents":
 		now := handler.now().UTC().Truncate(time.Second)
 		databaseHealthy := false

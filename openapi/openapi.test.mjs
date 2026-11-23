@@ -65,6 +65,12 @@ function verifyDocument(value, rawText) {
 
   assertKeys(value.components, ["securitySchemes", "headers", "parameters", "schemas", "responses"], "components");
   assert.deepEqual(value.components.securitySchemes, {
+    ClaudeWebhookSignature: {
+      type: "apiKey",
+      in: "header",
+      name: "webhook-signature",
+      description: "Standard Webhooks v1 HMAC-SHA256 over webhook-id, webhook-timestamp and the exact raw request body, joined by periods.",
+    },
     BrowserSession: {
       type: "apiKey",
       in: "cookie",
@@ -86,6 +92,10 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.headers, {
+    AgentSettingsETag: {
+      description: "Quoted current revision. Zero represents an agent with no declared settings.",
+      schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]{0,5}|1000000)"$' },
+    },
     WorkflowETag: {
       description: "Quoted durable resource version for optimistic concurrency.",
       schema: { type: "string", pattern: '^"[1-9][0-9]*"$' },
@@ -182,6 +192,11 @@ function verifyDocument(value, rawText) {
       required: true,
       description: "Quoted current execution-control version, including quoted zero before the first tenant override.",
       schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]*)"$' },
+    },
+    AgentSettingsVersion: {
+      name: "If-Match", in: "header", required: true,
+      description: "Quoted current revision from a read of these agent settings. Use the quoted zero revision for the first write.",
+      schema: { type: "string", pattern: '^"(?:0|[1-9][0-9]{0,5})"$' },
     },
     ScheduleVersion: {
       name: "If-Match",
@@ -285,6 +300,23 @@ before(async () => {
 describe("M1-23 strict OpenAPI root", () => {
   it("defines the exact self-contained OpenAPI, auth, pagination, and error boundary", () => {
     verifyDocument(document, documentText);
+  });
+
+  it("binds provider signatures only to the dedicated Claude callback", () => {
+    const path = "/api/v1/runtime/provider-hooks/claude-enterprise/{integrationId}";
+    const hook = document.paths[path].post;
+    assert.equal(hook.operationId, "evaluateClaudeEnterpriseHook");
+    assert.deepEqual(hook.security, [{ ClaudeWebhookSignature: [] }]);
+    // Fern shares status-specific exceptions across SDK methods.
+    for (const code of ["401", "409", "413", "422"]) {
+      assert.equal(hook.responses[code].$ref, "#/components/responses/ProductErrorResponse");
+    }
+    assert.deepEqual(hook.parameters.map(({ name, in: location, required }) => [name, location, required]), [
+      ["integrationId", "path", true], ["webhook-id", "header", true], ["webhook-timestamp", "header", true],
+    ]);
+    for (const [url, methods] of Object.entries(document.paths)) {
+      if (url !== path) assert.equal(JSON.stringify(methods).includes("ClaudeWebhookSignature"), false, url);
+    }
   });
 
   it("uses only the exact pinned local linter command and justified rule exception", () => {
@@ -734,7 +766,8 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 190);
+    assert.equal(operations.size, 241);
+    for (const operation of ["listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence"]) assert.ok(operations.has(operation));
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -763,8 +796,8 @@ describe("production workflow concurrency contract", () => {
     assert.equal(operations.get("listPolicyDecisions").method, "get");
     assert.deepEqual(policyDecisions.parameters.find((parameter) => parameter.name === "limit")?.schema, { type: "integer", minimum: 1, maximum: 100, default: 100 });
     assert.deepEqual(policyDecisions.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/RuntimeDecisionPage" });
-    assert.equal(document.components.schemas.PolicySimulationInput.additionalProperties, false);
-    assert.equal(document.components.schemas.PolicySimulationInput.maxProperties, 0);
+    assert.deepEqual(document.components.schemas.PolicySimulationInput.oneOf, [{ type: "object", additionalProperties: false, maxProperties: 0 }, { $ref: "#/components/schemas/PolicyReplayInput" }]);
+    assert.deepEqual(new Set(document.components.schemas.PolicyReplayInput.required), new Set(["schema_version", "policy_revision", "agent_id", "from", "to"]));
 
     for (const operationId of ["listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun"]) {
       assert.ok(operations.has(operationId), operationId);

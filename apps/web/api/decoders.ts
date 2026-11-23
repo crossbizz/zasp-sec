@@ -355,6 +355,46 @@ export function decodeBreakOptionPage(value: unknown, path: Pick<AttackPath, "id
   return value as BreakOptionPage;
 }
 
+export function decodeAgentSuggestions(value: unknown, agent: string): import("./generated").AgentSuggestionPage {
+  const page = exactRecord(value, ["agent_id", "purpose_revision", "items", "more", "last_scan"]);
+  if (page.agent_id !== agent || typeof page.more !== "boolean") fail();
+  boundedInteger(page.purpose_revision, 0, 1000000);
+  let previous = "";
+  for (const value of array(page.items, 100)) {
+    const row = exactRecord(value, ["tool_id", "policy_id", "evidence_ids", "from", "to", "state", "draft_audit_id"]);
+    productID(row.tool_id);
+    if ((row.tool_id as string) <= previous || typeof row.policy_id !== "string" || !/^policy-purpose-[0-9a-f]{64}$/.test(row.policy_id)) fail();
+    if (row.state === "draft_linked") productID(row.draft_audit_id); else if (row.draft_audit_id !== null) fail();
+    previous = row.tool_id as string;
+    if (!array(row.evidence_ids, 100).length) fail();
+    productIDArray(row.evidence_ids, 100);
+    dateTime(row.from); dateTime(row.to);
+    if (Date.parse(row.from as string) >= Date.parse(row.to as string)) fail();
+    enumValue(row.state, ["suggested", "dismissed", "draft_requested", "draft_linked"]);
+  }
+  if (page.last_scan !== null) {
+    const scan = exactRecord(page.last_scan, ["from", "to", "examined", "eligible", "truncated"]);
+    dateTime(scan.from); dateTime(scan.to);
+    boundedInteger(scan.examined, 0, 5000); boundedInteger(scan.eligible, 0, scan.examined as number);
+    if (typeof scan.truncated !== "boolean") fail();
+  }
+  return value as import("./generated").AgentSuggestionPage;
+}
+
+export function decodeAgentPurpose(value: unknown, expectedAgent: string): import("./generated").AgentPurpose {
+  const record = exactRecord(value, ["agent_id", "revision", "allowed_tool_ids", "updated_at"]);
+  productID(record.agent_id); boundedInteger(record.revision, 0, 1_000_000);
+  const tools = array(record.allowed_tool_ids, 64);
+  for (const [index, tool] of tools.entries()) {
+    productID(tool);
+    if (index > 0 && (tools[index - 1] as string) >= (tool as string)) fail();
+  }
+  if (record.agent_id !== expectedAgent) fail();
+  if (record.revision === 0) { if (record.updated_at !== null || tools.length !== 0) fail(); }
+  else dateTime(record.updated_at);
+  return value as import("./generated").AgentPurpose;
+}
+
 export function decodePolicy(value: unknown): Policy {
   const record = exactRecord(value, ["id", "name", "scope", "trigger", "conditions", "action", "rollout", "failure_mode"], ["risk"]);
   if ("risk" in record) enumValue(record.risk, ["low", "medium", "high", "critical"]);
@@ -383,7 +423,44 @@ export function decodeWorkflowMutationReceipt(value: unknown, expectedScopeKey?:
   decodeWorkflowReceiptPayload(record.operation, record.resource_kind, record.resource_id, record.resource_version as number, record.idempotency_key as string, record.intent, record.result, expectedScopeKey);
   return value as WorkflowMutationReceipt;
 }
-export function decodePolicySimulation(value: unknown): PolicySimulation { const record = exactRecord(value, ["matches", "would_block", "example_session_ids"]); boundedInteger(record.matches, 0, 100); boundedInteger(record.would_block, 0, 100); stringArray(record.example_session_ids, 5); return value as PolicySimulation; }
+export function decodeTicketVerification(value: unknown, runID: string): import("./generated").TicketVerificationReceipt {
+  const body = exactRecord(value, ["schema_version", "evidence_source", "definition_version", "policy_revision", "target_id", "submitted_by", "submitted_at", "evidence_sha256", "result"]);
+  if (body.schema_version !== 1 || body.evidence_source !== "operator_import" || typeof body.evidence_sha256 !== "string" || !/^[a-f0-9]{64}$/.test(body.evidence_sha256)) fail();
+  positiveInteger(body.definition_version); productID(body.submitted_by); productID(body.target_id); dateTime(body.submitted_at);
+  const refs = ["control_decision_id", "protected_decision_id", "control_receipt_id", "protected_receipt_id"];
+  const result = exactRecord(body.result, ["verification_mode", "run_id", "reason", "verdict"], refs);
+  if (result.verification_mode !== "side_effect_verified" || result.run_id !== runID) fail();
+  enumValue(result.verdict, ["passed", "unexpected_effect", "inconclusive", "unsupported"]);
+  for (const ref of [body.policy_revision, result.reason, ...refs.filter(key => key in result).map(key => result[key])]) {
+    if (typeof ref !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(ref)) fail();
+  }
+  if (result.verdict === "passed" && (!result.control_decision_id || !result.protected_decision_id || !result.control_receipt_id) || result.verdict === "unexpected_effect" && !result.protected_receipt_id) fail();
+  return value as import("./generated").TicketVerificationReceipt;
+}
+
+export function decodePolicySimulation(value: unknown): PolicySimulation {
+  const record = exactRecord(value, ["matches", "would_block", "example_session_ids"], ["replay"]);
+  let maximum = 100;
+  stringArray(record.example_session_ids, 5);
+  if (record.replay !== undefined) {
+    const replay = exactRecord(record.replay, ["policy_revision", "agent_id", "from", "to", "evaluated", "truncated", "coverage"], ["examined_count", "eligible_count", "next_window_to", "next_before_event_id", "would_block_rate"]);
+    maximum = replay.examined_count === undefined ? 100 : 5000;
+    positiveInteger(replay.policy_revision); productID(replay.agent_id); dateTime(replay.from); dateTime(replay.to); boundedInteger(replay.evaluated, 0, maximum);
+    if (replay.examined_count !== undefined) {
+      boundedInteger(replay.examined_count, 0, 5000); boundedInteger(replay.eligible_count, 0, replay.examined_count as number);
+      if (replay.eligible_count !== replay.evaluated) fail();
+      const rates = exactRecord(replay.would_block_rate, [], ["tool","runtime","network","file","credential"]);
+      for (const rate of Object.values(rates)) if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 || rate > 1) fail();
+      if (replay.next_window_to !== null) dateTime(replay.next_window_to);
+      if (replay.next_before_event_id !== null) productID(replay.next_before_event_id);
+      if ((replay.next_window_to === null) !== (replay.next_before_event_id === null) || !replay.truncated && replay.next_window_to !== null) fail();
+    } else if (["eligible_count","next_window_to","next_before_event_id","would_block_rate"].some(key => key in replay)) fail();
+    if (typeof replay.truncated !== "boolean" || replay.coverage !== "indexed_events_only" || replay.truncated && replay.examined_count === undefined && replay.evaluated !== 100 || (record.would_block as number) > (record.matches as number) || (record.matches as number) > (replay.evaluated as number)) fail();
+  }
+  boundedInteger(record.matches, 0, maximum);
+  boundedInteger(record.would_block, 0, record.matches as number);
+  return value as PolicySimulation;
+}
 export function decodePolicyRollout(value: unknown): PolicyRollout { const record = exactRecord(value, ["policy_id", "state", "target_id"]); if (typeof record.policy_id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(record.policy_id)) fail(); enumValue(record.state, ["draft", "monitor", "enforced", "disabled"]); boundedString(record.target_id, 1, 128); return value as PolicyRollout; }
 export function decodeRuntimeDecisionPage(value: unknown): { readonly items: readonly RuntimeDecision[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 100)) { const entry = exactRecord(item, ["id", "policy_id", "environment_id", "result", "correlation_id", "at"]); boundedString(entry.id, 1, 128); if (typeof entry.policy_id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(entry.policy_id)) fail(); boundedString(entry.environment_id, 1, 128); enumValue(entry.result, ["allow", "monitor", "block"]); boundedString(entry.correlation_id, 1, 128); dateTime(entry.at); } return value as { readonly items: readonly RuntimeDecision[] }; }
 

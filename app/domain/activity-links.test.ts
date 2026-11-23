@@ -11,12 +11,21 @@ const query = "entity_id=pid_10000004-0000-4000-8000-000000000004&organization_i
 const routes: [ActivityKind, string][] = [
   ["finding", "/violations"], ["attack_path", "/exposure/attack-paths"],
   ["session", "/investigate/sessions"], ["audit", "/administration/audit-log"],
-  ["run", "/protect/security-agents"],
+  ["run", "/protect/security-agents"], ["purpose", "/policies"],
   ["test_run", "/red-team/results"],
   ["attack_lab_run", "/test/attack-lab"],
 ];
 
 describe("exact scoped activity links", () => {
+  it("delegates the canonical Sensors device link and rejects mixed and malformed selectors", () => {
+    const base = "/integrations/sensors?";
+    expect(parseActivityLink(base + "device=" + id, scope)).toEqual({state: "none"});
+    for (const query of ["device=", "device=wrong", "dev%69ce=" + id, "device=" + id + "&device=" + id,
+      "device=" + id + "&entity_id=" + id, "device=" + id + "%0A", "device=" + id + "#device"]) {
+      expect(parseActivityLink(base + query, scope)).toEqual({state: "invalid"});
+    }
+  });
+
   it.each(["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"])("delegates canonical inventory selection on %s to its product reader", path => {
     expect(parseActivityLink(`${path}?inventory=${id}`, scope)).toEqual({ state: "none" });
   });

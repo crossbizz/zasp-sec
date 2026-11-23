@@ -646,7 +646,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
 		}
 		current, currentOK := policyValue["rollout"].(string)
-		validTransition := routed.OperationID == "rolloutPolicy" && (current == "draft" && state == "monitor" || current == "monitor" && state == "enforced") ||
+		validTransition := routed.OperationID == "rolloutPolicy" && (current == "draft" && state == "monitor" || current == "monitor" && state == "enforced" || current == "enforced" && state == "monitor") ||
 			routed.OperationID == "disablePolicy" && (current == "monitor" || current == "enforced")
 		if !currentOK || !validTransition {
 			return WorkflowMutation{}, 0, "", ErrRepositoryConflict

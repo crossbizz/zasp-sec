@@ -220,6 +220,12 @@ func (a *postgresComplianceExportAuthority) Capture(ctx context.Context, l compl
 		// more member (completion.sql, section WS3-C2).
 		snapshot, err = auditExportWorkerObject(fields["snapshot"], 4<<20, append(keys, "agent_evidence_pack")...)
 	}
+	if err != nil && l.JobOrigin != "agent_run" {
+		snapshot, err = auditExportWorkerObject(fields["snapshot"], 4<<20, append(keys, "pilot_evidence_pack")...)
+	}
+	if err != nil && l.JobOrigin != "agent_run" {
+		snapshot, err = auditExportWorkerObject(fields["snapshot"], 4<<20, append(keys, "framework_coverage")...)
+	}
 	if err != nil {
 		return nil, errWorkerExecution
 	}

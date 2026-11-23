@@ -74,6 +74,13 @@ func (history *productionPolicyHistory) SearchPolicyActions(ctx context.Context,
 	return history.history.SearchPolicyActions(ctx, scope, trigger, limit)
 }
 
+func (history *productionPolicyHistory) SearchReplayActions(ctx context.Context, scope domain.Scope, trigger string, window platformpolicy.ReplayWindow) ([]platformpolicy.ActionContext, bool, error) {
+	if history == nil || history.history == nil {
+		return nil, false, errRuntimeUnavailable
+	}
+	return history.history.SearchReplayActions(ctx, scope, trigger, window)
+}
+
 func (history *productionPolicyHistory) Ready(ctx context.Context) error {
 	if history == nil || history.history == nil || history.credentials == nil || ctx == nil || ctx.Err() != nil {
 		return errRuntimeUnavailable

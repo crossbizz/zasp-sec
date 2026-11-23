@@ -254,6 +254,10 @@ type temporalDiscoveryScheduleProcessor struct {
 	gatewayRetentionDays int
 	maintain             func(context.Context, int, int) (gatewayMaintenance, error)
 	lastMaintain         time.Time
+	analyze              func(context.Context, int) (int, error)
+	lastAnalysis         time.Time
+	classifier           IntentClassifier
+	lastIntent           time.Time
 }
 
 // maintainDue looks after the hosted gateway's records when its interval has
@@ -336,11 +340,13 @@ func (p *temporalDiscoveryScheduleProcessor) RunOnce(ctx context.Context) error 
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	analysis := p.analyzeDue(ctx)
+	p.classifyDue(ctx)
 	refs, err := p.source.pending(ctx, p.after, p.startup, p.limit)
 	if err != nil {
-		return err
+		return errors.Join(analysis, err)
 	}
-	result := errors.Join(p.releaseDue(ctx), p.retestDue(ctx), p.maintainDue(ctx))
+	result := errors.Join(analysis, p.releaseDue(ctx), p.retestDue(ctx), p.maintainDue(ctx))
 	for _, ref := range refs {
 		result = errors.Join(result, p.reconciler.Reconcile(ctx, ref))
 		p.after = strings.Join([]string{ref.OrganizationID, ref.WorkspaceID, ref.EnvironmentID, ref.ScheduleID, ref.IntegrationID}, "/")

@@ -74,6 +74,21 @@ export type APIClientOptions = Omit<ClientOptions, "baseUrl" | "credentials" | "
   onAuthorizationSettling?: (settling: boolean) => void;
 };
 
+// The private worker is a separate TLS audience. Its short-lived grant is the
+// only credential sent to it. Product cookies and CSRF headers stay with Zasp.
+export async function uploadPrivateAddonArchive(grant: {id: string; upload_url: string; upload_grant: string}, file: File, signal: AbortSignal): Promise<unknown> {
+  const url = new URL(grant.upload_url);
+  if (!PRODUCT_ID.test(grant.id) || url.protocol !== "https:" || url.username || url.password || url.pathname !== "/v1/uploads/" + grant.id || url.search || url.hash || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{86}$/.test(grant.upload_grant) || grant.upload_grant.length > 3072 || file.size <= 0 || file.size > 8*1024*1024) {
+    throw new APITransportError("invalid_configuration", "Invalid private add-on upload");
+  }
+  const response = await globalThis.fetch(url.href, {
+    method: "PUT", body: file, credentials: "omit", redirect: "error", referrerPolicy: "no-referrer", cache: "no-store",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]), headers: { Authorization: "Bearer " + grant.upload_grant, "Content-Type": "application/zip" },
+  });
+  if (!response.ok || !response.headers.get("Content-Type")?.includes("application/json")) throw new APITransportError("invalid_response", "Private worker unavailable");
+  return JSON.parse(new TextDecoder().decode(await readBounded(response,8192))) as unknown;
+}
+
 export function createAPIClient(options: APIClientOptions = {}) {
   const {
     baseUrl = "",

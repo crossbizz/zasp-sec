@@ -86,6 +86,16 @@ spec:
             - { name: ZASP_REQUEST_RATE_PER_SECOND, value: "100" }
             - { name: ZASP_REQUEST_BURST, value: "200" }
             - { name: ZASP_REQUEST_TIMEOUT, value: "10s" }
+            {{- with include "zasp.privateAddonWorker.origin" $root }}
+            - { name: ZASP_PRIVATE_ADDON_WORKER_ORIGIN, value: {{ . | quote }} }
+            {{- if $root.Values.privateAddonWorker.retained }}
+            - { name: ZASP_PRIVATE_ADDON_RETAINED_SCOPE, value: {{ $root.Values.privateAddonWorker.scope | quote }} }
+            {{- end }}
+            - { name: ZASP_PRIVATE_ADDON_WORKER_SCOPE, value: {{ $root.Values.privateAddonWorker.scope | quote }} }
+            {{- with $root.Values.privateAddonWorker.resultCredentialID }}
+            - { name: ZASP_PRIVATE_ADDON_RESULT_CREDENTIAL, value: {{ . | quote }} }
+            {{- end }}
+            {{- end }}
             {{- if $root.Values.hostedGateway.enabled }}
             - { name: ZASP_HOSTED_GATEWAY_ENABLED, value: "true" }
             - { name: ZASP_HOSTED_GATEWAY_TIMEOUT, value: "{{ int (required "hostedGateway.timeoutSeconds is required" $root.Values.hostedGateway.timeoutSeconds) }}s" }

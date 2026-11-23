@@ -1269,6 +1269,490 @@ client.integrations().getWebhookStatus(
 </details>
 
 ## Sensors
+<details><summary><code>client.sensors.fetchEndpointPolicy(id) -> EndpointBundle</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.sensors().fetchEndpointPolicy(
+    "id",
+    FetchEndpointPolicySensorsRequest
+        .builder()
+        .zaspDeviceProof("X-Zasp-Device-Proof")
+        .zaspDeviceSignature("X-Zasp-Device-Signature")
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `String` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.exchangeEndpointEnrollment(request) -> EndpointExchangeReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.sensors().exchangeEndpointEnrollment(
+    ExchangeEndpointEnrollmentSensorsRequest
+        .builder()
+        .zaspDeviceProof("X-Zasp-Device-Proof")
+        .zaspDeviceSignature("X-Zasp-Device-Signature")
+        .body(
+            new HashMap<String, Object>() {{
+                put("key", "value");
+            }}
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `Map<String, Object>` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.recordEndpointHeartbeat(id, request) -> EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.sensors().recordEndpointHeartbeat(
+    "id",
+    EndpointHeartbeat
+        .builder()
+        .zaspDeviceProof("X-Zasp-Device-Proof")
+        .zaspDeviceSignature("X-Zasp-Device-Signature")
+        .policyRevision(1)
+        .policyStatus(EndpointHeartbeatPolicyStatus.VERIFIED_CACHE)
+        .queuedReceipts(1)
+        .droppedReceipts(1)
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**policyRevision:** `Integer` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**policyStatus:** `EndpointHeartbeatPolicyStatus` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**queuedReceipts:** `Integer` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**droppedReceipts:** `Integer` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**adapter:** `Optional<EndpointHeartbeatAdapter>` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.recordEndpointInventory(id, request) -> EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.sensors().recordEndpointInventory(
+    "id",
+    EndpointSnapshot
+        .builder()
+        .zaspDeviceProof("X-Zasp-Device-Proof")
+        .zaspDeviceSignature("X-Zasp-Device-Signature")
+        .partitionId("partition_id")
+        .snapshotGeneration(1)
+        .complete(true)
+        .installations(
+            Arrays.asList(
+                EndpointSnapshotInstallationsItem
+                    .builder()
+                    .installationId("installation_id")
+                    .build()
+            )
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**partitionId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**snapshotGeneration:** `Integer` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**complete:** `Boolean` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**installations:** `List<EndpointSnapshotInstallationsItem>` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.sensors.recordEndpointObservations(request) -> EndpointRecorded</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.sensors().recordEndpointObservations(
+    EndpointObservationBatch
+        .builder()
+        .zaspDeviceProof("X-Zasp-Device-Proof")
+        .zaspDeviceSignature("X-Zasp-Device-Signature")
+        .receipts(
+            Arrays.asList(
+                EndpointSigned
+                    .builder()
+                    .payload("payload")
+                    .signature("signature")
+                    .build()
+            )
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**zaspDeviceProof:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**zaspDeviceSignature:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**receipts:** `List<EndpointSigned>` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.sensors.list() -> SyncPagingIterable&amp;lt;Sensor&amp;gt;</code></summary>
 <dl>
 <dd>
@@ -1805,7 +2289,334 @@ client.sensors().getCoverage(
 </dl>
 </details>
 
+<details><summary><code>client.sensors.recordBrowserOriginDays(id, request) -> BrowserOriginAck</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.sensors().recordBrowserOriginDays(
+    "id",
+    BrowserOriginReport
+        .builder()
+        .issuedAt(1000000L)
+        .nonce("nonce")
+        .signature("signature")
+        .days(
+            Arrays.asList(
+                BrowserOriginDay
+                    .builder()
+                    .origin(BrowserObservedOrigin.HTTPS_CLAUDE_AI)
+                    .day("2023-01-15")
+                    .build()
+            )
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**issuedAt:** `Long` — UTC Unix seconds.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**nonce:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**days:** `List<BrowserOriginDay>` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signature:** `String` — Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 ## Guardrails
+<details><summary><code>client.guardrails.decideAction(request) -> WorkloadActionDecision</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.guardrails().decideAction(
+    WorkloadActionRequest
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .schemaVersion(WorkloadActionRequestSchemaVersion.ACTION_V1)
+        .actionId("action_id")
+        .actionKind(WorkloadActionRequestActionKind.TOOL_CALL)
+        .operation("operation")
+        .resource(
+            WorkloadActionRequestResource
+                .builder()
+                .kind("kind")
+                .classification("classification")
+                .build()
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schemaVersion:** `WorkloadActionRequestSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**actionId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**actionKind:** `WorkloadActionRequestActionKind` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**operation:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**sourceSessionRef:** `Optional<String>` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**sourceCallRef:** `Optional<String>` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**resource:** `WorkloadActionRequestResource` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.guardrails.recordActionOutcome(pathActionId, request) -> WorkloadOutcomeAck</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.guardrails().recordActionOutcome(
+    "actionId",
+    WorkloadActionOutcome
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .schemaVersion(WorkloadActionOutcomeSchemaVersion.ACTION_OUTCOME_V1)
+        .actionId("action_id")
+        .decisionId("decision_id")
+        .status(WorkloadActionOutcomeStatus.NOT_DISPATCHED)
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**pathActionId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schemaVersion:** `WorkloadActionOutcomeSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**actionId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**decisionId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**contextEvidence:** `Optional<WorkloadContextEvidence>`
+
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**status:** `WorkloadActionOutcomeStatus` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.guardrails.createDecision(request) -> GuardrailDecision</code></summary>
 <dl>
 <dd>
@@ -2007,6 +2818,354 @@ client.guardrails().putPolicy(
 <dd>
 
 **rules:** `Map<String, GuardrailMode>` — Rule identifier to mode. A rule that is not named has its default mode.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+## Tools
+<details><summary><code>client.tools.attestAddonScan(id, request) -> AddonCiReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.tools().attestAddonScan(
+    "id",
+    AddonCiSignature
+        .builder()
+        .keyId("key_id")
+        .repository("repository")
+        .commit("commit")
+        .signature("signature")
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**keyId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**repository:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**commit:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signature:** `String` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.submitAddonScan(request) -> AddonScanReceipt</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.tools().submitAddonScan(
+    AddonScanSubmission
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .environmentId("environment_id")
+        .schemaVersion(AddonScanSubmissionSchemaVersion.ZASP_ADDON_FINDINGS_V1)
+        .ruleset(AddonScanSubmissionRuleset.ZASP_STATIC_V1)
+        .manifestMethod(AddonScanSubmissionManifestMethod.ADDON_MANIFEST_V1)
+        .completeness(AddonScanSubmissionCompleteness.COMPLETE)
+        .origin(AddonScanSubmissionOrigin.LOCAL)
+        .skippedCount(1)
+        .findings(
+            Arrays.asList(
+                AddonFindingCount
+                    .builder()
+                    .ruleId(AddonFindingCountRuleId.DEPENDENCY_UNPINNED)
+                    .count(1)
+                    .build()
+            )
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**privateUpload:** `Optional<AddonScanSubmissionPrivateUpload>` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**environmentId:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**schemaVersion:** `AddonScanSubmissionSchemaVersion` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ruleset:** `AddonScanSubmissionRuleset` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**manifestMethod:** `AddonScanSubmissionManifestMethod` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**manifestDigest:** `Optional<String>` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**completeness:** `AddonScanSubmissionCompleteness` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**origin:** `AddonScanSubmissionOrigin` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**findings:** `List<AddonFindingCount>` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**skippedCount:** `Integer` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.list() -> SyncPagingIterable&amp;lt;InventorySummary&amp;gt;</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.tools().list(
+    ListToolsRequest
+        .builder()
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**cursor:** `Optional<String>` — Opaque cursor returned by the preceding page.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**limit:** `Optional<Integer>` — Maximum number of records to return.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.tools.get(id) -> InventoryDetail</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.tools().get(
+    "id",
+    GetToolsRequest
+        .builder()
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
     
 </dd>
 </dl>
@@ -3482,8 +4641,8 @@ client.agents().getAccess(
 </dl>
 </details>
 
-## Tools
-<details><summary><code>client.tools.list() -> SyncPagingIterable&amp;lt;InventorySummary&amp;gt;</code></summary>
+## Policies
+<details><summary><code>client.policies.list() -> SyncPagingIterable&amp;lt;Policy&amp;gt;</code></summary>
 <dl>
 <dd>
 
@@ -3496,8 +4655,8 @@ client.agents().getAccess(
 <dd>
 
 ```java
-client.tools().list(
-    ListToolsRequest
+client.policies().list(
+    ListPoliciesRequest
         .builder()
         .build()
 );
@@ -3535,7 +4694,7 @@ client.tools().list(
 </dl>
 </details>
 
-<details><summary><code>client.tools.get(id) -> InventoryDetail</code></summary>
+<details><summary><code>client.policies.create(request) -> Policy</code></summary>
 <dl>
 <dd>
 
@@ -3548,9 +4707,84 @@ client.tools().list(
 <dd>
 
 ```java
-client.tools().get(
+client.policies().create(
+    CreatePoliciesRequest
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .body(
+            Policy
+                .builder()
+                .id("id")
+                .name("name")
+                .scope(PolicyScope.ENVIRONMENT)
+                .trigger("trigger")
+                .action(PolicyAction.MONITOR)
+                .rollout(PolicyRolloutState.DRAFT)
+                .failureMode(PolicyFailureMode.OPEN)
+                .conditions(
+                    Arrays.asList(
+                        PolicyCondition
+                            .builder()
+                            .field("field")
+                            .operator(PolicyConditionOperator.EQUALS)
+                            .value("value")
+                            .build()
+                    )
+                )
+                .build()
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `Policy` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.get(id) -> Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().get(
     "id",
-    GetToolsRequest
+    GetPoliciesRequest
         .builder()
         .build()
 );
@@ -3569,6 +4803,437 @@ client.tools().get(
 <dd>
 
 **id:** `String` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.delete(id)</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().delete(
+    "id",
+    DeletePoliciesRequest
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .ifMatch("If-Match")
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `String` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.update(id, request) -> Policy</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().update(
+    "id",
+    UpdatePoliciesRequest
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .ifMatch("If-Match")
+        .body(
+            Policy
+                .builder()
+                .id("id")
+                .name("name")
+                .scope(PolicyScope.ENVIRONMENT)
+                .trigger("trigger")
+                .action(PolicyAction.MONITOR)
+                .rollout(PolicyRolloutState.DRAFT)
+                .failureMode(PolicyFailureMode.OPEN)
+                .conditions(
+                    Arrays.asList(
+                        PolicyCondition
+                            .builder()
+                            .field("field")
+                            .operator(PolicyConditionOperator.EQUALS)
+                            .value("value")
+                            .build()
+                    )
+                )
+                .build()
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `String` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `Policy` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.rollout(id, request) -> PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().rollout(
+    "id",
+    RolloutPoliciesRequest
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .ifMatch("If-Match")
+        .body(
+            PolicyRolloutInput
+                .builder()
+                .state(PolicyRolloutInputState.MONITOR)
+                .targetId("target_id")
+                .build()
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `String` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `PolicyRolloutInput` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.simulate(id, request) -> PolicySimulation</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().simulate(
+    "id",
+    SimulatePoliciesRequest
+        .builder()
+        .body(
+            PolicySimulationInput.of(
+                new HashMap<String, Object>() {{
+                    put("key", "value");
+                }}
+            )
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**csrfToken:** `Optional<String>` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `PolicySimulationInput` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.listDecisions(id) -> RuntimeDecisionPage</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().listDecisions(
+    "id",
+    ListDecisionsPoliciesRequest
+        .builder()
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**limit:** `Optional<Integer>` 
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.policies.disable(id, request) -> PolicyRollout</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```java
+client.policies().disable(
+    "id",
+    DisablePoliciesRequest
+        .builder()
+        .idempotencyKey("Idempotency-Key")
+        .ifMatch("If-Match")
+        .body(
+            new HashMap<String, Object>() {{
+                put("key", "value");
+            }}
+        )
+        .build()
+);
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**id:** `String` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**ifMatch:** `String` — Quoted current durable resource version.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request:** `Map<String, Object>` 
     
 </dd>
 </dl>
@@ -4548,608 +6213,6 @@ client.search().query(
 <dd>
 
 **limit:** `Optional<Integer>` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-## Policies
-<details><summary><code>client.policies.list() -> SyncPagingIterable&amp;lt;Policy&amp;gt;</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().list(
-    ListPoliciesRequest
-        .builder()
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**cursor:** `Optional<String>` — Opaque cursor returned by the preceding page.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**limit:** `Optional<Integer>` — Maximum number of records to return.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.create(request) -> Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().create(
-    CreatePoliciesRequest
-        .builder()
-        .idempotencyKey("Idempotency-Key")
-        .body(
-            Policy
-                .builder()
-                .id("id")
-                .name("name")
-                .scope(PolicyScope.ENVIRONMENT)
-                .trigger("trigger")
-                .action(PolicyAction.MONITOR)
-                .rollout(PolicyRolloutState.DRAFT)
-                .failureMode(PolicyFailureMode.OPEN)
-                .conditions(
-                    Arrays.asList(
-                        PolicyCondition
-                            .builder()
-                            .field("field")
-                            .operator(PolicyConditionOperator.EQUALS)
-                            .value("value")
-                            .build()
-                    )
-                )
-                .build()
-        )
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `Policy` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.get(id) -> Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().get(
-    "id",
-    GetPoliciesRequest
-        .builder()
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.delete(id)</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().delete(
-    "id",
-    DeletePoliciesRequest
-        .builder()
-        .idempotencyKey("Idempotency-Key")
-        .ifMatch("If-Match")
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `String` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.update(id, request) -> Policy</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().update(
-    "id",
-    UpdatePoliciesRequest
-        .builder()
-        .idempotencyKey("Idempotency-Key")
-        .ifMatch("If-Match")
-        .body(
-            Policy
-                .builder()
-                .id("id")
-                .name("name")
-                .scope(PolicyScope.ENVIRONMENT)
-                .trigger("trigger")
-                .action(PolicyAction.MONITOR)
-                .rollout(PolicyRolloutState.DRAFT)
-                .failureMode(PolicyFailureMode.OPEN)
-                .conditions(
-                    Arrays.asList(
-                        PolicyCondition
-                            .builder()
-                            .field("field")
-                            .operator(PolicyConditionOperator.EQUALS)
-                            .value("value")
-                            .build()
-                    )
-                )
-                .build()
-        )
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `String` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `Policy` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.rollout(id, request) -> PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().rollout(
-    "id",
-    RolloutPoliciesRequest
-        .builder()
-        .idempotencyKey("Idempotency-Key")
-        .ifMatch("If-Match")
-        .body(
-            PolicyRolloutInput
-                .builder()
-                .state(PolicyRolloutInputState.MONITOR)
-                .targetId("target_id")
-                .build()
-        )
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `String` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `PolicyRolloutInput` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.simulate(id, request) -> PolicySimulation</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().simulate(
-    "id",
-    SimulatePoliciesRequest
-        .builder()
-        .body(
-            new HashMap<String, Object>() {{
-                put("key", "value");
-            }}
-        )
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**csrfToken:** `Optional<String>` — Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `Map<String, Object>` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.listDecisions(id) -> RuntimeDecisionPage</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().listDecisions(
-    "id",
-    ListDecisionsPoliciesRequest
-        .builder()
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**limit:** `Optional<Integer>` 
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.policies.disable(id, request) -> PolicyRollout</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```java
-client.policies().disable(
-    "id",
-    DisablePoliciesRequest
-        .builder()
-        .idempotencyKey("Idempotency-Key")
-        .ifMatch("If-Match")
-        .body(
-            new HashMap<String, Object>() {{
-                put("key", "value");
-            }}
-        )
-        .build()
-);
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**id:** `String` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**idempotencyKey:** `String` — Caller-generated key binding an exact workflow mutation and its durable response.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**ifMatch:** `String` — Quoted current durable resource version.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request:** `Map<String, Object>` 
     
 </dd>
 </dl>

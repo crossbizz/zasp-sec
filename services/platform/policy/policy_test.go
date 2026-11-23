@@ -339,3 +339,30 @@ func testScope(t *testing.T) domain.Scope {
 	}
 	return value
 }
+
+func TestMonitorRollbackRequiresSameTargetAndUneditedEnforcement(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	v := Policy{ID: "policy-rollback", Name: "Ticket", Scope: "environment", Trigger: "tool", Conditions: []Condition{{Field: "resource", Operator: "equals", Value: "ticket"}}, Action: ActionBlock, Rollout: "draft", FailureMode: "open"}
+	if err := store.Create(ctx, v, gatewayPolicyCapabilities); err != nil {
+		t.Fatal(err)
+	}
+	roll := func(state RolloutState, target string, want bool) {
+		t.Helper()
+		_, e := store.Rollout(ctx, v.ID, state, target)
+		if (e == nil) != want {
+			t.Fatalf("transition %s on %s failed=%v", state, target, e)
+		}
+	}
+	roll(RolloutMonitor, "fleet-a", true)
+	roll(RolloutEnforced, "fleet-a", true)
+	roll(RolloutMonitor, "fleet-b", false)
+	roll(RolloutMonitor, "fleet-a", true)
+	roll(RolloutEnforced, "fleet-a", true)
+	v.Rollout = "enforced"
+	v.Name = "Edited"
+	if err := store.Update(ctx, v, gatewayPolicyCapabilities); err != nil {
+		t.Fatal(err)
+	}
+	roll(RolloutMonitor, "fleet-a", false)
+}

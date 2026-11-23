@@ -10,6 +10,9 @@ if typing.TYPE_CHECKING:
     from .create_enrollment_sensors_request_x_zasp_sensor_enrollment_schema import (
         CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema,
     )
+    from .endpoint_heartbeat_adapter import EndpointHeartbeatAdapter
+    from .endpoint_heartbeat_policy_status import EndpointHeartbeatPolicyStatus
+    from .endpoint_snapshot_installations_item import EndpointSnapshotInstallationsItem
     from .rotate_token_sensors_request_x_zasp_fresh_auth import RotateTokenSensorsRequestXZaspFreshAuth
     from .rotate_token_sensors_request_x_zasp_sensor_enrollment_schema import (
         RotateTokenSensorsRequestXZaspSensorEnrollmentSchema,
@@ -17,6 +20,9 @@ if typing.TYPE_CHECKING:
 _dynamic_imports: typing.Dict[str, str] = {
     "CreateEnrollmentSensorsRequestXZaspFreshAuth": ".create_enrollment_sensors_request_x_zasp_fresh_auth",
     "CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema": ".create_enrollment_sensors_request_x_zasp_sensor_enrollment_schema",
+    "EndpointHeartbeatAdapter": ".endpoint_heartbeat_adapter",
+    "EndpointHeartbeatPolicyStatus": ".endpoint_heartbeat_policy_status",
+    "EndpointSnapshotInstallationsItem": ".endpoint_snapshot_installations_item",
     "RotateTokenSensorsRequestXZaspFreshAuth": ".rotate_token_sensors_request_x_zasp_fresh_auth",
     "RotateTokenSensorsRequestXZaspSensorEnrollmentSchema": ".rotate_token_sensors_request_x_zasp_sensor_enrollment_schema",
 }
@@ -46,6 +52,9 @@ def __dir__():
 __all__ = [
     "CreateEnrollmentSensorsRequestXZaspFreshAuth",
     "CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema",
+    "EndpointHeartbeatAdapter",
+    "EndpointHeartbeatPolicyStatus",
+    "EndpointSnapshotInstallationsItem",
     "RotateTokenSensorsRequestXZaspFreshAuth",
     "RotateTokenSensorsRequestXZaspSensorEnrollmentSchema",
 ]

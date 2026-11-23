@@ -437,6 +437,17 @@ describe("production workflow API", () => {
 		expect(POST).toHaveBeenCalledWith("/api/v1/policies/{id}/simulate", { params: { path: { id: policy.id } }, body: {} });
 		expect(GET).toHaveBeenCalledWith("/api/v1/policies/{id}/decisions", { params: { path: { id: policy.id }, query: { limit: 25 } }, signal: undefined });
 	});
+  it("rejects replay evidence for another instant within the same millisecond", async () => {
+    const input = {schema_version:2 as const, agent_id:environmentID, policy_revision:3, from:"2026-01-01T00:00:00Z", to:"2026-01-01T12:00:00.123456Z"};
+    let to = "2026-01-01T12:00:00.123456000Z";
+    const POST = vi.fn(async () => ({data:{
+      matches:0,would_block:0,example_session_ids:[],replay:{agent_id:input.agent_id,policy_revision:3,from:input.from,to,evaluated:0,truncated:false,coverage:"indexed_events_only"}
+    },response:new Response(null,{status:200})}));
+    const api = createPoliciesAPI({ POST } as unknown as APIClient);
+    await expect(api.replayPolicy(policy.id, input)).resolves.toMatchObject({matches:0});
+    to = "2026-01-01T12:00:00.123457Z";
+    await expect(api.replayPolicy(policy.id, input)).rejects.toThrow("does not match the requested scope");
+  });
   it("uses a caller key and quoted version from the generated contract", async () => {
     const GET = vi.fn(async () => ({ data: policy, response: new Response(JSON.stringify(policy), { status: 200, headers: { ETag: '"3"', "Content-Type": "application/json" } }) }));
     const POST = vi.fn(async () => ({ data: { policy_id: policy.id, state: "enforced", target_id: environmentID }, response: new Response("{}", { status: 200, headers: { ETag: '"4"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) }));

@@ -6,8 +6,22 @@ import typing
 from importlib import import_module
 
 if typing.TYPE_CHECKING:
-    from .types import GuardrailInteractionDirection
-_dynamic_imports: typing.Dict[str, str] = {"GuardrailInteractionDirection": ".types"}
+    from .types import (
+        GuardrailInteractionDirection,
+        WorkloadActionOutcomeSchemaVersion,
+        WorkloadActionOutcomeStatus,
+        WorkloadActionRequestActionKind,
+        WorkloadActionRequestResource,
+        WorkloadActionRequestSchemaVersion,
+    )
+_dynamic_imports: typing.Dict[str, str] = {
+    "GuardrailInteractionDirection": ".types",
+    "WorkloadActionOutcomeSchemaVersion": ".types",
+    "WorkloadActionOutcomeStatus": ".types",
+    "WorkloadActionRequestActionKind": ".types",
+    "WorkloadActionRequestResource": ".types",
+    "WorkloadActionRequestSchemaVersion": ".types",
+}
 
 
 def __getattr__(attr_name: str) -> typing.Any:
@@ -31,4 +45,11 @@ def __dir__():
     return sorted(lazy_attrs)
 
 
-__all__ = ["GuardrailInteractionDirection"]
+__all__ = [
+    "GuardrailInteractionDirection",
+    "WorkloadActionOutcomeSchemaVersion",
+    "WorkloadActionOutcomeStatus",
+    "WorkloadActionRequestActionKind",
+    "WorkloadActionRequestResource",
+    "WorkloadActionRequestSchemaVersion",
+]

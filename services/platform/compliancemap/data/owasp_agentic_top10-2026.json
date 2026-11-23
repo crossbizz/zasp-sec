@@ -1,0 +1,61 @@
+{
+  "framework": "owasp_agentic_top10",
+  "edition": "2026",
+  "source_url": "https://raw.githubusercontent.com/GenAI-Security-Project/GenAI-Security-Corpus/b234defdc90833d12c6f9fedb3161600b6f77abb/corpus/agentic-top10/2026-final/OWASP-Top-10-for-Agentic-Applications-2026-v1.0.pdf",
+  "source_digest": "sha256:a2db94cd00b08e0b3a5e5b619afe024bdbcd74503111085705e4f3dd886fcb5c",
+  "digest_basis": "upstream_bytes",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "OWASP GenAI Security Project. Published index adapted to edition-qualified risk references.",
+  "entries": [
+    {
+      "id": "ASI01",
+      "title": "Agent Goal Hijack",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI02",
+      "title": "Tool Misuse and Exploitation",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI03",
+      "title": "Identity and Privilege Abuse",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI04",
+      "title": "Agentic Supply Chain Vulnerabilities",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI05",
+      "title": "Unexpected Code Execution (RCE)",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI06",
+      "title": "Memory & Context Poisoning",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI07",
+      "title": "Insecure Inter-Agent Communication",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI08",
+      "title": "Cascading Failures",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI09",
+      "title": "Human-Agent Trust Exploitation",
+      "kind": "risk"
+    },
+    {
+      "id": "ASI10",
+      "title": "Rogue Agents",
+      "kind": "risk"
+    }
+  ]
+}

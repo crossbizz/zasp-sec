@@ -7,7 +7,19 @@ from importlib import import_module
 
 if typing.TYPE_CHECKING:
     from .guardrail_interaction_direction import GuardrailInteractionDirection
-_dynamic_imports: typing.Dict[str, str] = {"GuardrailInteractionDirection": ".guardrail_interaction_direction"}
+    from .workload_action_outcome_schema_version import WorkloadActionOutcomeSchemaVersion
+    from .workload_action_outcome_status import WorkloadActionOutcomeStatus
+    from .workload_action_request_action_kind import WorkloadActionRequestActionKind
+    from .workload_action_request_resource import WorkloadActionRequestResource
+    from .workload_action_request_schema_version import WorkloadActionRequestSchemaVersion
+_dynamic_imports: typing.Dict[str, str] = {
+    "GuardrailInteractionDirection": ".guardrail_interaction_direction",
+    "WorkloadActionOutcomeSchemaVersion": ".workload_action_outcome_schema_version",
+    "WorkloadActionOutcomeStatus": ".workload_action_outcome_status",
+    "WorkloadActionRequestActionKind": ".workload_action_request_action_kind",
+    "WorkloadActionRequestResource": ".workload_action_request_resource",
+    "WorkloadActionRequestSchemaVersion": ".workload_action_request_schema_version",
+}
 
 
 def __getattr__(attr_name: str) -> typing.Any:
@@ -31,4 +43,11 @@ def __dir__():
     return sorted(lazy_attrs)
 
 
-__all__ = ["GuardrailInteractionDirection"]
+__all__ = [
+    "GuardrailInteractionDirection",
+    "WorkloadActionOutcomeSchemaVersion",
+    "WorkloadActionOutcomeStatus",
+    "WorkloadActionRequestActionKind",
+    "WorkloadActionRequestResource",
+    "WorkloadActionRequestSchemaVersion",
+]

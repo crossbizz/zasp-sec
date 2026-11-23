@@ -191,3 +191,15 @@ guardrails:
 ```
 
 Things the example leaves to you: streaming responses (the output hook above sees only complete responses), tool-call arguments and tool results (send them as `input` with `tool_name`), a failure policy when the call times out (the example raises, which fails closed), and messages whose content is a list of parts rather than a string.
+
+## Action evidence in Neo4j
+
+Run the existing one-shot `projection-graph-init` job when deploying V2 to register the graph labels, relationship types and property names with the schema credential. The existing `projection-graph` worker also consumes admitted signed endpoint receipts and authenticated workload decisions and outcomes. PostgreSQL records each receipt and queues the graph input in the same transaction. The graph records its scoped evidence ID, source, event type, UTC observation timestamp and verdict. A hook receipt links to the reporting device and its device-local session. A workload receipt links to its authenticated credential. It links to an agent and session only when an administrator established that binding before the decision. A returned workload result or a continued hook supplies no proof of a target mutation or skill execution.
+
+In **Integrations → Sensors**, open a device and expand a local action receipt. **Awaiting projection** means the durable receipt is available and its graph write is pending. **Projected** means the graph acknowledged its topology and immutable receipt metadata. The graph worker retries expired leases after an outage. An exact replay preserves the evidence and relationship IDs.
+
+To repopulate a restored graph, use an operator database session and the three product IDs for the affected Environment. The function requeues that scope's retained facts and invalidates outstanding claims. Keep the graph worker running during catch-up.
+
+```sql
+SELECT public.zasp_action_graph_rebuild(:'organization_id', :'workspace_id', :'environment_id');
+```

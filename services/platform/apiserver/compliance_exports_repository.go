@@ -20,9 +20,15 @@ const postgresComplianceExportGetSQL = `SELECT public.zasp_compliance_export_get
 // framework (or one control), or, with AgentID alone, the evidence pack of
 // one agent.
 type ComplianceExportRequest struct {
-	Framework string `json:"framework,omitempty"`
-	ControlID string `json:"control_id,omitempty"`
-	AgentID   string `json:"agent_id,omitempty"`
+	Edition            string `json:"edition,omitempty"`
+	Upstream           string `json:"upstream_id,omitempty"`
+	EvidenceKind       string `json:"evidence_kind,omitempty"`
+	Framework          string `json:"framework,omitempty"`
+	ControlID          string `json:"control_id,omitempty"`
+	AgentID            string `json:"agent_id,omitempty"`
+	PilotCohort        string `json:"pilot_cohort,omitempty"`
+	DeviceID           string `json:"device_id,omitempty"`
+	EndpointSessionRef string `json:"endpoint_session_ref,omitempty"`
 }
 type ComplianceExportJob struct {
 	ExportID           string    `json:"export_id"`
@@ -46,13 +52,25 @@ func NewComplianceExportsRepository(db JSONDatabase) (*ComplianceExportsReposito
 	return &ComplianceExportsRepository{source: r}, nil
 }
 
+var pilotSessionReference = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var complianceIdempotencyKey = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
 var ErrComplianceCapacity = errors.New("compliance capacity exhausted")
 
 func (r *ComplianceExportsRepository) Create(ctx context.Context, identity RequestIdentity, digest []byte, key string, request ComplianceExportRequest) (ComplianceExportJob, error) {
+	if request.Edition != "" || request.Upstream != "" || request.EvidenceKind != "" {
+		return r.createFrameworkExport(ctx, identity, digest, key, request)
+	}
 	if !validRequestIdentity(identity, true) || !identity.FreshAuthenticated || !complianceIdempotencyKey.MatchString(key) || request.Framework != "" && !validComplianceFramework(request.Framework) || request.ControlID != "" && !validComplianceControl(request.ControlID, request.Framework) ||
 		request.AgentID != "" && (!validProductID(request.AgentID) || request.Framework != "" || request.ControlID != "") {
 		return ComplianceExportJob{}, ErrRepositoryOperation
+	}
+	if request.PilotCohort != "" || request.DeviceID != "" || request.EndpointSessionRef != "" {
+		if request.Framework != "" || request.ControlID != "" || request.AgentID != "" ||
+			(request.PilotCohort != "" && (!cohortLabel.MatchString(request.PilotCohort) || request.DeviceID != "" || request.EndpointSessionRef != "")) ||
+			(request.PilotCohort == "" && !validProductID(request.DeviceID)) ||
+			(request.EndpointSessionRef != "" && !pilotSessionReference.MatchString(request.EndpointSessionRef)) {
+			return ComplianceExportJob{}, ErrRepositoryOperation
+		}
 	}
 	if request.Framework == "" && request.ControlID != "" {
 		request.Framework = complianceControlFramework(request.ControlID)

@@ -68,7 +68,7 @@ func TestComplianceReadSurfaceRegistersExactOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 	baseRoutes, extended := base.(*operationRouter).operations, router.(*operationRouter).operations
-	if len(extended) != len(baseRoutes)+1 {
+	if len(extended) != len(baseRoutes)+4 {
 		t.Fatalf("read surface registered %d operations beyond the base", len(extended)-len(baseRoutes))
 	}
 	served := map[string]bool{}
@@ -83,7 +83,7 @@ func TestComplianceReadSurfaceRegistersExactOperations(t *testing.T) {
 			t.Fatalf("export operation %s registered without storage", operation.operationID)
 		}
 	}
-	if len(served) != 3 || !served["listComplianceControls"] || !served["listComplianceEvidence"] || !served["getComplianceEvidence"] {
+	if len(served) != 6 || !served["listComplianceEditions"] || !served["listComplianceCoverage"] || !served["listComplianceCoverageEvidence"] || !served["listComplianceControls"] || !served["listComplianceEvidence"] || !served["getComplianceEvidence"] {
 		t.Fatalf("read surface operations: %v", served)
 	}
 }

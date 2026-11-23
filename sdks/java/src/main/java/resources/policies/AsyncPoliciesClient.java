@@ -20,11 +20,10 @@ import ai.zasp.api.resources.policies.requests.UpdatePoliciesRequest;
 import ai.zasp.api.types.Policy;
 import ai.zasp.api.types.PolicyRollout;
 import ai.zasp.api.types.PolicySimulation;
+import ai.zasp.api.types.PolicySimulationInput;
 import ai.zasp.api.types.RuntimeDecisionPage;
-import java.lang.Object;
 import java.lang.String;
 import java.lang.Void;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class AsyncPoliciesClient {
@@ -226,7 +225,7 @@ public class AsyncPoliciesClient {
     return future;
   }
 
-  public CompletableFuture<PolicySimulation> simulate(String id, Map<String, Object> body) {
+  public CompletableFuture<PolicySimulation> simulate(String id, PolicySimulationInput body) {
     CompletableFuture<ZaspHttpResponse<PolicySimulation>> rawFuture = this.rawClient.simulate(id, body);
     CompletableFuture<PolicySimulation> future = rawFuture.thenApply(response -> response.body());
     future.whenComplete((result_, throwable_) -> {
@@ -237,7 +236,7 @@ public class AsyncPoliciesClient {
     return future;
   }
 
-  public CompletableFuture<PolicySimulation> simulate(String id, Map<String, Object> body,
+  public CompletableFuture<PolicySimulation> simulate(String id, PolicySimulationInput body,
       RequestOptions requestOptions) {
     CompletableFuture<ZaspHttpResponse<PolicySimulation>> rawFuture = this.rawClient.simulate(id, body, requestOptions);
     CompletableFuture<PolicySimulation> future = rawFuture.thenApply(response -> response.body());

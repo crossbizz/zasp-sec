@@ -18,8 +18,15 @@ export interface RuntimeSessionTimelineAPI {
   events(id: string, cursor: string | null, signal: AbortSignal): Promise<RuntimeSessionEventPage>;
 }
 
-function targetedSummary(value: unknown, id: string): RuntimeSession {
+export function verifyRuntimeSessionScope(session: RuntimeSession, scope?: ActivityScope): void {
+  if (scope && (session.workspace_id !== scope.workspaceID || session.environment_id !== scope.environmentID)) {
+    throw new APITransportError("invalid_response", "Runtime investigation scope mismatch");
+  }
+}
+
+function targetedSummary(value: unknown, id: string, scope?: ActivityScope): RuntimeSession {
   const summary = decodeRuntimeSession(value);
+  verifyRuntimeSessionScope(summary, scope);
   if (summary.id !== id) throw new APITransportError("invalid_response", "Runtime investigation identity mismatch");
   return summary;
 }
@@ -30,10 +37,10 @@ function targetedEvents(value: unknown, id: string): RuntimeSessionEventPage {
   return page;
 }
 
-export function createRuntimeSessionTimelineAPI(client: APIClient): RuntimeSessionTimelineAPI {
+export function createRuntimeSessionTimelineAPI(client: APIClient, scope?: ActivityScope): RuntimeSessionTimelineAPI {
   return {
     async get(id, signal) {
-      return targetedSummary(requireAPIData(await client.GET("/api/v1/sessions/{id}", { params: { path: { id } }, signal })), id);
+      return targetedSummary(requireAPIData(await client.GET("/api/v1/sessions/{id}", { params: { path: { id } }, signal })), id, scope);
     },
     async events(id, cursor, signal) {
       return targetedEvents(requireAPIData(await client.GET("/api/v1/sessions/{id}/events", { params: { path: { id }, query: { limit: 25, ...(cursor ? { cursor } : {}) } }, signal })), id);

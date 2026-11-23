@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"strings"
+	"sync"
 )
 
 //go:embed sql/0080_production_authorization_enforcement.up.sql
@@ -50,7 +51,12 @@ var authorizationIntegrationMutationsSQL string
 //go:embed sql/0080_authorization_integration_reference.sql
 var authorizationIntegrationReferenceSQL string
 
-func ProductionAuthorizationEnforcement() Metadata {
+// ProductionAuthorizationEnforcement returns a value built exclusively from
+// immutable embedded migrations. Rebuilding the historical chain per request
+// consumed the readiness deadline before PostgreSQL received its query.
+func ProductionAuthorizationEnforcement() Metadata { return authorizationEnforcementMetadata() }
+
+var authorizationEnforcementMetadata = sync.OnceValue(func() Metadata {
 	source := strings.ReplaceAll(authorizationEnforcementSQL, "-- authorization80 parent reads", authorizationParentReadsSQL)
 	source = strings.ReplaceAll(source, "-- authorization80 session reads", authorizationSessionReadsSQL)
 	source = strings.ReplaceAll(source, "-- authorization80 session search", authorizationSessionSearchSQL)
@@ -91,7 +97,8 @@ func ProductionAuthorizationEnforcement() Metadata {
 	digest := sha256.Sum256([]byte(source))
 	checksum := hex.EncodeToString(digest[:])
 	return Metadata{version: 80, name: "production_authorization_enforcement_extension", checksum: checksum, up: strings.ReplaceAll(source, "-- authorization80 checksum", checksum)}
-}
+})
+
 func (r *Runner) UpProductionAuthorizationEnforcement(ctx context.Context) error {
 	if r == nil || nilInterface(r.database) {
 		return ErrInvalidRunner

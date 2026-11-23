@@ -1,0 +1,8 @@
+$ErrorActionPreference='Stop'
+$target=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Zasp Inventory Device\zasp-device-windows.exe'
+if (!(Test-Path -LiteralPath $target -PathType Leaf) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $target).Hash -ne '__SHA256__') { exit 1 }
+$signature=Get-AuthenticodeSignature -LiteralPath $target
+if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne '__THUMBPRINT__') { exit 1 }
+foreach ($name in @('Zasp Inventory User Scan','Zasp Inventory Device Sync')) { if (!(Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue)) { exit 1 } }
+Write-Output 'Installed'
+exit 0

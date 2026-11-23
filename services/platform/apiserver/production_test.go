@@ -305,7 +305,7 @@ func TestBootstrapMapsRedTeamExecutionWithoutWorkflowMutationAuthority(t *testin
 	if json.Unmarshal(payload, &bootstrap) != nil {
 		t.Fatal("bootstrap did not decode")
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read", "red-team.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read", "red-team.write", "addon-scans.share"}
 	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "integrations.write") {
 		t.Fatalf("red team capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}

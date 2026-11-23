@@ -40,6 +40,8 @@ type complianceFrozenSnapshot struct {
 	// AgentEvidencePack is set for an export that names one agent; it then
 	// has no controls.
 	AgentEvidencePack json.RawMessage `json:"agent_evidence_pack"`
+	PilotEvidencePack json.RawMessage `json:"pilot_evidence_pack"`
+	FrameworkCoverage json.RawMessage `json:"framework_coverage"`
 }
 
 // renderAgentEvidencePackPackage renders the package of an export that names
@@ -62,18 +64,22 @@ func renderAgentEvidencePackPackage(l complianceExportLease, snapshot compliance
 		return compliancePreparedArtifact{}, errWorkerExecution
 	}
 	readable := evidencepack.Markdown(pack, snapshot.Organization, snapshot.Workspace, snapshot.Environment, snapshot.At)
+	return buildSectionPackage(l, document.Bytes(), records, readable)
+}
+
+func buildSectionPackage(l complianceExportLease, document, records []byte, readable string) (compliancePreparedArtifact, error) {
 	body, err := json.Marshal(struct {
 		Version int             `json:"version"`
 		ID      string          `json:"id"`
 		JSON    json.RawMessage `json:"json"`
 		CSV     string          `json:"csv"`
 		Human   string          `json:"human"`
-	}{1, l.ExportID, document.Bytes(), string(records), readable})
-	if err != nil || len(body) > 8<<20 || document.Len() > 4<<20 || len(records) > 4<<20 || len(readable) > 4<<20 {
+	}{1, l.ExportID, document, string(records), readable})
+	if err != nil || len(body) > 8<<20 || len(document) > 4<<20 || len(records) > 4<<20 || len(readable) > 4<<20 {
 		return compliancePreparedArtifact{}, errWorkerExecution
 	}
 	hash := sha256.Sum256(body)
-	return compliancePreparedArtifact{Bytes: body, RendererRevision: "compliance-envelope-v1", Reference: l.ExportID, Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:]), FormatSizes: map[string]int64{"json": int64(document.Len()), "csv": int64(len(records)), "readable": int64(len(readable))}}, nil
+	return compliancePreparedArtifact{Bytes: body, RendererRevision: "compliance-envelope-v1", Reference: l.ExportID, Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:]), FormatSizes: map[string]int64{"json": int64(len(document)), "csv": int64(len(records)), "readable": int64(len(readable))}}, nil
 }
 
 func renderComplianceExportPackage(ctx context.Context, l complianceExportLease, raw json.RawMessage) (compliancePreparedArtifact, error) {
@@ -85,6 +91,18 @@ func renderComplianceExportPackage(ctx context.Context, l complianceExportLease,
 	d.DisallowUnknownFields()
 	if d.Decode(&snapshot) != nil || d.Decode(new(any)) != io.EOF || snapshot.Revision != "product-evidence-v1" || snapshot.At.IsZero() || snapshot.Organization != l.Scope.OrganizationID().String() || snapshot.Workspace != l.Scope.WorkspaceID().String() || snapshot.Environment != l.Scope.EnvironmentID().String() || len(snapshot.Controls) > 500 {
 		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	if snapshot.FrameworkCoverage != nil {
+		if len(snapshot.Controls) != 0 || snapshot.AgentEvidencePack != nil || snapshot.PilotEvidencePack != nil {
+			return compliancePreparedArtifact{}, errWorkerExecution
+		}
+		return renderFrameworkReport(l, snapshot)
+	}
+	if snapshot.PilotEvidencePack != nil {
+		if snapshot.AgentEvidencePack != nil || len(snapshot.Controls) > 0 {
+			return compliancePreparedArtifact{}, errWorkerExecution
+		}
+		return renderPilotPackage(l, snapshot)
 	}
 	if snapshot.AgentEvidencePack != nil {
 		return renderAgentEvidencePackPackage(l, snapshot)

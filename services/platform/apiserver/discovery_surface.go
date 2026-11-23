@@ -13,8 +13,12 @@ func NewDiscoveryWorkflowSurface(workflow, discovery http.Handler) (http.Handler
 }
 
 type discoveryWorkflowSurface struct {
+	evidenceDB JSONDatabase
 	// guardrail serves the guardrail decision API and the Environment's
 	// guardrail policy. It is nil where they are not composed.
+	addons    *addonReviewHandler
+	actions   *workloadActionHandler
+	fleet     *endpointFleetHandler
 	guardrail *guardrailHTTPHandler
 	// gateway serves the hosted gateway: its traffic routes and their
 	// management. It is nil where it is not composed.
@@ -30,6 +34,66 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 		return
 	}
 	switch routed.OperationID {
+	case "getBrowserProfile", "registerBrowserProfile", "retireBrowserProfile", "recordBrowserOriginDays":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveBrowserProfile(surface.evidenceDB, writer, request, routed)
+	case "getTicketVerification", "putTicketVerification":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveTicketProof(surface.evidenceDB, writer, request, routed)
+	case "getAgentActionAnalysis", "putAgentActionAnalysis":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveActionAnalysis(surface.evidenceDB, writer, request, routed)
+	case "getAgentPurpose", "putAgentPurpose":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveAgentPurpose(surface.evidenceDB, writer, request, routed)
+	case "getTicketCohort", "publishTicketCohort":
+		if surface.fleet == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.fleet.cohort(writer, request, routed)
+	case "getEndpointPolicyCohort", "updateEndpointPolicyCohort", "registerEndpointDevice", "listEndpointDevices", "getEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "exchangeEndpointEnrollment", "recordEndpointHeartbeat", "recordEndpointInventory", "recordEndpointObservations", "fetchEndpointPolicy":
+		if surface.fleet == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.fleet.serve(writer, request, routed)
+	case "listAddonVersionInstallations", "getAddonScan", "attestAddonScan", "getAddonCIOrigin", "submitAddonScan", "listAddonVersions", "getAddonVersion", "reviewAddonVersion":
+		if surface.addons == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.addons.ServeHTTP(writer, request, routed)
+	case "authorizeWorkloadContainment", "releaseWorkloadContainment", "getWorkloadContainment":
+		if surface.actions == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.actions.containment(writer, request, routed)
+	case "bindWorkloadCredential", "getWorkloadCredentialBinding":
+		if surface.actions == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.actions.binding(writer, request, routed)
+	case "createWorkloadActionDecision", "recordWorkloadActionOutcome":
+		if surface.actions == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		surface.actions.serve(writer, request, routed)
 	case "createGuardrailDecision", "getGuardrailPolicy", "putGuardrailPolicy":
 		if surface.guardrail == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)

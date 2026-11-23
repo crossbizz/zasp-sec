@@ -1,0 +1,52 @@
+name: Prepare native zaspctl release candidates
+on: [workflow_dispatch, workflow_call]
+permissions: { contents: read }
+jobs:
+  candidate:
+    name: Build and test ${{ matrix.asset }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: linux-amd64
+            asset: zaspctl-linux-amd64
+          - runner: macos-15
+            target: darwin-arm64
+            asset: zaspctl-darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-amd64
+            asset: zaspctl-darwin-amd64
+          - runner: windows-2025
+            target: windows-amd64
+            asset: zaspctl-windows-amd64.exe
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: core.longpaths
+          GIT_CONFIG_VALUE_0: "true"
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache-dependency-path: cmd/zaspctl/go.sum
+      - name: Run CLI tests in the native environment
+        run: go test -C cmd/zaspctl -mod=readonly -count=1 ./...
+      - name: Build from the checked-out commit
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          test "$(go env GOOS)-$(go env GOARCH)" = "$TARGET"
+          test -z "$(git status --porcelain)"
+          go build -C cmd/zaspctl -mod=readonly -trimpath -buildvcs=true -o "$RUNNER_TEMP/$ASSET" .
+          go version -m "$RUNNER_TEMP/$ASSET"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: candidate-${{ matrix.asset }}-${{ github.sha }}
+          path: ${{ runner.temp }}/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 10

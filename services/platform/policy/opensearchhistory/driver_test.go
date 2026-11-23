@@ -3,6 +3,7 @@ package opensearchhistory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
 func TestDriverSearchesOnlyBoundedTenantTriggerHistory(t *testing.T) {
@@ -145,4 +147,138 @@ func historyID(t *testing.T) domain.ProductID {
 		t.Fatal(err)
 	}
 	return value
+}
+
+func TestPolicyReplayScopesAgentAndRejectsPartialSearch(t *testing.T) {
+	scope := historyScope(t)
+	id := historyID(t).String()
+	other := historyID(t).String()
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	window := platformpolicy.ReplayWindow{AgentID: id, From: base, To: base.Add(time.Hour)}
+	for _, tc := range []struct {
+		name          string
+		size          int
+		agent         string
+		offset        time.Duration
+		shardFailures int
+		valid         bool
+	}{
+		{"empty", 0, id, 0, 0, true}, {"at limit", 100, id, 0, 0, true}, {"more indexed", 101, id, 0, 0, true}, {"foreign agent", 1, other, 0, 0, false}, {"exclusive end", 1, id, time.Hour, 0, false}, {"partial search", 1, id, 0, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transport := historyDoerFunc(func(req *http.Request) (*http.Response, error) {
+				body, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, want := range []string{`"format":"strict_date_time"`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), `"agent_id":"` + id + `"`, `"gte":"2026-01-01T00:00:00.000Z"`, `"lt":"2026-01-01T01:00:00.000Z"`, `"size":500`} {
+					if !strings.Contains(string(body), want) {
+						t.Fatal(string(body))
+					}
+				}
+				stamp := base.Add(tc.offset).Format("2006-01-02T15:04:05.000Z")
+				hits := make([]any, 0, tc.size)
+				for i := 0; i < tc.size; i++ {
+					doc := fmt.Sprintf("evt_%064x", i+1)
+					event := fmt.Sprintf("pid_%08x-0000-4000-8000-%012x", i+1, i+1)
+					hits = append(hits, map[string]any{"_id": doc, "sort": []string{stamp, event}, "_source": historyStoredDocument{OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), RecordType: "runtime_event", EventID: event, EventClass: "tool", Action: "invoke", AgentID: tc.agent, SessionID: other, ToolID: "send", SourceEventID: "source", EventTime: stamp}})
+				}
+				reply, _ := json.Marshal(map[string]any{"timed_out": false, "_shards": map[string]any{"failed": tc.shardFailures}, "hits": map[string]any{"hits": hits}})
+				return historyResponse(200, string(reply)), nil
+			})
+			driver, err := newWithClient(Config{Endpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", Region: "us-west-2", RequestTimeout: time.Second, MaximumResponseBytes: 1 << 20}, historyCredentials{}, historySigner{}, transport, historyReady{}, func() time.Time { return base })
+			if err != nil {
+				t.Fatal(err)
+			}
+			values, truncated, err := driver.SearchReplayActions(t.Context(), scope, "tool", window)
+			if (err == nil) != tc.valid || tc.valid && (len(values) != tc.size || truncated) {
+				t.Fatalf("len %d, truncated %v, error %v", len(values), truncated, err)
+			}
+		})
+	}
+}
+
+func TestPolicyReplayThreePagesTiesAndAdjacentWindows(t *testing.T) {
+	scope := historyScope(t)
+	agent, session := historyID(t).String(), historyID(t).String()
+	at := time.Date(2026, 1, 2, 10, 0, 0, 0, time.UTC)
+	stamp := at.Format("2006-01-02T15:04:05.000Z")
+	id := func(i int) string { return fmt.Sprintf("pid_%08x-0000-4000-8000-%012x", i, i) }
+	calls := 0
+	changeTotal := false
+	client := historyDoerFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		var q struct {
+			Size  int              `json:"size"`
+			After []string         `json:"search_after"`
+			Sort  []map[string]any `json:"sort"`
+			Query json.RawMessage  `json:"query"`
+		}
+		if json.NewDecoder(req.Body).Decode(&q) != nil || len(q.Sort) != 2 || q.Sort[1]["event_id"] == nil {
+			t.Fatalf("wrong sort")
+		}
+		start := 1
+		if len(q.After) > 0 {
+			if len(q.After) != 2 || q.After[0] != stamp {
+				t.Fatalf("bad continuation %v", q.After)
+			}
+			for start <= 250 && id(start) <= q.After[1] {
+				start++
+			}
+		}
+		var hits []any
+		for i := start; i <= 250 && len(hits) < q.Size; i++ {
+			doc := fmt.Sprintf("evt_%064x", i)
+			hits = append(hits, map[string]any{"_id": doc, "sort": []string{stamp, id(i)}, "_source": historyStoredDocument{OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), RecordType: "runtime_event", EventID: id(i), EventClass: "tool", Action: "invoke", AgentID: agent, SessionID: session, ToolID: "ticket", EventTime: stamp}})
+		}
+		total := 250
+		if changeTotal && len(q.After) > 0 {
+			total++
+		}
+		if strings.Contains(string(q.Query), `"lt":"2026-01-02T10:00:00.000Z"`) && !strings.Contains(string(q.Query), `"gt"`) {
+			hits = []any{}
+			total = 0
+		}
+		if strings.Contains(string(q.Query), `"gt"`) {
+			total = 50
+		}
+		if hits == nil {
+			hits = []any{}
+		}
+		data, _ := json.Marshal(map[string]any{"timed_out": false, "_shards": map[string]int{"failed": 0}, "hits": map[string]any{"total": map[string]any{"value": total, "relation": "eq"}, "hits": hits}})
+		return historyResponse(200, string(data)), nil
+	})
+	d, err := newWithClient(Config{Endpoint: "https://vpc-zasp.us-west-2.es.amazonaws.com", Region: "us-west-2", RequestTimeout: time.Second, MaximumResponseBytes: 1 << 20}, historyCredentials{}, historySigner{}, client, historyReady{}, func() time.Time { return at })
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := platformpolicy.ReplayWindow{AgentID: agent, From: at, To: at.Add(time.Hour)}
+	got, truncated, err := d.replayPages(t.Context(), scope, "tool", w, 100, 10)
+	if err != nil || truncated || len(got) != 250 || calls != 3 {
+		t.Fatalf("%d hits, %d calls, truncated %t: %v", len(got), calls, truncated, err)
+	}
+	earlier, cut, err := d.replayPages(t.Context(), scope, "tool", platformpolicy.ReplayWindow{AgentID: agent, From: at.Add(-time.Hour), To: at}, 100, 10)
+	if err != nil || cut || len(earlier) != 0 {
+		t.Fatal("adjacent window included the boundary event")
+	}
+	got, truncated, err = d.replayPages(t.Context(), scope, "tool", w, 100, 2)
+	if err != nil || !truncated || len(got) != 200 {
+		t.Fatal("budget not enforced")
+	}
+	w.To = got[199].EventTime
+	w.BeforeEventID = got[199].EventID
+	if !w.Valid() {
+		t.Fatal("exact boundary continuation rejected")
+	}
+	tail, truncated, err := d.replayPages(t.Context(), scope, "tool", w, 100, 10)
+	if err != nil || truncated || len(tail) != 50 || tail[0].EventID != id(201) {
+		t.Fatal("same-timestamp continuation lost or duplicated events", err, len(tail))
+	}
+	w.To = at.Add(time.Hour)
+	w.BeforeEventID = ""
+	changeTotal = true
+	inconsistent, cut, err := d.replayPages(t.Context(), scope, "tool", w, 100, 10)
+	if err == nil || inconsistent != nil || cut {
+		t.Fatal("partial read emitted despite inconsistent page counts")
+	}
 }

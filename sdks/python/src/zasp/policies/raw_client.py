@@ -542,7 +542,9 @@ class RawPoliciesClient:
         _response = self._client_wrapper.httpx_client.request(
             f"api/v1/policies/{encode_path_param(id)}/simulate",
             method="POST",
-            json=request,
+            json=convert_and_respect_annotation_metadata(
+                object_=request, annotation=PolicySimulationInput, direction="write"
+            ),
             headers={
                 "content-type": "application/json",
                 "X-CSRF-Token": str(csrf_token) if csrf_token is not None else None,
@@ -1308,7 +1310,9 @@ class AsyncRawPoliciesClient:
         _response = await self._client_wrapper.httpx_client.request(
             f"api/v1/policies/{encode_path_param(id)}/simulate",
             method="POST",
-            json=request,
+            json=convert_and_respect_annotation_metadata(
+                object_=request, annotation=PolicySimulationInput, direction="write"
+            ),
             headers={
                 "content-type": "application/json",
                 "X-CSRF-Token": str(csrf_token) if csrf_token is not None else None,

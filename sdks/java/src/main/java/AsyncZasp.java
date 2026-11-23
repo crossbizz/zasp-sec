@@ -45,13 +45,15 @@ public class AsyncZasp implements AutoCloseable {
 
   protected final Supplier<AsyncGuardrailsClient> guardrailsClient;
 
+  protected final Supplier<AsyncToolsClient> toolsClient;
+
   protected final Supplier<AsyncGatewayClient> gatewayClient;
 
   protected final Supplier<AsyncGatewayTrafficClient> gatewayTrafficClient;
 
   protected final Supplier<AsyncAgentsClient> agentsClient;
 
-  protected final Supplier<AsyncToolsClient> toolsClient;
+  protected final Supplier<AsyncPoliciesClient> policiesClient;
 
   protected final Supplier<AsyncMcpServersClient> mcpServersClient;
 
@@ -66,8 +68,6 @@ public class AsyncZasp implements AutoCloseable {
   protected final Supplier<AsyncAttackPathsClient> attackPathsClient;
 
   protected final Supplier<AsyncSearchClient> searchClient;
-
-  protected final Supplier<AsyncPoliciesClient> policiesClient;
 
   protected final Supplier<AsyncSecurityAgentsClient> securityAgentsClient;
 
@@ -91,10 +91,11 @@ public class AsyncZasp implements AutoCloseable {
     this.integrationsClient = Suppliers.memoize(() -> new AsyncIntegrationsClient(clientOptions));
     this.sensorsClient = Suppliers.memoize(() -> new AsyncSensorsClient(clientOptions));
     this.guardrailsClient = Suppliers.memoize(() -> new AsyncGuardrailsClient(clientOptions));
+    this.toolsClient = Suppliers.memoize(() -> new AsyncToolsClient(clientOptions));
     this.gatewayClient = Suppliers.memoize(() -> new AsyncGatewayClient(clientOptions));
     this.gatewayTrafficClient = Suppliers.memoize(() -> new AsyncGatewayTrafficClient(clientOptions));
     this.agentsClient = Suppliers.memoize(() -> new AsyncAgentsClient(clientOptions));
-    this.toolsClient = Suppliers.memoize(() -> new AsyncToolsClient(clientOptions));
+    this.policiesClient = Suppliers.memoize(() -> new AsyncPoliciesClient(clientOptions));
     this.mcpServersClient = Suppliers.memoize(() -> new AsyncMcpServersClient(clientOptions));
     this.identitiesClient = Suppliers.memoize(() -> new AsyncIdentitiesClient(clientOptions));
     this.runtimesClient = Suppliers.memoize(() -> new AsyncRuntimesClient(clientOptions));
@@ -102,7 +103,6 @@ public class AsyncZasp implements AutoCloseable {
     this.findingsClient = Suppliers.memoize(() -> new AsyncFindingsClient(clientOptions));
     this.attackPathsClient = Suppliers.memoize(() -> new AsyncAttackPathsClient(clientOptions));
     this.searchClient = Suppliers.memoize(() -> new AsyncSearchClient(clientOptions));
-    this.policiesClient = Suppliers.memoize(() -> new AsyncPoliciesClient(clientOptions));
     this.securityAgentsClient = Suppliers.memoize(() -> new AsyncSecurityAgentsClient(clientOptions));
     this.securityAgentRunsClient = Suppliers.memoize(() -> new AsyncSecurityAgentRunsClient(clientOptions));
     this.securityAgentApprovalsClient = Suppliers.memoize(() -> new AsyncSecurityAgentApprovalsClient(clientOptions));
@@ -129,6 +129,10 @@ public class AsyncZasp implements AutoCloseable {
     return this.guardrailsClient.get();
   }
 
+  public AsyncToolsClient tools() {
+    return this.toolsClient.get();
+  }
+
   public AsyncGatewayClient gateway() {
     return this.gatewayClient.get();
   }
@@ -141,8 +145,8 @@ public class AsyncZasp implements AutoCloseable {
     return this.agentsClient.get();
   }
 
-  public AsyncToolsClient tools() {
-    return this.toolsClient.get();
+  public AsyncPoliciesClient policies() {
+    return this.policiesClient.get();
   }
 
   public AsyncMcpServersClient mcpServers() {
@@ -171,10 +175,6 @@ public class AsyncZasp implements AutoCloseable {
 
   public AsyncSearchClient search() {
     return this.searchClient.get();
-  }
-
-  public AsyncPoliciesClient policies() {
-    return this.policiesClient.get();
   }
 
   public AsyncSecurityAgentsClient securityAgents() {

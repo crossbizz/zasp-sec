@@ -37,6 +37,7 @@ import type {
   PolicyRollout,
   PolicyRolloutInput,
 	PolicySimulation,
+  PolicyReplayInput,
 	RuntimeDecision,
   WorkflowMutationReceipt,
 } from "../../../apps/web/api/generated";
@@ -239,6 +240,12 @@ function deepFreeze<I>(value: I): I {
   return value;
 }
 
+// Date.parse alone discards sub-millisecond digits that distinguish replay cursors.
+function sameReplayInstant(left: string, right: string): boolean {
+  const remainder = (value: string) => (/\.(\d+)(?:Z|[+-]\d{2}:\d{2})$/i.exec(value)?.[1] ?? "").slice(3).replace(/0+$/, "");
+  return Date.parse(left) === Date.parse(right) && remainder(left) === remainder(right);
+}
+
 export function createPoliciesAPI(client: APIClient) {
   return {
     async listPolicies(signal?: AbortSignal): Promise<readonly Policy[]> {
@@ -261,6 +268,12 @@ export function createPoliciesAPI(client: APIClient) {
     },
     async disablePolicy(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<PolicyRollout>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/policies/{id}/disable", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: {} }), decodePolicyRollout), attempt);
+    },
+    async replayPolicy(id: string, input: PolicyReplayInput): Promise<PolicySimulation> {
+      const value = requireAPIData(await client.POST("/api/v1/policies/{id}/simulate", { params: { path: { id } }, body: input }), decodePolicySimulation);
+      const replay = value.replay;
+      if (!replay || replay.policy_revision !== input.policy_revision || replay.agent_id !== input.agent_id || !sameReplayInstant(replay.from, input.from) || !sameReplayInstant(replay.to, input.to)) throw new APITransportError("invalid_response", "The replay evidence does not match the requested scope");
+      return value;
     },
 		async simulatePolicy(id: string): Promise<PolicySimulation> {
 			return requireAPIData(await client.POST("/api/v1/policies/{id}/simulate", { params: { path: { id } }, body: {} }), decodePolicySimulation);

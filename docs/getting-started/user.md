@@ -1072,6 +1072,16 @@ Open **Compliance**.
 The page is explicit about what this is: "Product evidence for review.
 Freshness and exports do not establish certification or control effectiveness."
 
+### Versioned framework coverage
+
+Open **Risk** → **Compliance** → **Framework coverage**. Choose the framework and edition. The catalog includes all ten risks in each available OWASP edition, the pinned MITRE ATLAS techniques, sub-techniques and mitigations, and the reviewed subset of Enterprise ATT&CK. The page shows the full edition size, the number of matching entries and how many applicable entries have verified coverage. Unassessed and out-of-scope entries keep their own counts.
+
+Choose **Evidence kind** to filter by posture finding, static scan, observed event, tested control or verified prevention. You can also enter an exact **Control ID** and select **Apply control**. Open a row to see its scope, owner, applicability rationale, upstream source and the evidence you can read in the current Environment. The last-verification date identifies the most recent verification on record. Evidence older than 30 days is labeled stale and remains available to review. A category without mapped evidence shows unknown coverage.
+
+For a laptop skill with an unpinned dependency, open its exact version in **Inventory** → **Tools & MCP** → **Add-ons** and follow its **ASI04** reference into the OWASP Agentic 2026 catalog. The **Static scan** link returns to the version review. The affected local file and its path stay in the developer's local report. For an analyzed action, open **View framework references** from its finding in **Policies**. A source with a verified session or test-run link opens the corresponding authorized record.
+
+Select **Export this selection** to capture the chosen framework, edition and filters, or expand a row and choose its control-specific export. Use **Refresh export status** and the JSON, CSV or readable download controls under **Evidence exports**. The retained report records the edition and source digest at capture time. Changing to a different Environment requires a new query and export.
+
 ### Exports
 
 Under **Evidence exports**:
@@ -1149,6 +1159,12 @@ If you choose to install it: **Enroll sensor**, choose the **Sensor kind**
 (**Tetragon** or **OTLP**), and copy the token when the page says
 **Copy this token now**. It is shown once. The installation itself is described
 in the administrator guide.
+
+### Managed endpoint policies
+
+Open **Sensors** → **Devices** → **Endpoint policy template** and enter the managed cohort name. Choose **Load template** to inspect its saved revision. With workflow-management permission and a fresh sign-in, choose **Add rule**, select its type and values, and save the cohort template. Start in Monitor to review eligible pre-tool calls before enforcing.
+
+Saving the template records the intended rules. On the authorized issuer, sign the matching policy for each selected device and publish its envelope. The device detail shows assigned and reported revisions. An offline device can continue on its previously acknowledged revision until that policy expires. [Endpoint issuer and device deployment](../../deploy/endpoint/README.md)
 
 ## First hour checklist
 

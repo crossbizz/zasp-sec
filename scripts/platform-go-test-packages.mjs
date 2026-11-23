@@ -29,15 +29,24 @@ const modulePath = "github.com/zasp-ai/zasp-sec/services/platform";
 // guardrails, red team probes and schedules, provider remediation and the
 // AI compliance frameworks), so a test added to one runs in CI unchanged.
 export const apiserverFeatureTestFiles = [
+  "addon_ci_origin_test.go",
+  "addon_review_test.go",
   "agent_evidence_pack_test.go",
+  "agent_action_analysis_test.go",
+  "agent_purpose_test.go",
   "authorization_missing_object_test.go",
   "authorization_product_statement_test.go",
   "authorization_security_agent_activity_statement_test.go",
+  "browser_profile_test.go",
+  "cli_login_test.go",
   "completion_ws3_postgres_test.go",
   "compliance_ai_frameworks_test.go",
   "compliance_control_evidence_test.go",
   "compliance_export_baseline_test.go",
+  "framework_reporting_test.go",
+  "provider_hook_installed_postgres_test.go",
   "connector_reference_revocation_test.go",
+  "endpoint_fleet_test.go",
   "guardrail_handler_test.go",
   "guardrail_postgres_test.go",
   "integration_remediation_role_test.go",
@@ -45,6 +54,8 @@ export const apiserverFeatureTestFiles = [
   "inventory_relationship_ends_test.go",
   "mcp_inventory_test.go",
   "mcp_postgres_test.go",
+  "policy_public_handler_test.go",
+  "private_addon_upload_test.go",
   "production_error_codes_test.go",
   "red_team_probe_library_postgres_test.go",
   "red_team_probes_test.go",
@@ -59,6 +70,11 @@ export const apiserverFeatureTestFiles = [
   "security_agent_remediation_installed_postgres_test.go",
   "security_agent_remediation_postgres_test.go",
   "security_agent_remediation_test.go",
+  "ticket_cohort_test.go",
+  "ticket_proof_test.go",
+  "workload_action_test.go",
+  "workload_context_test.go",
+  "workload_binding_test.go",
 ];
 
 // Test function names declared in Go source.

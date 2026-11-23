@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
@@ -14,11 +15,25 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 )
 
+func runLinkedLeaseScenario(t *testing.T, scenario string, test func(*testing.T)) {
+	t.Run(scenario, func(t *testing.T) {
+		switch scenario {
+		case "expiry", "blocked_heartbeat", "finish_expiry":
+			// These cases explicitly measure the real wall-clock expiry bound.
+			test(t)
+		default:
+			// The authority and queue are in-process. Advance the real worker's
+			// timers when its goroutines block, independent of host CPU scheduling.
+			synctest.Test(t, test)
+		}
+	})
+}
+
 // The processor is real; the authority, queue and runner are controlled at their
 // I/O boundaries. These tests do not prove database settlement or external cancel.
 func TestRedTeamLinkedProcessorLifecycle(t *testing.T) {
 	for _, scenario := range []string{"complete", "unknown", "cancel", "cancel_unknown", "cancel_failure", "cancel_timeout", "cancel_wrong_run", "cancel_wrong_state", "cancel_wrong_error", "cancel_missing_flag", "cancel_expired", "cancel_shutdown", "cancel_no_capability", "cancel_after_renew", "expiry", "blocked_heartbeat", "missing_expiry", "contradictory_heartbeat", "expired_heartbeat", "unbounded_heartbeat", "visibility_failure", "missing_artifact", "finish_failure", "finish_expiry", "renew", "invalid_version", "expired_claim", "reconcile"} {
-		t.Run(scenario, func(t *testing.T) {
+		runLinkedLeaseScenario(t, scenario, func(t *testing.T) {
 			scope := fixtureRedTeamScope(t)
 			runID := mustProductID(t, "pid_99200001-0000-4000-8000-000000000001")
 			definitionID := "pid_99200002-0000-4000-8000-000000000002"

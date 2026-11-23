@@ -8,8 +8,12 @@ import ai.zasp.api.core.ClientOptions;
 import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.core.ZaspHttpResponse;
 import ai.zasp.api.core.pagination.SyncPagingIterable;
+import ai.zasp.api.resources.tools.requests.AddonCiSignature;
+import ai.zasp.api.resources.tools.requests.AddonScanSubmission;
 import ai.zasp.api.resources.tools.requests.GetToolsRequest;
 import ai.zasp.api.resources.tools.requests.ListToolsRequest;
+import ai.zasp.api.types.AddonCiReceipt;
+import ai.zasp.api.types.AddonScanReceipt;
 import ai.zasp.api.types.InventoryDetail;
 import ai.zasp.api.types.InventorySummary;
 import java.lang.String;
@@ -30,6 +34,64 @@ public class AsyncToolsClient {
    */
   public AsyncRawToolsClient withRawResponse() {
     return this.rawClient;
+  }
+
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public CompletableFuture<AddonCiReceipt> attestAddonScan(String id, AddonCiSignature request) {
+    CompletableFuture<ZaspHttpResponse<AddonCiReceipt>> rawFuture = this.rawClient.attestAddonScan(id, request);
+    CompletableFuture<AddonCiReceipt> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public CompletableFuture<AddonCiReceipt> attestAddonScan(String id, AddonCiSignature request,
+      RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<AddonCiReceipt>> rawFuture = this.rawClient.attestAddonScan(id, request, requestOptions);
+    CompletableFuture<AddonCiReceipt> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+   */
+  public CompletableFuture<AddonScanReceipt> submitAddonScan(AddonScanSubmission request) {
+    CompletableFuture<ZaspHttpResponse<AddonScanReceipt>> rawFuture = this.rawClient.submitAddonScan(request);
+    CompletableFuture<AddonScanReceipt> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+   */
+  public CompletableFuture<AddonScanReceipt> submitAddonScan(AddonScanSubmission request,
+      RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<AddonScanReceipt>> rawFuture = this.rawClient.submitAddonScan(request, requestOptions);
+    CompletableFuture<AddonScanReceipt> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
   }
 
   public CompletableFuture<SyncPagingIterable<InventorySummary>> list() {

@@ -1,0 +1,21 @@
+{
+  "schema_version": "zasp-ticket-proof-v1",
+  "scope": {
+    "organization_id": "pid_a5000001-0000-4000-8000-000000000001",
+    "workspace_id": "pid_a5000002-0000-4000-8000-000000000002",
+    "environment_id": "pid_a5000003-0000-4000-8000-000000000003"
+  },
+  "run_id": "fixture-run-1",
+  "target_id": "fixture-ticket-ledger",
+  "operation": "synthetic_ticket_update",
+  "adapter_id": "fixture-managed-hook",
+  "cohort_id": "fixture-cohort",
+  "policy_revision": "revision-7",
+  "environment": "staging",
+  "credential_class": "test_write",
+  "recorder_id": "fixture-recorder",
+  "control_action_id": "allowed-action",
+  "protected_action_id": "protected-action",
+  "window_start": "2026-01-01T12:00:00Z",
+  "window_end": "2026-01-01T12:00:10Z"
+}

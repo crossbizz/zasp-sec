@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import net from "node:net";
+import { load } from "js-yaml";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -44,6 +45,17 @@ export async function runReadOnlySynthetic({ origin, token, allowHTTPLoopback = 
   const trace = traceparent.exec(api.headers.get("traceparent") ?? "");
   if (api.status !== 200 || !productID.test(correlationID) || !trace || /^0+$/.test(trace[1]) || /^0+$/.test(trace[2]) || apiMilliseconds > 500) throw new Error("synthetic rejected");
   return deepFreeze({ apiMilliseconds, correlationID, traceID: trace[1], webMilliseconds });
+}
+
+export function requirePromotionWorkflow(yaml) {
+  const workflow = load(yaml);
+  const job = workflow?.jobs?.promotion;
+  const gates = job?.steps?.filter(step => step.run === "npm run production:release:gate");
+  if (!job || job.environment !== "production-promotion" || job.needs !== "reviewed-ref" ||
+      job["continue-on-error"] || gates?.length !== 1 || gates[0].if || gates[0]["continue-on-error"] ||
+      !workflow.jobs["reviewed-ref"]?.steps?.some(step => step.run === 'test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"')) {
+    throw new Error("required protected promotion gate rejected");
+  }
 }
 
 export async function verifyReleaseSources() {
@@ -131,6 +143,8 @@ export async function verifyReleaseSources() {
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const workflow = await source(".github/workflows/runnable-ui-acceptance.yml");
   if (!workflow.includes("fetch-depth: 0") || !workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
+
+  requirePromotionWorkflow(await source(".github/workflows/production-promotion.yml"));
 
   const definitions = await Promise.all(["web", "api", "worker", "attack-lab-runner", "redteam-worker", "event-ingest", "gateway-control", "runtime-gateway", "sensor-agent"].map((name) => source(`deploy/production/${name}.Dockerfile`)));
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));

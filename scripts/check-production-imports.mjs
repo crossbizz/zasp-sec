@@ -8,6 +8,7 @@ const sourceExtensions = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const allowedExactSources = new Set([
 	"app/features/redteam/ProductionAttackLabView.tsx",
 	"app/features/redteam/ProductionRedTeamView.tsx",
+	"app/features/redteam/TicketVerification.tsx",
 	// Production probe catalog of the red team page; reads only the API client.
 	"app/features/redteam/ProbeLibrary.tsx",
 	"app/features/redteam/redTeamMutationRecovery.ts",
@@ -15,12 +16,26 @@ const allowedExactSources = new Set([
 	"app/features/redteam/outcomes.ts",
 	"app/features/redteam/api.ts",
   "app/features/sensors/ProductionSensorView.tsx",
+  "app/features/sensors/DeviceFleet.tsx",
+  "app/features/sensors/DeviceActions.tsx",
+  "app/features/sensors/TicketCohort.tsx",
+  "app/features/sensors/EndpointPolicyCohort.tsx",
   "app/features/sensors/api.ts",
   // API-backed production views that live beside the demo views of the same
   // feature. Each imports only the API client, decoders and shared UI.
   "app/features/guardrails/ProductionGuardrailsView.tsx",
+  "app/features/guardrails/ClaudeEnterpriseSetup.tsx",
   "app/features/guardrails/guardrail-policy-api.ts",
   "app/features/tools/MCPServersView.tsx",
+  "app/features/tools/AddonReviews.tsx",
+  "app/features/tools/AddonScanReceipt.tsx",
+  "app/features/tools/AddonInstallations.tsx",
+  "app/features/tools/PrivateAddonScan.tsx",
+  // The download view reads the release metadata staged by the operator.
+  "app/features/tools/CLIReleaseDownloads.tsx",
+  "app/features/tools/cli-release-pin.json",
+  // Public release surface IDs and labels shared by catalog review and the UI.
+  "services/platform/compliancemap/surfaces.json",
 ]);
 const allowedBrowserStorageSources = new Set([
   // Metadata-only, identity-checked resume for a server-owned export job.
@@ -92,12 +107,12 @@ async function exists(path) {
   try { await access(path); return true; } catch { return false; }
 }
 
-async function resolveSourceImport(importer, specifier) {
+async function resolveSourceImport(root, importer, specifier) {
   if (!specifier.startsWith(".")) return null;
   const base = resolve(dirname(importer), specifier);
   const candidates = sourceExtensions.flatMap((extension) => [base + extension, resolve(base, `index${extension}`)]);
   for (const candidate of candidates) {
-    if (extname(candidate) === ".json") continue;
+    if (extname(candidate) === ".json" && !allowedExactSources.has(repositoryPath(root, candidate))) continue;
     if (await exists(candidate)) return candidate;
   }
   throw new Error(`unresolved production import: ${specifier}`);
@@ -118,7 +133,7 @@ export async function checkSourceGraph({ root = repositoryRoot, entries = produc
       throw new Error(`browser storage is reachable from production: ${path}`);
     }
     for (const specifier of importSpecifiers(source)) {
-      const imported = await resolveSourceImport(file, specifier);
+      const imported = await resolveSourceImport(root, file, specifier);
       if (imported) pending.push(imported);
     }
   }

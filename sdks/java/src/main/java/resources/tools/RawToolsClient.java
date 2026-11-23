@@ -4,7 +4,9 @@
 
 package ai.zasp.api.resources.tools;
 
+import ai.zasp.api.core.BodyProperties;
 import ai.zasp.api.core.ClientOptions;
+import ai.zasp.api.core.MediaTypes;
 import ai.zasp.api.core.ObjectMappers;
 import ai.zasp.api.core.PathSegments;
 import ai.zasp.api.core.QueryStringMapper;
@@ -14,16 +16,27 @@ import ai.zasp.api.core.ZaspApiException;
 import ai.zasp.api.core.ZaspException;
 import ai.zasp.api.core.ZaspHttpResponse;
 import ai.zasp.api.core.pagination.SyncPagingIterable;
+import ai.zasp.api.errors.BadRequestError;
+import ai.zasp.api.errors.ConflictError;
+import ai.zasp.api.errors.ForbiddenError;
+import ai.zasp.api.errors.NotFoundError;
+import ai.zasp.api.errors.ServiceUnavailableError;
 import ai.zasp.api.errors.UnauthorizedError;
+import ai.zasp.api.resources.tools.requests.AddonCiSignature;
+import ai.zasp.api.resources.tools.requests.AddonScanSubmission;
 import ai.zasp.api.resources.tools.requests.GetToolsRequest;
 import ai.zasp.api.resources.tools.requests.ListToolsRequest;
+import ai.zasp.api.types.AddonCiReceipt;
+import ai.zasp.api.types.AddonScanReceipt;
 import ai.zasp.api.types.InventoryDetail;
 import ai.zasp.api.types.InventoryPage;
 import ai.zasp.api.types.InventorySummary;
 import ai.zasp.api.types.ProductError;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.lang.Exception;
 import java.lang.Object;
+import java.lang.RuntimeException;
 import java.lang.String;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +44,7 @@ import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
@@ -41,40 +55,41 @@ public class RawToolsClient {
     this.clientOptions = clientOptions;
   }
 
-  public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list() {
-    return list(ListToolsRequest.builder().build());
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public ZaspHttpResponse<AddonCiReceipt> attestAddonScan(String id, AddonCiSignature request) {
+    return attestAddonScan(id,request,null);
   }
 
-  public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list(
-      RequestOptions requestOptions) {
-    return list(ListToolsRequest.builder().build(),requestOptions);
-  }
-
-  public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list(ListToolsRequest request) {
-    return list(request,null);
-  }
-
-  public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list(ListToolsRequest request,
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public ZaspHttpResponse<AddonCiReceipt> attestAddonScan(String id, AddonCiSignature request,
       RequestOptions requestOptions) {
     HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-      .addPathSegments("api/v1/tools");if (request.getCursor().isPresent()) {
-        QueryStringMapper.addQueryParameter(httpUrl, "cursor", request.getCursor().get(), false);
-      }
-      if (request.getLimit().isPresent()) {
-        QueryStringMapper.addQueryParameter(httpUrl, "limit", request.getLimit().get(), false);
-      }
-      if (requestOptions != null) {
+      .addPathSegments("api/v1/addon-scans")
+      .addPathSegment(PathSegments.validate(id))
+      .addPathSegments("ci-attestation");if (requestOptions != null) {
         requestOptions.getQueryParameters().forEach((_key, _value) -> {
           httpUrl.addQueryParameter(_key, _value);
         } );
       }
-      Request.Builder _requestBuilder = new Request.Builder()
+      RequestBody body;
+      try {
+        body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+      }
+      catch(JsonProcessingException e) {
+        throw new ZaspException("Failed to serialize request", e);
+      }
+      Request okhttpRequest = new Request.Builder()
         .url(httpUrl.build())
-        .method("GET", null)
+        .method("POST", body)
         .headers(Headers.of(clientOptions.headers(requestOptions)))
-        .addHeader("Accept", "application/json");
-      Request okhttpRequest = _requestBuilder.build();
+        .addHeader("Content-Type", "application/json")
+        .addHeader("Accept", "application/json")
+        .build();
       OkHttpClient client = clientOptions.httpClient();
       if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
         client = clientOptions.httpClientWithTimeout(requestOptions);
@@ -86,15 +101,16 @@ public class RawToolsClient {
         ResponseBody responseBody = response.body();
         String responseBodyString = responseBody != null ? responseBody.string() : "{}";
         if (response.isSuccessful()) {
-          InventoryPage parsedResponse = ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryPage.class);
-          Optional<String> startingAfter = parsedResponse.getPageInfo().getNextCursor();
-          ListToolsRequest nextRequest = ListToolsRequest.builder().from(request).cursor(startingAfter).build();
-          List<InventorySummary> result = parsedResponse.getItems();
-          return new ZaspHttpResponse<>(new SyncPagingIterable<InventorySummary>(startingAfter.isPresent() && !startingAfter.get().isEmpty(), result, parsedResponse, () -> list(nextRequest, requestOptions).body()), response);
+          return new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, AddonCiReceipt.class), response);
         }
         try {
-          if (response.code() == 401) {
-            throw new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+          switch (response.code()) {
+            case 400:throw new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
+            case 401:throw new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+            case 403:throw new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
+            case 404:throw new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
+            case 409:throw new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+            case 503:throw new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
           }
         }
         catch (JsonProcessingException ignored) {
@@ -111,33 +127,39 @@ public class RawToolsClient {
       }
     }
 
-    public ZaspHttpResponse<InventoryDetail> get(String id) {
-      return get(id,GetToolsRequest.builder().build());
+    /**
+     * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+     */
+    public ZaspHttpResponse<AddonScanReceipt> submitAddonScan(AddonScanSubmission request) {
+      return submitAddonScan(request,null);
     }
 
-    public ZaspHttpResponse<InventoryDetail> get(String id, RequestOptions requestOptions) {
-      return get(id,GetToolsRequest.builder().build(),requestOptions);
-    }
-
-    public ZaspHttpResponse<InventoryDetail> get(String id, GetToolsRequest request) {
-      return get(id,request,null);
-    }
-
-    public ZaspHttpResponse<InventoryDetail> get(String id, GetToolsRequest request,
+    /**
+     * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+     */
+    public ZaspHttpResponse<AddonScanReceipt> submitAddonScan(AddonScanSubmission request,
         RequestOptions requestOptions) {
       HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-        .addPathSegments("api/v1/tools")
-        .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+        .addPathSegments("api/v1/addon-scans");if (requestOptions != null) {
           requestOptions.getQueryParameters().forEach((_key, _value) -> {
             httpUrl.addQueryParameter(_key, _value);
           } );
         }
+        RequestBody body;
+        try {
+          body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+        }
+        catch(Exception e) {
+          throw new RuntimeException(e);
+        }
         Request.Builder _requestBuilder = new Request.Builder()
           .url(httpUrl.build())
-          .method("GET", null)
+          .method("POST", body)
           .headers(Headers.of(clientOptions.headers(requestOptions)))
+          .addHeader("Content-Type", "application/json")
           .addHeader("Accept", "application/json");
+        _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
         Request okhttpRequest = _requestBuilder.build();
         OkHttpClient client = clientOptions.httpClient();
         if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -150,11 +172,16 @@ public class RawToolsClient {
           ResponseBody responseBody = response.body();
           String responseBodyString = responseBody != null ? responseBody.string() : "{}";
           if (response.isSuccessful()) {
-            return new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryDetail.class), response);
+            return new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, AddonScanReceipt.class), response);
           }
           try {
-            if (response.code() == 401) {
-              throw new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+            switch (response.code()) {
+              case 400:throw new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
+              case 401:throw new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+              case 403:throw new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
+              case 404:throw new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
+              case 409:throw new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+              case 503:throw new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response);
             }
           }
           catch (JsonProcessingException ignored) {
@@ -170,4 +197,134 @@ public class RawToolsClient {
           throw new ZaspException("Network error executing HTTP request", e);
         }
       }
-    }
+
+      public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list() {
+        return list(ListToolsRequest.builder().build());
+      }
+
+      public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list(
+          RequestOptions requestOptions) {
+        return list(ListToolsRequest.builder().build(),requestOptions);
+      }
+
+      public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list(ListToolsRequest request) {
+        return list(request,null);
+      }
+
+      public ZaspHttpResponse<SyncPagingIterable<InventorySummary>> list(ListToolsRequest request,
+          RequestOptions requestOptions) {
+        HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+          .addPathSegments("api/v1/tools");if (request.getCursor().isPresent()) {
+            QueryStringMapper.addQueryParameter(httpUrl, "cursor", request.getCursor().get(), false);
+          }
+          if (request.getLimit().isPresent()) {
+            QueryStringMapper.addQueryParameter(httpUrl, "limit", request.getLimit().get(), false);
+          }
+          if (requestOptions != null) {
+            requestOptions.getQueryParameters().forEach((_key, _value) -> {
+              httpUrl.addQueryParameter(_key, _value);
+            } );
+          }
+          Request.Builder _requestBuilder = new Request.Builder()
+            .url(httpUrl.build())
+            .method("GET", null)
+            .headers(Headers.of(clientOptions.headers(requestOptions)))
+            .addHeader("Accept", "application/json");
+          Request okhttpRequest = _requestBuilder.build();
+          OkHttpClient client = clientOptions.httpClient();
+          if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+            client = clientOptions.httpClientWithTimeout(requestOptions);
+          }
+          if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+            okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+          }
+          try (Response response = client.newCall(okhttpRequest).execute()) {
+            ResponseBody responseBody = response.body();
+            String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+            if (response.isSuccessful()) {
+              InventoryPage parsedResponse = ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryPage.class);
+              Optional<String> startingAfter = parsedResponse.getPageInfo().getNextCursor();
+              ListToolsRequest nextRequest = ListToolsRequest.builder().from(request).cursor(startingAfter).build();
+              List<InventorySummary> result = parsedResponse.getItems();
+              return new ZaspHttpResponse<>(new SyncPagingIterable<InventorySummary>(startingAfter.isPresent() && !startingAfter.get().isEmpty(), result, parsedResponse, () -> list(nextRequest, requestOptions).body()), response);
+            }
+            try {
+              if (response.code() == 401) {
+                throw new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+              }
+            }
+            catch (JsonProcessingException ignored) {
+              // unable to map error response, throwing generic error
+            }
+            Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+            throw new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response);
+          }
+          catch (JsonProcessingException e) {
+            throw new ZaspException("Failed to deserialize response: " + e.getMessage(), e);
+          }
+          catch (IOException e) {
+            throw new ZaspException("Network error executing HTTP request", e);
+          }
+        }
+
+        public ZaspHttpResponse<InventoryDetail> get(String id) {
+          return get(id,GetToolsRequest.builder().build());
+        }
+
+        public ZaspHttpResponse<InventoryDetail> get(String id, RequestOptions requestOptions) {
+          return get(id,GetToolsRequest.builder().build(),requestOptions);
+        }
+
+        public ZaspHttpResponse<InventoryDetail> get(String id, GetToolsRequest request) {
+          return get(id,request,null);
+        }
+
+        public ZaspHttpResponse<InventoryDetail> get(String id, GetToolsRequest request,
+            RequestOptions requestOptions) {
+          HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+            .addPathSegments("api/v1/tools")
+            .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+              requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                httpUrl.addQueryParameter(_key, _value);
+              } );
+            }
+            Request.Builder _requestBuilder = new Request.Builder()
+              .url(httpUrl.build())
+              .method("GET", null)
+              .headers(Headers.of(clientOptions.headers(requestOptions)))
+              .addHeader("Accept", "application/json");
+            Request okhttpRequest = _requestBuilder.build();
+            OkHttpClient client = clientOptions.httpClient();
+            if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+              client = clientOptions.httpClientWithTimeout(requestOptions);
+            }
+            if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+              okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+            }
+            try (Response response = client.newCall(okhttpRequest).execute()) {
+              ResponseBody responseBody = response.body();
+              String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+              if (response.isSuccessful()) {
+                return new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, InventoryDetail.class), response);
+              }
+              try {
+                if (response.code() == 401) {
+                  throw new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response);
+                }
+              }
+              catch (JsonProcessingException ignored) {
+                // unable to map error response, throwing generic error
+              }
+              Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+              throw new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response);
+            }
+            catch (JsonProcessingException e) {
+              throw new ZaspException("Failed to deserialize response: " + e.getMessage(), e);
+            }
+            catch (IOException e) {
+              throw new ZaspException("Network error executing HTTP request", e);
+            }
+          }
+        }

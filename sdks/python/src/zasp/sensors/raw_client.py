@@ -11,14 +11,22 @@ from ..core.pagination import AsyncPager, SyncPager
 from ..core.parse_error import ParsingError
 from ..core.pydantic_utilities import parse_obj_as
 from ..core.request_options import RequestOptions
+from ..core.serialization import convert_and_respect_annotation_metadata
 from ..errors.bad_request_error import BadRequestError
 from ..errors.conflict_error import ConflictError
 from ..errors.forbidden_error import ForbiddenError
 from ..errors.not_found_error import NotFoundError
 from ..errors.service_unavailable_error import ServiceUnavailableError
 from ..errors.unauthorized_error import UnauthorizedError
+from ..types.browser_origin_ack import BrowserOriginAck
+from ..types.browser_origin_day import BrowserOriginDay
 from ..types.cursor import Cursor
 from ..types.empty_input import EmptyInput
+from ..types.endpoint_bundle import EndpointBundle
+from ..types.endpoint_empty import EndpointEmpty
+from ..types.endpoint_exchange_receipt import EndpointExchangeReceipt
+from ..types.endpoint_recorded import EndpointRecorded
+from ..types.endpoint_signed import EndpointSigned
 from ..types.product_error import ProductError
 from ..types.product_id import ProductId
 from ..types.sensor import Sensor
@@ -31,6 +39,9 @@ from .types.create_enrollment_sensors_request_x_zasp_fresh_auth import CreateEnr
 from .types.create_enrollment_sensors_request_x_zasp_sensor_enrollment_schema import (
     CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema,
 )
+from .types.endpoint_heartbeat_adapter import EndpointHeartbeatAdapter
+from .types.endpoint_heartbeat_policy_status import EndpointHeartbeatPolicyStatus
+from .types.endpoint_snapshot_installations_item import EndpointSnapshotInstallationsItem
 from .types.rotate_token_sensors_request_x_zasp_fresh_auth import RotateTokenSensorsRequestXZaspFreshAuth
 from .types.rotate_token_sensors_request_x_zasp_sensor_enrollment_schema import (
     RotateTokenSensorsRequestXZaspSensorEnrollmentSchema,
@@ -44,6 +55,669 @@ OMIT = typing.cast(typing.Any, ...)
 class RawSensorsClient:
     def __init__(self, *, client_wrapper: SyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    def fetch_endpoint_policy(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[EndpointBundle]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[EndpointBundle]
+            Retrieve the latest assigned signed policy for this device.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"api/v1/devices/{encode_path_param(id)}/policy-bundle",
+            method="GET",
+            headers={
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointBundle,
+                    parse_obj_as(
+                        type_=EndpointBundle,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def exchange_endpoint_enrollment(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request: EndpointEmpty,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[EndpointExchangeReceipt]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request : EndpointEmpty
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[EndpointExchangeReceipt]
+            Bind a preassigned endpoint key and transport credential.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "api/v1/device-enrollments/exchange",
+            method="POST",
+            json=request,
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointExchangeReceipt,
+                    parse_obj_as(
+                        type_=EndpointExchangeReceipt,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def record_endpoint_heartbeat(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        policy_revision: int,
+        policy_status: EndpointHeartbeatPolicyStatus,
+        queued_receipts: int,
+        dropped_receipts: int,
+        adapter: typing.Optional[EndpointHeartbeatAdapter] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[EndpointRecorded]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        policy_revision : int
+
+        policy_status : EndpointHeartbeatPolicyStatus
+
+        queued_receipts : int
+
+        dropped_receipts : int
+
+        adapter : typing.Optional[EndpointHeartbeatAdapter]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[EndpointRecorded]
+            Record this device policy status and queue health.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"api/v1/devices/{encode_path_param(id)}/heartbeat",
+            method="POST",
+            json={
+                "policy_revision": policy_revision,
+                "policy_status": policy_status,
+                "queued_receipts": queued_receipts,
+                "dropped_receipts": dropped_receipts,
+                "adapter": adapter,
+            },
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointRecorded,
+                    parse_obj_as(
+                        type_=EndpointRecorded,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def record_endpoint_inventory(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        partition_id: str,
+        snapshot_generation: int,
+        complete: bool,
+        installations: typing.Sequence[EndpointSnapshotInstallationsItem],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[EndpointRecorded]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        partition_id : str
+
+        snapshot_generation : int
+
+        complete : bool
+
+        installations : typing.Sequence[EndpointSnapshotInstallationsItem]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[EndpointRecorded]
+            Reconcile a device-scoped inventory partition.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"api/v1/devices/{encode_path_param(id)}/inventory-snapshots",
+            method="POST",
+            json={
+                "partition_id": partition_id,
+                "snapshot_generation": snapshot_generation,
+                "complete": complete,
+                "installations": convert_and_respect_annotation_metadata(
+                    object_=installations,
+                    annotation=typing.Sequence[EndpointSnapshotInstallationsItem],
+                    direction="write",
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointRecorded,
+                    parse_obj_as(
+                        type_=EndpointRecorded,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def record_endpoint_observations(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        receipts: typing.Sequence[EndpointSigned],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[EndpointRecorded]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        receipts : typing.Sequence[EndpointSigned]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[EndpointRecorded]
+            Submit signed local decisions for this device.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "api/v1/runtime/observations",
+            method="POST",
+            json={
+                "receipts": convert_and_respect_annotation_metadata(
+                    object_=receipts, annotation=typing.Sequence[EndpointSigned], direction="write"
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointRecorded,
+                    parse_obj_as(
+                        type_=EndpointRecorded,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     def list(
         self,
@@ -886,10 +1560,808 @@ class RawSensorsClient:
             )
         raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
+    def record_browser_origin_days(
+        self,
+        id: ProductId,
+        *,
+        issued_at: int,
+        nonce: str,
+        days: typing.Sequence[BrowserOriginDay],
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[BrowserOriginAck]:
+        """
+        Parameters
+        ----------
+        id : ProductId
+
+        issued_at : int
+            UTC Unix seconds.
+
+        nonce : str
+
+        days : typing.Sequence[BrowserOriginDay]
+
+        signature : str
+            Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[BrowserOriginAck]
+            Scoped browser profile response.
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            f"api/v1/browser-profiles/{encode_path_param(id)}/observations",
+            method="POST",
+            json={
+                "issued_at": issued_at,
+                "nonce": nonce,
+                "days": convert_and_respect_annotation_metadata(
+                    object_=days, annotation=typing.Sequence[BrowserOriginDay], direction="write"
+                ),
+                "signature": signature,
+            },
+            headers={
+                "content-type": "application/json",
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    BrowserOriginAck,
+                    parse_obj_as(
+                        type_=BrowserOriginAck,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
 
 class AsyncRawSensorsClient:
     def __init__(self, *, client_wrapper: AsyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    async def fetch_endpoint_policy(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[EndpointBundle]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[EndpointBundle]
+            Retrieve the latest assigned signed policy for this device.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"api/v1/devices/{encode_path_param(id)}/policy-bundle",
+            method="GET",
+            headers={
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointBundle,
+                    parse_obj_as(
+                        type_=EndpointBundle,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def exchange_endpoint_enrollment(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        request: EndpointEmpty,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[EndpointExchangeReceipt]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        request : EndpointEmpty
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[EndpointExchangeReceipt]
+            Bind a preassigned endpoint key and transport credential.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "api/v1/device-enrollments/exchange",
+            method="POST",
+            json=request,
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointExchangeReceipt,
+                    parse_obj_as(
+                        type_=EndpointExchangeReceipt,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def record_endpoint_heartbeat(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        policy_revision: int,
+        policy_status: EndpointHeartbeatPolicyStatus,
+        queued_receipts: int,
+        dropped_receipts: int,
+        adapter: typing.Optional[EndpointHeartbeatAdapter] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[EndpointRecorded]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        policy_revision : int
+
+        policy_status : EndpointHeartbeatPolicyStatus
+
+        queued_receipts : int
+
+        dropped_receipts : int
+
+        adapter : typing.Optional[EndpointHeartbeatAdapter]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[EndpointRecorded]
+            Record this device policy status and queue health.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"api/v1/devices/{encode_path_param(id)}/heartbeat",
+            method="POST",
+            json={
+                "policy_revision": policy_revision,
+                "policy_status": policy_status,
+                "queued_receipts": queued_receipts,
+                "dropped_receipts": dropped_receipts,
+                "adapter": adapter,
+            },
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointRecorded,
+                    parse_obj_as(
+                        type_=EndpointRecorded,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def record_endpoint_inventory(
+        self,
+        id: ProductId,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        partition_id: str,
+        snapshot_generation: int,
+        complete: bool,
+        installations: typing.Sequence[EndpointSnapshotInstallationsItem],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[EndpointRecorded]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        id : ProductId
+
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        partition_id : str
+
+        snapshot_generation : int
+
+        complete : bool
+
+        installations : typing.Sequence[EndpointSnapshotInstallationsItem]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[EndpointRecorded]
+            Reconcile a device-scoped inventory partition.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"api/v1/devices/{encode_path_param(id)}/inventory-snapshots",
+            method="POST",
+            json={
+                "partition_id": partition_id,
+                "snapshot_generation": snapshot_generation,
+                "complete": complete,
+                "installations": convert_and_respect_annotation_metadata(
+                    object_=installations,
+                    annotation=typing.Sequence[EndpointSnapshotInstallationsItem],
+                    direction="write",
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointRecorded,
+                    parse_obj_as(
+                        type_=EndpointRecorded,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def record_endpoint_observations(
+        self,
+        *,
+        zasp_device_proof: str,
+        zasp_device_signature: str,
+        receipts: typing.Sequence[EndpointSigned],
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[EndpointRecorded]:
+        """
+        Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+
+        Parameters
+        ----------
+        zasp_device_proof : str
+
+        zasp_device_signature : str
+
+        receipts : typing.Sequence[EndpointSigned]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[EndpointRecorded]
+            Submit signed local decisions for this device.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "api/v1/runtime/observations",
+            method="POST",
+            json={
+                "receipts": convert_and_respect_annotation_metadata(
+                    object_=receipts, annotation=typing.Sequence[EndpointSigned], direction="write"
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "X-Zasp-Device-Proof": str(zasp_device_proof) if zasp_device_proof is not None else None,
+                "X-Zasp-Device-Signature": str(zasp_device_signature) if zasp_device_signature is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    EndpointRecorded,
+                    parse_obj_as(
+                        type_=EndpointRecorded,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     async def list(
         self,
@@ -1713,6 +3185,141 @@ class AsyncRawSensorsClient:
                         typing.Any,
                         parse_obj_as(
                             type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 503:
+                raise ServiceUnavailableError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def record_browser_origin_days(
+        self,
+        id: ProductId,
+        *,
+        issued_at: int,
+        nonce: str,
+        days: typing.Sequence[BrowserOriginDay],
+        signature: str,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[BrowserOriginAck]:
+        """
+        Parameters
+        ----------
+        id : ProductId
+
+        issued_at : int
+            UTC Unix seconds.
+
+        nonce : str
+
+        days : typing.Sequence[BrowserOriginDay]
+
+        signature : str
+            Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[BrowserOriginAck]
+            Scoped browser profile response.
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            f"api/v1/browser-profiles/{encode_path_param(id)}/observations",
+            method="POST",
+            json={
+                "issued_at": issued_at,
+                "nonce": nonce,
+                "days": convert_and_respect_annotation_metadata(
+                    object_=days, annotation=typing.Sequence[BrowserOriginDay], direction="write"
+                ),
+                "signature": signature,
+            },
+            headers={
+                "content-type": "application/json",
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    BrowserOriginAck,
+                    parse_obj_as(
+                        type_=BrowserOriginAck,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            if _response.status_code == 400:
+                raise BadRequestError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 401:
+                raise UnauthorizedError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 403:
+                raise ForbiddenError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 404:
+                raise NotFoundError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        typing.Any,
+                        parse_obj_as(
+                            type_=typing.Any,  # type: ignore
+                            object_=_response.json(),
+                        ),
+                    ),
+                )
+            if _response.status_code == 409:
+                raise ConflictError(
+                    headers=dict(_response.headers),
+                    body=typing.cast(
+                        ProductError,
+                        parse_obj_as(
+                            type_=ProductError,  # type: ignore
                             object_=_response.json(),
                         ),
                     ),

@@ -1084,6 +1084,860 @@ func (i InventoryActivityState) Ptr() *InventoryActivityState {
 }
 
 var (
+	inventoryAttributionFieldLocation       = big.NewInt(1 << 0)
+	inventoryAttributionFieldIntegration    = big.NewInt(1 << 1)
+	inventoryAttributionFieldCreator        = big.NewInt(1 << 2)
+	inventoryAttributionFieldSuggestedOwner = big.NewInt(1 << 3)
+	inventoryAttributionFieldSuggestedTeam  = big.NewInt(1 << 4)
+)
+
+// inventoryAttributionNullableFields maps the wire names of InventoryAttribution's nullable fields (required or optional) to their field bits.
+var inventoryAttributionNullableFields = map[string]*big.Int{
+	"location":        inventoryAttributionFieldLocation,
+	"integration":     inventoryAttributionFieldIntegration,
+	"creator":         inventoryAttributionFieldCreator,
+	"suggested_owner": inventoryAttributionFieldSuggestedOwner,
+	"suggested_team":  inventoryAttributionFieldSuggestedTeam,
+}
+
+// Where the object lives, which integration found it and, for an agent, who created it and the owner and team that suggests. It is derived on every read from what the collectors recorded without anything installed. A member is null where the provider says nothing; nothing is guessed. The owner and team a person assigned are the summary's own owner and team and are never replaced by a suggestion.
+type InventoryAttribution struct {
+	// The account, project, subscription, tenant, organization, repository, cluster or namespace the object was found in.
+	Location *InventoryAttributionLocation `json:"location,omitempty" url:"location,omitempty"`
+	// The integration whose observation of the object is the winning one.
+	Integration *InventoryAttributionIntegration `json:"integration,omitempty" url:"integration,omitempty"`
+	// For an agent, the identity the provider says created it (source cloudtrail, audit_log or provider_record), or the owner the object's own metadata names (source codeowners, label or annotation). Null for every other kind and where the provider does not say.
+	Creator *InventoryAttributionCreator `json:"creator,omitempty" url:"creator,omitempty"`
+	// For an agent no person has given an owner, the creator. Null once an owner is assigned, and for a creator an audit log names only by an opaque account id.
+	SuggestedOwner *InventoryAttributionSuggestedOwner `json:"suggested_owner,omitempty" url:"suggested_owner,omitempty"`
+	// For an agent no person has given a team, the team a label or annotation of the object names (label), otherwise the department of the Okta user of this Environment whose email address is the creator's (okta). Null once a team is assigned.
+	SuggestedTeam *InventoryAttributionSuggestedTeam `json:"suggested_team,omitempty" url:"suggested_team,omitempty"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (i *InventoryAttribution) GetLocation() *InventoryAttributionLocation {
+	if i == nil {
+		return nil
+	}
+	return i.Location
+}
+
+func (i *InventoryAttribution) GetIntegration() *InventoryAttributionIntegration {
+	if i == nil {
+		return nil
+	}
+	return i.Integration
+}
+
+func (i *InventoryAttribution) GetCreator() *InventoryAttributionCreator {
+	if i == nil {
+		return nil
+	}
+	return i.Creator
+}
+
+func (i *InventoryAttribution) GetSuggestedOwner() *InventoryAttributionSuggestedOwner {
+	if i == nil {
+		return nil
+	}
+	return i.SuggestedOwner
+}
+
+func (i *InventoryAttribution) GetSuggestedTeam() *InventoryAttributionSuggestedTeam {
+	if i == nil {
+		return nil
+	}
+	return i.SuggestedTeam
+}
+
+func (i *InventoryAttribution) GetExtraProperties() map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+	return i.extraProperties
+}
+
+func (i *InventoryAttribution) require(field *big.Int) {
+	next := new(big.Int)
+	if i.explicitFields != nil {
+		next.Set(i.explicitFields)
+	}
+	next.Or(next, field)
+	i.explicitFields = next
+}
+
+// SetLocation sets the Location field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttribution) SetLocation(location *InventoryAttributionLocation) {
+	i.Location = location
+	i.require(inventoryAttributionFieldLocation)
+}
+
+// SetIntegration sets the Integration field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttribution) SetIntegration(integration *InventoryAttributionIntegration) {
+	i.Integration = integration
+	i.require(inventoryAttributionFieldIntegration)
+}
+
+// SetCreator sets the Creator field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttribution) SetCreator(creator *InventoryAttributionCreator) {
+	i.Creator = creator
+	i.require(inventoryAttributionFieldCreator)
+}
+
+// SetSuggestedOwner sets the SuggestedOwner field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttribution) SetSuggestedOwner(suggestedOwner *InventoryAttributionSuggestedOwner) {
+	i.SuggestedOwner = suggestedOwner
+	i.require(inventoryAttributionFieldSuggestedOwner)
+}
+
+// SetSuggestedTeam sets the SuggestedTeam field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttribution) SetSuggestedTeam(suggestedTeam *InventoryAttributionSuggestedTeam) {
+	i.SuggestedTeam = suggestedTeam
+	i.require(inventoryAttributionFieldSuggestedTeam)
+}
+
+func (i *InventoryAttribution) UnmarshalJSON(data []byte) error {
+	type unmarshaler InventoryAttribution
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*i = InventoryAttribution(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *i)
+	if err != nil {
+		return err
+	}
+	i.extraProperties = extraProperties
+	presentFields, err := internal.ExplicitFieldsFromJSON(data, inventoryAttributionNullableFields)
+	if err != nil {
+		return err
+	}
+	if presentFields != nil {
+		i.require(presentFields)
+	}
+	i.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (i *InventoryAttribution) MarshalJSON() ([]byte, error) {
+	type embed InventoryAttribution
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*i),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, i.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (i *InventoryAttribution) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	if len(i.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(i.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(i); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", i)
+}
+
+var (
+	inventoryAttributionCreatorFieldIdentity  = big.NewInt(1 << 0)
+	inventoryAttributionCreatorFieldCreatedAt = big.NewInt(1 << 1)
+	inventoryAttributionCreatorFieldSource    = big.NewInt(1 << 2)
+)
+
+// inventoryAttributionCreatorNullableFields maps the wire names of InventoryAttributionCreator's nullable fields (required or optional) to their field bits.
+var inventoryAttributionCreatorNullableFields = map[string]*big.Int{
+	"created_at": inventoryAttributionCreatorFieldCreatedAt,
+}
+
+// For an agent, the identity the provider says created it (source cloudtrail, audit_log or provider_record), or the owner the object's own metadata names (source codeowners, label or annotation). Null for every other kind and where the provider does not say.
+type InventoryAttributionCreator struct {
+	// An email address, a user name, a login, a team handle or a role name, as the provider records it.
+	Identity  string                 `json:"identity" url:"identity"`
+	CreatedAt *time.Time             `json:"created_at,omitempty" url:"created_at,omitempty"`
+	Source    InventoryCreatorSource `json:"source" url:"source"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (i *InventoryAttributionCreator) GetIdentity() string {
+	if i == nil {
+		return ""
+	}
+	return i.Identity
+}
+
+func (i *InventoryAttributionCreator) GetCreatedAt() *time.Time {
+	if i == nil {
+		return nil
+	}
+	return i.CreatedAt
+}
+
+func (i *InventoryAttributionCreator) GetSource() InventoryCreatorSource {
+	if i == nil {
+		return ""
+	}
+	return i.Source
+}
+
+func (i *InventoryAttributionCreator) GetExtraProperties() map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+	return i.extraProperties
+}
+
+func (i *InventoryAttributionCreator) require(field *big.Int) {
+	next := new(big.Int)
+	if i.explicitFields != nil {
+		next.Set(i.explicitFields)
+	}
+	next.Or(next, field)
+	i.explicitFields = next
+}
+
+// SetIdentity sets the Identity field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionCreator) SetIdentity(identity string) {
+	i.Identity = identity
+	i.require(inventoryAttributionCreatorFieldIdentity)
+}
+
+// SetCreatedAt sets the CreatedAt field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionCreator) SetCreatedAt(createdAt *time.Time) {
+	i.CreatedAt = createdAt
+	i.require(inventoryAttributionCreatorFieldCreatedAt)
+}
+
+// SetSource sets the Source field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionCreator) SetSource(source InventoryCreatorSource) {
+	i.Source = source
+	i.require(inventoryAttributionCreatorFieldSource)
+}
+
+func (i *InventoryAttributionCreator) UnmarshalJSON(data []byte) error {
+	type embed InventoryAttributionCreator
+	var unmarshaler = struct {
+		embed
+		CreatedAt *internal.DateTime `json:"created_at,omitempty"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
+		return err
+	}
+	*i = InventoryAttributionCreator(unmarshaler.embed)
+	i.CreatedAt = unmarshaler.CreatedAt.TimePtr()
+	extraProperties, err := internal.ExtractExtraProperties(data, *i)
+	if err != nil {
+		return err
+	}
+	i.extraProperties = extraProperties
+	presentFields, err := internal.ExplicitFieldsFromJSON(data, inventoryAttributionCreatorNullableFields)
+	if err != nil {
+		return err
+	}
+	if presentFields != nil {
+		i.require(presentFields)
+	}
+	i.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (i *InventoryAttributionCreator) MarshalJSON() ([]byte, error) {
+	type embed InventoryAttributionCreator
+	var marshaler = struct {
+		embed
+		CreatedAt *internal.DateTime `json:"created_at,omitempty"`
+	}{
+		embed:     embed(*i),
+		CreatedAt: internal.NewOptionalDateTime(i.CreatedAt),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, i.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (i *InventoryAttributionCreator) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	if len(i.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(i.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(i); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", i)
+}
+
+var (
+	inventoryAttributionIntegrationFieldID   = big.NewInt(1 << 0)
+	inventoryAttributionIntegrationFieldName = big.NewInt(1 << 1)
+)
+
+// The integration whose observation of the object is the winning one.
+type InventoryAttributionIntegration struct {
+	ID   ProductID `json:"id" url:"id"`
+	Name string    `json:"name" url:"name"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (i *InventoryAttributionIntegration) GetID() ProductID {
+	if i == nil {
+		return ""
+	}
+	return i.ID
+}
+
+func (i *InventoryAttributionIntegration) GetName() string {
+	if i == nil {
+		return ""
+	}
+	return i.Name
+}
+
+func (i *InventoryAttributionIntegration) GetExtraProperties() map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+	return i.extraProperties
+}
+
+func (i *InventoryAttributionIntegration) require(field *big.Int) {
+	next := new(big.Int)
+	if i.explicitFields != nil {
+		next.Set(i.explicitFields)
+	}
+	next.Or(next, field)
+	i.explicitFields = next
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionIntegration) SetID(id ProductID) {
+	i.ID = id
+	i.require(inventoryAttributionIntegrationFieldID)
+}
+
+// SetName sets the Name field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionIntegration) SetName(name string) {
+	i.Name = name
+	i.require(inventoryAttributionIntegrationFieldName)
+}
+
+func (i *InventoryAttributionIntegration) UnmarshalJSON(data []byte) error {
+	type unmarshaler InventoryAttributionIntegration
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*i = InventoryAttributionIntegration(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *i)
+	if err != nil {
+		return err
+	}
+	i.extraProperties = extraProperties
+	i.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (i *InventoryAttributionIntegration) MarshalJSON() ([]byte, error) {
+	type embed InventoryAttributionIntegration
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*i),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, i.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (i *InventoryAttributionIntegration) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	if len(i.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(i.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(i); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", i)
+}
+
+var (
+	inventoryAttributionLocationFieldKind  = big.NewInt(1 << 0)
+	inventoryAttributionLocationFieldID    = big.NewInt(1 << 1)
+	inventoryAttributionLocationFieldLabel = big.NewInt(1 << 2)
+)
+
+// The account, project, subscription, tenant, organization, repository, cluster or namespace the object was found in.
+type InventoryAttributionLocation struct {
+	Kind InventoryAttributionLocationKind `json:"kind" url:"kind"`
+	// The identifier the provider uses, for example an AWS account id, a project id, owner/repository or cluster/namespace.
+	ID string `json:"id" url:"id"`
+	// What to show. The provider's name for a Microsoft tenant, a Salesforce org or a SaaS workspace; the identifier everywhere else.
+	Label string `json:"label" url:"label"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (i *InventoryAttributionLocation) GetKind() InventoryAttributionLocationKind {
+	if i == nil {
+		return ""
+	}
+	return i.Kind
+}
+
+func (i *InventoryAttributionLocation) GetID() string {
+	if i == nil {
+		return ""
+	}
+	return i.ID
+}
+
+func (i *InventoryAttributionLocation) GetLabel() string {
+	if i == nil {
+		return ""
+	}
+	return i.Label
+}
+
+func (i *InventoryAttributionLocation) GetExtraProperties() map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+	return i.extraProperties
+}
+
+func (i *InventoryAttributionLocation) require(field *big.Int) {
+	next := new(big.Int)
+	if i.explicitFields != nil {
+		next.Set(i.explicitFields)
+	}
+	next.Or(next, field)
+	i.explicitFields = next
+}
+
+// SetKind sets the Kind field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionLocation) SetKind(kind InventoryAttributionLocationKind) {
+	i.Kind = kind
+	i.require(inventoryAttributionLocationFieldKind)
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionLocation) SetID(id string) {
+	i.ID = id
+	i.require(inventoryAttributionLocationFieldID)
+}
+
+// SetLabel sets the Label field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionLocation) SetLabel(label string) {
+	i.Label = label
+	i.require(inventoryAttributionLocationFieldLabel)
+}
+
+func (i *InventoryAttributionLocation) UnmarshalJSON(data []byte) error {
+	type unmarshaler InventoryAttributionLocation
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*i = InventoryAttributionLocation(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *i)
+	if err != nil {
+		return err
+	}
+	i.extraProperties = extraProperties
+	i.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (i *InventoryAttributionLocation) MarshalJSON() ([]byte, error) {
+	type embed InventoryAttributionLocation
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*i),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, i.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (i *InventoryAttributionLocation) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	if len(i.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(i.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(i); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", i)
+}
+
+type InventoryAttributionLocationKind string
+
+const (
+	InventoryAttributionLocationKindAwsAccount               InventoryAttributionLocationKind = "aws_account"
+	InventoryAttributionLocationKindGcpProject               InventoryAttributionLocationKind = "gcp_project"
+	InventoryAttributionLocationKindGcpScope                 InventoryAttributionLocationKind = "gcp_scope"
+	InventoryAttributionLocationKindGithubRepository         InventoryAttributionLocationKind = "github_repository"
+	InventoryAttributionLocationKindGithubOrganization       InventoryAttributionLocationKind = "github_organization"
+	InventoryAttributionLocationKindKubernetesNamespace      InventoryAttributionLocationKind = "kubernetes_namespace"
+	InventoryAttributionLocationKindKubernetesCluster        InventoryAttributionLocationKind = "kubernetes_cluster"
+	InventoryAttributionLocationKindMicrosoftSubscription    InventoryAttributionLocationKind = "microsoft_subscription"
+	InventoryAttributionLocationKindPowerPlatformEnvironment InventoryAttributionLocationKind = "power_platform_environment"
+	InventoryAttributionLocationKindMicrosoftTenant          InventoryAttributionLocationKind = "microsoft_tenant"
+	InventoryAttributionLocationKindOktaTenant               InventoryAttributionLocationKind = "okta_tenant"
+	InventoryAttributionLocationKindSalesforceOrg            InventoryAttributionLocationKind = "salesforce_org"
+	InventoryAttributionLocationKindSaasWorkspace            InventoryAttributionLocationKind = "saas_workspace"
+)
+
+func NewInventoryAttributionLocationKindFromString(s string) (InventoryAttributionLocationKind, error) {
+	switch s {
+	case "aws_account":
+		return InventoryAttributionLocationKindAwsAccount, nil
+	case "gcp_project":
+		return InventoryAttributionLocationKindGcpProject, nil
+	case "gcp_scope":
+		return InventoryAttributionLocationKindGcpScope, nil
+	case "github_repository":
+		return InventoryAttributionLocationKindGithubRepository, nil
+	case "github_organization":
+		return InventoryAttributionLocationKindGithubOrganization, nil
+	case "kubernetes_namespace":
+		return InventoryAttributionLocationKindKubernetesNamespace, nil
+	case "kubernetes_cluster":
+		return InventoryAttributionLocationKindKubernetesCluster, nil
+	case "microsoft_subscription":
+		return InventoryAttributionLocationKindMicrosoftSubscription, nil
+	case "power_platform_environment":
+		return InventoryAttributionLocationKindPowerPlatformEnvironment, nil
+	case "microsoft_tenant":
+		return InventoryAttributionLocationKindMicrosoftTenant, nil
+	case "okta_tenant":
+		return InventoryAttributionLocationKindOktaTenant, nil
+	case "salesforce_org":
+		return InventoryAttributionLocationKindSalesforceOrg, nil
+	case "saas_workspace":
+		return InventoryAttributionLocationKindSaasWorkspace, nil
+	}
+	var t InventoryAttributionLocationKind
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (i InventoryAttributionLocationKind) Ptr() *InventoryAttributionLocationKind {
+	return &i
+}
+
+var (
+	inventoryAttributionSuggestedOwnerFieldValue  = big.NewInt(1 << 0)
+	inventoryAttributionSuggestedOwnerFieldSource = big.NewInt(1 << 1)
+)
+
+// For an agent no person has given an owner, the creator. Null once an owner is assigned, and for a creator an audit log names only by an opaque account id.
+type InventoryAttributionSuggestedOwner struct {
+	Value  string                 `json:"value" url:"value"`
+	Source InventoryCreatorSource `json:"source" url:"source"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (i *InventoryAttributionSuggestedOwner) GetValue() string {
+	if i == nil {
+		return ""
+	}
+	return i.Value
+}
+
+func (i *InventoryAttributionSuggestedOwner) GetSource() InventoryCreatorSource {
+	if i == nil {
+		return ""
+	}
+	return i.Source
+}
+
+func (i *InventoryAttributionSuggestedOwner) GetExtraProperties() map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+	return i.extraProperties
+}
+
+func (i *InventoryAttributionSuggestedOwner) require(field *big.Int) {
+	next := new(big.Int)
+	if i.explicitFields != nil {
+		next.Set(i.explicitFields)
+	}
+	next.Or(next, field)
+	i.explicitFields = next
+}
+
+// SetValue sets the Value field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionSuggestedOwner) SetValue(value string) {
+	i.Value = value
+	i.require(inventoryAttributionSuggestedOwnerFieldValue)
+}
+
+// SetSource sets the Source field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionSuggestedOwner) SetSource(source InventoryCreatorSource) {
+	i.Source = source
+	i.require(inventoryAttributionSuggestedOwnerFieldSource)
+}
+
+func (i *InventoryAttributionSuggestedOwner) UnmarshalJSON(data []byte) error {
+	type unmarshaler InventoryAttributionSuggestedOwner
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*i = InventoryAttributionSuggestedOwner(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *i)
+	if err != nil {
+		return err
+	}
+	i.extraProperties = extraProperties
+	i.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (i *InventoryAttributionSuggestedOwner) MarshalJSON() ([]byte, error) {
+	type embed InventoryAttributionSuggestedOwner
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*i),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, i.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (i *InventoryAttributionSuggestedOwner) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	if len(i.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(i.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(i); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", i)
+}
+
+var (
+	inventoryAttributionSuggestedTeamFieldValue  = big.NewInt(1 << 0)
+	inventoryAttributionSuggestedTeamFieldSource = big.NewInt(1 << 1)
+)
+
+// For an agent no person has given a team, the team a label or annotation of the object names (label), otherwise the department of the Okta user of this Environment whose email address is the creator's (okta). Null once a team is assigned.
+type InventoryAttributionSuggestedTeam struct {
+	Value  string                                  `json:"value" url:"value"`
+	Source InventoryAttributionSuggestedTeamSource `json:"source" url:"source"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (i *InventoryAttributionSuggestedTeam) GetValue() string {
+	if i == nil {
+		return ""
+	}
+	return i.Value
+}
+
+func (i *InventoryAttributionSuggestedTeam) GetSource() InventoryAttributionSuggestedTeamSource {
+	if i == nil {
+		return ""
+	}
+	return i.Source
+}
+
+func (i *InventoryAttributionSuggestedTeam) GetExtraProperties() map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+	return i.extraProperties
+}
+
+func (i *InventoryAttributionSuggestedTeam) require(field *big.Int) {
+	next := new(big.Int)
+	if i.explicitFields != nil {
+		next.Set(i.explicitFields)
+	}
+	next.Or(next, field)
+	i.explicitFields = next
+}
+
+// SetValue sets the Value field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionSuggestedTeam) SetValue(value string) {
+	i.Value = value
+	i.require(inventoryAttributionSuggestedTeamFieldValue)
+}
+
+// SetSource sets the Source field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventoryAttributionSuggestedTeam) SetSource(source InventoryAttributionSuggestedTeamSource) {
+	i.Source = source
+	i.require(inventoryAttributionSuggestedTeamFieldSource)
+}
+
+func (i *InventoryAttributionSuggestedTeam) UnmarshalJSON(data []byte) error {
+	type unmarshaler InventoryAttributionSuggestedTeam
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*i = InventoryAttributionSuggestedTeam(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *i)
+	if err != nil {
+		return err
+	}
+	i.extraProperties = extraProperties
+	i.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (i *InventoryAttributionSuggestedTeam) MarshalJSON() ([]byte, error) {
+	type embed InventoryAttributionSuggestedTeam
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*i),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, i.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (i *InventoryAttributionSuggestedTeam) String() string {
+	if i == nil {
+		return "<nil>"
+	}
+	if len(i.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(i.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(i); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", i)
+}
+
+type InventoryAttributionSuggestedTeamSource string
+
+const (
+	InventoryAttributionSuggestedTeamSourceLabel InventoryAttributionSuggestedTeamSource = "label"
+	InventoryAttributionSuggestedTeamSourceOkta  InventoryAttributionSuggestedTeamSource = "okta"
+)
+
+func NewInventoryAttributionSuggestedTeamSourceFromString(s string) (InventoryAttributionSuggestedTeamSource, error) {
+	switch s {
+	case "label":
+		return InventoryAttributionSuggestedTeamSourceLabel, nil
+	case "okta":
+		return InventoryAttributionSuggestedTeamSourceOkta, nil
+	}
+	var t InventoryAttributionSuggestedTeamSource
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (i InventoryAttributionSuggestedTeamSource) Ptr() *InventoryAttributionSuggestedTeamSource {
+	return &i
+}
+
+// How the creator is known. cloudtrail is an AWS CloudTrail create event; audit_log the audit log of another provider; provider_record a creator or owner field of the provider's own record of the object; codeowners the repository's CODEOWNERS file; label and annotation a label or annotation the object carries.
+type InventoryCreatorSource string
+
+const (
+	InventoryCreatorSourceAnnotation     InventoryCreatorSource = "annotation"
+	InventoryCreatorSourceAuditLog       InventoryCreatorSource = "audit_log"
+	InventoryCreatorSourceCloudtrail     InventoryCreatorSource = "cloudtrail"
+	InventoryCreatorSourceCodeowners     InventoryCreatorSource = "codeowners"
+	InventoryCreatorSourceLabel          InventoryCreatorSource = "label"
+	InventoryCreatorSourceProviderRecord InventoryCreatorSource = "provider_record"
+)
+
+func NewInventoryCreatorSourceFromString(s string) (InventoryCreatorSource, error) {
+	switch s {
+	case "annotation":
+		return InventoryCreatorSourceAnnotation, nil
+	case "audit_log":
+		return InventoryCreatorSourceAuditLog, nil
+	case "cloudtrail":
+		return InventoryCreatorSourceCloudtrail, nil
+	case "codeowners":
+		return InventoryCreatorSourceCodeowners, nil
+	case "label":
+		return InventoryCreatorSourceLabel, nil
+	case "provider_record":
+		return InventoryCreatorSourceProviderRecord, nil
+	}
+	var t InventoryCreatorSource
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (i InventoryCreatorSource) Ptr() *InventoryCreatorSource {
+	return &i
+}
+
+var (
 	inventoryDetailFieldSummary  = big.NewInt(1 << 0)
 	inventoryDetailFieldSources  = big.NewInt(1 << 1)
 	inventoryDetailFieldEvidence = big.NewInt(1 << 2)
@@ -2100,17 +2954,18 @@ var (
 	inventorySummaryFieldManagementState       = big.NewInt(1 << 6)
 	inventorySummaryFieldLastActivityAt        = big.NewInt(1 << 7)
 	inventorySummaryFieldActivityState         = big.NewInt(1 << 8)
-	inventorySummaryFieldOwner                 = big.NewInt(1 << 9)
-	inventorySummaryFieldTeam                  = big.NewInt(1 << 10)
-	inventorySummaryFieldTags                  = big.NewInt(1 << 11)
-	inventorySummaryFieldEvidenceID            = big.NewInt(1 << 12)
-	inventorySummaryFieldConfidenceBasisPoints = big.NewInt(1 << 13)
-	inventorySummaryFieldFirstSeen             = big.NewInt(1 << 14)
-	inventorySummaryFieldLastSeen              = big.NewInt(1 << 15)
-	inventorySummaryFieldObservedAt            = big.NewInt(1 << 16)
-	inventorySummaryFieldFreshUntil            = big.NewInt(1 << 17)
-	inventorySummaryFieldFreshnessState        = big.NewInt(1 << 18)
-	inventorySummaryFieldVersion               = big.NewInt(1 << 19)
+	inventorySummaryFieldAttribution           = big.NewInt(1 << 9)
+	inventorySummaryFieldOwner                 = big.NewInt(1 << 10)
+	inventorySummaryFieldTeam                  = big.NewInt(1 << 11)
+	inventorySummaryFieldTags                  = big.NewInt(1 << 12)
+	inventorySummaryFieldEvidenceID            = big.NewInt(1 << 13)
+	inventorySummaryFieldConfidenceBasisPoints = big.NewInt(1 << 14)
+	inventorySummaryFieldFirstSeen             = big.NewInt(1 << 15)
+	inventorySummaryFieldLastSeen              = big.NewInt(1 << 16)
+	inventorySummaryFieldObservedAt            = big.NewInt(1 << 17)
+	inventorySummaryFieldFreshUntil            = big.NewInt(1 << 18)
+	inventorySummaryFieldFreshnessState        = big.NewInt(1 << 19)
+	inventorySummaryFieldVersion               = big.NewInt(1 << 20)
 )
 
 // inventorySummaryNullableFields maps the wire names of InventorySummary's nullable fields (required or optional) to their field bits.
@@ -2129,6 +2984,7 @@ type InventorySummary struct {
 	// For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind.
 	LastActivityAt        *time.Time              `json:"last_activity_at,omitempty" url:"last_activity_at,omitempty"`
 	ActivityState         InventoryActivityState  `json:"activity_state" url:"activity_state"`
+	Attribution           *InventoryAttribution   `json:"attribution,omitempty" url:"attribution,omitempty"`
 	Owner                 string                  `json:"owner" url:"owner"`
 	Team                  string                  `json:"team" url:"team"`
 	Tags                  []string                `json:"tags" url:"tags"`
@@ -2209,6 +3065,13 @@ func (i *InventorySummary) GetActivityState() InventoryActivityState {
 		return ""
 	}
 	return i.ActivityState
+}
+
+func (i *InventorySummary) GetAttribution() *InventoryAttribution {
+	if i == nil {
+		return nil
+	}
+	return i.Attribution
 }
 
 func (i *InventorySummary) GetOwner() string {
@@ -2365,6 +3228,13 @@ func (i *InventorySummary) SetLastActivityAt(lastActivityAt *time.Time) {
 func (i *InventorySummary) SetActivityState(activityState InventoryActivityState) {
 	i.ActivityState = activityState
 	i.require(inventorySummaryFieldActivityState)
+}
+
+// SetAttribution sets the Attribution field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (i *InventorySummary) SetAttribution(attribution *InventoryAttribution) {
+	i.Attribution = attribution
+	i.require(inventorySummaryFieldAttribution)
 }
 
 // SetOwner sets the Owner field and marks it as non-optional;
@@ -3065,6 +3935,7 @@ var (
 	policyRolloutInputFieldTargetID = big.NewInt(1 << 1)
 )
 
+// Promote a current Environment revision from draft to monitor or monitor to enforced. Return an unedited enforced revision to its preceding monitor state with the current If-Match version. Each transition produces a new audited revision.
 type PolicyRolloutInput struct {
 	State    PolicyRolloutInputState `json:"state" url:"state"`
 	TargetID string                  `json:"target_id" url:"target_id"`
@@ -9585,4 +10456,34 @@ func NewTestRunVerdictFromString(s string) (TestRunVerdict, error) {
 
 func (t TestRunVerdict) Ptr() *TestRunVerdict {
 	return &t
+}
+
+type WorkloadActionLabel = string
+
+type WorkloadDestinationClass string
+
+const (
+	WorkloadDestinationClassInternal        WorkloadDestinationClass = "internal"
+	WorkloadDestinationClassApprovedPartner WorkloadDestinationClass = "approved_partner"
+	WorkloadDestinationClassExternal        WorkloadDestinationClass = "external"
+	WorkloadDestinationClassPublic          WorkloadDestinationClass = "public"
+)
+
+func NewWorkloadDestinationClassFromString(s string) (WorkloadDestinationClass, error) {
+	switch s {
+	case "internal":
+		return WorkloadDestinationClassInternal, nil
+	case "approved_partner":
+		return WorkloadDestinationClassApprovedPartner, nil
+	case "external":
+		return WorkloadDestinationClassExternal, nil
+	case "public":
+		return WorkloadDestinationClassPublic, nil
+	}
+	var t WorkloadDestinationClass
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (w WorkloadDestinationClass) Ptr() *WorkloadDestinationClass {
+	return &w
 }

@@ -1,0 +1,47 @@
+[
+  {
+    "framework": "owasp_agentic_top10",
+    "edition": "2026",
+    "source_url": "https://raw.githubusercontent.com/GenAI-Security-Project/GenAI-Security-Corpus/b234defdc90833d12c6f9fedb3161600b6f77abb/corpus/agentic-top10/2026-final/OWASP-Top-10-for-Agentic-Applications-2026-v1.0.pdf",
+    "source_digest": "sha256:a2db94cd00b08e0b3a5e5b619afe024bdbcd74503111085705e4f3dd886fcb5c",
+    "digest_basis": "upstream_bytes",
+    "license": "CC-BY-SA-4.0",
+    "attribution": "OWASP GenAI Security Project. Published index adapted to edition-qualified risk references."
+  },
+  {
+    "framework": "owasp_llm_top10",
+    "edition": "2025",
+    "source_url": "https://raw.githubusercontent.com/OWASP/www-project-top-10-for-large-language-model-applications/99f4395589bdbd120ae961f9cd179e79d7f9b27f/assets/PDF/OWASP-Top-10-for-LLMs-v2025.pdf",
+    "source_digest": "sha256:d8596f2c6b3384081574d392619ee3e9065c4f86e5b1fed1bb56be78de2ce382",
+    "digest_basis": "upstream_bytes",
+    "license": "CC-BY-SA-4.0",
+    "attribution": "OWASP GenAI Security Project. Published index adapted to edition-qualified risk references."
+  },
+  {
+    "framework": "owasp_llm_top10",
+    "edition": "2026",
+    "source_url": "https://raw.githubusercontent.com/GenAI-Security-Project/GenAI-LLM-Top10/9253e38ade58e959b531c0c5c9a4842272c9cd0e/2026/README.md",
+    "source_digest": "sha256:8091b002286bd6bdd9741f5a45ca93c1bd55d3548325b6481116567c557293ea",
+    "digest_basis": "upstream_bytes",
+    "license": "CC-BY-SA-4.0",
+    "attribution": "OWASP GenAI Security Project. Published index adapted to edition-qualified risk references."
+  },
+  {
+    "framework": "mitre_atlas",
+    "edition": "2026.10",
+    "source_url": "https://raw.githubusercontent.com/mitre-atlas/atlas-data/f56c1468731d6428e5bf875263b4643b46d67437/dist/v6/ATLAS-2026.10.yaml",
+    "source_digest": "sha256:ac41ee9f99a47084ba5fdfc77ae83a28687e12390240fffeb37df7914ffe142d",
+    "digest_basis": "upstream_bytes",
+    "license": "Apache-2.0",
+    "attribution": "Copyright 2021–2026 MITRE. Derived index of published ATLAS identifiers and titles."
+  },
+  {
+    "framework": "mitre_attack_enterprise",
+    "edition": "19.1",
+    "source_url": "https://raw.githubusercontent.com/mitre/cti/68d2992ea01249fc72e966f569a0d0b663d98581/enterprise-attack/attack-pattern/attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830.json",
+    "source_digest": "sha256:ce26f71840ec8002858a8f2f2db087c2b25ea73c83e6960521e63539126036b9",
+    "digest_basis": "upstream_bytes",
+    "license": "MITRE ATT&CK Terms of Use",
+    "attribution": "© 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation."
+  }
+]

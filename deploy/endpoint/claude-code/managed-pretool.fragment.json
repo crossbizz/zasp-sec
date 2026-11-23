@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "^(Bash|Read|Edit|Write|MultiEdit|Glob|Grep|WebFetch|mcp__.*)$",
+      "hooks": [{ "type": "command", "command": "/usr/local/libexec/zasp-endpoint claude-pre-tool --on-unavailable deny", "timeout": 3 }]
+    }]
+  }
+}

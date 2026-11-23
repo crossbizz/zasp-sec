@@ -8,6 +8,10 @@ from .policy_rollout_input_state import PolicyRolloutInputState
 
 
 class PolicyRolloutInput(UniversalBaseModel):
+    """
+    Promote a current Environment revision from draft to monitor or monitor to enforced. Return an unedited enforced revision to its preceding monitor state with the current If-Match version. Each transition produces a new audited revision.
+    """
+
     state: PolicyRolloutInputState
     target_id: str
 

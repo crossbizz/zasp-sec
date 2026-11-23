@@ -29,6 +29,10 @@ type RolloutRecord struct {
 }
 
 type ActionContext struct {
+	// These source identifiers are used for evidence review only. They never enter policy evaluation.
+	EventID       string            `json:"-"`
+	EventTime     time.Time         `json:"-"`
+	ToolID        string            `json:"-"`
 	PrincipalID   string            `json:"principal_id"`
 	AgentID       string            `json:"agent_id"`
 	SessionID     string            `json:"session_id"`
@@ -99,6 +103,7 @@ func (store *MemoryStore) Update(ctx context.Context, value Policy, capabilities
 	if _, ok := store.values[value.ID]; !ok {
 		return ErrRejected
 	}
+	delete(store.monitorRollbackTargets, value.ID)
 	store.values[value.ID] = value
 	return nil
 }
@@ -112,12 +117,13 @@ func (store *MemoryStore) Delete(ctx context.Context, id string) error {
 	if _, ok := store.values[id]; !ok {
 		return ErrRejected
 	}
+	delete(store.monitorRollbackTargets, id)
 	delete(store.values, id)
 	return nil
 }
 
 func (store *MemoryStore) Simulate(ctx context.Context, id string, events []ActionContext) (SimulationResult, error) {
-	if len(events) == 0 || len(events) > 100 {
+	if len(events) == 0 || len(events) > MaxReplayEvents {
 		return SimulationResult{}, ErrRejected
 	}
 	value, err := store.Get(ctx, id)
@@ -155,23 +161,30 @@ func (store *MemoryStore) Simulate(ctx context.Context, id string, events []Acti
 }
 
 func (store *MemoryStore) Rollout(ctx context.Context, id string, next RolloutState, targetID string) (RolloutRecord, error) {
-	if !bounded(targetID, 128) {
-		return RolloutRecord{}, ErrRejected
-	}
-	value, err := store.Get(ctx, id)
-	if err != nil {
-		return RolloutRecord{}, ErrRejected
-	}
-	current := RolloutState(value.Rollout)
-	valid := next == current || current == RolloutDraft && next == RolloutMonitor || current == RolloutMonitor && (next == RolloutEnforced || next == RolloutDisabled) || current == RolloutEnforced && next == RolloutDisabled
-	if !valid {
+	if store == nil || ctx == nil || ctx.Err() != nil || !bounded(id, 128) || !bounded(targetID, 128) {
 		return RolloutRecord{}, ErrRejected
 	}
 	store.mu.Lock()
+	defer store.mu.Unlock()
+	value, ok := store.values[id]
+	if !ok {
+		return RolloutRecord{}, ErrRejected
+	}
+	current := RolloutState(value.Rollout)
+	rollback := current == RolloutEnforced && next == RolloutMonitor && store.monitorRollbackTargets[id] == targetID
+	valid := next == current || current == RolloutDraft && next == RolloutMonitor || current == RolloutMonitor && (next == RolloutEnforced || next == RolloutDisabled) || current == RolloutEnforced && next == RolloutDisabled || rollback
+	if !valid {
+		return RolloutRecord{}, ErrRejected
+	}
+	if current != next {
+		delete(store.monitorRollbackTargets, id)
+		if current == RolloutMonitor && next == RolloutEnforced {
+			store.monitorRollbackTargets[id] = targetID
+		}
+	}
 	value.Rollout = string(next)
 	store.values[id] = value
 	store.rollouts = append(store.rollouts, RolloutRecord{PolicyID: id, State: next, TargetID: targetID})
-	store.mu.Unlock()
 	return RolloutRecord{PolicyID: id, State: next, TargetID: targetID}, nil
 }
 

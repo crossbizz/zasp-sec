@@ -9,8 +9,13 @@ import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.core.ZaspHttpResponse;
 import ai.zasp.api.resources.guardrails.requests.GuardrailInteraction;
 import ai.zasp.api.resources.guardrails.requests.GuardrailPolicyInput;
+import ai.zasp.api.resources.guardrails.requests.WorkloadActionOutcome;
+import ai.zasp.api.resources.guardrails.requests.WorkloadActionRequest;
 import ai.zasp.api.types.GuardrailDecision;
 import ai.zasp.api.types.GuardrailPolicy;
+import ai.zasp.api.types.WorkloadActionDecision;
+import ai.zasp.api.types.WorkloadOutcomeAck;
+import java.lang.String;
 import java.util.concurrent.CompletableFuture;
 
 public class AsyncGuardrailsClient {
@@ -28,6 +33,65 @@ public class AsyncGuardrailsClient {
    */
   public AsyncRawGuardrailsClient withRawResponse() {
     return this.rawClient;
+  }
+
+  /**
+   * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+   */
+  public CompletableFuture<WorkloadActionDecision> decideAction(WorkloadActionRequest request) {
+    CompletableFuture<ZaspHttpResponse<WorkloadActionDecision>> rawFuture = this.rawClient.decideAction(request);
+    CompletableFuture<WorkloadActionDecision> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+   */
+  public CompletableFuture<WorkloadActionDecision> decideAction(WorkloadActionRequest request,
+      RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<WorkloadActionDecision>> rawFuture = this.rawClient.decideAction(request, requestOptions);
+    CompletableFuture<WorkloadActionDecision> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+   */
+  public CompletableFuture<WorkloadOutcomeAck> recordActionOutcome(String pathActionId,
+      WorkloadActionOutcome request) {
+    CompletableFuture<ZaspHttpResponse<WorkloadOutcomeAck>> rawFuture = this.rawClient.recordActionOutcome(pathActionId, request);
+    CompletableFuture<WorkloadOutcomeAck> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
+  }
+
+  /**
+   * The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+   */
+  public CompletableFuture<WorkloadOutcomeAck> recordActionOutcome(String pathActionId,
+      WorkloadActionOutcome request, RequestOptions requestOptions) {
+    CompletableFuture<ZaspHttpResponse<WorkloadOutcomeAck>> rawFuture = this.rawClient.recordActionOutcome(pathActionId, request, requestOptions);
+    CompletableFuture<WorkloadOutcomeAck> future = rawFuture.thenApply(response -> response.body());
+    future.whenComplete((result_, throwable_) -> {
+      if (future.isCancelled()) {
+        rawFuture.cancel(true);
+      }
+    });
+    return future;
   }
 
   /**

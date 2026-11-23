@@ -6,6 +6,7 @@ import typing
 import pydantic
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from .inventory_activity_state import InventoryActivityState
+from .inventory_attribution import InventoryAttribution
 from .inventory_discovery import InventoryDiscovery
 from .inventory_freshness_state import InventoryFreshnessState
 from .inventory_kind import InventoryKind
@@ -28,6 +29,7 @@ class InventorySummary(UniversalBaseModel):
     """
 
     activity_state: InventoryActivityState
+    attribution: typing.Optional[InventoryAttribution] = None
     owner: str
     team: str
     tags: typing.List[str]

@@ -4,12 +4,14 @@ import typing
 
 import pydantic
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
+from .policy_replay_coverage import PolicyReplayCoverage
 
 
 class PolicySimulation(UniversalBaseModel):
     matches: int
     would_block: int
     example_session_ids: typing.List[str]
+    replay: typing.Optional[PolicyReplayCoverage] = None
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

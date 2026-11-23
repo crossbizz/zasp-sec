@@ -22,13 +22,23 @@ import ai.zasp.api.errors.ForbiddenError;
 import ai.zasp.api.errors.NotFoundError;
 import ai.zasp.api.errors.ServiceUnavailableError;
 import ai.zasp.api.errors.UnauthorizedError;
+import ai.zasp.api.resources.sensors.requests.BrowserOriginReport;
 import ai.zasp.api.resources.sensors.requests.DeleteSensorsRequest;
+import ai.zasp.api.resources.sensors.requests.EndpointHeartbeat;
+import ai.zasp.api.resources.sensors.requests.EndpointObservationBatch;
+import ai.zasp.api.resources.sensors.requests.EndpointSnapshot;
+import ai.zasp.api.resources.sensors.requests.ExchangeEndpointEnrollmentSensorsRequest;
+import ai.zasp.api.resources.sensors.requests.FetchEndpointPolicySensorsRequest;
 import ai.zasp.api.resources.sensors.requests.GetCoverageSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.GetSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.ListSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.RotateTokenSensorsRequest;
 import ai.zasp.api.resources.sensors.requests.SensorInput;
 import ai.zasp.api.resources.sensors.requests.SensorUpdateInput;
+import ai.zasp.api.types.BrowserOriginAck;
+import ai.zasp.api.types.EndpointBundle;
+import ai.zasp.api.types.EndpointExchangeReceipt;
+import ai.zasp.api.types.EndpointRecorded;
 import ai.zasp.api.types.ProductError;
 import ai.zasp.api.types.Sensor;
 import ai.zasp.api.types.SensorCoverage;
@@ -65,31 +75,24 @@ public class AsyncRawSensorsClient {
     this.clientOptions = clientOptions;
   }
 
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list() {
-    return list(ListSensorsRequest.builder().build());
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<ZaspHttpResponse<EndpointBundle>> fetchEndpointPolicy(String id,
+      FetchEndpointPolicySensorsRequest request) {
+    return fetchEndpointPolicy(id,request,null);
   }
 
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list(
-      RequestOptions requestOptions) {
-    return list(ListSensorsRequest.builder().build(),requestOptions);
-  }
-
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list(
-      ListSensorsRequest request) {
-    return list(request,null);
-  }
-
-  public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list(
-      ListSensorsRequest request, RequestOptions requestOptions) {
+  /**
+   * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+   */
+  public CompletableFuture<ZaspHttpResponse<EndpointBundle>> fetchEndpointPolicy(String id,
+      FetchEndpointPolicySensorsRequest request, RequestOptions requestOptions) {
     HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-      .addPathSegments("api/v1/sensors");if (request.getCursor().isPresent()) {
-        QueryStringMapper.addQueryParameter(httpUrl, "cursor", request.getCursor().get(), false);
-      }
-      if (request.getLimit().isPresent()) {
-        QueryStringMapper.addQueryParameter(httpUrl, "limit", request.getLimit().get(), false);
-      }
-      if (requestOptions != null) {
+      .addPathSegments("api/v1/devices")
+      .addPathSegment(PathSegments.validate(id))
+      .addPathSegments("policy-bundle");if (requestOptions != null) {
         requestOptions.getQueryParameters().forEach((_key, _value) -> {
           httpUrl.addQueryParameter(_key, _value);
         } );
@@ -99,6 +102,8 @@ public class AsyncRawSensorsClient {
         .method("GET", null)
         .headers(Headers.of(clientOptions.headers(requestOptions)))
         .addHeader("Accept", "application/json");
+      _requestBuilder.addHeader("X-Zasp-Device-Proof", request.getZaspDeviceProof());
+      _requestBuilder.addHeader("X-Zasp-Device-Signature", request.getZaspDeviceSignature());
       Request okhttpRequest = _requestBuilder.build();
       OkHttpClient client = clientOptions.httpClient();
       if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -107,7 +112,7 @@ public class AsyncRawSensorsClient {
       if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
         okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
       }
-      CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> future = new CompletableFuture<>();
+      CompletableFuture<ZaspHttpResponse<EndpointBundle>> future = new CompletableFuture<>();
       RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
       okhttpCall.enqueue(new Callback() {
         @Override
@@ -115,19 +120,7 @@ public class AsyncRawSensorsClient {
           try (ResponseBody responseBody = response.body()) {
             String responseBodyString = responseBody != null ? responseBody.string() : "{}";
             if (response.isSuccessful()) {
-              SensorPage parsedResponse = ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorPage.class);
-              Optional<String> startingAfter = parsedResponse.getPageInfo().getNextCursor();
-              ListSensorsRequest nextRequest = ListSensorsRequest.builder().from(request).cursor(startingAfter).build();
-              List<Sensor> result = parsedResponse.getItems();
-              future.complete(new ZaspHttpResponse<>(new SyncPagingIterable<Sensor>(startingAfter.isPresent() && !startingAfter.get().isEmpty(), result, parsedResponse, () -> {
-                    try {
-                      return list(nextRequest, requestOptions).get().body();
-                    }
-                    catch (InterruptedException | ExecutionException e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                  ), response));
+              future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, EndpointBundle.class), response));
               return;
             }
             try {
@@ -137,6 +130,10 @@ public class AsyncRawSensorsClient {
                 case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                 return;
                 case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                return;
+                case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                return;
+                case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                 return;
                 case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                 return;
@@ -171,28 +168,28 @@ public class AsyncRawSensorsClient {
     }
 
     /**
-     * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. ProductAPIToken requests omit the browser-only headers. Exact replay never reveals token material and returns conflict so the caller can rotate with a new key.
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
      */
-    public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> createEnrollment(
-        SensorInput request) {
-      return createEnrollment(request,null);
+    public CompletableFuture<ZaspHttpResponse<EndpointExchangeReceipt>> exchangeEndpointEnrollment(
+        ExchangeEndpointEnrollmentSensorsRequest request) {
+      return exchangeEndpointEnrollment(request,null);
     }
 
     /**
-     * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. ProductAPIToken requests omit the browser-only headers. Exact replay never reveals token material and returns conflict so the caller can rotate with a new key.
+     * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
      */
-    public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> createEnrollment(
-        SensorInput request, RequestOptions requestOptions) {
+    public CompletableFuture<ZaspHttpResponse<EndpointExchangeReceipt>> exchangeEndpointEnrollment(
+        ExchangeEndpointEnrollmentSensorsRequest request, RequestOptions requestOptions) {
       HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-        .addPathSegments("api/v1/sensors");if (requestOptions != null) {
+        .addPathSegments("api/v1/device-enrollments/exchange");if (requestOptions != null) {
           requestOptions.getQueryParameters().forEach((_key, _value) -> {
             httpUrl.addQueryParameter(_key, _value);
           } );
         }
         RequestBody body;
         try {
-          body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+          body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request.getBody(), requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
         }
         catch(Exception e) {
           throw new RuntimeException(e);
@@ -203,14 +200,8 @@ public class AsyncRawSensorsClient {
           .headers(Headers.of(clientOptions.headers(requestOptions)))
           .addHeader("Content-Type", "application/json")
           .addHeader("Accept", "application/json");
-        if (request.getCsrfToken().isPresent()) {
-          _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
-        }
-        _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
-        _requestBuilder.addHeader("X-Zasp-Fresh-Auth", request.getZaspFreshAuth().toString());
-        if (request.getZaspSensorEnrollmentSchema().isPresent()) {
-          _requestBuilder.addHeader("X-Zasp-Sensor-Enrollment-Schema", request.getZaspSensorEnrollmentSchema().get().toString());
-        }
+        _requestBuilder.addHeader("X-Zasp-Device-Proof", request.getZaspDeviceProof());
+        _requestBuilder.addHeader("X-Zasp-Device-Signature", request.getZaspDeviceSignature());
         Request okhttpRequest = _requestBuilder.build();
         OkHttpClient client = clientOptions.httpClient();
         if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -219,7 +210,7 @@ public class AsyncRawSensorsClient {
         if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
           okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
         }
-        CompletableFuture<ZaspHttpResponse<SensorEnrollment>> future = new CompletableFuture<>();
+        CompletableFuture<ZaspHttpResponse<EndpointExchangeReceipt>> future = new CompletableFuture<>();
         RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
         okhttpCall.enqueue(new Callback() {
           @Override
@@ -227,7 +218,7 @@ public class AsyncRawSensorsClient {
             try (ResponseBody responseBody = response.body()) {
               String responseBodyString = responseBody != null ? responseBody.string() : "{}";
               if (response.isSuccessful()) {
-                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorEnrollment.class), response));
+                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, EndpointExchangeReceipt.class), response));
                 return;
               }
               try {
@@ -237,6 +228,8 @@ public class AsyncRawSensorsClient {
                   case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                   return;
                   case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                  return;
+                  case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                   return;
                   case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                   return;
@@ -272,34 +265,43 @@ public class AsyncRawSensorsClient {
         return future;
       }
 
-      public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id) {
-        return get(id,GetSensorsRequest.builder().build());
+      /**
+       * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+       */
+      public CompletableFuture<ZaspHttpResponse<EndpointRecorded>> recordEndpointHeartbeat(
+          String id, EndpointHeartbeat request) {
+        return recordEndpointHeartbeat(id,request,null);
       }
 
-      public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id,
-          RequestOptions requestOptions) {
-        return get(id,GetSensorsRequest.builder().build(),requestOptions);
-      }
-
-      public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id, GetSensorsRequest request) {
-        return get(id,request,null);
-      }
-
-      public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id, GetSensorsRequest request,
-          RequestOptions requestOptions) {
+      /**
+       * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+       */
+      public CompletableFuture<ZaspHttpResponse<EndpointRecorded>> recordEndpointHeartbeat(
+          String id, EndpointHeartbeat request, RequestOptions requestOptions) {
         HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-          .addPathSegments("api/v1/sensors")
-          .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+          .addPathSegments("api/v1/devices")
+          .addPathSegment(PathSegments.validate(id))
+          .addPathSegments("heartbeat");if (requestOptions != null) {
             requestOptions.getQueryParameters().forEach((_key, _value) -> {
               httpUrl.addQueryParameter(_key, _value);
             } );
           }
+          RequestBody body;
+          try {
+            body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+          }
+          catch(Exception e) {
+            throw new RuntimeException(e);
+          }
           Request.Builder _requestBuilder = new Request.Builder()
             .url(httpUrl.build())
-            .method("GET", null)
+            .method("POST", body)
             .headers(Headers.of(clientOptions.headers(requestOptions)))
+            .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "application/json");
+          _requestBuilder.addHeader("X-Zasp-Device-Proof", request.getZaspDeviceProof());
+          _requestBuilder.addHeader("X-Zasp-Device-Signature", request.getZaspDeviceSignature());
           Request okhttpRequest = _requestBuilder.build();
           OkHttpClient client = clientOptions.httpClient();
           if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -308,7 +310,7 @@ public class AsyncRawSensorsClient {
           if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
             okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
           }
-          CompletableFuture<ZaspHttpResponse<Sensor>> future = new CompletableFuture<>();
+          CompletableFuture<ZaspHttpResponse<EndpointRecorded>> future = new CompletableFuture<>();
           RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
           okhttpCall.enqueue(new Callback() {
             @Override
@@ -316,7 +318,7 @@ public class AsyncRawSensorsClient {
               try (ResponseBody responseBody = response.body()) {
                 String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                 if (response.isSuccessful()) {
-                  future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Sensor.class), response));
+                  future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, EndpointRecorded.class), response));
                   return;
                 }
                 try {
@@ -328,6 +330,8 @@ public class AsyncRawSensorsClient {
                     case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                     return;
                     case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                    return;
+                    case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                     return;
                     case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                     return;
@@ -361,31 +365,43 @@ public class AsyncRawSensorsClient {
           return future;
         }
 
-        public CompletableFuture<ZaspHttpResponse<Void>> delete(String id,
-            DeleteSensorsRequest request) {
-          return delete(id,request,null);
+        /**
+         * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+         */
+        public CompletableFuture<ZaspHttpResponse<EndpointRecorded>> recordEndpointInventory(
+            String id, EndpointSnapshot request) {
+          return recordEndpointInventory(id,request,null);
         }
 
-        public CompletableFuture<ZaspHttpResponse<Void>> delete(String id,
-            DeleteSensorsRequest request, RequestOptions requestOptions) {
+        /**
+         * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+         */
+        public CompletableFuture<ZaspHttpResponse<EndpointRecorded>> recordEndpointInventory(
+            String id, EndpointSnapshot request, RequestOptions requestOptions) {
           HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-            .addPathSegments("api/v1/sensors")
-            .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+            .addPathSegments("api/v1/devices")
+            .addPathSegment(PathSegments.validate(id))
+            .addPathSegments("inventory-snapshots");if (requestOptions != null) {
               requestOptions.getQueryParameters().forEach((_key, _value) -> {
                 httpUrl.addQueryParameter(_key, _value);
               } );
             }
+            RequestBody body;
+            try {
+              body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+            }
+            catch(Exception e) {
+              throw new RuntimeException(e);
+            }
             Request.Builder _requestBuilder = new Request.Builder()
               .url(httpUrl.build())
-              .method("DELETE", BodyProperties.toRequestBody(requestOptions != null ? requestOptions.getBodyProperties() : null, null))
+              .method("POST", body)
               .headers(Headers.of(clientOptions.headers(requestOptions)))
+              .addHeader("Content-Type", "application/json")
               .addHeader("Accept", "application/json");
-            if (request.getCsrfToken().isPresent()) {
-              _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
-            }
-            _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
-            _requestBuilder.addHeader("If-Match", request.getIfMatch());
+            _requestBuilder.addHeader("X-Zasp-Device-Proof", request.getZaspDeviceProof());
+            _requestBuilder.addHeader("X-Zasp-Device-Signature", request.getZaspDeviceSignature());
             Request okhttpRequest = _requestBuilder.build();
             OkHttpClient client = clientOptions.httpClient();
             if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -394,17 +410,17 @@ public class AsyncRawSensorsClient {
             if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
               okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
             }
-            CompletableFuture<ZaspHttpResponse<Void>> future = new CompletableFuture<>();
+            CompletableFuture<ZaspHttpResponse<EndpointRecorded>> future = new CompletableFuture<>();
             RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
             okhttpCall.enqueue(new Callback() {
               @Override
               public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 try (ResponseBody responseBody = response.body()) {
+                  String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                   if (response.isSuccessful()) {
-                    future.complete(new ZaspHttpResponse<>(null, response));
+                    future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, EndpointRecorded.class), response));
                     return;
                   }
-                  String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                   try {
                     switch (response.code()) {
                       case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
@@ -449,17 +465,22 @@ public class AsyncRawSensorsClient {
             return future;
           }
 
-          public CompletableFuture<ZaspHttpResponse<Sensor>> update(String id,
-              SensorUpdateInput request) {
-            return update(id,request,null);
+          /**
+           * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+           */
+          public CompletableFuture<ZaspHttpResponse<EndpointRecorded>> recordEndpointObservations(
+              EndpointObservationBatch request) {
+            return recordEndpointObservations(request,null);
           }
 
-          public CompletableFuture<ZaspHttpResponse<Sensor>> update(String id,
-              SensorUpdateInput request, RequestOptions requestOptions) {
+          /**
+           * Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+           */
+          public CompletableFuture<ZaspHttpResponse<EndpointRecorded>> recordEndpointObservations(
+              EndpointObservationBatch request, RequestOptions requestOptions) {
             HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-              .addPathSegments("api/v1/sensors")
-              .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+              .addPathSegments("api/v1/runtime/observations");if (requestOptions != null) {
                 requestOptions.getQueryParameters().forEach((_key, _value) -> {
                   httpUrl.addQueryParameter(_key, _value);
                 } );
@@ -473,15 +494,12 @@ public class AsyncRawSensorsClient {
               }
               Request.Builder _requestBuilder = new Request.Builder()
                 .url(httpUrl.build())
-                .method("PATCH", body)
+                .method("POST", body)
                 .headers(Headers.of(clientOptions.headers(requestOptions)))
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "application/json");
-              if (request.getCsrfToken().isPresent()) {
-                _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
-              }
-              _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
-              _requestBuilder.addHeader("If-Match", request.getIfMatch());
+              _requestBuilder.addHeader("X-Zasp-Device-Proof", request.getZaspDeviceProof());
+              _requestBuilder.addHeader("X-Zasp-Device-Signature", request.getZaspDeviceSignature());
               Request okhttpRequest = _requestBuilder.build();
               OkHttpClient client = clientOptions.httpClient();
               if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -490,7 +508,7 @@ public class AsyncRawSensorsClient {
               if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
                 okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
               }
-              CompletableFuture<ZaspHttpResponse<Sensor>> future = new CompletableFuture<>();
+              CompletableFuture<ZaspHttpResponse<EndpointRecorded>> future = new CompletableFuture<>();
               RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
               okhttpCall.enqueue(new Callback() {
                 @Override
@@ -498,7 +516,7 @@ public class AsyncRawSensorsClient {
                   try (ResponseBody responseBody = response.body()) {
                     String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                     if (response.isSuccessful()) {
-                      future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Sensor.class), response));
+                      future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, EndpointRecorded.class), response));
                       return;
                     }
                     try {
@@ -545,50 +563,40 @@ public class AsyncRawSensorsClient {
               return future;
             }
 
-            /**
-             * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. Exact replay never reveals token material and returns conflict.
-             */
-            public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> rotateToken(String id,
-                RotateTokenSensorsRequest request) {
-              return rotateToken(id,request,null);
+            public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list() {
+              return list(ListSensorsRequest.builder().build());
             }
 
-            /**
-             * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. Exact replay never reveals token material and returns conflict.
-             */
-            public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> rotateToken(String id,
-                RotateTokenSensorsRequest request, RequestOptions requestOptions) {
+            public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list(
+                RequestOptions requestOptions) {
+              return list(ListSensorsRequest.builder().build(),requestOptions);
+            }
+
+            public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list(
+                ListSensorsRequest request) {
+              return list(request,null);
+            }
+
+            public CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> list(
+                ListSensorsRequest request, RequestOptions requestOptions) {
               HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-                .addPathSegments("api/v1/sensors")
-                .addPathSegment(PathSegments.validate(id))
-                .addPathSegments("rotate-token");if (requestOptions != null) {
+                .addPathSegments("api/v1/sensors");if (request.getCursor().isPresent()) {
+                  QueryStringMapper.addQueryParameter(httpUrl, "cursor", request.getCursor().get(), false);
+                }
+                if (request.getLimit().isPresent()) {
+                  QueryStringMapper.addQueryParameter(httpUrl, "limit", request.getLimit().get(), false);
+                }
+                if (requestOptions != null) {
                   requestOptions.getQueryParameters().forEach((_key, _value) -> {
                     httpUrl.addQueryParameter(_key, _value);
                   } );
                 }
-                RequestBody body;
-                try {
-                  body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request.getBody(), requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
-                }
-                catch(Exception e) {
-                  throw new RuntimeException(e);
-                }
                 Request.Builder _requestBuilder = new Request.Builder()
                   .url(httpUrl.build())
-                  .method("POST", body)
+                  .method("GET", null)
                   .headers(Headers.of(clientOptions.headers(requestOptions)))
-                  .addHeader("Content-Type", "application/json")
                   .addHeader("Accept", "application/json");
-                if (request.getCsrfToken().isPresent()) {
-                  _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
-                }
-                _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
-                _requestBuilder.addHeader("If-Match", request.getIfMatch());
-                _requestBuilder.addHeader("X-Zasp-Fresh-Auth", request.getZaspFreshAuth().toString());
-                if (request.getZaspSensorEnrollmentSchema().isPresent()) {
-                  _requestBuilder.addHeader("X-Zasp-Sensor-Enrollment-Schema", request.getZaspSensorEnrollmentSchema().get().toString());
-                }
                 Request okhttpRequest = _requestBuilder.build();
                 OkHttpClient client = clientOptions.httpClient();
                 if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -597,7 +605,7 @@ public class AsyncRawSensorsClient {
                 if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
                   okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
                 }
-                CompletableFuture<ZaspHttpResponse<SensorEnrollment>> future = new CompletableFuture<>();
+                CompletableFuture<ZaspHttpResponse<SyncPagingIterable<Sensor>>> future = new CompletableFuture<>();
                 RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
                 okhttpCall.enqueue(new Callback() {
                   @Override
@@ -605,7 +613,19 @@ public class AsyncRawSensorsClient {
                     try (ResponseBody responseBody = response.body()) {
                       String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                       if (response.isSuccessful()) {
-                        future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorEnrollment.class), response));
+                        SensorPage parsedResponse = ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorPage.class);
+                        Optional<String> startingAfter = parsedResponse.getPageInfo().getNextCursor();
+                        ListSensorsRequest nextRequest = ListSensorsRequest.builder().from(request).cursor(startingAfter).build();
+                        List<Sensor> result = parsedResponse.getItems();
+                        future.complete(new ZaspHttpResponse<>(new SyncPagingIterable<Sensor>(startingAfter.isPresent() && !startingAfter.get().isEmpty(), result, parsedResponse, () -> {
+                              try {
+                                return list(nextRequest, requestOptions).get().body();
+                              }
+                              catch (InterruptedException | ExecutionException e) {
+                                throw new RuntimeException(e);
+                              }
+                            }
+                            ), response));
                         return;
                       }
                       try {
@@ -615,10 +635,6 @@ public class AsyncRawSensorsClient {
                           case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                           return;
                           case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
-                          return;
-                          case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
-                          return;
-                          case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                           return;
                           case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                           return;
@@ -652,36 +668,47 @@ public class AsyncRawSensorsClient {
                 return future;
               }
 
-              public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(String id) {
-                return getCoverage(id,GetCoverageSensorsRequest.builder().build());
+              /**
+               * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. ProductAPIToken requests omit the browser-only headers. Exact replay never reveals token material and returns conflict so the caller can rotate with a new key.
+               */
+              public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> createEnrollment(
+                  SensorInput request) {
+                return createEnrollment(request,null);
               }
 
-              public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(String id,
-                  RequestOptions requestOptions) {
-                return getCoverage(id,GetCoverageSensorsRequest.builder().build(),requestOptions);
-              }
-
-              public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(String id,
-                  GetCoverageSensorsRequest request) {
-                return getCoverage(id,request,null);
-              }
-
-              public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(String id,
-                  GetCoverageSensorsRequest request, RequestOptions requestOptions) {
+              /**
+               * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. ProductAPIToken requests omit the browser-only headers. Exact replay never reveals token material and returns conflict so the caller can rotate with a new key.
+               */
+              public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> createEnrollment(
+                  SensorInput request, RequestOptions requestOptions) {
                 HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
 
-                  .addPathSegments("api/v1/sensors")
-                  .addPathSegment(PathSegments.validate(id))
-                  .addPathSegments("coverage");if (requestOptions != null) {
+                  .addPathSegments("api/v1/sensors");if (requestOptions != null) {
                     requestOptions.getQueryParameters().forEach((_key, _value) -> {
                       httpUrl.addQueryParameter(_key, _value);
                     } );
                   }
+                  RequestBody body;
+                  try {
+                    body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+                  }
+                  catch(Exception e) {
+                    throw new RuntimeException(e);
+                  }
                   Request.Builder _requestBuilder = new Request.Builder()
                     .url(httpUrl.build())
-                    .method("GET", null)
+                    .method("POST", body)
                     .headers(Headers.of(clientOptions.headers(requestOptions)))
+                    .addHeader("Content-Type", "application/json")
                     .addHeader("Accept", "application/json");
+                  if (request.getCsrfToken().isPresent()) {
+                    _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
+                  }
+                  _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+                  _requestBuilder.addHeader("X-Zasp-Fresh-Auth", request.getZaspFreshAuth().toString());
+                  if (request.getZaspSensorEnrollmentSchema().isPresent()) {
+                    _requestBuilder.addHeader("X-Zasp-Sensor-Enrollment-Schema", request.getZaspSensorEnrollmentSchema().get().toString());
+                  }
                   Request okhttpRequest = _requestBuilder.build();
                   OkHttpClient client = clientOptions.httpClient();
                   if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
@@ -690,7 +717,7 @@ public class AsyncRawSensorsClient {
                   if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
                     okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
                   }
-                  CompletableFuture<ZaspHttpResponse<SensorCoverage>> future = new CompletableFuture<>();
+                  CompletableFuture<ZaspHttpResponse<SensorEnrollment>> future = new CompletableFuture<>();
                   RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
                   okhttpCall.enqueue(new Callback() {
                     @Override
@@ -698,7 +725,7 @@ public class AsyncRawSensorsClient {
                       try (ResponseBody responseBody = response.body()) {
                         String responseBodyString = responseBody != null ? responseBody.string() : "{}";
                         if (response.isSuccessful()) {
-                          future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorCoverage.class), response));
+                          future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorEnrollment.class), response));
                           return;
                         }
                         try {
@@ -709,7 +736,7 @@ public class AsyncRawSensorsClient {
                             return;
                             case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                             return;
-                            case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                            case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
                             return;
                             case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
                             return;
@@ -742,4 +769,572 @@ public class AsyncRawSensorsClient {
                   });
                   return future;
                 }
-              }
+
+                public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id) {
+                  return get(id,GetSensorsRequest.builder().build());
+                }
+
+                public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id,
+                    RequestOptions requestOptions) {
+                  return get(id,GetSensorsRequest.builder().build(),requestOptions);
+                }
+
+                public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id,
+                    GetSensorsRequest request) {
+                  return get(id,request,null);
+                }
+
+                public CompletableFuture<ZaspHttpResponse<Sensor>> get(String id,
+                    GetSensorsRequest request, RequestOptions requestOptions) {
+                  HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+                    .addPathSegments("api/v1/sensors")
+                    .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+                      requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                        httpUrl.addQueryParameter(_key, _value);
+                      } );
+                    }
+                    Request.Builder _requestBuilder = new Request.Builder()
+                      .url(httpUrl.build())
+                      .method("GET", null)
+                      .headers(Headers.of(clientOptions.headers(requestOptions)))
+                      .addHeader("Accept", "application/json");
+                    Request okhttpRequest = _requestBuilder.build();
+                    OkHttpClient client = clientOptions.httpClient();
+                    if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                      client = clientOptions.httpClientWithTimeout(requestOptions);
+                    }
+                    if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                      okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+                    }
+                    CompletableFuture<ZaspHttpResponse<Sensor>> future = new CompletableFuture<>();
+                    RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+                    okhttpCall.enqueue(new Callback() {
+                      @Override
+                      public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                        try (ResponseBody responseBody = response.body()) {
+                          String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                          if (response.isSuccessful()) {
+                            future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Sensor.class), response));
+                            return;
+                          }
+                          try {
+                            switch (response.code()) {
+                              case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                              return;
+                              case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                              return;
+                              case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                              return;
+                              case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                              return;
+                              case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                              return;
+                            }
+                          }
+                          catch (JsonProcessingException ignored) {
+                            // unable to map error response, throwing generic error
+                          }
+                          Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                          future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                          return;
+                        }
+                        catch (JsonProcessingException e) {
+                          future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                        }
+                        catch (IOException e) {
+                          future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                        }
+                      }
+
+                      @Override
+                      public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                        future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                      }
+                    });
+                    future.whenComplete((result_, throwable_) -> {
+                      if (future.isCancelled()) {
+                        okhttpCall.cancel();
+                      }
+                    });
+                    return future;
+                  }
+
+                  public CompletableFuture<ZaspHttpResponse<Void>> delete(String id,
+                      DeleteSensorsRequest request) {
+                    return delete(id,request,null);
+                  }
+
+                  public CompletableFuture<ZaspHttpResponse<Void>> delete(String id,
+                      DeleteSensorsRequest request, RequestOptions requestOptions) {
+                    HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+                      .addPathSegments("api/v1/sensors")
+                      .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+                        requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                          httpUrl.addQueryParameter(_key, _value);
+                        } );
+                      }
+                      Request.Builder _requestBuilder = new Request.Builder()
+                        .url(httpUrl.build())
+                        .method("DELETE", BodyProperties.toRequestBody(requestOptions != null ? requestOptions.getBodyProperties() : null, null))
+                        .headers(Headers.of(clientOptions.headers(requestOptions)))
+                        .addHeader("Accept", "application/json");
+                      if (request.getCsrfToken().isPresent()) {
+                        _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
+                      }
+                      _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+                      _requestBuilder.addHeader("If-Match", request.getIfMatch());
+                      Request okhttpRequest = _requestBuilder.build();
+                      OkHttpClient client = clientOptions.httpClient();
+                      if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                        client = clientOptions.httpClientWithTimeout(requestOptions);
+                      }
+                      if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                        okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+                      }
+                      CompletableFuture<ZaspHttpResponse<Void>> future = new CompletableFuture<>();
+                      RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+                      okhttpCall.enqueue(new Callback() {
+                        @Override
+                        public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                          try (ResponseBody responseBody = response.body()) {
+                            if (response.isSuccessful()) {
+                              future.complete(new ZaspHttpResponse<>(null, response));
+                              return;
+                            }
+                            String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                            try {
+                              switch (response.code()) {
+                                case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                return;
+                                case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                return;
+                                case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                return;
+                                case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                return;
+                                case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                return;
+                                case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                return;
+                              }
+                            }
+                            catch (JsonProcessingException ignored) {
+                              // unable to map error response, throwing generic error
+                            }
+                            Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                            future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                            return;
+                          }
+                          catch (JsonProcessingException e) {
+                            future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                          }
+                          catch (IOException e) {
+                            future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                          }
+                        }
+
+                        @Override
+                        public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                          future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                        }
+                      });
+                      future.whenComplete((result_, throwable_) -> {
+                        if (future.isCancelled()) {
+                          okhttpCall.cancel();
+                        }
+                      });
+                      return future;
+                    }
+
+                    public CompletableFuture<ZaspHttpResponse<Sensor>> update(String id,
+                        SensorUpdateInput request) {
+                      return update(id,request,null);
+                    }
+
+                    public CompletableFuture<ZaspHttpResponse<Sensor>> update(String id,
+                        SensorUpdateInput request, RequestOptions requestOptions) {
+                      HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+                        .addPathSegments("api/v1/sensors")
+                        .addPathSegment(PathSegments.validate(id));if (requestOptions != null) {
+                          requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                            httpUrl.addQueryParameter(_key, _value);
+                          } );
+                        }
+                        RequestBody body;
+                        try {
+                          body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+                        }
+                        catch(Exception e) {
+                          throw new RuntimeException(e);
+                        }
+                        Request.Builder _requestBuilder = new Request.Builder()
+                          .url(httpUrl.build())
+                          .method("PATCH", body)
+                          .headers(Headers.of(clientOptions.headers(requestOptions)))
+                          .addHeader("Content-Type", "application/json")
+                          .addHeader("Accept", "application/json");
+                        if (request.getCsrfToken().isPresent()) {
+                          _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
+                        }
+                        _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+                        _requestBuilder.addHeader("If-Match", request.getIfMatch());
+                        Request okhttpRequest = _requestBuilder.build();
+                        OkHttpClient client = clientOptions.httpClient();
+                        if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                          client = clientOptions.httpClientWithTimeout(requestOptions);
+                        }
+                        if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                          okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+                        }
+                        CompletableFuture<ZaspHttpResponse<Sensor>> future = new CompletableFuture<>();
+                        RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+                        okhttpCall.enqueue(new Callback() {
+                          @Override
+                          public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                            try (ResponseBody responseBody = response.body()) {
+                              String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                              if (response.isSuccessful()) {
+                                future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Sensor.class), response));
+                                return;
+                              }
+                              try {
+                                switch (response.code()) {
+                                  case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                  return;
+                                  case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                  return;
+                                  case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                  return;
+                                  case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                  return;
+                                  case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                  return;
+                                  case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                  return;
+                                }
+                              }
+                              catch (JsonProcessingException ignored) {
+                                // unable to map error response, throwing generic error
+                              }
+                              Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                              future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                              return;
+                            }
+                            catch (JsonProcessingException e) {
+                              future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                            }
+                            catch (IOException e) {
+                              future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                            }
+                          }
+
+                          @Override
+                          public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                            future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                          }
+                        });
+                        future.whenComplete((result_, throwable_) -> {
+                          if (future.isCancelled()) {
+                            okhttpCall.cancel();
+                          }
+                        });
+                        return future;
+                      }
+
+                      /**
+                       * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. Exact replay never reveals token material and returns conflict.
+                       */
+                      public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> rotateToken(
+                          String id, RotateTokenSensorsRequest request) {
+                        return rotateToken(id,request,null);
+                      }
+
+                      /**
+                       * BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. Exact replay never reveals token material and returns conflict.
+                       */
+                      public CompletableFuture<ZaspHttpResponse<SensorEnrollment>> rotateToken(
+                          String id, RotateTokenSensorsRequest request,
+                          RequestOptions requestOptions) {
+                        HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+                          .addPathSegments("api/v1/sensors")
+                          .addPathSegment(PathSegments.validate(id))
+                          .addPathSegments("rotate-token");if (requestOptions != null) {
+                            requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                              httpUrl.addQueryParameter(_key, _value);
+                            } );
+                          }
+                          RequestBody body;
+                          try {
+                            body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request.getBody(), requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+                          }
+                          catch(Exception e) {
+                            throw new RuntimeException(e);
+                          }
+                          Request.Builder _requestBuilder = new Request.Builder()
+                            .url(httpUrl.build())
+                            .method("POST", body)
+                            .headers(Headers.of(clientOptions.headers(requestOptions)))
+                            .addHeader("Content-Type", "application/json")
+                            .addHeader("Accept", "application/json");
+                          if (request.getCsrfToken().isPresent()) {
+                            _requestBuilder.addHeader("X-CSRF-Token", request.getCsrfToken().get());
+                          }
+                          _requestBuilder.addHeader("Idempotency-Key", request.getIdempotencyKey());
+                          _requestBuilder.addHeader("If-Match", request.getIfMatch());
+                          _requestBuilder.addHeader("X-Zasp-Fresh-Auth", request.getZaspFreshAuth().toString());
+                          if (request.getZaspSensorEnrollmentSchema().isPresent()) {
+                            _requestBuilder.addHeader("X-Zasp-Sensor-Enrollment-Schema", request.getZaspSensorEnrollmentSchema().get().toString());
+                          }
+                          Request okhttpRequest = _requestBuilder.build();
+                          OkHttpClient client = clientOptions.httpClient();
+                          if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                            client = clientOptions.httpClientWithTimeout(requestOptions);
+                          }
+                          if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                            okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+                          }
+                          CompletableFuture<ZaspHttpResponse<SensorEnrollment>> future = new CompletableFuture<>();
+                          RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+                          okhttpCall.enqueue(new Callback() {
+                            @Override
+                            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                              try (ResponseBody responseBody = response.body()) {
+                                String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                                if (response.isSuccessful()) {
+                                  future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorEnrollment.class), response));
+                                  return;
+                                }
+                                try {
+                                  switch (response.code()) {
+                                    case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                    return;
+                                    case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                    return;
+                                    case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                    return;
+                                    case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                    return;
+                                    case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                    return;
+                                    case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                    return;
+                                  }
+                                }
+                                catch (JsonProcessingException ignored) {
+                                  // unable to map error response, throwing generic error
+                                }
+                                Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                                future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                                return;
+                              }
+                              catch (JsonProcessingException e) {
+                                future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                              }
+                              catch (IOException e) {
+                                future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                              }
+                            }
+
+                            @Override
+                            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                              future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                            }
+                          });
+                          future.whenComplete((result_, throwable_) -> {
+                            if (future.isCancelled()) {
+                              okhttpCall.cancel();
+                            }
+                          });
+                          return future;
+                        }
+
+                        public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(
+                            String id) {
+                          return getCoverage(id,GetCoverageSensorsRequest.builder().build());
+                        }
+
+                        public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(
+                            String id, RequestOptions requestOptions) {
+                          return getCoverage(id,GetCoverageSensorsRequest.builder().build(),requestOptions);
+                        }
+
+                        public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(
+                            String id, GetCoverageSensorsRequest request) {
+                          return getCoverage(id,request,null);
+                        }
+
+                        public CompletableFuture<ZaspHttpResponse<SensorCoverage>> getCoverage(
+                            String id, GetCoverageSensorsRequest request,
+                            RequestOptions requestOptions) {
+                          HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+                            .addPathSegments("api/v1/sensors")
+                            .addPathSegment(PathSegments.validate(id))
+                            .addPathSegments("coverage");if (requestOptions != null) {
+                              requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                                httpUrl.addQueryParameter(_key, _value);
+                              } );
+                            }
+                            Request.Builder _requestBuilder = new Request.Builder()
+                              .url(httpUrl.build())
+                              .method("GET", null)
+                              .headers(Headers.of(clientOptions.headers(requestOptions)))
+                              .addHeader("Accept", "application/json");
+                            Request okhttpRequest = _requestBuilder.build();
+                            OkHttpClient client = clientOptions.httpClient();
+                            if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                              client = clientOptions.httpClientWithTimeout(requestOptions);
+                            }
+                            if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                              okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+                            }
+                            CompletableFuture<ZaspHttpResponse<SensorCoverage>> future = new CompletableFuture<>();
+                            RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+                            okhttpCall.enqueue(new Callback() {
+                              @Override
+                              public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                                try (ResponseBody responseBody = response.body()) {
+                                  String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                                  if (response.isSuccessful()) {
+                                    future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, SensorCoverage.class), response));
+                                    return;
+                                  }
+                                  try {
+                                    switch (response.code()) {
+                                      case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                      return;
+                                      case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                      return;
+                                      case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                      return;
+                                      case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                      return;
+                                      case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                      return;
+                                    }
+                                  }
+                                  catch (JsonProcessingException ignored) {
+                                    // unable to map error response, throwing generic error
+                                  }
+                                  Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                                  future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                                  return;
+                                }
+                                catch (JsonProcessingException e) {
+                                  future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                                }
+                                catch (IOException e) {
+                                  future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                                }
+                              }
+
+                              @Override
+                              public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                                future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                              }
+                            });
+                            future.whenComplete((result_, throwable_) -> {
+                              if (future.isCancelled()) {
+                                okhttpCall.cancel();
+                              }
+                            });
+                            return future;
+                          }
+
+                          public CompletableFuture<ZaspHttpResponse<BrowserOriginAck>> recordBrowserOriginDays(
+                              String id, BrowserOriginReport request) {
+                            return recordBrowserOriginDays(id,request,null);
+                          }
+
+                          public CompletableFuture<ZaspHttpResponse<BrowserOriginAck>> recordBrowserOriginDays(
+                              String id, BrowserOriginReport request,
+                              RequestOptions requestOptions) {
+                            HttpUrl.Builder httpUrl = HttpUrl.parse(this.clientOptions.environment().getUrl()).newBuilder()
+
+                              .addPathSegments("api/v1/browser-profiles")
+                              .addPathSegment(PathSegments.validate(id))
+                              .addPathSegments("observations");if (requestOptions != null) {
+                                requestOptions.getQueryParameters().forEach((_key, _value) -> {
+                                  httpUrl.addQueryParameter(_key, _value);
+                                } );
+                              }
+                              RequestBody body;
+                              try {
+                                body = RequestBody.create(ObjectMappers.JSON_MAPPER.writeValueAsBytes(BodyProperties.merge(request, requestOptions != null ? requestOptions.getBodyProperties() : null)), MediaTypes.APPLICATION_JSON);
+                              }
+                              catch(JsonProcessingException e) {
+                                throw new ZaspException("Failed to serialize request", e);
+                              }
+                              Request okhttpRequest = new Request.Builder()
+                                .url(httpUrl.build())
+                                .method("POST", body)
+                                .headers(Headers.of(clientOptions.headers(requestOptions)))
+                                .addHeader("Content-Type", "application/json")
+                                .addHeader("Accept", "application/json")
+                                .build();
+                              OkHttpClient client = clientOptions.httpClient();
+                              if (requestOptions != null && requestOptions.getTimeout().isPresent()) {
+                                client = clientOptions.httpClientWithTimeout(requestOptions);
+                              }
+                              if (requestOptions != null && requestOptions.getMaxRetries().isPresent()) {
+                                okhttpRequest = okhttpRequest.newBuilder().tag(RetryInterceptor.MaxRetriesOverride.class, new RetryInterceptor.MaxRetriesOverride(requestOptions.getMaxRetries().get())).build();
+                              }
+                              CompletableFuture<ZaspHttpResponse<BrowserOriginAck>> future = new CompletableFuture<>();
+                              RetryInterceptor.AsyncCall okhttpCall = RetryInterceptor.newAsyncCall(client, okhttpRequest);
+                              okhttpCall.enqueue(new Callback() {
+                                @Override
+                                public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                                  try (ResponseBody responseBody = response.body()) {
+                                    String responseBodyString = responseBody != null ? responseBody.string() : "{}";
+                                    if (response.isSuccessful()) {
+                                      future.complete(new ZaspHttpResponse<>(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, BrowserOriginAck.class), response));
+                                      return;
+                                    }
+                                    try {
+                                      switch (response.code()) {
+                                        case 400:future.completeExceptionally(new BadRequestError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                        return;
+                                        case 401:future.completeExceptionally(new UnauthorizedError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                        return;
+                                        case 403:future.completeExceptionally(new ForbiddenError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                        return;
+                                        case 404:future.completeExceptionally(new NotFoundError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                        return;
+                                        case 409:future.completeExceptionally(new ConflictError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, ProductError.class), response));
+                                        return;
+                                        case 503:future.completeExceptionally(new ServiceUnavailableError(ObjectMappers.JSON_MAPPER.readValue(responseBodyString, Object.class), response));
+                                        return;
+                                      }
+                                    }
+                                    catch (JsonProcessingException ignored) {
+                                      // unable to map error response, throwing generic error
+                                    }
+                                    Object errorBody = ObjectMappers.parseErrorBody(responseBodyString);
+                                    future.completeExceptionally(new ZaspApiException("Error with status code " + response.code(), response.code(), errorBody, response));
+                                    return;
+                                  }
+                                  catch (JsonProcessingException e) {
+                                    future.completeExceptionally(new ZaspException("Failed to deserialize response: " + e.getMessage(), e));
+                                  }
+                                  catch (IOException e) {
+                                    future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                                  }
+                                }
+
+                                @Override
+                                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                                  future.completeExceptionally(new ZaspException("Network error executing HTTP request", e));
+                                }
+                              });
+                              future.whenComplete((result_, throwable_) -> {
+                                if (future.isCancelled()) {
+                                  okhttpCall.cancel();
+                                }
+                              });
+                              return future;
+                            }
+                          }

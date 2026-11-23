@@ -1,4 +1,10 @@
+export type { BrowserOriginReport } from "./BrowserOriginReport.js";
 export type { DeleteSensorsRequest } from "./DeleteSensorsRequest.js";
+export { EndpointHeartbeat } from "./EndpointHeartbeat.js";
+export type { EndpointObservationBatch } from "./EndpointObservationBatch.js";
+export type { EndpointSnapshot } from "./EndpointSnapshot.js";
+export type { ExchangeEndpointEnrollmentSensorsRequest } from "./ExchangeEndpointEnrollmentSensorsRequest.js";
+export type { FetchEndpointPolicySensorsRequest } from "./FetchEndpointPolicySensorsRequest.js";
 export type { GetCoverageSensorsRequest } from "./GetCoverageSensorsRequest.js";
 export type { GetSensorsRequest } from "./GetSensorsRequest.js";
 export type { ListSensorsRequest } from "./ListSensorsRequest.js";

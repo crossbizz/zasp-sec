@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
 @JsonDeserialize(
@@ -32,13 +33,16 @@ public final class PolicySimulation {
 
   private final List<String> exampleSessionIds;
 
+  private final Optional<PolicyReplayCoverage> replay;
+
   private final Map<String, Object> additionalProperties;
 
   private PolicySimulation(int matches, int wouldBlock, List<String> exampleSessionIds,
-      Map<String, Object> additionalProperties) {
+      Optional<PolicyReplayCoverage> replay, Map<String, Object> additionalProperties) {
     this.matches = matches;
     this.wouldBlock = wouldBlock;
     this.exampleSessionIds = exampleSessionIds;
+    this.replay = replay;
     this.additionalProperties = additionalProperties;
   }
 
@@ -57,6 +61,11 @@ public final class PolicySimulation {
     return exampleSessionIds;
   }
 
+  @JsonProperty("replay")
+  public Optional<PolicyReplayCoverage> getReplay() {
+    return replay;
+  }
+
   @java.lang.Override
   public boolean equals(Object other) {
     if (this == other) return true;
@@ -69,12 +78,12 @@ public final class PolicySimulation {
   }
 
   private boolean equalTo(PolicySimulation other) {
-    return matches == other.matches && wouldBlock == other.wouldBlock && exampleSessionIds.equals(other.exampleSessionIds);
+    return matches == other.matches && wouldBlock == other.wouldBlock && exampleSessionIds.equals(other.exampleSessionIds) && replay.equals(other.replay);
   }
 
   @java.lang.Override
   public int hashCode() {
-    return Objects.hash(this.matches, this.wouldBlock, this.exampleSessionIds);
+    return Objects.hash(this.matches, this.wouldBlock, this.exampleSessionIds, this.replay);
   }
 
   @java.lang.Override
@@ -108,6 +117,10 @@ public final class PolicySimulation {
     _FinalStage addExampleSessionIds(String exampleSessionIds);
 
     _FinalStage addAllExampleSessionIds(List<String> exampleSessionIds);
+
+    _FinalStage replay(Optional<PolicyReplayCoverage> replay);
+
+    _FinalStage replay(PolicyReplayCoverage replay);
   }
 
   @JsonIgnoreProperties(
@@ -117,6 +130,8 @@ public final class PolicySimulation {
     private int matches;
 
     private int wouldBlock;
+
+    private Optional<PolicyReplayCoverage> replay = Optional.empty();
 
     private List<String> exampleSessionIds = new ArrayList<>();
 
@@ -130,6 +145,7 @@ public final class PolicySimulation {
       matches(other.getMatches());
       wouldBlock(other.getWouldBlock());
       exampleSessionIds(other.getExampleSessionIds());
+      replay(other.getReplay());
       return this;
     }
 
@@ -144,6 +160,22 @@ public final class PolicySimulation {
     @JsonSetter("would_block")
     public _FinalStage wouldBlock(int wouldBlock) {
       this.wouldBlock = wouldBlock;
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage replay(PolicyReplayCoverage replay) {
+      this.replay = Optional.ofNullable(replay);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "replay",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage replay(Optional<PolicyReplayCoverage> replay) {
+      this.replay = replay;
       return this;
     }
 
@@ -176,12 +208,12 @@ public final class PolicySimulation {
 
     @java.lang.Override
     public PolicySimulation build() {
-      return new PolicySimulation(matches, wouldBlock, exampleSessionIds, additionalProperties);
+      return new PolicySimulation(matches, wouldBlock, exampleSessionIds, replay, additionalProperties);
     }
 
     @JsonAnySetter
     private void putAdditionalPropertyFromJson(String key, Object value) {
-      if (key.equalsIgnoreCase("matches") || key.equalsIgnoreCase("would_block") || key.equalsIgnoreCase("example_session_ids")) {
+      if (key.equalsIgnoreCase("matches") || key.equalsIgnoreCase("would_block") || key.equalsIgnoreCase("example_session_ids") || key.equalsIgnoreCase("replay")) {
         return;
       }
       this.additionalProperties.put(key, value);

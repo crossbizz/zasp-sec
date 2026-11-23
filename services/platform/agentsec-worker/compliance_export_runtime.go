@@ -103,6 +103,12 @@ func (p *complianceExportProcessor) process(parent context.Context, l *complianc
 					}
 					return
 				}
+				// A tick queued during this successful renewal is already covered
+				// by its receipt. Keep future ticks on the original schedule.
+				select {
+				case <-ticker.C:
+				default:
+				}
 			}
 		}
 	}()

@@ -9,12 +9,18 @@ if typing.TYPE_CHECKING:
     from .types import (
         CreateEnrollmentSensorsRequestXZaspFreshAuth,
         CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema,
+        EndpointHeartbeatAdapter,
+        EndpointHeartbeatPolicyStatus,
+        EndpointSnapshotInstallationsItem,
         RotateTokenSensorsRequestXZaspFreshAuth,
         RotateTokenSensorsRequestXZaspSensorEnrollmentSchema,
     )
 _dynamic_imports: typing.Dict[str, str] = {
     "CreateEnrollmentSensorsRequestXZaspFreshAuth": ".types",
     "CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema": ".types",
+    "EndpointHeartbeatAdapter": ".types",
+    "EndpointHeartbeatPolicyStatus": ".types",
+    "EndpointSnapshotInstallationsItem": ".types",
     "RotateTokenSensorsRequestXZaspFreshAuth": ".types",
     "RotateTokenSensorsRequestXZaspSensorEnrollmentSchema": ".types",
 }
@@ -44,6 +50,9 @@ def __dir__():
 __all__ = [
     "CreateEnrollmentSensorsRequestXZaspFreshAuth",
     "CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema",
+    "EndpointHeartbeatAdapter",
+    "EndpointHeartbeatPolicyStatus",
+    "EndpointSnapshotInstallationsItem",
     "RotateTokenSensorsRequestXZaspFreshAuth",
     "RotateTokenSensorsRequestXZaspSensorEnrollmentSchema",
 ]

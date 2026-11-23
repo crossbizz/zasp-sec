@@ -69,6 +69,9 @@ func runProductionProjectionInit(ctx context.Context, config workerRuntimeConfig
 	enterStartupStage("projection-graph-schema")
 	operationErr := adapter.EnsureSchema(bounded)
 	if operationErr == nil {
+		operationErr = adapter.EnsureActionEvidenceTokens(bounded)
+	}
+	if operationErr == nil {
 		operationErr = adapter.Ready(bounded)
 	}
 	closeCtx, closeCancel := context.WithTimeout(context.Background(), minDuration(config.LeaseDuration/3, 5*time.Second))

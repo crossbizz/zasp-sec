@@ -21,6 +21,15 @@ screens:
       - id: switch_browser_session_scope
         operation_id: switchSessionScope
         availability: available
+      - id: start_cli_login
+        operation_id: startCLILogin
+        availability: api_available
+      - id: approve_cli_login
+        operation_id: approveCLILogin
+        availability: available
+      - id: exchange_cli_login
+        operation_id: exchangeCLILogin
+        availability: api_available
   - id: workflow_recovery
     label: Workflow Recovery
     actions:
@@ -116,6 +125,15 @@ screens:
         availability: available
       - id: view_api_tokens
         operation_id: listAPITokens
+        availability: available
+      - id: read_browser_profile
+        operation_id: getBrowserProfile
+        availability: available
+      - id: bind_browser_profile
+        operation_id: registerBrowserProfile
+        availability: available
+      - id: retire_browser_profile
+        operation_id: retireBrowserProfile
         availability: available
       - id: create_api_token
         operation_id: createAPIToken
@@ -264,6 +282,54 @@ screens:
       - id: view_integration_webhook_status
         operation_id: getIntegrationWebhookStatus
         availability: available
+      - id: record_browser_origin_days
+        operation_id: recordBrowserOriginDays
+        availability: api_available
+      - id: register_endpoint_device
+        operation_id: registerEndpointDevice
+        availability: available
+      - id: read_pretool_policy
+        operation_id: getEndpointPolicyCohort
+        availability: available
+      - id: edit_pretool_policy
+        operation_id: updateEndpointPolicyCohort
+        availability: available
+      - id: review_ticket_cohort
+        operation_id: getTicketCohort
+        availability: available
+      - id: apply_signed_ticket_cohort
+        operation_id: publishTicketCohort
+        availability: available
+      - id: list_endpoint_devices
+        operation_id: listEndpointDevices
+        availability: available
+      - id: get_endpoint_device
+        operation_id: getEndpointDevice
+        availability: available
+      - id: rotate_endpoint_credential
+        operation_id: rotateEndpointCredential
+        availability: available
+      - id: retire_endpoint_device
+        operation_id: retireEndpointDevice
+        availability: available
+      - id: publish_endpoint_policy
+        operation_id: publishEndpointPolicy
+        availability: available
+      - id: exchange_endpoint_enrollment
+        operation_id: exchangeEndpointEnrollment
+        availability: api_available
+      - id: record_endpoint_heartbeat
+        operation_id: recordEndpointHeartbeat
+        availability: api_available
+      - id: record_endpoint_inventory
+        operation_id: recordEndpointInventory
+        availability: api_available
+      - id: record_endpoint_observations
+        operation_id: recordEndpointObservations
+        availability: api_available
+      - id: fetch_endpoint_policy
+        operation_id: fetchEndpointPolicy
+        availability: api_available
       - id: view_sensors
         operation_id: listSensors
         availability: available
@@ -317,6 +383,33 @@ screens:
         availability: available
       - id: view_tool
         operation_id: getTool
+        availability: available
+      - id: submit_addon_scan
+        operation_id: submitAddonScan
+        availability: api_available
+      - id: prepare_private_addon_scan
+        operation_id: createPrivateAddonUpload
+        availability: available
+      - id: read_addon_scan
+        operation_id: getAddonScan
+        availability: available
+      - id: attest_addon_scan
+        operation_id: attestAddonScan
+        availability: api_available
+      - id: view_addon_version_installations
+        operation_id: listAddonVersionInstallations
+        availability: available
+      - id: read_addon_ci_origin
+        operation_id: getAddonCIOrigin
+        availability: available
+      - id: view_addon_versions
+        operation_id: listAddonVersions
+        availability: available
+      - id: view_addon_version
+        operation_id: getAddonVersion
+        availability: available
+      - id: review_addon_version
+        operation_id: reviewAddonVersion
         availability: available
       - id: view_mcp_servers
         operation_id: listMCPServers
@@ -381,6 +474,12 @@ screens:
       - id: view_test_runs
         operation_id: listTestRuns
         availability: available
+      - id: import_ticket_verification
+        operation_id: putTicketVerification
+        availability: available
+      - id: view_ticket_verification
+        operation_id: getTicketVerification
+        availability: available
       - id: view_test_run
         operation_id: getTestRun
         availability: available
@@ -422,6 +521,27 @@ screens:
         availability: available
       - id: delete_policy
         operation_id: deletePolicy
+        availability: available
+      - id: view_reviewed_suggestions
+        operation_id: listAgentSuggestions
+        availability: available
+      - id: refresh_runtime_suggestions
+        operation_id: refreshAgentSuggestions
+        availability: available
+      - id: decide_suggestion
+        operation_id: reviewAgentSuggestion
+        availability: available
+      - id: read_agent_action_analysis
+        operation_id: getAgentActionAnalysis
+        availability: available
+      - id: update_agent_action_analysis
+        operation_id: putAgentActionAnalysis
+        availability: available
+      - id: view_agent_purpose
+        operation_id: getAgentPurpose
+        availability: available
+      - id: save_agent_purpose
+        operation_id: putAgentPurpose
         availability: available
       - id: simulate_policy
         operation_id: simulatePolicy
@@ -558,6 +678,15 @@ screens:
   - id: compliance
     label: Compliance
     actions:
+      - id: view_framework_editions
+        operation_id: listComplianceEditions
+        availability: available
+      - id: view_framework_coverage
+        operation_id: listComplianceCoverage
+        availability: available
+      - id: view_framework_coverage_evidence
+        operation_id: listComplianceCoverageEvidence
+        availability: available
       - id: view_compliance_controls
         operation_id: listComplianceControls
         availability: available
@@ -582,6 +711,30 @@ screens:
   - id: guardrails
     label: Guardrails
     actions:
+      - id: authorize_bound_containment
+        operation_id: authorizeWorkloadContainment
+        availability: available
+      - id: view_bound_containment
+        operation_id: getWorkloadContainment
+        availability: available
+      - id: release_bound_containment
+        operation_id: releaseWorkloadContainment
+        availability: available
+      - id: bind_workload_credential
+        operation_id: bindWorkloadCredential
+        availability: available
+      - id: get_workload_credential_binding
+        operation_id: getWorkloadCredentialBinding
+        availability: available
+      - id: receive_claude_enterprise_hook
+        operation_id: evaluateClaudeEnterpriseHook
+        availability: api_available
+      - id: decide_workload_action
+        operation_id: createWorkloadActionDecision
+        availability: api_available
+      - id: record_workload_action_outcome
+        operation_id: recordWorkloadActionOutcome
+        availability: api_available
       - id: decide_guardrail_interaction
         operation_id: createGuardrailDecision
         availability: api_available

@@ -182,13 +182,13 @@ fi
 if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
   predicates reference > "$WORK/reference.predicates"
   echo "baseline: applying the product completion"
-  { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  { echo "BEGIN;"; cat "$HERE/completion.sql" "$HERE/feature_v2.sql" "$HERE/framework_context.sql" "$HERE/framework_addon.sql" "$HERE/framework_reporting.sql" "$HERE/framework_provider_hooks.sql" "$HERE/framework_endpoint.sql" "$HERE/intent_classifier.sql" "$HERE/policy_replay.sql" "$HERE/provider_readiness.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 else
   # A kept installation already carries the completion. It is re-applied (the
   # file is re-runnable) and the predicates recorded before it are reused.
   [ -s "$WORK/reference.predicates" ] || fail "the kept installation has the completion but no recorded predicates; remove the kept containers"
-  { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  { echo "BEGIN;"; cat "$HERE/completion.sql" "$HERE/feature_v2.sql" "$HERE/framework_context.sql" "$HERE/framework_addon.sql" "$HERE/framework_reporting.sql" "$HERE/framework_provider_hooks.sql" "$HERE/framework_endpoint.sql" "$HERE/intent_classifier.sql" "$HERE/policy_replay.sql" "$HERE/provider_readiness.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 fi
 dump "$CONTAINER-reference" "$REFERENCE_PORT" pg_dumpall --roles-only --no-role-passwords > "$WORK/roles.raw"
@@ -259,16 +259,19 @@ echo "baseline: comparing readiness predicates with the superuser installation"
 sql "$target" -c "SELECT zasp_baseline.seal('$(printf '0%.0s' $(seq 64))')" >/dev/null
 predicates baseline > "$WORK/baseline.predicates"
 sql "$(url postgres baseline)" -c "DELETE FROM zasp_baseline.seal"
-# Two predicates differ on purpose:
+# These predicates have release-specific expectations:
 # - the worker gate, which the baseline opens (rules.sql R8);
 # - zasp_temporal67.base_ready, a layer-67 check that layer 68 superseded. It
 #   is false in the historical install and nothing reads it: its only caller,
 #   zasp_temporal67.ready, is rewritten by R3.
-EXPECTED='^(zasp_authorization80_worker\.runtime_ready|zasp_temporal67\.base_ready)='
+# - the release adds a fingerprint over twelve baseline predicate definitions.
+#   This function did not exist when the historical identities were recorded.
+EXPECTED='^(zasp_authorization80_worker\.runtime_ready|zasp_temporal67\.base_ready|zasp_authorization80\.release_readiness_predicates_match)='
 if diff <(grep -vE "$EXPECTED" "$WORK/reference.predicates") <(grep -vE "$EXPECTED" "$WORK/baseline.predicates") > "$WORK/predicates.diff"; then :; else
   cat "$WORK/predicates.diff" >&2
   fail "readiness predicates differ from the superuser installation"
 fi
+grep -q '^zasp_authorization80\.release_readiness_predicates_match=t$' "$WORK/baseline.predicates" || fail "the release readiness definitions differ from the reviewed baseline"
 grep -q '^zasp_authorization80_worker\.runtime_ready=t$' "$WORK/baseline.predicates" || fail "worker gate is not open"
 
 dump "$CONTAINER-replay" "$REPLAY_PORT" pg_dump -d baseline --inserts --rows-per-insert=200 | grep -v '^\\' > "$WORK/baseline.sql"

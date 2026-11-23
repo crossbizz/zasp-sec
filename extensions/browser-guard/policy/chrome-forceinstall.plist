@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>ExtensionInstallForcelist</key><array><string>REPLACE_WITH_CHROME_STORE_ID;https://clients2.google.com/service/update2/crx</string></array>
+</dict></plist>

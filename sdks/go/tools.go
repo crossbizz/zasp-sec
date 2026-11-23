@@ -3,8 +3,95 @@
 package zasp
 
 import (
+	json "encoding/json"
+	fmt "fmt"
+	internal "github.com/zasp-ai/zasp-sec/sdks/go/internal"
 	big "math/big"
 )
+
+var (
+	addonCiSignatureFieldID         = big.NewInt(1 << 0)
+	addonCiSignatureFieldKeyID      = big.NewInt(1 << 1)
+	addonCiSignatureFieldRepository = big.NewInt(1 << 2)
+	addonCiSignatureFieldCommit     = big.NewInt(1 << 3)
+	addonCiSignatureFieldSignature  = big.NewInt(1 << 4)
+)
+
+type AddonCiSignature struct {
+	ID         ProductID `json:"-" url:"-"`
+	KeyID      string    `json:"key_id" url:"-"`
+	Repository string    `json:"repository" url:"-"`
+	Commit     string    `json:"commit" url:"-"`
+	Signature  string    `json:"signature" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (a *AddonCiSignature) require(field *big.Int) {
+	next := new(big.Int)
+	if a.explicitFields != nil {
+		next.Set(a.explicitFields)
+	}
+	next.Or(next, field)
+	a.explicitFields = next
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiSignature) SetID(id ProductID) {
+	a.ID = id
+	a.require(addonCiSignatureFieldID)
+}
+
+// SetKeyID sets the KeyID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiSignature) SetKeyID(keyID string) {
+	a.KeyID = keyID
+	a.require(addonCiSignatureFieldKeyID)
+}
+
+// SetRepository sets the Repository field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiSignature) SetRepository(repository string) {
+	a.Repository = repository
+	a.require(addonCiSignatureFieldRepository)
+}
+
+// SetCommit sets the Commit field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiSignature) SetCommit(commit string) {
+	a.Commit = commit
+	a.require(addonCiSignatureFieldCommit)
+}
+
+// SetSignature sets the Signature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiSignature) SetSignature(signature string) {
+	a.Signature = signature
+	a.require(addonCiSignatureFieldSignature)
+}
+
+func (a *AddonCiSignature) UnmarshalJSON(data []byte) error {
+	type unmarshaler AddonCiSignature
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*a = AddonCiSignature(body)
+	return nil
+}
+
+func (a *AddonCiSignature) MarshalJSON() ([]byte, error) {
+	type embed AddonCiSignature
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*a),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, a.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
 
 var (
 	getToolsRequestFieldID = big.NewInt(1 << 0)
@@ -69,4 +156,820 @@ func (l *ListToolsRequest) SetCursor(cursor *Cursor) {
 func (l *ListToolsRequest) SetLimit(limit *int) {
 	l.Limit = limit
 	l.require(listToolsRequestFieldLimit)
+}
+
+var (
+	addonScanSubmissionFieldIdempotencyKey = big.NewInt(1 << 0)
+	addonScanSubmissionFieldPrivateUpload  = big.NewInt(1 << 1)
+	addonScanSubmissionFieldEnvironmentID  = big.NewInt(1 << 2)
+	addonScanSubmissionFieldSchemaVersion  = big.NewInt(1 << 3)
+	addonScanSubmissionFieldRuleset        = big.NewInt(1 << 4)
+	addonScanSubmissionFieldManifestMethod = big.NewInt(1 << 5)
+	addonScanSubmissionFieldManifestDigest = big.NewInt(1 << 6)
+	addonScanSubmissionFieldCompleteness   = big.NewInt(1 << 7)
+	addonScanSubmissionFieldOrigin         = big.NewInt(1 << 8)
+	addonScanSubmissionFieldFindings       = big.NewInt(1 << 9)
+	addonScanSubmissionFieldSkippedCount   = big.NewInt(1 << 10)
+)
+
+type AddonScanSubmission struct {
+	// Caller-generated key binding an exact workflow mutation and its durable response.
+	IdempotencyKey string                            `json:"-" url:"-"`
+	PrivateUpload  *AddonScanSubmissionPrivateUpload `json:"private_upload,omitempty" url:"-"`
+	EnvironmentID  ProductID                         `json:"environment_id" url:"-"`
+	SchemaVersion  AddonScanSubmissionSchemaVersion  `json:"schema_version" url:"-"`
+	Ruleset        AddonScanSubmissionRuleset        `json:"ruleset" url:"-"`
+	ManifestMethod AddonScanSubmissionManifestMethod `json:"manifest_method" url:"-"`
+	ManifestDigest *string                           `json:"manifest_digest,omitempty" url:"-"`
+	Completeness   AddonScanSubmissionCompleteness   `json:"completeness" url:"-"`
+	Origin         AddonScanSubmissionOrigin         `json:"origin" url:"-"`
+	Findings       []*AddonFindingCount              `json:"findings" url:"-"`
+	SkippedCount   int                               `json:"skipped_count" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (a *AddonScanSubmission) require(field *big.Int) {
+	next := new(big.Int)
+	if a.explicitFields != nil {
+		next.Set(a.explicitFields)
+	}
+	next.Or(next, field)
+	a.explicitFields = next
+}
+
+// SetIdempotencyKey sets the IdempotencyKey field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetIdempotencyKey(idempotencyKey string) {
+	a.IdempotencyKey = idempotencyKey
+	a.require(addonScanSubmissionFieldIdempotencyKey)
+}
+
+// SetPrivateUpload sets the PrivateUpload field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetPrivateUpload(privateUpload *AddonScanSubmissionPrivateUpload) {
+	a.PrivateUpload = privateUpload
+	a.require(addonScanSubmissionFieldPrivateUpload)
+}
+
+// SetEnvironmentID sets the EnvironmentID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetEnvironmentID(environmentID ProductID) {
+	a.EnvironmentID = environmentID
+	a.require(addonScanSubmissionFieldEnvironmentID)
+}
+
+// SetSchemaVersion sets the SchemaVersion field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetSchemaVersion(schemaVersion AddonScanSubmissionSchemaVersion) {
+	a.SchemaVersion = schemaVersion
+	a.require(addonScanSubmissionFieldSchemaVersion)
+}
+
+// SetRuleset sets the Ruleset field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetRuleset(ruleset AddonScanSubmissionRuleset) {
+	a.Ruleset = ruleset
+	a.require(addonScanSubmissionFieldRuleset)
+}
+
+// SetManifestMethod sets the ManifestMethod field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetManifestMethod(manifestMethod AddonScanSubmissionManifestMethod) {
+	a.ManifestMethod = manifestMethod
+	a.require(addonScanSubmissionFieldManifestMethod)
+}
+
+// SetManifestDigest sets the ManifestDigest field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetManifestDigest(manifestDigest *string) {
+	a.ManifestDigest = manifestDigest
+	a.require(addonScanSubmissionFieldManifestDigest)
+}
+
+// SetCompleteness sets the Completeness field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetCompleteness(completeness AddonScanSubmissionCompleteness) {
+	a.Completeness = completeness
+	a.require(addonScanSubmissionFieldCompleteness)
+}
+
+// SetOrigin sets the Origin field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetOrigin(origin AddonScanSubmissionOrigin) {
+	a.Origin = origin
+	a.require(addonScanSubmissionFieldOrigin)
+}
+
+// SetFindings sets the Findings field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetFindings(findings []*AddonFindingCount) {
+	a.Findings = findings
+	a.require(addonScanSubmissionFieldFindings)
+}
+
+// SetSkippedCount sets the SkippedCount field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmission) SetSkippedCount(skippedCount int) {
+	a.SkippedCount = skippedCount
+	a.require(addonScanSubmissionFieldSkippedCount)
+}
+
+func (a *AddonScanSubmission) UnmarshalJSON(data []byte) error {
+	type unmarshaler AddonScanSubmission
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*a = AddonScanSubmission(body)
+	return nil
+}
+
+func (a *AddonScanSubmission) MarshalJSON() ([]byte, error) {
+	type embed AddonScanSubmission
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*a),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, a.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
+	addonCiReceiptFieldScanID     = big.NewInt(1 << 0)
+	addonCiReceiptFieldRepository = big.NewInt(1 << 1)
+	addonCiReceiptFieldCommit     = big.NewInt(1 << 2)
+)
+
+type AddonCiReceipt struct {
+	ScanID     ProductID `json:"scan_id" url:"scan_id"`
+	Repository string    `json:"repository" url:"repository"`
+	Commit     string    `json:"commit" url:"commit"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (a *AddonCiReceipt) GetScanID() ProductID {
+	if a == nil {
+		return ""
+	}
+	return a.ScanID
+}
+
+func (a *AddonCiReceipt) GetRepository() string {
+	if a == nil {
+		return ""
+	}
+	return a.Repository
+}
+
+func (a *AddonCiReceipt) GetCommit() string {
+	if a == nil {
+		return ""
+	}
+	return a.Commit
+}
+
+func (a *AddonCiReceipt) GetExtraProperties() map[string]interface{} {
+	if a == nil {
+		return nil
+	}
+	return a.extraProperties
+}
+
+func (a *AddonCiReceipt) require(field *big.Int) {
+	next := new(big.Int)
+	if a.explicitFields != nil {
+		next.Set(a.explicitFields)
+	}
+	next.Or(next, field)
+	a.explicitFields = next
+}
+
+// SetScanID sets the ScanID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiReceipt) SetScanID(scanID ProductID) {
+	a.ScanID = scanID
+	a.require(addonCiReceiptFieldScanID)
+}
+
+// SetRepository sets the Repository field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiReceipt) SetRepository(repository string) {
+	a.Repository = repository
+	a.require(addonCiReceiptFieldRepository)
+}
+
+// SetCommit sets the Commit field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonCiReceipt) SetCommit(commit string) {
+	a.Commit = commit
+	a.require(addonCiReceiptFieldCommit)
+}
+
+func (a *AddonCiReceipt) UnmarshalJSON(data []byte) error {
+	type unmarshaler AddonCiReceipt
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*a = AddonCiReceipt(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *a)
+	if err != nil {
+		return err
+	}
+	a.extraProperties = extraProperties
+	a.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (a *AddonCiReceipt) MarshalJSON() ([]byte, error) {
+	type embed AddonCiReceipt
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*a),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, a.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (a *AddonCiReceipt) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	if len(a.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(a.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(a); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", a)
+}
+
+var (
+	addonFindingCountFieldRuleID = big.NewInt(1 << 0)
+	addonFindingCountFieldCount  = big.NewInt(1 << 1)
+)
+
+type AddonFindingCount struct {
+	RuleID AddonFindingCountRuleID `json:"rule_id" url:"rule_id"`
+	Count  int                     `json:"count" url:"count"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (a *AddonFindingCount) GetRuleID() AddonFindingCountRuleID {
+	if a == nil {
+		return ""
+	}
+	return a.RuleID
+}
+
+func (a *AddonFindingCount) GetCount() int {
+	if a == nil {
+		return 0
+	}
+	return a.Count
+}
+
+func (a *AddonFindingCount) GetExtraProperties() map[string]interface{} {
+	if a == nil {
+		return nil
+	}
+	return a.extraProperties
+}
+
+func (a *AddonFindingCount) require(field *big.Int) {
+	next := new(big.Int)
+	if a.explicitFields != nil {
+		next.Set(a.explicitFields)
+	}
+	next.Or(next, field)
+	a.explicitFields = next
+}
+
+// SetRuleID sets the RuleID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonFindingCount) SetRuleID(ruleID AddonFindingCountRuleID) {
+	a.RuleID = ruleID
+	a.require(addonFindingCountFieldRuleID)
+}
+
+// SetCount sets the Count field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonFindingCount) SetCount(count int) {
+	a.Count = count
+	a.require(addonFindingCountFieldCount)
+}
+
+func (a *AddonFindingCount) UnmarshalJSON(data []byte) error {
+	type unmarshaler AddonFindingCount
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*a = AddonFindingCount(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *a)
+	if err != nil {
+		return err
+	}
+	a.extraProperties = extraProperties
+	a.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (a *AddonFindingCount) MarshalJSON() ([]byte, error) {
+	type embed AddonFindingCount
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*a),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, a.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (a *AddonFindingCount) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	if len(a.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(a.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(a); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", a)
+}
+
+type AddonFindingCountRuleID string
+
+const (
+	AddonFindingCountRuleIDDependencyUnpinned         AddonFindingCountRuleID = "dependency.unpinned"
+	AddonFindingCountRuleIDScriptShellExecution       AddonFindingCountRuleID = "script.shell_execution"
+	AddonFindingCountRuleIDScriptNetworkAccess        AddonFindingCountRuleID = "script.network_access"
+	AddonFindingCountRuleIDInstructionHiddenText      AddonFindingCountRuleID = "instruction.hidden_text"
+	AddonFindingCountRuleIDMcpUnpinnedLauncher        AddonFindingCountRuleID = "mcp.unpinned_launcher"
+	AddonFindingCountRuleIDMcpRemoteEndpoint          AddonFindingCountRuleID = "mcp.remote_endpoint"
+	AddonFindingCountRuleIDInstructionOverride        AddonFindingCountRuleID = "instruction.override"
+	AddonFindingCountRuleIDScriptCredentialPathAccess AddonFindingCountRuleID = "script.credential_path_access"
+	AddonFindingCountRuleIDScriptRemoteExecPipe       AddonFindingCountRuleID = "script.remote_exec_pipe"
+	AddonFindingCountRuleIDMcpUnpinnedExec            AddonFindingCountRuleID = "mcp.unpinned_exec"
+)
+
+func NewAddonFindingCountRuleIDFromString(s string) (AddonFindingCountRuleID, error) {
+	switch s {
+	case "dependency.unpinned":
+		return AddonFindingCountRuleIDDependencyUnpinned, nil
+	case "script.shell_execution":
+		return AddonFindingCountRuleIDScriptShellExecution, nil
+	case "script.network_access":
+		return AddonFindingCountRuleIDScriptNetworkAccess, nil
+	case "instruction.hidden_text":
+		return AddonFindingCountRuleIDInstructionHiddenText, nil
+	case "mcp.unpinned_launcher":
+		return AddonFindingCountRuleIDMcpUnpinnedLauncher, nil
+	case "mcp.remote_endpoint":
+		return AddonFindingCountRuleIDMcpRemoteEndpoint, nil
+	case "instruction.override":
+		return AddonFindingCountRuleIDInstructionOverride, nil
+	case "script.credential_path_access":
+		return AddonFindingCountRuleIDScriptCredentialPathAccess, nil
+	case "script.remote_exec_pipe":
+		return AddonFindingCountRuleIDScriptRemoteExecPipe, nil
+	case "mcp.unpinned_exec":
+		return AddonFindingCountRuleIDMcpUnpinnedExec, nil
+	}
+	var t AddonFindingCountRuleID
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonFindingCountRuleID) Ptr() *AddonFindingCountRuleID {
+	return &a
+}
+
+var (
+	addonScanReceiptFieldScanID         = big.NewInt(1 << 0)
+	addonScanReceiptFieldVersionID      = big.NewInt(1 << 1)
+	addonScanReceiptFieldManifestDigest = big.NewInt(1 << 2)
+	addonScanReceiptFieldCompleteness   = big.NewInt(1 << 3)
+	addonScanReceiptFieldReviewPath     = big.NewInt(1 << 4)
+)
+
+// addonScanReceiptNullableFields maps the wire names of AddonScanReceipt's nullable fields (required or optional) to their field bits.
+var addonScanReceiptNullableFields = map[string]*big.Int{
+	"version_id":      addonScanReceiptFieldVersionID,
+	"manifest_digest": addonScanReceiptFieldManifestDigest,
+	"review_path":     addonScanReceiptFieldReviewPath,
+}
+
+type AddonScanReceipt struct {
+	ScanID         ProductID                    `json:"scan_id" url:"scan_id"`
+	VersionID      *ProductID                   `json:"version_id,omitempty" url:"version_id,omitempty"`
+	ManifestDigest *string                      `json:"manifest_digest,omitempty" url:"manifest_digest,omitempty"`
+	Completeness   AddonScanReceiptCompleteness `json:"completeness" url:"completeness"`
+	ReviewPath     *string                      `json:"review_path,omitempty" url:"review_path,omitempty"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (a *AddonScanReceipt) GetScanID() ProductID {
+	if a == nil {
+		return ""
+	}
+	return a.ScanID
+}
+
+func (a *AddonScanReceipt) GetVersionID() *ProductID {
+	if a == nil {
+		return nil
+	}
+	return a.VersionID
+}
+
+func (a *AddonScanReceipt) GetManifestDigest() *string {
+	if a == nil {
+		return nil
+	}
+	return a.ManifestDigest
+}
+
+func (a *AddonScanReceipt) GetCompleteness() AddonScanReceiptCompleteness {
+	if a == nil {
+		return ""
+	}
+	return a.Completeness
+}
+
+func (a *AddonScanReceipt) GetReviewPath() *string {
+	if a == nil {
+		return nil
+	}
+	return a.ReviewPath
+}
+
+func (a *AddonScanReceipt) GetExtraProperties() map[string]interface{} {
+	if a == nil {
+		return nil
+	}
+	return a.extraProperties
+}
+
+func (a *AddonScanReceipt) require(field *big.Int) {
+	next := new(big.Int)
+	if a.explicitFields != nil {
+		next.Set(a.explicitFields)
+	}
+	next.Or(next, field)
+	a.explicitFields = next
+}
+
+// SetScanID sets the ScanID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanReceipt) SetScanID(scanID ProductID) {
+	a.ScanID = scanID
+	a.require(addonScanReceiptFieldScanID)
+}
+
+// SetVersionID sets the VersionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanReceipt) SetVersionID(versionID *ProductID) {
+	a.VersionID = versionID
+	a.require(addonScanReceiptFieldVersionID)
+}
+
+// SetManifestDigest sets the ManifestDigest field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanReceipt) SetManifestDigest(manifestDigest *string) {
+	a.ManifestDigest = manifestDigest
+	a.require(addonScanReceiptFieldManifestDigest)
+}
+
+// SetCompleteness sets the Completeness field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanReceipt) SetCompleteness(completeness AddonScanReceiptCompleteness) {
+	a.Completeness = completeness
+	a.require(addonScanReceiptFieldCompleteness)
+}
+
+// SetReviewPath sets the ReviewPath field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanReceipt) SetReviewPath(reviewPath *string) {
+	a.ReviewPath = reviewPath
+	a.require(addonScanReceiptFieldReviewPath)
+}
+
+func (a *AddonScanReceipt) UnmarshalJSON(data []byte) error {
+	type unmarshaler AddonScanReceipt
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*a = AddonScanReceipt(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *a)
+	if err != nil {
+		return err
+	}
+	a.extraProperties = extraProperties
+	presentFields, err := internal.ExplicitFieldsFromJSON(data, addonScanReceiptNullableFields)
+	if err != nil {
+		return err
+	}
+	if presentFields != nil {
+		a.require(presentFields)
+	}
+	a.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (a *AddonScanReceipt) MarshalJSON() ([]byte, error) {
+	type embed AddonScanReceipt
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*a),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, a.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (a *AddonScanReceipt) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	if len(a.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(a.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(a); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", a)
+}
+
+type AddonScanReceiptCompleteness string
+
+const (
+	AddonScanReceiptCompletenessComplete AddonScanReceiptCompleteness = "complete"
+	AddonScanReceiptCompletenessPartial  AddonScanReceiptCompleteness = "partial"
+)
+
+func NewAddonScanReceiptCompletenessFromString(s string) (AddonScanReceiptCompleteness, error) {
+	switch s {
+	case "complete":
+		return AddonScanReceiptCompletenessComplete, nil
+	case "partial":
+		return AddonScanReceiptCompletenessPartial, nil
+	}
+	var t AddonScanReceiptCompleteness
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonScanReceiptCompleteness) Ptr() *AddonScanReceiptCompleteness {
+	return &a
+}
+
+type AddonScanSubmissionCompleteness string
+
+const (
+	AddonScanSubmissionCompletenessComplete AddonScanSubmissionCompleteness = "complete"
+	AddonScanSubmissionCompletenessPartial  AddonScanSubmissionCompleteness = "partial"
+)
+
+func NewAddonScanSubmissionCompletenessFromString(s string) (AddonScanSubmissionCompleteness, error) {
+	switch s {
+	case "complete":
+		return AddonScanSubmissionCompletenessComplete, nil
+	case "partial":
+		return AddonScanSubmissionCompletenessPartial, nil
+	}
+	var t AddonScanSubmissionCompleteness
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonScanSubmissionCompleteness) Ptr() *AddonScanSubmissionCompleteness {
+	return &a
+}
+
+type AddonScanSubmissionManifestMethod string
+
+const (
+	AddonScanSubmissionManifestMethodAddonManifestV1 AddonScanSubmissionManifestMethod = "addon-manifest.v1"
+)
+
+func NewAddonScanSubmissionManifestMethodFromString(s string) (AddonScanSubmissionManifestMethod, error) {
+	switch s {
+	case "addon-manifest.v1":
+		return AddonScanSubmissionManifestMethodAddonManifestV1, nil
+	}
+	var t AddonScanSubmissionManifestMethod
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonScanSubmissionManifestMethod) Ptr() *AddonScanSubmissionManifestMethod {
+	return &a
+}
+
+type AddonScanSubmissionOrigin string
+
+const (
+	AddonScanSubmissionOriginLocal         AddonScanSubmissionOrigin = "local"
+	AddonScanSubmissionOriginCi            AddonScanSubmissionOrigin = "ci"
+	AddonScanSubmissionOriginPrivateWorker AddonScanSubmissionOrigin = "private_worker"
+)
+
+func NewAddonScanSubmissionOriginFromString(s string) (AddonScanSubmissionOrigin, error) {
+	switch s {
+	case "local":
+		return AddonScanSubmissionOriginLocal, nil
+	case "ci":
+		return AddonScanSubmissionOriginCi, nil
+	case "private_worker":
+		return AddonScanSubmissionOriginPrivateWorker, nil
+	}
+	var t AddonScanSubmissionOrigin
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonScanSubmissionOrigin) Ptr() *AddonScanSubmissionOrigin {
+	return &a
+}
+
+var (
+	addonScanSubmissionPrivateUploadFieldID            = big.NewInt(1 << 0)
+	addonScanSubmissionPrivateUploadFieldArchiveDigest = big.NewInt(1 << 1)
+	addonScanSubmissionPrivateUploadFieldArchiveBytes  = big.NewInt(1 << 2)
+)
+
+type AddonScanSubmissionPrivateUpload struct {
+	ID            ProductID `json:"id" url:"id"`
+	ArchiveDigest string    `json:"archive_digest" url:"archive_digest"`
+	ArchiveBytes  int       `json:"archive_bytes" url:"archive_bytes"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (a *AddonScanSubmissionPrivateUpload) GetID() ProductID {
+	if a == nil {
+		return ""
+	}
+	return a.ID
+}
+
+func (a *AddonScanSubmissionPrivateUpload) GetArchiveDigest() string {
+	if a == nil {
+		return ""
+	}
+	return a.ArchiveDigest
+}
+
+func (a *AddonScanSubmissionPrivateUpload) GetArchiveBytes() int {
+	if a == nil {
+		return 0
+	}
+	return a.ArchiveBytes
+}
+
+func (a *AddonScanSubmissionPrivateUpload) GetExtraProperties() map[string]interface{} {
+	if a == nil {
+		return nil
+	}
+	return a.extraProperties
+}
+
+func (a *AddonScanSubmissionPrivateUpload) require(field *big.Int) {
+	next := new(big.Int)
+	if a.explicitFields != nil {
+		next.Set(a.explicitFields)
+	}
+	next.Or(next, field)
+	a.explicitFields = next
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmissionPrivateUpload) SetID(id ProductID) {
+	a.ID = id
+	a.require(addonScanSubmissionPrivateUploadFieldID)
+}
+
+// SetArchiveDigest sets the ArchiveDigest field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmissionPrivateUpload) SetArchiveDigest(archiveDigest string) {
+	a.ArchiveDigest = archiveDigest
+	a.require(addonScanSubmissionPrivateUploadFieldArchiveDigest)
+}
+
+// SetArchiveBytes sets the ArchiveBytes field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (a *AddonScanSubmissionPrivateUpload) SetArchiveBytes(archiveBytes int) {
+	a.ArchiveBytes = archiveBytes
+	a.require(addonScanSubmissionPrivateUploadFieldArchiveBytes)
+}
+
+func (a *AddonScanSubmissionPrivateUpload) UnmarshalJSON(data []byte) error {
+	type unmarshaler AddonScanSubmissionPrivateUpload
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*a = AddonScanSubmissionPrivateUpload(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *a)
+	if err != nil {
+		return err
+	}
+	a.extraProperties = extraProperties
+	a.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (a *AddonScanSubmissionPrivateUpload) MarshalJSON() ([]byte, error) {
+	type embed AddonScanSubmissionPrivateUpload
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*a),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, a.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (a *AddonScanSubmissionPrivateUpload) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	if len(a.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(a.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(a); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", a)
+}
+
+type AddonScanSubmissionRuleset string
+
+const (
+	AddonScanSubmissionRulesetZaspStaticV1 AddonScanSubmissionRuleset = "zasp-static.v1"
+	AddonScanSubmissionRulesetZaspStaticV2 AddonScanSubmissionRuleset = "zasp-static.v2"
+)
+
+func NewAddonScanSubmissionRulesetFromString(s string) (AddonScanSubmissionRuleset, error) {
+	switch s {
+	case "zasp-static.v1":
+		return AddonScanSubmissionRulesetZaspStaticV1, nil
+	case "zasp-static.v2":
+		return AddonScanSubmissionRulesetZaspStaticV2, nil
+	}
+	var t AddonScanSubmissionRuleset
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonScanSubmissionRuleset) Ptr() *AddonScanSubmissionRuleset {
+	return &a
+}
+
+type AddonScanSubmissionSchemaVersion string
+
+const (
+	AddonScanSubmissionSchemaVersionZaspAddonFindingsV1 AddonScanSubmissionSchemaVersion = "zasp-addon-findings.v1"
+)
+
+func NewAddonScanSubmissionSchemaVersionFromString(s string) (AddonScanSubmissionSchemaVersion, error) {
+	switch s {
+	case "zasp-addon-findings.v1":
+		return AddonScanSubmissionSchemaVersionZaspAddonFindingsV1, nil
+	}
+	var t AddonScanSubmissionSchemaVersion
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (a AddonScanSubmissionSchemaVersion) Ptr() *AddonScanSubmissionSchemaVersion {
+	return &a
 }

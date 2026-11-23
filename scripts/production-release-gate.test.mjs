@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { requirePromotionWorkflow } from "../deploy/production/release-gates.mjs";
 import { runInNewContext } from "node:vm";
 
-async function executeGate(run, logs = []) {
+async function executeGate(run, logs = [], verifyPromotion = async () => { throw Error("dependency audit evidence unavailable"); }) {
   const source = await readFile(new URL("./production-release-gate.mjs", import.meta.url), "utf8");
   const start = source.indexOf("await verifyReleaseSources();");
   const end = source.indexOf("\nasync function run(", start);
   assert.ok(start > 0 && end > start);
   return runInNewContext(`(async () => { ${source.slice(start, end)} })()`, {
-    verifyReleaseSources: async () => {}, run, path, root: "/owned/release",
+    verifyReleaseSources: async () => {}, verifyPromotion, process: {env:{}}, run, path, root: "/owned/release",
     console: { log(message) { logs.push(message); } },
   });
 }
@@ -46,4 +47,17 @@ test("failed canonical rollout tests stop standalone release before any audit in
     return { stdout: JSON.stringify({ metadata: { vulnerabilities: { high: 0, critical: 0 } } }) };
   }), /owned rollout failure/);
   assert.deepEqual(commands, [["npm", ["run", "production:release:test"]]]);
+});
+
+test("the production entry point returns the independently verified release receipt", async () => {
+  const logs = [];
+  await executeGate(async () => {}, logs, async () => ({format:"zasp.release.promotion.v1"}));
+  assert.deepEqual(logs,[JSON.stringify({format:"zasp.release.promotion.v1"})]);
+});
+
+test("protected promotion fails for a missing or advisory-only release check", async () => {
+  const yaml = await readFile(new URL("../.github/workflows/production-promotion.yml", import.meta.url),"utf8");
+  requirePromotionWorkflow(yaml);
+  assert.throws(() => requirePromotionWorkflow(yaml.replace("        run: npm run production:release:gate","        continue-on-error: true\n        run: npm run production:release:gate")), /protected promotion/);
+  assert.throws(() => requirePromotionWorkflow(yaml.replace("environment: production-promotion","environment: test")), /protected promotion/);
 });

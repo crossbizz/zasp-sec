@@ -7,8 +7,12 @@ package ai.zasp.api.resources.tools;
 import ai.zasp.api.core.ClientOptions;
 import ai.zasp.api.core.RequestOptions;
 import ai.zasp.api.core.pagination.SyncPagingIterable;
+import ai.zasp.api.resources.tools.requests.AddonCiSignature;
+import ai.zasp.api.resources.tools.requests.AddonScanSubmission;
 import ai.zasp.api.resources.tools.requests.GetToolsRequest;
 import ai.zasp.api.resources.tools.requests.ListToolsRequest;
+import ai.zasp.api.types.AddonCiReceipt;
+import ai.zasp.api.types.AddonScanReceipt;
 import ai.zasp.api.types.InventoryDetail;
 import ai.zasp.api.types.InventorySummary;
 import java.lang.String;
@@ -28,6 +32,36 @@ public class ToolsClient {
    */
   public RawToolsClient withRawResponse() {
     return this.rawClient;
+  }
+
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public AddonCiReceipt attestAddonScan(String id, AddonCiSignature request) {
+    return this.rawClient.attestAddonScan(id, request).body();
+  }
+
+  /**
+   * Requires the scan's scoped submission credential and a detached Ed25519 signature from an active registered repository signer. Identical retries reuse the receipt. The protected signing job signs the immutable scan ID, scope, submitter, exact manifest digest, source revision and ordered rule counts.
+   */
+  public AddonCiReceipt attestAddonScan(String id, AddonCiSignature request,
+      RequestOptions requestOptions) {
+    return this.rawClient.attestAddonScan(id, request, requestOptions).body();
+  }
+
+  /**
+   * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+   */
+  public AddonScanReceipt submitAddonScan(AddonScanSubmission request) {
+    return this.rawClient.submitAddonScan(request).body();
+  }
+
+  /**
+   * The token must hold submit_addon_scans alone. The report contains rule counts only. The authenticated Environment must match the request body. The server treats the submitted origin as reported. A partial scan has no approvable version.
+   */
+  public AddonScanReceipt submitAddonScan(AddonScanSubmission request,
+      RequestOptions requestOptions) {
+    return this.rawClient.submitAddonScan(request, requestOptions).body();
   }
 
   public SyncPagingIterable<InventorySummary> list() {

@@ -39,6 +39,170 @@ func NewClient(options *core.RequestOptions) *Client {
 	}
 }
 
+// Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+//
+// Example:
+//
+//	request := &zasp.FetchEndpointPolicySensorsRequest{
+//	    ID: "id",
+//	    ZaspDeviceProof: "X-Zasp-Device-Proof",
+//	    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+//	}
+//	_, err := client.Sensors.FetchEndpointPolicy(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) FetchEndpointPolicy(
+	ctx context.Context,
+	request *zasp.FetchEndpointPolicySensorsRequest,
+	opts ...option.RequestOption,
+) (*zasp.EndpointBundle, error) {
+	response, err := c.WithRawResponse.FetchEndpointPolicy(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
+// Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+//
+// Example:
+//
+//	request := &zasp.ExchangeEndpointEnrollmentSensorsRequest{
+//	    ZaspDeviceProof: "X-Zasp-Device-Proof",
+//	    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+//	    Body: map[string]any{
+//	        "key": "value",
+//	    },
+//	}
+//	_, err := client.Sensors.ExchangeEndpointEnrollment(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) ExchangeEndpointEnrollment(
+	ctx context.Context,
+	request *zasp.ExchangeEndpointEnrollmentSensorsRequest,
+	opts ...option.RequestOption,
+) (*zasp.EndpointExchangeReceipt, error) {
+	response, err := c.WithRawResponse.ExchangeEndpointEnrollment(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
+// Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+//
+// Example:
+//
+//	request := &zasp.EndpointHeartbeat{
+//	    ID: "id",
+//	    ZaspDeviceProof: "X-Zasp-Device-Proof",
+//	    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+//	    PolicyRevision: 1,
+//	    PolicyStatus: zasp.EndpointHeartbeatPolicyStatusVerifiedCache,
+//	    QueuedReceipts: 1,
+//	    DroppedReceipts: 1,
+//	}
+//	_, err := client.Sensors.RecordEndpointHeartbeat(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) RecordEndpointHeartbeat(
+	ctx context.Context,
+	request *zasp.EndpointHeartbeat,
+	opts ...option.RequestOption,
+) (*zasp.EndpointRecorded, error) {
+	response, err := c.WithRawResponse.RecordEndpointHeartbeat(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
+// Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+//
+// Example:
+//
+//	request := &zasp.EndpointSnapshot{
+//	    ID: "id",
+//	    ZaspDeviceProof: "X-Zasp-Device-Proof",
+//	    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+//	    PartitionID: "partition_id",
+//	    SnapshotGeneration: 1,
+//	    Complete: true,
+//	    Installations: []*zasp.EndpointSnapshotInstallationsItem{
+//	        &zasp.EndpointSnapshotInstallationsItem{
+//	            InstallationID: "installation_id",
+//	        },
+//	    },
+//	}
+//	_, err := client.Sensors.RecordEndpointInventory(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) RecordEndpointInventory(
+	ctx context.Context,
+	request *zasp.EndpointSnapshot,
+	opts ...option.RequestOption,
+) (*zasp.EndpointRecorded, error) {
+	response, err := c.WithRawResponse.RecordEndpointInventory(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
+// Requires a dedicated sync_endpoint token and a fresh device signature over the authenticated scope, operation, nonce, timestamp and exact body digest.
+//
+// Example:
+//
+//	request := &zasp.EndpointObservationBatch{
+//	    ZaspDeviceProof: "X-Zasp-Device-Proof",
+//	    ZaspDeviceSignature: "X-Zasp-Device-Signature",
+//	    Receipts: []*zasp.EndpointSigned{
+//	        &zasp.EndpointSigned{
+//	            Payload: "payload",
+//	            Signature: "signature",
+//	        },
+//	    },
+//	}
+//	_, err := client.Sensors.RecordEndpointObservations(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) RecordEndpointObservations(
+	ctx context.Context,
+	request *zasp.EndpointObservationBatch,
+	opts ...option.RequestOption,
+) (*zasp.EndpointRecorded, error) {
+	response, err := c.WithRawResponse.RecordEndpointObservations(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
 // Example:
 //
 //	request := &zasp.ListSensorsRequest{}
@@ -269,6 +433,42 @@ func (c *Client) GetCoverage(
 	opts ...option.RequestOption,
 ) (*zasp.SensorCoverage, error) {
 	response, err := c.WithRawResponse.GetCoverage(
+		ctx,
+		request,
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
+}
+
+// Example:
+//
+//	request := &zasp.BrowserOriginReport{
+//	    ID: "id",
+//	    IssuedAt: int64(1000000),
+//	    Nonce: "nonce",
+//	    Days: []*zasp.BrowserOriginDay{
+//	        &zasp.BrowserOriginDay{
+//	            Origin: zasp.BrowserObservedOriginHTTPSClaudeAi,
+//	            Day: zasp.MustParseDate(
+//	                "2023-01-15",
+//	            ),
+//	        },
+//	    },
+//	    Signature: "signature",
+//	}
+//	_, err := client.Sensors.RecordBrowserOriginDays(
+//	    context.TODO(),
+//	    request,
+//	)
+func (c *Client) RecordBrowserOriginDays(
+	ctx context.Context,
+	request *zasp.BrowserOriginReport,
+	opts ...option.RequestOption,
+) (*zasp.BrowserOriginAck, error) {
+	response, err := c.WithRawResponse.RecordBrowserOriginDays(
 		ctx,
 		request,
 		opts...,

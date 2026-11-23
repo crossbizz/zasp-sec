@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/providerhooks"
 	"gopkg.in/yaml.v3"
 )
 
@@ -78,8 +79,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 180 || len(public) != 190 {
-		t.Fatalf("base/public operation counts = %d/%d, want 180/190", len(seen), len(public))
+	if len(seen) != 227 || len(public) != 241 {
+		t.Fatalf("base/public operation counts = %d/%d, want 227/241", len(seen), len(public))
 	}
 	extended, err := NewCompositionWithSecurityAgentExports(auditExportCompositionDependencies(), handlerResponse("export"), handlerResponse("compliance"), handlerResponse("agent-export"))
 	if err != nil {
@@ -90,7 +91,7 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 		if public[key] != operation.operationID {
 			t.Fatalf("mounted extended route %s does not match published operation", key)
 		}
-		if operation.operationID == "createAuditExport" || operation.operationID == "getAuditExport" || stringIn(operation.operationID, "getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport", "getSecurityAgentExport", "createSecurityAgentExportDownloadGrant", "downloadSecurityAgentExport") {
+		if operation.operationID == "createAuditExport" || operation.operationID == "getAuditExport" || stringIn(operation.operationID, "listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence", "getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport", "getSecurityAgentExport", "createSecurityAgentExportDownloadGrant", "downloadSecurityAgentExport") {
 			if _, present := seen[key]; present {
 				t.Fatal("default router unexpectedly mounted export")
 			}
@@ -102,6 +103,19 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			seen[key] = struct{}{}
 		}
 	}
+	// The callback authenticates the raw frame at the outer HTTP surface. Its
+	// reduced metadata then enters the normal PAT-authenticated product router.
+	providerPath := providerhooks.ClaudePath + "{integrationId}"
+	providerKey := http.MethodPost + " " + providerPath
+	providerNode := document.Paths[providerPath]["post"]
+	var provider openAPIOperation
+	if providerNode.Decode(&provider) != nil || provider.OperationID != "evaluateClaudeEnterpriseHook" || provider.Security == nil || !equalStrings(securityNames(*provider.Security), []string{"ClaudeWebhookSignature"}) {
+		t.Fatal("published provider-only callback differs")
+	}
+	if _, mounted := seen[providerKey]; mounted {
+		t.Fatal("provider-only callback exposed on product credentials")
+	}
+	seen[providerKey] = struct{}{}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
 			t.Fatalf("public operation %s (%s) is not mounted", key, operationID)

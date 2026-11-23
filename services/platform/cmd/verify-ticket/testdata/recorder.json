@@ -1,0 +1,22 @@
+{
+  "schema_version": "zasp-ticket-proof-v1",
+  "scope": {
+    "organization_id": "pid_a5000001-0000-4000-8000-000000000001",
+    "workspace_id": "pid_a5000002-0000-4000-8000-000000000002",
+    "environment_id": "pid_a5000003-0000-4000-8000-000000000003"
+  },
+  "run_id": "fixture-run-1",
+  "target_id": "fixture-ticket-ledger",
+  "operation": "synthetic_ticket_update",
+  "recorder_id": "fixture-recorder",
+  "healthy": true,
+  "complete_from": "2026-01-01T12:00:00Z",
+  "complete_through": "2026-01-01T12:00:10Z",
+  "writes": [
+    {
+      "action_id": "allowed-action",
+      "receipt_id": "target-receipt-1",
+      "recorded_at": "2026-01-01T12:00:02Z"
+    }
+  ]
+}

@@ -594,7 +594,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}
-	policyHandler, err := apiserver.NewPolicyPublicHTTPHandler(apiserver.PolicyPublicHTTPConfig{Workflows: repository, History: policyHistory, Decisions: policyDecisions})
+	policyHandler, err := apiserver.NewPolicyPublicHTTPHandler(apiserver.PolicyPublicHTTPConfig{EvidenceDB: tracedDatabase, Workflows: repository, History: policyHistory, Decisions: policyDecisions})
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}
@@ -639,6 +639,10 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	publicSurface, err := mountPublicSurface(product, stytchWebhook)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("public-surface", errRuntimeUnavailable)
+	}
+	publicSurface, err = mountClaudeProvider(publicSurface, product, config.ClaudeEnterpriseHookFile, currentRequired(database))
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("claude-enterprise-hook", errRuntimeUnavailable)
 	}
 	operational, err := newGatewayOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, config.HostedGatewayTimeout, exporter, publicSurface)
 	if err != nil {

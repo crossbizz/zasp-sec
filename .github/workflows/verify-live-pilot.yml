@@ -1,0 +1,58 @@
+name: Verify staging pilot evidence
+on:
+  workflow_dispatch:
+    inputs:
+      signing_run:
+        description: Successful protected CLI signing workflow run for this commit
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    if: github.ref_protected
+    environment: zasp-live-pilot
+    runs-on: [self-hosted, linux, zasp-release]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: {node-version: 22.23.1}
+      - name: Confirm the protected signing workflow run
+        shell: bash
+        env:
+          SIGNING_RUN: ${{ inputs.signing_run }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$SIGNING_RUN" =~ ^[0-9]{1,20}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SIGNING_RUN" |
+            jq -e --arg sha "$GITHUB_SHA" --arg repo "$GITHUB_REPOSITORY" '
+              .head_sha==$sha and .head_repository.full_name==$repo and .conclusion=="success" and
+              .event=="workflow_dispatch" and .path==".github/workflows/zaspctl-release-sign.yml"' >/dev/null
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: staged-zaspctl-console-${{ github.sha }}
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.signing_run }}
+          path: ${{ runner.temp }}/pilot-stage-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Verify independently signed staging records and the console download pin
+        shell: bash
+        env:
+          PILOT_ENVIRONMENT: ${{ vars.ZASP_PILOT_ENVIRONMENT }}
+          RECEIPT_ROOT: ${{ vars.ZASP_PILOT_RECEIPTS_ROOT }}
+          TRUST_FILE: ${{ vars.ZASP_PILOT_TRUST_FILE }}
+          TRUST_SHA: ${{ vars.ZASP_PILOT_TRUST_SHA256 }}
+          PUBLIC_KEY: ${{ vars.ZASP_CLI_RELEASE_PUBLIC_KEY_FILE }}
+        run: |
+          set -euo pipefail
+          [[ "$RECEIPT_ROOT" == /* && "$TRUST_FILE" == /* && "$PUBLIC_KEY" == /* ]]
+          node scripts/verify-live-pilot.mjs staging "$GITHUB_SHA" "$PILOT_ENVIRONMENT" "$TRUST_FILE" "$TRUST_SHA" "$RECEIPT_ROOT/$GITHUB_SHA" "$RUNNER_TEMP/pilot-stage-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" "$PUBLIC_KEY" "$RUNNER_TEMP/pilot-assessment-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: staging-pilot-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/pilot-assessment-${{ github.run_id }}-${{ github.run_attempt }}.json
+          retention-days: 14
+          if-no-files-found: error

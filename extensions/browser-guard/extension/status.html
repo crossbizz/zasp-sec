@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Zasp browser coverage</title><link rel="stylesheet" href="status.css"></head>
+<body>
+<h1>Browser coverage</h1>
+<p id="status" role="status">Checking managed policy…</p>
+<p id="central-state">Collection stays in this browser profile.</p>
+<section id="profile" hidden>
+<h2>Managed profile reporting</h2>
+<p id="destination"></p>
+<label>Profile public key <textarea id="profile-key" readonly rows="3"></textarea></label>
+<p>Give this public key to your administrator to register this browser. Enrollment sends an hourly heartbeat and future enabled-origin visits by UTC day.</p>
+<form id="enroll-profile">
+<label>Profile credential ID <input id="profile-id" required></label>
+<label>Environment ID <input id="environment" required></label>
+<label>Dedicated profile token <input id="profile-token" type="password" autocomplete="off" required></label>
+<button type="submit">Enroll this managed profile</button>
+</form>
+<button id="profile-sync" type="button">Sync now</button> <button id="profile-remove" type="button">Remove local enrollment</button>
+</section>
+<h2>Upload controls</h2><p id="uploads"></p>
+<h2>Enabled apps</h2><ul id="origins"></ul>
+<h2>Local app usage</h2><p id="retention"></p><ul id="observations"></ul>
+<p>Usage records an origin opened on a UTC day. Tool actions and prompts are unknown.</p>
+<script src="status.js"></script>
+</body></html>

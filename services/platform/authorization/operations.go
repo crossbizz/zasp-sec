@@ -28,12 +28,29 @@ type OperationPolicy struct {
 // findings or anything else, and a token with view alone cannot ask for
 // decisions.
 //
-// The traffic routes of the hosted gateway are the others: their token needs
+// The traffic routes of the hosted gateway require
 // use_gateway, which no role holds either, so a token created for an agent's
 // gateway traffic cannot read the Environment and a reading token cannot
-// send traffic.
-var TokenPermissionOperations = map[string]string{"createGuardrailDecision": "view",
-	"callMCPGateway": "view", "closeMCPGatewaySession": "view", "createGatewayChatCompletion": "view", "createGatewayResponse": "view", "createGatewayMessage": "view"}
+// send traffic. Add-on submission, endpoint sync and workload decisions also
+// intersect a narrow token ceiling with the principal's Environment view.
+var TokenPermissionOperations = map[string]string{
+	"recordBrowserOriginDays":      "view",
+	"exchangeEndpointEnrollment":   "view",
+	"recordEndpointHeartbeat":      "view",
+	"recordEndpointInventory":      "view",
+	"recordEndpointObservations":   "view",
+	"fetchEndpointPolicy":          "view",
+	"createWorkloadActionDecision": "view",
+	"recordWorkloadActionOutcome":  "view",
+	"createGuardrailDecision":      "view",
+	"attestAddonScan":              "view",
+	"submitAddonScan":              "view",
+	"callMCPGateway":               "view",
+	"closeMCPGatewaySession":       "view",
+	"createGatewayChatCompletion":  "view",
+	"createGatewayResponse":        "view",
+	"createGatewayMessage":         "view",
+}
 
 //go:embed operations.json
 var operationBytes []byte

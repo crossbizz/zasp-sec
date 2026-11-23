@@ -47,9 +47,10 @@ type Config struct {
 }
 
 type Driver struct {
-	client API
-	config Config
-	export bool
+	client         API
+	config         Config
+	export         bool
+	privateBinding *privateLocator
 }
 
 var _ artifactstore.Driver = (*Driver)(nil)
@@ -238,6 +239,9 @@ func (driver *Driver) validLocator(locator artifactstore.DriverLocator) bool {
 		return false
 	}
 	want := "organizations/" + locator.OrganizationID().String() + "/workspaces/" + locator.WorkspaceID().String() + "/environments/" + locator.EnvironmentID().String() + "/artifacts/" + locator.Reference.String()
+	if driver.privateBinding != nil {
+		return driver.privateBinding.locator == locator.Key && driver.privateBinding.scope == locator.Scope && driver.privateBinding.reference == locator.Reference && (locator.VersionID == "" || validVersion(locator.VersionID) && locator.VersionID != "null")
+	}
 	if driver.export {
 		var err error
 		want, err = bucketlayout.ExportKey(locator.Scope, locator.Reference.ArtifactID())

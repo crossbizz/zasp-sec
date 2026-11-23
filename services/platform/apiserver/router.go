@@ -304,6 +304,9 @@ func matchSegments(pattern []routeSegment, path []string) (map[string]string, bo
 }
 
 func validRouteParameters(operationID string, parameters map[string]string) bool {
+	if operationID == "recordWorkloadActionOutcome" {
+		return len(parameters) == 1 && workloadLabel.MatchString(parameters["actionId"])
+	}
 	if operationID == "getComplianceEvidence" {
 		return len(parameters) == 2 && validComplianceTarget(ComplianceTarget{SourceKind: parameters["sourceKind"], SourceID: parameters["id"]}, false)
 	}

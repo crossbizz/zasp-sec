@@ -58,14 +58,18 @@ func (d *complianceMemoryDriver) Delete(_ context.Context, locator artifactstore
 
 func installedCompletionBlock(t *testing.T, tag string) string {
 	t.Helper()
-	completion, err := os.ReadFile(filepath.Join("..", "migrations", "baseline", "completion.sql"))
+	filename := "completion.sql"
+	if tag == "ws3_compliance_export_baseline" {
+		filename = "framework_reporting.sql"
+	}
+	completion, err := os.ReadFile(filepath.Join("..", "migrations", "baseline", filename))
 	if err != nil {
 		t.Fatal(err)
 	}
 	opening, closing := "DO $"+tag+"$", "END $"+tag+"$;"
 	start, end := strings.Index(string(completion), opening), strings.Index(string(completion), closing)
 	if start < 0 || end < start || strings.Count(string(completion), opening) != 1 {
-		t.Fatalf("completion.sql does not hold exactly one %s section", tag)
+		t.Fatalf("%s does not hold exactly one %s section", filename, tag)
 	}
 	return string(completion[start : end+len(closing)])
 }
@@ -495,8 +499,70 @@ func TestComplianceExportOnInstalledBaselinePostgres(t *testing.T) {
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_compliance_export_jobs WHERE export_id IN($1,$2) AND state='completed' AND storage_state='verified' AND snapshot IS NOT NULL AND receipt_version IS NOT NULL AND retrieval_expires_at>clock_timestamp()`, frameworkExport, packExport).Scan(&retainedJobs); err != nil || retainedJobs != 2 {
 		t.Fatalf("retained jobs = %d %v", retainedJobs, err)
 	}
-	// A requester whose membership ended cannot read the export any more.
-	if _, err := admin.Exec(ctx, `UPDATE zasp_identity_memberships SET active=false WHERE (organization_id,principal_id)=($1,$2)`, o, actor); err != nil {
+	t.Run("managed pilot selection and retained worker download", func(t *testing.T) {
+		var supported bool
+		if err := admin.QueryRow(ctx, `SELECT to_regprocedure('zasp_authorization80.pilot_export_pack(text,text,text,jsonb,timestamptz)') IS NOT NULL`).Scan(&supported); err != nil {
+			t.Fatal(err)
+		}
+		if !supported {
+			t.Skip("installed baseline predates managed pilot exports")
+		}
+		device, other := id(), id()
+		ref, action := strings.Repeat("a", 64), strings.Repeat("b", 64)
+		_, err := admin.Exec(ctx, `INSERT INTO public.zasp_endpoint_devices(organization_id,workspace_id,environment_id,id,credential_id,device_key,policy_key,cohort) VALUES($1,$2,$3,$4,$5,'fixture','fixture','export-test'),($1,$2,$3,$6,$7,'fixture','fixture','other-group')`, o, w, e, device, id(), other, id())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			admin.Exec(context.Background(), `DELETE FROM public.zasp_endpoint_observations WHERE (organization_id,workspace_id,environment_id,device_id)=($1,$2,$3,$4)`, o, w, e, device)
+			admin.Exec(context.Background(), `DELETE FROM public.zasp_endpoint_devices WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) AND id IN($4,$5)`, o, w, e, device, other)
+		})
+		_, err = admin.Exec(ctx, `INSERT INTO public.zasp_endpoint_observations(organization_id,workspace_id,environment_id,device_id,credential_generation,action_id,observation) VALUES($1,$2,$3,$4,1,$5,jsonb_build_object('session_ref',$6::text,'policy_revision',4,'mode','monitor','verdict','continue','would_block',true,'local_uid',909))`, o, w, e, device, action, ref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, bad := range []string{`{"pilot_cohort":"absent"}`, `{"device_id":"` + other + `","endpoint_session_ref":"` + ref + `"}`, `{"pilot_cohort":"export-test","agent_id":"` + agent + `"}`} {
+			if _, err := checked(createSQL, o, w, e, actor, session[:], "bad-pilot", bad, checksum, fingerprint); err == nil {
+				t.Fatalf("accepted inaccessible selector %s", bad)
+			}
+		}
+		export := create("pilot-managed-export", `{"device_id":"`+device+`","endpoint_session_ref":"`+ref+`"}`)
+		packageValue := run(export)
+		var pack pilotPack
+		if err := json.Unmarshal(packageValue.JSON, &pack); err != nil || pack.Selection.Session != ref || len(pack.Devices) != 1 || pack.Devices[0].ID != device ||
+			len(pack.Actions) != 1 || pack.Actions[0].Action != action || pack.External != "unknown" || pack.Effect != "unknown" || pack.Usage != "unknown" ||
+			strings.Contains(string(packageValue.JSON), "local_uid") || !strings.Contains(packageValue.Human, "target effects and skill usage are unknown") || !strings.Contains(packageValue.CSV, action) {
+			t.Fatalf("unexpected retained pilot report: %v %s", err, packageValue.JSON)
+		}
+		var captures bool
+		if err := admin.QueryRow(ctx, "SELECT to_regprocedure('zasp_authorization80.pilot_export_verified_pack(text,text,text,jsonb,timestamptz)') IS NOT NULL").Scan(&captures); err != nil || !captures {
+			t.Fatal("installed pilot verifier missing", err)
+		}
+		runID := id()
+		control, protected := seedPilotExportTicketProof(t, ctx, admin, o, w, e, actor, device, ref, agent, id(), runID)
+		positive := run(create("pilot-exact-protected-effect", `{"device_id":"`+device+`","endpoint_session_ref":"`+ref+`"}`))
+		var verified struct {
+			Checks []pilotTicketCheck `json:"independent_ticket_checks"`
+		}
+		if err := json.Unmarshal(positive.JSON, &verified); err != nil || len(verified.Checks) != 1 || verified.Checks[0].Run != runID || verified.Checks[0].Action != protected || verified.Checks[0].Effect != "no_protected_write_in_verified_window" || !strings.Contains(positive.CSV, runID) || verified.Checks[0].WindowStart.IsZero() || !verified.Checks[0].WindowEnd.After(verified.Checks[0].WindowStart) || !strings.Contains(positive.Human, "no protected write during this window") || bytes.Contains(positive.JSON, []byte("recorder-private-write-receipt")) || bytes.Contains(positive.JSON, []byte("ticket_proof_inputs")) {
+			t.Fatalf("missing or unsafe independent proof: %s", positive.JSON)
+		}
+		// A valid control on another session cannot confirm prevention for this session.
+		if _, err := admin.Exec(ctx, `UPDATE public.zasp_endpoint_observations SET observation=jsonb_set(observation,'{session_ref}',to_jsonb($6::text)) WHERE (organization_id,workspace_id,environment_id,device_id,action_id)=($1,$2,$3,$4,$5)`, o, w, e, device, control, strings.Repeat("b", 64)); err != nil {
+			t.Fatal(err)
+		}
+		var bound bool
+		if err := admin.QueryRow(ctx, `SELECT (zasp_authorization80.pilot_export_verified_pack($1,$2,$3,jsonb_build_object('device_id',$4::text,'endpoint_session_ref',$5::text),clock_timestamp())#>>'{ticket_proof_inputs,0,control_bound}')::boolean`, o, w, e, device, ref).Scan(&bound); err != nil || bound {
+			t.Fatal("cross-session positive control was linked", err)
+		}
+	})
+	// End fixture membership using the registered migration principal. The
+	// installed write guard checks both session_user and current_user.
+	var migrationPrincipal string
+	if err := admin.QueryRow(ctx, `SELECT principal_name FROM public.zasp_discovery_principal_bindings WHERE authority_role='zasp_discovery_authority'`).Scan(&migrationPrincipal); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := login(migrationPrincipal).Exec(ctx, `UPDATE zasp_identity_memberships SET active=false WHERE (organization_id,principal_id)=($1,$2)`, o, actor); err != nil {
 		t.Fatal(err)
 	}
 	if status, err := checked(getSQL, o, w, e, actor, session[:], packExport, checksum, fingerprint); err == nil {

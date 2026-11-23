@@ -184,6 +184,101 @@ func (d *DeleteSensorsRequest) SetID(id ProductID) {
 }
 
 var (
+	exchangeEndpointEnrollmentSensorsRequestFieldZaspDeviceProof     = big.NewInt(1 << 0)
+	exchangeEndpointEnrollmentSensorsRequestFieldZaspDeviceSignature = big.NewInt(1 << 1)
+)
+
+type ExchangeEndpointEnrollmentSensorsRequest struct {
+	ZaspDeviceProof     string        `json:"-" url:"-"`
+	ZaspDeviceSignature string        `json:"-" url:"-"`
+	Body                EndpointEmpty `json:"-" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (e *ExchangeEndpointEnrollmentSensorsRequest) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetZaspDeviceProof sets the ZaspDeviceProof field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *ExchangeEndpointEnrollmentSensorsRequest) SetZaspDeviceProof(zaspDeviceProof string) {
+	e.ZaspDeviceProof = zaspDeviceProof
+	e.require(exchangeEndpointEnrollmentSensorsRequestFieldZaspDeviceProof)
+}
+
+// SetZaspDeviceSignature sets the ZaspDeviceSignature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *ExchangeEndpointEnrollmentSensorsRequest) SetZaspDeviceSignature(zaspDeviceSignature string) {
+	e.ZaspDeviceSignature = zaspDeviceSignature
+	e.require(exchangeEndpointEnrollmentSensorsRequestFieldZaspDeviceSignature)
+}
+
+func (e *ExchangeEndpointEnrollmentSensorsRequest) UnmarshalJSON(data []byte) error {
+	var body EndpointEmpty
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	e.Body = body
+	return nil
+}
+
+func (e *ExchangeEndpointEnrollmentSensorsRequest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.Body)
+}
+
+var (
+	fetchEndpointPolicySensorsRequestFieldZaspDeviceProof     = big.NewInt(1 << 0)
+	fetchEndpointPolicySensorsRequestFieldZaspDeviceSignature = big.NewInt(1 << 1)
+	fetchEndpointPolicySensorsRequestFieldID                  = big.NewInt(1 << 2)
+)
+
+type FetchEndpointPolicySensorsRequest struct {
+	ZaspDeviceProof     string    `json:"-" url:"-"`
+	ZaspDeviceSignature string    `json:"-" url:"-"`
+	ID                  ProductID `json:"-" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (f *FetchEndpointPolicySensorsRequest) require(field *big.Int) {
+	next := new(big.Int)
+	if f.explicitFields != nil {
+		next.Set(f.explicitFields)
+	}
+	next.Or(next, field)
+	f.explicitFields = next
+}
+
+// SetZaspDeviceProof sets the ZaspDeviceProof field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (f *FetchEndpointPolicySensorsRequest) SetZaspDeviceProof(zaspDeviceProof string) {
+	f.ZaspDeviceProof = zaspDeviceProof
+	f.require(fetchEndpointPolicySensorsRequestFieldZaspDeviceProof)
+}
+
+// SetZaspDeviceSignature sets the ZaspDeviceSignature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (f *FetchEndpointPolicySensorsRequest) SetZaspDeviceSignature(zaspDeviceSignature string) {
+	f.ZaspDeviceSignature = zaspDeviceSignature
+	f.require(fetchEndpointPolicySensorsRequestFieldZaspDeviceSignature)
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (f *FetchEndpointPolicySensorsRequest) SetID(id ProductID) {
+	f.ID = id
+	f.require(fetchEndpointPolicySensorsRequestFieldID)
+}
+
+var (
 	getSensorsRequestFieldID = big.NewInt(1 << 0)
 )
 
@@ -276,6 +371,371 @@ func (l *ListSensorsRequest) SetLimit(limit *int) {
 }
 
 var (
+	browserOriginReportFieldID        = big.NewInt(1 << 0)
+	browserOriginReportFieldIssuedAt  = big.NewInt(1 << 1)
+	browserOriginReportFieldNonce     = big.NewInt(1 << 2)
+	browserOriginReportFieldDays      = big.NewInt(1 << 3)
+	browserOriginReportFieldSignature = big.NewInt(1 << 4)
+)
+
+type BrowserOriginReport struct {
+	ID ProductID `json:"-" url:"-"`
+	// UTC Unix seconds.
+	IssuedAt int64               `json:"issued_at" url:"-"`
+	Nonce    string              `json:"nonce" url:"-"`
+	Days     []*BrowserOriginDay `json:"days" url:"-"`
+	// Base64 P-256 SHA-256 IEEE P1363 signature over the versioned profile envelope.
+	Signature string `json:"signature" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (b *BrowserOriginReport) require(field *big.Int) {
+	next := new(big.Int)
+	if b.explicitFields != nil {
+		next.Set(b.explicitFields)
+	}
+	next.Or(next, field)
+	b.explicitFields = next
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginReport) SetID(id ProductID) {
+	b.ID = id
+	b.require(browserOriginReportFieldID)
+}
+
+// SetIssuedAt sets the IssuedAt field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginReport) SetIssuedAt(issuedAt int64) {
+	b.IssuedAt = issuedAt
+	b.require(browserOriginReportFieldIssuedAt)
+}
+
+// SetNonce sets the Nonce field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginReport) SetNonce(nonce string) {
+	b.Nonce = nonce
+	b.require(browserOriginReportFieldNonce)
+}
+
+// SetDays sets the Days field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginReport) SetDays(days []*BrowserOriginDay) {
+	b.Days = days
+	b.require(browserOriginReportFieldDays)
+}
+
+// SetSignature sets the Signature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginReport) SetSignature(signature string) {
+	b.Signature = signature
+	b.require(browserOriginReportFieldSignature)
+}
+
+func (b *BrowserOriginReport) UnmarshalJSON(data []byte) error {
+	type unmarshaler BrowserOriginReport
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*b = BrowserOriginReport(body)
+	return nil
+}
+
+func (b *BrowserOriginReport) MarshalJSON() ([]byte, error) {
+	type embed BrowserOriginReport
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*b),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, b.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
+	endpointHeartbeatFieldZaspDeviceProof     = big.NewInt(1 << 0)
+	endpointHeartbeatFieldZaspDeviceSignature = big.NewInt(1 << 1)
+	endpointHeartbeatFieldID                  = big.NewInt(1 << 2)
+	endpointHeartbeatFieldPolicyRevision      = big.NewInt(1 << 3)
+	endpointHeartbeatFieldPolicyStatus        = big.NewInt(1 << 4)
+	endpointHeartbeatFieldQueuedReceipts      = big.NewInt(1 << 5)
+	endpointHeartbeatFieldDroppedReceipts     = big.NewInt(1 << 6)
+	endpointHeartbeatFieldAdapter             = big.NewInt(1 << 7)
+)
+
+type EndpointHeartbeat struct {
+	ZaspDeviceProof     string                        `json:"-" url:"-"`
+	ZaspDeviceSignature string                        `json:"-" url:"-"`
+	ID                  ProductID                     `json:"-" url:"-"`
+	PolicyRevision      int                           `json:"policy_revision" url:"-"`
+	PolicyStatus        EndpointHeartbeatPolicyStatus `json:"policy_status" url:"-"`
+	QueuedReceipts      int                           `json:"queued_receipts" url:"-"`
+	DroppedReceipts     int                           `json:"dropped_receipts" url:"-"`
+	Adapter             *EndpointHeartbeatAdapter     `json:"adapter,omitempty" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (e *EndpointHeartbeat) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetZaspDeviceProof sets the ZaspDeviceProof field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetZaspDeviceProof(zaspDeviceProof string) {
+	e.ZaspDeviceProof = zaspDeviceProof
+	e.require(endpointHeartbeatFieldZaspDeviceProof)
+}
+
+// SetZaspDeviceSignature sets the ZaspDeviceSignature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetZaspDeviceSignature(zaspDeviceSignature string) {
+	e.ZaspDeviceSignature = zaspDeviceSignature
+	e.require(endpointHeartbeatFieldZaspDeviceSignature)
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetID(id ProductID) {
+	e.ID = id
+	e.require(endpointHeartbeatFieldID)
+}
+
+// SetPolicyRevision sets the PolicyRevision field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetPolicyRevision(policyRevision int) {
+	e.PolicyRevision = policyRevision
+	e.require(endpointHeartbeatFieldPolicyRevision)
+}
+
+// SetPolicyStatus sets the PolicyStatus field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetPolicyStatus(policyStatus EndpointHeartbeatPolicyStatus) {
+	e.PolicyStatus = policyStatus
+	e.require(endpointHeartbeatFieldPolicyStatus)
+}
+
+// SetQueuedReceipts sets the QueuedReceipts field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetQueuedReceipts(queuedReceipts int) {
+	e.QueuedReceipts = queuedReceipts
+	e.require(endpointHeartbeatFieldQueuedReceipts)
+}
+
+// SetDroppedReceipts sets the DroppedReceipts field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetDroppedReceipts(droppedReceipts int) {
+	e.DroppedReceipts = droppedReceipts
+	e.require(endpointHeartbeatFieldDroppedReceipts)
+}
+
+// SetAdapter sets the Adapter field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointHeartbeat) SetAdapter(adapter *EndpointHeartbeatAdapter) {
+	e.Adapter = adapter
+	e.require(endpointHeartbeatFieldAdapter)
+}
+
+func (e *EndpointHeartbeat) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointHeartbeat
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*e = EndpointHeartbeat(body)
+	return nil
+}
+
+func (e *EndpointHeartbeat) MarshalJSON() ([]byte, error) {
+	type embed EndpointHeartbeat
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
+	endpointSnapshotFieldZaspDeviceProof     = big.NewInt(1 << 0)
+	endpointSnapshotFieldZaspDeviceSignature = big.NewInt(1 << 1)
+	endpointSnapshotFieldID                  = big.NewInt(1 << 2)
+	endpointSnapshotFieldPartitionID         = big.NewInt(1 << 3)
+	endpointSnapshotFieldSnapshotGeneration  = big.NewInt(1 << 4)
+	endpointSnapshotFieldComplete            = big.NewInt(1 << 5)
+	endpointSnapshotFieldInstallations       = big.NewInt(1 << 6)
+)
+
+type EndpointSnapshot struct {
+	ZaspDeviceProof     string                               `json:"-" url:"-"`
+	ZaspDeviceSignature string                               `json:"-" url:"-"`
+	ID                  ProductID                            `json:"-" url:"-"`
+	PartitionID         string                               `json:"partition_id" url:"-"`
+	SnapshotGeneration  int                                  `json:"snapshot_generation" url:"-"`
+	Complete            bool                                 `json:"complete" url:"-"`
+	Installations       []*EndpointSnapshotInstallationsItem `json:"installations" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (e *EndpointSnapshot) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetZaspDeviceProof sets the ZaspDeviceProof field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetZaspDeviceProof(zaspDeviceProof string) {
+	e.ZaspDeviceProof = zaspDeviceProof
+	e.require(endpointSnapshotFieldZaspDeviceProof)
+}
+
+// SetZaspDeviceSignature sets the ZaspDeviceSignature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetZaspDeviceSignature(zaspDeviceSignature string) {
+	e.ZaspDeviceSignature = zaspDeviceSignature
+	e.require(endpointSnapshotFieldZaspDeviceSignature)
+}
+
+// SetID sets the ID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetID(id ProductID) {
+	e.ID = id
+	e.require(endpointSnapshotFieldID)
+}
+
+// SetPartitionID sets the PartitionID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetPartitionID(partitionID string) {
+	e.PartitionID = partitionID
+	e.require(endpointSnapshotFieldPartitionID)
+}
+
+// SetSnapshotGeneration sets the SnapshotGeneration field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetSnapshotGeneration(snapshotGeneration int) {
+	e.SnapshotGeneration = snapshotGeneration
+	e.require(endpointSnapshotFieldSnapshotGeneration)
+}
+
+// SetComplete sets the Complete field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetComplete(complete bool) {
+	e.Complete = complete
+	e.require(endpointSnapshotFieldComplete)
+}
+
+// SetInstallations sets the Installations field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshot) SetInstallations(installations []*EndpointSnapshotInstallationsItem) {
+	e.Installations = installations
+	e.require(endpointSnapshotFieldInstallations)
+}
+
+func (e *EndpointSnapshot) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointSnapshot
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*e = EndpointSnapshot(body)
+	return nil
+}
+
+func (e *EndpointSnapshot) MarshalJSON() ([]byte, error) {
+	type embed EndpointSnapshot
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
+	endpointObservationBatchFieldZaspDeviceProof     = big.NewInt(1 << 0)
+	endpointObservationBatchFieldZaspDeviceSignature = big.NewInt(1 << 1)
+	endpointObservationBatchFieldReceipts            = big.NewInt(1 << 2)
+)
+
+type EndpointObservationBatch struct {
+	ZaspDeviceProof     string            `json:"-" url:"-"`
+	ZaspDeviceSignature string            `json:"-" url:"-"`
+	Receipts            []*EndpointSigned `json:"receipts" url:"-"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+}
+
+func (e *EndpointObservationBatch) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetZaspDeviceProof sets the ZaspDeviceProof field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointObservationBatch) SetZaspDeviceProof(zaspDeviceProof string) {
+	e.ZaspDeviceProof = zaspDeviceProof
+	e.require(endpointObservationBatchFieldZaspDeviceProof)
+}
+
+// SetZaspDeviceSignature sets the ZaspDeviceSignature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointObservationBatch) SetZaspDeviceSignature(zaspDeviceSignature string) {
+	e.ZaspDeviceSignature = zaspDeviceSignature
+	e.require(endpointObservationBatchFieldZaspDeviceSignature)
+}
+
+// SetReceipts sets the Receipts field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointObservationBatch) SetReceipts(receipts []*EndpointSigned) {
+	e.Receipts = receipts
+	e.require(endpointObservationBatchFieldReceipts)
+}
+
+func (e *EndpointObservationBatch) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointObservationBatch
+	var body unmarshaler
+	if err := json.Unmarshal(data, &body); err != nil {
+		return err
+	}
+	*e = EndpointObservationBatch(body)
+	return nil
+}
+
+func (e *EndpointObservationBatch) MarshalJSON() ([]byte, error) {
+	type embed EndpointObservationBatch
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+var (
 	rotateTokenSensorsRequestFieldCsrfToken                  = big.NewInt(1 << 0)
 	rotateTokenSensorsRequestFieldIdempotencyKey             = big.NewInt(1 << 1)
 	rotateTokenSensorsRequestFieldIfMatch                    = big.NewInt(1 << 2)
@@ -364,6 +824,681 @@ func (r *RotateTokenSensorsRequest) UnmarshalJSON(data []byte) error {
 
 func (r *RotateTokenSensorsRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.Body)
+}
+
+type BrowserObservedOrigin string
+
+const (
+	BrowserObservedOriginHTTPSClaudeAi   BrowserObservedOrigin = "https://claude.ai"
+	BrowserObservedOriginHTTPSChatgptCom BrowserObservedOrigin = "https://chatgpt.com"
+)
+
+func NewBrowserObservedOriginFromString(s string) (BrowserObservedOrigin, error) {
+	switch s {
+	case "https://claude.ai":
+		return BrowserObservedOriginHTTPSClaudeAi, nil
+	case "https://chatgpt.com":
+		return BrowserObservedOriginHTTPSChatgptCom, nil
+	}
+	var t BrowserObservedOrigin
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (b BrowserObservedOrigin) Ptr() *BrowserObservedOrigin {
+	return &b
+}
+
+var (
+	browserOriginAckFieldCredentialID  = big.NewInt(1 << 0)
+	browserOriginAckFieldEnvironmentID = big.NewInt(1 << 1)
+	browserOriginAckFieldAccepted      = big.NewInt(1 << 2)
+)
+
+type BrowserOriginAck struct {
+	CredentialID  ProductID `json:"credential_id" url:"credential_id"`
+	EnvironmentID ProductID `json:"environment_id" url:"environment_id"`
+	Accepted      bool      `json:"accepted" url:"accepted"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (b *BrowserOriginAck) GetCredentialID() ProductID {
+	if b == nil {
+		return ""
+	}
+	return b.CredentialID
+}
+
+func (b *BrowserOriginAck) GetEnvironmentID() ProductID {
+	if b == nil {
+		return ""
+	}
+	return b.EnvironmentID
+}
+
+func (b *BrowserOriginAck) GetAccepted() bool {
+	if b == nil {
+		return false
+	}
+	return b.Accepted
+}
+
+func (b *BrowserOriginAck) GetExtraProperties() map[string]interface{} {
+	if b == nil {
+		return nil
+	}
+	return b.extraProperties
+}
+
+func (b *BrowserOriginAck) require(field *big.Int) {
+	next := new(big.Int)
+	if b.explicitFields != nil {
+		next.Set(b.explicitFields)
+	}
+	next.Or(next, field)
+	b.explicitFields = next
+}
+
+// SetCredentialID sets the CredentialID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginAck) SetCredentialID(credentialID ProductID) {
+	b.CredentialID = credentialID
+	b.require(browserOriginAckFieldCredentialID)
+}
+
+// SetEnvironmentID sets the EnvironmentID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginAck) SetEnvironmentID(environmentID ProductID) {
+	b.EnvironmentID = environmentID
+	b.require(browserOriginAckFieldEnvironmentID)
+}
+
+// SetAccepted sets the Accepted field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginAck) SetAccepted(accepted bool) {
+	b.Accepted = accepted
+	b.require(browserOriginAckFieldAccepted)
+}
+
+func (b *BrowserOriginAck) UnmarshalJSON(data []byte) error {
+	type unmarshaler BrowserOriginAck
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*b = BrowserOriginAck(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *b)
+	if err != nil {
+		return err
+	}
+	b.extraProperties = extraProperties
+	b.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (b *BrowserOriginAck) MarshalJSON() ([]byte, error) {
+	type embed BrowserOriginAck
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*b),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, b.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (b *BrowserOriginAck) String() string {
+	if b == nil {
+		return "<nil>"
+	}
+	if len(b.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(b.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(b); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", b)
+}
+
+var (
+	browserOriginDayFieldOrigin = big.NewInt(1 << 0)
+	browserOriginDayFieldDay    = big.NewInt(1 << 1)
+)
+
+type BrowserOriginDay struct {
+	Origin BrowserObservedOrigin `json:"origin" url:"origin"`
+	Day    time.Time             `json:"day" url:"day" format:"date"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (b *BrowserOriginDay) GetOrigin() BrowserObservedOrigin {
+	if b == nil {
+		return ""
+	}
+	return b.Origin
+}
+
+func (b *BrowserOriginDay) GetDay() time.Time {
+	if b == nil {
+		return time.Time{}
+	}
+	return b.Day
+}
+
+func (b *BrowserOriginDay) GetExtraProperties() map[string]interface{} {
+	if b == nil {
+		return nil
+	}
+	return b.extraProperties
+}
+
+func (b *BrowserOriginDay) require(field *big.Int) {
+	next := new(big.Int)
+	if b.explicitFields != nil {
+		next.Set(b.explicitFields)
+	}
+	next.Or(next, field)
+	b.explicitFields = next
+}
+
+// SetOrigin sets the Origin field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginDay) SetOrigin(origin BrowserObservedOrigin) {
+	b.Origin = origin
+	b.require(browserOriginDayFieldOrigin)
+}
+
+// SetDay sets the Day field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (b *BrowserOriginDay) SetDay(day time.Time) {
+	b.Day = day
+	b.require(browserOriginDayFieldDay)
+}
+
+func (b *BrowserOriginDay) UnmarshalJSON(data []byte) error {
+	type embed BrowserOriginDay
+	var unmarshaler = struct {
+		embed
+		Day *internal.Date `json:"day"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
+		return err
+	}
+	*b = BrowserOriginDay(unmarshaler.embed)
+	b.Day = unmarshaler.Day.Time()
+	extraProperties, err := internal.ExtractExtraProperties(data, *b)
+	if err != nil {
+		return err
+	}
+	b.extraProperties = extraProperties
+	b.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (b *BrowserOriginDay) MarshalJSON() ([]byte, error) {
+	type embed BrowserOriginDay
+	var marshaler = struct {
+		embed
+		Day *internal.Date `json:"day"`
+	}{
+		embed: embed(*b),
+		Day:   internal.NewDate(b.Day),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, b.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (b *BrowserOriginDay) String() string {
+	if b == nil {
+		return "<nil>"
+	}
+	if len(b.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(b.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(b); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", b)
+}
+
+var (
+	endpointBundleFieldBundle = big.NewInt(1 << 0)
+)
+
+// endpointBundleNullableFields maps the wire names of EndpointBundle's nullable fields (required or optional) to their field bits.
+var endpointBundleNullableFields = map[string]*big.Int{
+	"bundle": endpointBundleFieldBundle,
+}
+
+type EndpointBundle struct {
+	Bundle *EndpointSigned `json:"bundle,omitempty" url:"bundle,omitempty"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (e *EndpointBundle) GetBundle() *EndpointSigned {
+	if e == nil {
+		return nil
+	}
+	return e.Bundle
+}
+
+func (e *EndpointBundle) GetExtraProperties() map[string]interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.extraProperties
+}
+
+func (e *EndpointBundle) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetBundle sets the Bundle field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointBundle) SetBundle(bundle *EndpointSigned) {
+	e.Bundle = bundle
+	e.require(endpointBundleFieldBundle)
+}
+
+func (e *EndpointBundle) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointBundle
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = EndpointBundle(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *e)
+	if err != nil {
+		return err
+	}
+	e.extraProperties = extraProperties
+	presentFields, err := internal.ExplicitFieldsFromJSON(data, endpointBundleNullableFields)
+	if err != nil {
+		return err
+	}
+	if presentFields != nil {
+		e.require(presentFields)
+	}
+	e.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (e *EndpointBundle) MarshalJSON() ([]byte, error) {
+	type embed EndpointBundle
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (e *EndpointBundle) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if len(e.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(e.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(e); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", e)
+}
+
+type EndpointEmpty = map[string]any
+
+var (
+	endpointExchangeReceiptFieldDeviceID             = big.NewInt(1 << 0)
+	endpointExchangeReceiptFieldCredentialGeneration = big.NewInt(1 << 1)
+	endpointExchangeReceiptFieldState                = big.NewInt(1 << 2)
+)
+
+type EndpointExchangeReceipt struct {
+	DeviceID             ProductID                    `json:"device_id" url:"device_id"`
+	CredentialGeneration int                          `json:"credential_generation" url:"credential_generation"`
+	State                EndpointExchangeReceiptState `json:"state" url:"state"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (e *EndpointExchangeReceipt) GetDeviceID() ProductID {
+	if e == nil {
+		return ""
+	}
+	return e.DeviceID
+}
+
+func (e *EndpointExchangeReceipt) GetCredentialGeneration() int {
+	if e == nil {
+		return 0
+	}
+	return e.CredentialGeneration
+}
+
+func (e *EndpointExchangeReceipt) GetState() EndpointExchangeReceiptState {
+	if e == nil {
+		return ""
+	}
+	return e.State
+}
+
+func (e *EndpointExchangeReceipt) GetExtraProperties() map[string]interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.extraProperties
+}
+
+func (e *EndpointExchangeReceipt) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetDeviceID sets the DeviceID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointExchangeReceipt) SetDeviceID(deviceID ProductID) {
+	e.DeviceID = deviceID
+	e.require(endpointExchangeReceiptFieldDeviceID)
+}
+
+// SetCredentialGeneration sets the CredentialGeneration field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointExchangeReceipt) SetCredentialGeneration(credentialGeneration int) {
+	e.CredentialGeneration = credentialGeneration
+	e.require(endpointExchangeReceiptFieldCredentialGeneration)
+}
+
+// SetState sets the State field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointExchangeReceipt) SetState(state EndpointExchangeReceiptState) {
+	e.State = state
+	e.require(endpointExchangeReceiptFieldState)
+}
+
+func (e *EndpointExchangeReceipt) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointExchangeReceipt
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = EndpointExchangeReceipt(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *e)
+	if err != nil {
+		return err
+	}
+	e.extraProperties = extraProperties
+	e.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (e *EndpointExchangeReceipt) MarshalJSON() ([]byte, error) {
+	type embed EndpointExchangeReceipt
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (e *EndpointExchangeReceipt) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if len(e.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(e.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(e); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", e)
+}
+
+type EndpointExchangeReceiptState string
+
+const (
+	EndpointExchangeReceiptStateActive EndpointExchangeReceiptState = "active"
+)
+
+func NewEndpointExchangeReceiptStateFromString(s string) (EndpointExchangeReceiptState, error) {
+	switch s {
+	case "active":
+		return EndpointExchangeReceiptStateActive, nil
+	}
+	var t EndpointExchangeReceiptState
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (e EndpointExchangeReceiptState) Ptr() *EndpointExchangeReceiptState {
+	return &e
+}
+
+var (
+	endpointRecordedFieldRecorded = big.NewInt(1 << 0)
+)
+
+type EndpointRecorded struct {
+	Recorded bool `json:"recorded" url:"recorded"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (e *EndpointRecorded) GetRecorded() bool {
+	if e == nil {
+		return false
+	}
+	return e.Recorded
+}
+
+func (e *EndpointRecorded) GetExtraProperties() map[string]interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.extraProperties
+}
+
+func (e *EndpointRecorded) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetRecorded sets the Recorded field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointRecorded) SetRecorded(recorded bool) {
+	e.Recorded = recorded
+	e.require(endpointRecordedFieldRecorded)
+}
+
+func (e *EndpointRecorded) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointRecorded
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = EndpointRecorded(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *e)
+	if err != nil {
+		return err
+	}
+	e.extraProperties = extraProperties
+	e.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (e *EndpointRecorded) MarshalJSON() ([]byte, error) {
+	type embed EndpointRecorded
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (e *EndpointRecorded) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if len(e.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(e.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(e); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", e)
+}
+
+var (
+	endpointSignedFieldPayload   = big.NewInt(1 << 0)
+	endpointSignedFieldSignature = big.NewInt(1 << 1)
+)
+
+type EndpointSigned struct {
+	Payload   string `json:"payload" url:"payload"`
+	Signature string `json:"signature" url:"signature"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (e *EndpointSigned) GetPayload() string {
+	if e == nil {
+		return ""
+	}
+	return e.Payload
+}
+
+func (e *EndpointSigned) GetSignature() string {
+	if e == nil {
+		return ""
+	}
+	return e.Signature
+}
+
+func (e *EndpointSigned) GetExtraProperties() map[string]interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.extraProperties
+}
+
+func (e *EndpointSigned) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetPayload sets the Payload field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSigned) SetPayload(payload string) {
+	e.Payload = payload
+	e.require(endpointSignedFieldPayload)
+}
+
+// SetSignature sets the Signature field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSigned) SetSignature(signature string) {
+	e.Signature = signature
+	e.require(endpointSignedFieldSignature)
+}
+
+func (e *EndpointSigned) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointSigned
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = EndpointSigned(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *e)
+	if err != nil {
+		return err
+	}
+	e.extraProperties = extraProperties
+	e.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (e *EndpointSigned) MarshalJSON() ([]byte, error) {
+	type embed EndpointSigned
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (e *EndpointSigned) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if len(e.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(e.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(e); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", e)
 }
 
 var (
@@ -1434,6 +2569,173 @@ func NewCreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchemaFromString(s st
 
 func (c CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema) Ptr() *CreateEnrollmentSensorsRequestXZaspSensorEnrollmentSchema {
 	return &c
+}
+
+type EndpointHeartbeatAdapter string
+
+const (
+	EndpointHeartbeatAdapterMacosClaudeTicket        EndpointHeartbeatAdapter = "macos_claude_ticket"
+	EndpointHeartbeatAdapterLinuxClaudeTicketTest    EndpointHeartbeatAdapter = "linux_claude_ticket_test"
+	EndpointHeartbeatAdapterWindowsInventory         EndpointHeartbeatAdapter = "windows_inventory"
+	EndpointHeartbeatAdapterMacosClaudePretoolV2     EndpointHeartbeatAdapter = "macos_claude_pretool_v2"
+	EndpointHeartbeatAdapterMacosCodexPretoolV2      EndpointHeartbeatAdapter = "macos_codex_pretool_v2"
+	EndpointHeartbeatAdapterLinuxClaudePretoolV2Test EndpointHeartbeatAdapter = "linux_claude_pretool_v2_test"
+	EndpointHeartbeatAdapterWindowsClaudePretoolV2   EndpointHeartbeatAdapter = "windows_claude_pretool_v2"
+)
+
+func NewEndpointHeartbeatAdapterFromString(s string) (EndpointHeartbeatAdapter, error) {
+	switch s {
+	case "macos_claude_ticket":
+		return EndpointHeartbeatAdapterMacosClaudeTicket, nil
+	case "linux_claude_ticket_test":
+		return EndpointHeartbeatAdapterLinuxClaudeTicketTest, nil
+	case "windows_inventory":
+		return EndpointHeartbeatAdapterWindowsInventory, nil
+	case "macos_claude_pretool_v2":
+		return EndpointHeartbeatAdapterMacosClaudePretoolV2, nil
+	case "macos_codex_pretool_v2":
+		return EndpointHeartbeatAdapterMacosCodexPretoolV2, nil
+	case "linux_claude_pretool_v2_test":
+		return EndpointHeartbeatAdapterLinuxClaudePretoolV2Test, nil
+	case "windows_claude_pretool_v2":
+		return EndpointHeartbeatAdapterWindowsClaudePretoolV2, nil
+	}
+	var t EndpointHeartbeatAdapter
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (e EndpointHeartbeatAdapter) Ptr() *EndpointHeartbeatAdapter {
+	return &e
+}
+
+type EndpointHeartbeatPolicyStatus string
+
+const (
+	EndpointHeartbeatPolicyStatusVerifiedCache     EndpointHeartbeatPolicyStatus = "verified_cache"
+	EndpointHeartbeatPolicyStatusPolicyExpired     EndpointHeartbeatPolicyStatus = "policy_expired"
+	EndpointHeartbeatPolicyStatusPolicyUnavailable EndpointHeartbeatPolicyStatus = "policy_unavailable"
+	EndpointHeartbeatPolicyStatusStateUnavailable  EndpointHeartbeatPolicyStatus = "state_unavailable"
+)
+
+func NewEndpointHeartbeatPolicyStatusFromString(s string) (EndpointHeartbeatPolicyStatus, error) {
+	switch s {
+	case "verified_cache":
+		return EndpointHeartbeatPolicyStatusVerifiedCache, nil
+	case "policy_expired":
+		return EndpointHeartbeatPolicyStatusPolicyExpired, nil
+	case "policy_unavailable":
+		return EndpointHeartbeatPolicyStatusPolicyUnavailable, nil
+	case "state_unavailable":
+		return EndpointHeartbeatPolicyStatusStateUnavailable, nil
+	}
+	var t EndpointHeartbeatPolicyStatus
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (e EndpointHeartbeatPolicyStatus) Ptr() *EndpointHeartbeatPolicyStatus {
+	return &e
+}
+
+var (
+	endpointSnapshotInstallationsItemFieldInstallationID = big.NewInt(1 << 0)
+	endpointSnapshotInstallationsItemFieldManifestDigest = big.NewInt(1 << 1)
+)
+
+type EndpointSnapshotInstallationsItem struct {
+	InstallationID string  `json:"installation_id" url:"installation_id"`
+	ManifestDigest *string `json:"manifest_digest,omitempty" url:"manifest_digest,omitempty"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (e *EndpointSnapshotInstallationsItem) GetInstallationID() string {
+	if e == nil {
+		return ""
+	}
+	return e.InstallationID
+}
+
+func (e *EndpointSnapshotInstallationsItem) GetManifestDigest() *string {
+	if e == nil {
+		return nil
+	}
+	return e.ManifestDigest
+}
+
+func (e *EndpointSnapshotInstallationsItem) GetExtraProperties() map[string]interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.extraProperties
+}
+
+func (e *EndpointSnapshotInstallationsItem) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetInstallationID sets the InstallationID field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshotInstallationsItem) SetInstallationID(installationID string) {
+	e.InstallationID = installationID
+	e.require(endpointSnapshotInstallationsItemFieldInstallationID)
+}
+
+// SetManifestDigest sets the ManifestDigest field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshotInstallationsItem) SetManifestDigest(manifestDigest *string) {
+	e.ManifestDigest = manifestDigest
+	e.require(endpointSnapshotInstallationsItemFieldManifestDigest)
+}
+
+func (e *EndpointSnapshotInstallationsItem) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointSnapshotInstallationsItem
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = EndpointSnapshotInstallationsItem(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *e)
+	if err != nil {
+		return err
+	}
+	e.extraProperties = extraProperties
+	e.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (e *EndpointSnapshotInstallationsItem) MarshalJSON() ([]byte, error) {
+	type embed EndpointSnapshotInstallationsItem
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (e *EndpointSnapshotInstallationsItem) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if len(e.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(e.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(e); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", e)
 }
 
 type RotateTokenSensorsRequestXZaspFreshAuth string

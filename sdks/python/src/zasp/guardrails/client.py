@@ -7,8 +7,18 @@ from ..core.request_options import RequestOptions
 from ..types.guardrail_decision import GuardrailDecision
 from ..types.guardrail_mode import GuardrailMode
 from ..types.guardrail_policy import GuardrailPolicy
+from ..types.product_id import ProductId
+from ..types.workload_action_decision import WorkloadActionDecision
+from ..types.workload_action_label import WorkloadActionLabel
+from ..types.workload_context_evidence import WorkloadContextEvidence
+from ..types.workload_outcome_ack import WorkloadOutcomeAck
 from .raw_client import AsyncRawGuardrailsClient, RawGuardrailsClient
 from .types.guardrail_interaction_direction import GuardrailInteractionDirection
+from .types.workload_action_outcome_schema_version import WorkloadActionOutcomeSchemaVersion
+from .types.workload_action_outcome_status import WorkloadActionOutcomeStatus
+from .types.workload_action_request_action_kind import WorkloadActionRequestActionKind
+from .types.workload_action_request_resource import WorkloadActionRequestResource
+from .types.workload_action_request_schema_version import WorkloadActionRequestSchemaVersion
 
 # this is used as the default value for optional parameters
 OMIT = typing.cast(typing.Any, ...)
@@ -28,6 +38,150 @@ class GuardrailsClient:
         RawGuardrailsClient
         """
         return self._raw_client
+
+    def decide_action(
+        self,
+        *,
+        idempotency_key: WorkloadActionLabel,
+        schema_version: WorkloadActionRequestSchemaVersion,
+        action_id: WorkloadActionLabel,
+        action_kind: WorkloadActionRequestActionKind,
+        operation: WorkloadActionLabel,
+        resource: WorkloadActionRequestResource,
+        source_session_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        source_call_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> WorkloadActionDecision:
+        """
+        A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+
+        Parameters
+        ----------
+        idempotency_key : WorkloadActionLabel
+
+        schema_version : WorkloadActionRequestSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        action_kind : WorkloadActionRequestActionKind
+
+        operation : WorkloadActionLabel
+
+        resource : WorkloadActionRequestResource
+
+        source_session_ref : typing.Optional[WorkloadActionLabel]
+
+        source_call_ref : typing.Optional[WorkloadActionLabel]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        WorkloadActionDecision
+            Recorded authorized result.
+
+        Examples
+        --------
+        from zasp import Zasp
+        from zasp.guardrails import WorkloadActionRequestResource
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.guardrails.decide_action(
+            idempotency_key="Idempotency-Key",
+            schema_version="action.v1",
+            action_id="action_id",
+            action_kind="tool_call",
+            operation="operation",
+            resource=WorkloadActionRequestResource(
+                kind="kind",
+                classification="classification",
+            ),
+        )
+        """
+        _response = self._raw_client.decide_action(
+            idempotency_key=idempotency_key,
+            schema_version=schema_version,
+            action_id=action_id,
+            action_kind=action_kind,
+            operation=operation,
+            resource=resource,
+            source_session_ref=source_session_ref,
+            source_call_ref=source_call_ref,
+            request_options=request_options,
+        )
+        return _response.data
+
+    def record_action_outcome(
+        self,
+        path_action_id: WorkloadActionLabel,
+        *,
+        idempotency_key: str,
+        schema_version: WorkloadActionOutcomeSchemaVersion,
+        action_id: WorkloadActionLabel,
+        decision_id: ProductId,
+        status: WorkloadActionOutcomeStatus,
+        context_evidence: typing.Optional[WorkloadContextEvidence] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> WorkloadOutcomeAck:
+        """
+        The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+
+        Parameters
+        ----------
+        path_action_id : WorkloadActionLabel
+
+        idempotency_key : str
+
+        schema_version : WorkloadActionOutcomeSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        decision_id : ProductId
+
+        status : WorkloadActionOutcomeStatus
+
+        context_evidence : typing.Optional[WorkloadContextEvidence]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        WorkloadOutcomeAck
+            Recorded authorized result.
+
+        Examples
+        --------
+        from zasp import Zasp
+
+        client = Zasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+        client.guardrails.record_action_outcome(
+            path_action_id="actionId",
+            idempotency_key="Idempotency-Key",
+            schema_version="action-outcome.v1",
+            action_id="action_id",
+            decision_id="decision_id",
+            status="not_dispatched",
+        )
+        """
+        _response = self._raw_client.record_action_outcome(
+            path_action_id,
+            idempotency_key=idempotency_key,
+            schema_version=schema_version,
+            action_id=action_id,
+            decision_id=decision_id,
+            status=status,
+            context_evidence=context_evidence,
+            request_options=request_options,
+        )
+        return _response.data
 
     def create_decision(
         self,
@@ -180,6 +334,166 @@ class AsyncGuardrailsClient:
         AsyncRawGuardrailsClient
         """
         return self._raw_client
+
+    async def decide_action(
+        self,
+        *,
+        idempotency_key: WorkloadActionLabel,
+        schema_version: WorkloadActionRequestSchemaVersion,
+        action_id: WorkloadActionLabel,
+        action_kind: WorkloadActionRequestActionKind,
+        operation: WorkloadActionLabel,
+        resource: WorkloadActionRequestResource,
+        source_session_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        source_call_ref: typing.Optional[WorkloadActionLabel] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> WorkloadActionDecision:
+        """
+        A dedicated token with decide_actions establishes the workload binding. The idempotency key is the action ID. Identical requests return the original receipt. Resource classification comes from the instrumented application.
+
+        Parameters
+        ----------
+        idempotency_key : WorkloadActionLabel
+
+        schema_version : WorkloadActionRequestSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        action_kind : WorkloadActionRequestActionKind
+
+        operation : WorkloadActionLabel
+
+        resource : WorkloadActionRequestResource
+
+        source_session_ref : typing.Optional[WorkloadActionLabel]
+
+        source_call_ref : typing.Optional[WorkloadActionLabel]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        WorkloadActionDecision
+            Recorded authorized result.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+        from zasp.guardrails import WorkloadActionRequestResource
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.guardrails.decide_action(
+                idempotency_key="Idempotency-Key",
+                schema_version="action.v1",
+                action_id="action_id",
+                action_kind="tool_call",
+                operation="operation",
+                resource=WorkloadActionRequestResource(
+                    kind="kind",
+                    classification="classification",
+                ),
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.decide_action(
+            idempotency_key=idempotency_key,
+            schema_version=schema_version,
+            action_id=action_id,
+            action_kind=action_kind,
+            operation=operation,
+            resource=resource,
+            source_session_ref=source_session_ref,
+            source_call_ref=source_call_ref,
+            request_options=request_options,
+        )
+        return _response.data
+
+    async def record_action_outcome(
+        self,
+        path_action_id: WorkloadActionLabel,
+        *,
+        idempotency_key: str,
+        schema_version: WorkloadActionOutcomeSchemaVersion,
+        action_id: WorkloadActionLabel,
+        decision_id: ProductId,
+        status: WorkloadActionOutcomeStatus,
+        context_evidence: typing.Optional[WorkloadContextEvidence] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> WorkloadOutcomeAck:
+        """
+        The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
+
+        Parameters
+        ----------
+        path_action_id : WorkloadActionLabel
+
+        idempotency_key : str
+
+        schema_version : WorkloadActionOutcomeSchemaVersion
+
+        action_id : WorkloadActionLabel
+
+        decision_id : ProductId
+
+        status : WorkloadActionOutcomeStatus
+
+        context_evidence : typing.Optional[WorkloadContextEvidence]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        WorkloadOutcomeAck
+            Recorded authorized result.
+
+        Examples
+        --------
+        import asyncio
+
+        from zasp import AsyncZasp
+
+        client = AsyncZasp(
+            token="YOUR_TOKEN",
+            base_url="https://yourhost.com/path/to/api",
+        )
+
+
+        async def main() -> None:
+            await client.guardrails.record_action_outcome(
+                path_action_id="actionId",
+                idempotency_key="Idempotency-Key",
+                schema_version="action-outcome.v1",
+                action_id="action_id",
+                decision_id="decision_id",
+                status="not_dispatched",
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.record_action_outcome(
+            path_action_id,
+            idempotency_key=idempotency_key,
+            schema_version=schema_version,
+            action_id=action_id,
+            decision_id=decision_id,
+            status=status,
+            context_evidence=context_evidence,
+            request_options=request_options,
+        )
+        return _response.data
 
     async def create_decision(
         self,

@@ -1,0 +1,61 @@
+{
+  "framework": "owasp_llm_top10",
+  "edition": "2026",
+  "source_url": "https://raw.githubusercontent.com/GenAI-Security-Project/GenAI-LLM-Top10/9253e38ade58e959b531c0c5c9a4842272c9cd0e/2026/README.md",
+  "source_digest": "sha256:8091b002286bd6bdd9741f5a45ca93c1bd55d3548325b6481116567c557293ea",
+  "digest_basis": "upstream_bytes",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "OWASP GenAI Security Project. Published index adapted to edition-qualified risk references.",
+  "entries": [
+    {
+      "id": "LLM01",
+      "title": "Prompt Injection",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM02",
+      "title": "Sensitive Information Disclosure",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM03",
+      "title": "Excessive Agency",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM04",
+      "title": "Supply Chain",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM05",
+      "title": "Data and Model Poisoning",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM06",
+      "title": "Unbounded Consumption",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM07",
+      "title": "Misinformation",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM08",
+      "title": "Hidden Context Exposure",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM09",
+      "title": "Vector and Embedding Weaknesses",
+      "kind": "risk"
+    },
+    {
+      "id": "LLM10",
+      "title": "Improper Output Handling",
+      "kind": "risk"
+    }
+  ]
+}

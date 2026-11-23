@@ -1,11 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { RadioTower, RotateCw, Trash2 } from "lucide-react";
 
 import type { Sensor, SensorCoverage, SensorEnrollment, SensorInput, SensorMode, SensorUpdateInput } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
+import { useOptionalSession } from "../../auth/SessionProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, MetricGrid, Modal, PageHeader, Select } from "../../components/ui";
+import { SectionTabs } from "../../components/section-tabs";
+import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
+import { TicketCohort } from "./TicketCohort";
+import { EndpointPolicyCohort } from "./EndpointPolicyCohort";
+import { DeviceFleet } from "./DeviceFleet";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
 
@@ -13,10 +19,34 @@ type Feedback = Readonly<{ role: "status" | "alert"; message: string }> | null;
 
 export { type SensorsAPI } from "./api";
 
-export function ProductionSensorSurface({ canWrite, fresh, onReauthenticate }: { canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
-  const { client } = useAPI();
+type SensorSurfaceProps = { canWrite: boolean; canManagePolicy?: boolean; fresh: boolean; onReauthenticate(): void };
+
+function subscribeToNavigation(notify: () => void) {
+  window.addEventListener("popstate", notify);
+  return () => window.removeEventListener("popstate", notify);
+}
+
+function linkedDeviceFromLocation() {
+  const values = new URLSearchParams(window.location.search).getAll("device");
+  return values.length === 1 && /^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(values[0]) ? values[0] : "";
+}
+
+export function ProductionSensorSurface(props: SensorSurfaceProps) {
+  const linkedDevice = useSyncExternalStore(subscribeToNavigation, linkedDeviceFromLocation, () => "");
+  return <SensorSections key={linkedDevice} {...props} linkedDevice={linkedDevice} />;
+}
+
+function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
+  const { client, queryScopeKey, queryGeneration } = useAPI();
+  const [section, setSection] = useState(linkedDevice ? "devices" : "sensors");
+  const session = useOptionalSession();
+  const scope = session?.status === "authenticated" ? [session.organizationID, session.workspaceID, session.environmentID].join("/") : undefined;
+  const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
-  return <ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} />;
+  return <SectionTabs active={section} onChange={setSection} sections={[
+    { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
+    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} scope={scope} initialID={linkedDevice} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><EndpointPolicyCohort key={"pretool"+JSON.stringify([queryScopeKey,queryGeneration])} client={client} canManage={canManagePolicy} fresh={fresh} reauthenticate={onReauthenticate}/></> },
+  ]} />;
 }
 
 export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }: { api: SensorsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
