@@ -63,7 +63,7 @@ describe("M2 identity governance and UI batch", () => {
     ]);
     expect(app).toContain('path === "/administration/identity-access"');
     for (const heading of ["Members", "Built-in roles", "Enterprise identity", "Group mappings"]) {
-      expect(view).toContain(`<h2>${heading}</h2>`);
+      expect(view).toMatch(new RegExp(`<h2(?:\\s+[^>]*)?>${heading}</h2>`));
     }
     expect(view).toContain("Add SSO connection");
     expect(view).toContain("Add SCIM connection");

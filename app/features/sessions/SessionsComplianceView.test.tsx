@@ -42,6 +42,41 @@ describe("Sessions, compliance, and data controls", () => {
     await expect(createSessionsComplianceAPI(client).revokeSession("session-live", 1)).rejects.toMatchObject({ kind: "invalid_response" });
   });
   it("renders legacy evidence without claiming current freshness or exports", async () => { render(<SessionsComplianceView surface="compliance" api={api()} />); expect(await screen.findByText("SOC 2 · Security")).toBeVisible(); expect(screen.getByText(/asset-1/)).toBeVisible(); expect(screen.getByText("Evidence exports unavailable")).toBeVisible(); expect(screen.getByText("Legacy evidence (current freshness unavailable)")).toBeVisible(); expect(screen.queryByRole("button", { name: /export/i })).not.toBeInTheDocument(); });
+  it("rereads the authoritative retention after an uncertain save", async () => {
+    const original = await api().getDataControls();
+    const getDataControls = vi.fn().mockResolvedValueOnce(original).mockResolvedValue({ ...original, version: 2, retention_days: 60 });
+    const user = userEvent.setup();
+    render(<SessionsComplianceView surface="data-controls" canMutate api={api({
+      getDataControls, updateDataControls: async () => { throw new Error("response lost"); },
+    })} />);
+    const field = await screen.findByLabelText("Retention days");
+    await user.clear(field); await user.type(field, "60");
+    await user.click(screen.getByRole("button", { name: "Save data controls" }));
+    expect(screen.getByRole("button", { name: "Save data controls" })).toBeDisabled();
+    await user.click(await screen.findByRole("button", { name: "Reload data controls" }));
+    expect(await screen.findByDisplayValue("60")).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(getDataControls).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps retention changes within the service's whole-day range", async () => {
+    const update = vi.fn(api().updateDataControls);
+    const user = userEvent.setup();
+    render(<SessionsComplianceView surface="data-controls" api={api({ updateDataControls: update })} canMutate />);
+    const field = await screen.findByRole("spinbutton", { name: "Retention days" });
+    const save = screen.getByRole("button", { name: "Save data controls" });
+    expect(save).toBeDisabled();
+    for (const invalid of ["", "0", "2.5", "3651"]) {
+      await user.clear(field);
+      if (invalid) await user.type(field, invalid);
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(save).toBeDisabled();
+    }
+    await user.clear(field); await user.type(field, "3650");
+    await user.click(save);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ retention_days: 3650 }));
+  });
+
   it("updates versioned metadata-only production controls", async () => { const update = vi.fn(api().updateDataControls); render(<SessionsComplianceView surface="data-controls" api={api({ updateDataControls: update })} canMutate />); expect(await screen.findByDisplayValue("30")).toBeVisible(); await userEvent.clear(screen.getByLabelText("Retention days")); await userEvent.type(screen.getByLabelText("Retention days"), "60"); await userEvent.click(screen.getByRole("button", { name: "Save data controls" })); expect(update).toHaveBeenCalledWith(expect.objectContaining({ retention_days: 60, version: 1 })); });
 });
 

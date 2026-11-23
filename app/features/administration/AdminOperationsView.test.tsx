@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createAPIClient } from "../../../apps/web/api/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AdminOperationsView, type AdminOperationsAPI } from "./AdminOperationsView";
 
 const productID = "pid_10000001-0000-4000-8000-000000000001";
@@ -12,6 +12,15 @@ function api(overrides: Partial<AdminOperationsAPI> = {}): AdminOperationsAPI { 
 }; }
 
 describe("production administration state", () => {
+  it("distinguishes an unavailable adapter inventory from a confirmed empty result and retries", async () => {
+    const getExternalFlows = vi.fn(api().getExternalFlows).mockRejectedValueOnce(new Error("unavailable"));
+    render(<AdminOperationsView surface="external" api={api({ getExternalFlows })} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Administration data could not be loaded");
+    expect(screen.queryByText("No external adapters registered")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("identity-provider")).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
   it("exposes organization export independently of a failed browse request when installed and authorized", async () => {
     const exports = { api: { create: async () => { throw new Error("unused"); }, read: async () => { throw new Error("unused"); } }, authority: { principalID: productID, organizationID: productID, workspaceID: productID, environmentID: productID, generation: 1, permitted: true, fresh: true }, retrySession: async () => {}, reauthenticate: () => {} };
     render(<AdminOperationsView surface="audit" auditAPI={{ page: async () => { throw new Error("browse unavailable"); } }} {...{ auditExport: exports }} />);
@@ -53,6 +62,12 @@ describe("production administration state", () => {
     expect(await screen.findByText("private-model")).toBeVisible();
     expect(screen.getByText("Yes")).toBeVisible();
     expect(screen.getByText("redacted_summary · approved_code_snippet · private_addon")).toBeVisible();
+  });
+  it("labels both dimensions of the release evidence table", async () => {
+    render(<AdminOperationsView surface="health" api={api()} />);
+    const table = await screen.findByRole("table", { name: "Test scope and evidence needed for a live deployment" });
+    expect(within(table).getByRole("rowheader", { name: "Local skill scan" })).toHaveAttribute("scope", "row");
+    expect(within(table).getByRole("columnheader", { name: "Covered by release tests" })).toHaveAttribute("scope", "col");
   });
   it("renders only real probed components", async () => { render(<AdminOperationsView surface="health" api={api()} />); expect(await screen.findByText("Security plane degraded")).toBeVisible(); expect(screen.getByText("postgresql")).toBeVisible(); expect(screen.getByText("identity-provider")).toBeVisible(); expect(screen.queryByText(/remote telemetry/i)).not.toBeInTheDocument(); });
   it("derives external flow inventory from the registered adapter", async () => { render(<AdminOperationsView surface="external" api={api()} />); expect(await screen.findByText("identity-provider")).toBeVisible(); expect(screen.queryByText(/product analytics/i)).not.toBeInTheDocument(); });

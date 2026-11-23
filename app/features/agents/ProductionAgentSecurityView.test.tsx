@@ -100,10 +100,13 @@ describe("production typed inventory API", () => {
       getHomeSummary: async () => ({ agent_count: 1, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false }),
     };
     window.history.replaceState({}, "", `/discovery/assets?inventory=${ids.first}`);
-    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    const navigate = vi.fn();
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={navigate} /></APIProvider>);
     expect(await screen.findByRole("dialog", { name: "First" })).toBeVisible();
     expect(getAgent).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
     expect(inventoryDetailIDFromSearch(`?inventory=${ids.first}&extra=1`)).toBe("");
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(navigate).toHaveBeenCalledWith("/discovery/assets");
   });
 
   it("renders production capability, relationship, session, and runtime-policy evidence", async () => {
@@ -372,15 +375,21 @@ describe("production typed inventory API", () => {
     expect(await screen.findByText(/AWS · Lambda function · Inferred from signals · Dismissed: marked as not an agent/)).toBeVisible();
   });
 
-  it("shows the provider for non-agent inventory without agent-only columns", async () => {
+  it("opens a linked tool in the Tools tab and shows its provider without agent-only columns", async () => {
     const tool = { ...summary(ids.first, "Gateway"), kind: "tool" as const, provider: "aws" as const, source_kind: "aws_agentcore_gateway", discovery: { method: "provider_api" as const, platform: "aws_agentcore_gateway", signals: [] }, management_state: "not_applicable" as const, last_activity_at: null, activity_state: "not_applicable" as const };
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [], listTools: async () => [tool], listIdentities: async () => [], listRuntimes: async () => [],
-      getAgent: async () => { throw new Error("unused"); }, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgent: async () => { throw new Error("unused"); }, getTool: async () => ({ summary: tool, sources: [], evidence: [] }), getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
       getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
       updateAgent: async () => { throw new Error("unused"); }, getHomeSummary: async () => { throw new Error("unused"); },
     };
-    render(<APIProvider><ProductionAgentSecurityView path="/inventory/tools" api={api} onNavigate={() => undefined} /></APIProvider>);
+    const mcpAPI = { listMCPServers: async () => [], listMCPRegistry: async () => [], putMCPRegistryEntry: vi.fn(), getAgentAccess: vi.fn() };
+    window.history.replaceState({}, "", `/inventory/tools?inventory=${tool.id}`);
+    render(<APIProvider><ProductionAgentSecurityView path="/inventory/tools" api={api} mcpAPI={mcpAPI} onNavigate={() => undefined} /></APIProvider>);
+    expect(await screen.findByRole("dialog", { name: "Gateway" })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("tab", { name: /Tools/, selected: true })).toBeVisible();
+    window.history.replaceState({}, "", "/");
     expect(await screen.findByRole("row", { name: /Gateway AWS Unowned/ })).toBeVisible();
     expect(screen.queryByRole("columnheader", { name: "Found by" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Agent filter" })).toBeNull();

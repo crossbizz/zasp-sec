@@ -2,7 +2,7 @@
 
 import { isSaaSCallback } from "../features/workflows/saasSignIn";
 import { AuthPage } from "./AuthPage";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { NavigationIcon } from "./NavigationIcon";
 import { ThemeControl } from "./ThemeControl";
@@ -179,6 +179,7 @@ function ProductionAppContent() {
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [mobileOpen]);
+  const mainContent = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!window.matchMedia) return;
     const desktop = window.matchMedia("(min-width: 761px)");
@@ -190,22 +191,23 @@ function ProductionAppContent() {
   const { client } = useAPI();
   const [location, setLocation] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? `${candidate}${typeof window === "undefined" ? "" : window.location.search + window.location.hash}` : "/"; });
   const path = location.split(/[?#]/, 1)[0];
-  useEffect(() => { if (!productionRoutes.some((route) => route.path === window.location.pathname)) window.history.replaceState({}, "", "/"); }, []);
+  const routes = useMemo(() => session.status === "authenticated"
+    ? productionRoutes.filter(route => hasProductionCapability(session, route.capability)) : [], [session]);
   useEffect(() => {
-    const handlePopState = () => {
-      setMobileOpen(false);
-      const candidate = window.location.pathname;
-      const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && hasProductionCapability(session, route.capability));
-      if (allowed) { setLocation(`${candidate}${window.location.search}${window.location.hash}`); return; }
-      window.history.replaceState({}, "", "/"); setLocation("/");
+    const syncLocation = () => {
+      const { pathname, search, hash } = window.location;
+      // Preserve a recognized sign-in return URL until the session tells us which routes are available.
+      const allowed = (session.status === "authenticated" ? routes : productionRoutes).some(route => route.path === pathname);
+      const canonical = allowed ? pathname + search + hash : (routes[0]?.path ?? "/");
+      if (canonical !== pathname + search + hash) window.history.replaceState({}, "", canonical);
+      setLocation(canonical);
     };
-    window.addEventListener("popstate", handlePopState); return () => window.removeEventListener("popstate", handlePopState);
-  }, [session]);
-  useEffect(() => {
-    if (session.status !== "authenticated") return;
-    const allowed = productionRoutes.some((route) => route.path === window.location.pathname && hasProductionCapability(session, route.capability));
-    if (!allowed) { window.history.replaceState({}, "", "/"); queueMicrotask(() => setLocation("/")); }
-  }, [session]);
+    let mounted = true;
+    queueMicrotask(() => { if (mounted) syncLocation(); });
+    const onPopState = () => { setMobileOpen(false); syncLocation(); };
+    window.addEventListener("popstate", onPopState);
+    return () => { mounted = false; window.removeEventListener("popstate", onPopState); };
+  }, [routes, session.status]);
   // Right after sign-in or a role change the authorization projection can lag
   // for a few seconds. Reload the session a bounded number of times instead of
   // leaving the person on a manual retry screen.
@@ -224,29 +226,45 @@ function ProductionAppContent() {
   if (session.status === "forbidden") return <AuthPage><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></AuthPage>;
   if (session.status === "error") return <AuthPage><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. This usually takes a few seconds; the page retries on its own. You can also retry now.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</AuthPage>;
   if (session.status !== "authenticated") return null;
-  const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
   if (routes.length === 0) return <AuthPage><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></AuthPage>;
   const routeGroups = routes.reduce<{ label: string; routes: (typeof routes)[number][] }[]>((groups, route) => { const last = groups[groups.length - 1]; if (last && last.label === route.group) last.routes.push(route); else groups.push({ label: route.group, routes: [route] }); return groups; }, []);
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
-  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); setMobileOpen(false); window.scrollTo(0, 0); };
+  const navigate = (nextLocation: string) => {
+    const nextPath = nextLocation.split(/[?#]/, 1)[0];
+    if (!routes.some(route => route.path === nextPath)) return;
+    window.history.pushState({}, "", nextLocation);
+    setLocation(nextLocation);
+    setMobileOpen(false);
+    if (nextPath !== visiblePath && mainContent.current) mainContent.current.scrollTop = 0;
+  };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const navigation = <nav aria-label="Main navigation">{routeGroups.map((group) => <div key={group.label || "home"} className="nav-section" role="group" aria-label={group.label || "Home"}>
     {group.label && <div className="nav-group-label" aria-hidden="true">{group.label}</div>}
-    {group.routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}><NavigationIcon path={route.path} /><span>{route.label}</span></a>)}
+    {group.routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      navigate(route.path);
+    }}><NavigationIcon path={route.path} /><span>{route.label}</span></a>)}
   </div>)}</nav>;
   return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}>
     <div className="app-shell production-app">
-      <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById("main-content")?.focus(); }}>Skip to content</a>
+      <a className="skip-link" href="#main-content" onClick={event => {
+        event.preventDefault();
+        if (mainContent.current) {
+          mainContent.current.focus({ preventScroll: true });
+          mainContent.current.scrollTop = 0;
+        }
+      }}>Skip to content</a>
       <header className="topbar">
         <button ref={menuButton} className="mobile-menu icon-button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-controls="product-navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}</button>
-        <button className="brand" onClick={() => navigate(routes[0].path)} aria-label={`Zasp ${routes[0].label.toLowerCase()}`}><BrandLogo /></button>
+        <button className="brand" onClick={() => navigate(routes[0].path)} aria-label={routes[0].path === "/" ? "Zasp overview" : `Zasp · ${routes[0].label}`}><BrandLogo /></button>
         <span className="shell-context">Agent Security</span>
         <ProductionGlobalSearch key={expectedScope + location} client={client} onNavigate={navigate} resultsHost={searchHost} scope={session} routes={routes} />
         <ProductionSignOutControl /><ThemeControl />
       </header>
       <aside id="product-navigation" className={`sidebar${mobileOpen ? " sidebar--expanded" : ""}`}><div className="scope-control"><ProductionScopeSelector /></div>{navigation}</aside>
-      <main className="main-content" id="main-content" tabIndex={-1}><div ref={setSearchHost} id="product-search-results" />{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
+      <main ref={mainContent} className="main-content" id="main-content" tabIndex={-1}><div ref={setSearchHost} id="product-search-results" />{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main>
     </div>
   </ProductionWorkflowMutationProvider>;
 }

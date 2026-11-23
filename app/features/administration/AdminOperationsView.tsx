@@ -56,8 +56,8 @@ function AdminStatusView({ surface, api: suppliedAPI, client }: { surface: "heal
   function refresh() { setLoading(true); setError(null); setRevision(value => value + 1); }
   const title = surface === "health" ? "System health" : "External data flows";
   const description = surface === "health" ? "Readiness of the security plane and its optional components." : "Enabled adapters, their health, and the categories of data each can receive.";
-  return <div className="page"><PageHeader title={title} description={description} actions={api && <Button disabled={loading} onClick={refresh}>Refresh</Button>} />
-    {loading ? <LoadingState label="Loading administration data…" /> : error ? <p role="alert">{error}</p> : surface === "health" && health ? <>
+  return <div className="page"><PageHeader title={title} description={description} actions={api && !error && <Button disabled={loading} onClick={refresh}>Refresh</Button>} />
+    {loading ? <LoadingState label="Loading administration data…" /> : error ? <div role="alert"><p>{error}</p>{api && <Button onClick={refresh}>Retry</Button>}</div> : surface === "health" && health ? <>
       <Card title={health.status.security_plane_healthy ? "Security plane healthy" : "Security plane degraded"}>
         <Badge tone={health.status.security_plane_healthy ? "success" : "warning"}>{health.status.security_plane_healthy ? "Required components healthy" : "Required component unavailable"}</Badge>
         {health.status.optional_degraded && <p role="status">Optional components need attention.</p>}

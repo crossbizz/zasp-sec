@@ -268,7 +268,11 @@ function ConnectedInventory({ title, category, values, api, mcpAPI, gatewayAPI, 
     detailRequest.current?.abort(); detailRequest.current = controller;
     const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
     void loaders[category](initialDetailID, controller.signal).then(async (detail) => ({ detail, context: category === "agent" ? await loadAgentContext(api, initialDetailID, controller.signal) : null })).then(
-      ({ detail, context }) => { if (!controller.signal.aborted) { setSelected(detail); setAgentContext(context); populate(detail.summary); setDetailError(false); } },
+      ({ detail, context }) => {
+        if (controller.signal.aborted) return;
+        if (category === "tool") setToolSection("tools");
+        setSelected(detail); setAgentContext(context); populate(detail.summary); setDetailError(false);
+      },
       () => { if (!controller.signal.aborted) setDetailError(true); },
     );
     return () => { controller.abort(); if (detailRequest.current === controller) detailRequest.current = null; };
@@ -278,7 +282,14 @@ function ConnectedInventory({ title, category, values, api, mcpAPI, gatewayAPI, 
     detailRequest.current?.abort(); const controller = new AbortController(); detailRequest.current = controller;
     setInventoryDetailURL(item.id); void loadDetail(item.id, controller.signal);
   };
-  const close = () => { if (saving) return; detailRequest.current?.abort(); detailRequest.current = null; setInventoryDetailURL(""); setSelected(null); setAgentContext(null); setMutationError(""); };
+  const close = () => {
+    if (saving) return;
+    detailRequest.current?.abort();
+    detailRequest.current = null;
+    if (initialDetailID) onNavigate(window.location.pathname);
+    else setInventoryDetailURL("");
+    setSelected(null); setAgentContext(null); setMutationError("");
+  };
   const save = async () => {
     if (!canWrite || category !== "agent" || !selected || saving) return;
     let retained = pending;

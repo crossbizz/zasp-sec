@@ -68,9 +68,11 @@ describe("generic SaaS connector", () => {
 		expect(within(dialog).queryByLabelText(/platform/i)).toBeNull();
 		expect(within(dialog).getByRole("button", { name: "Save integration" })).toBeDisabled();
 		await user.clear(within(dialog).getByLabelText("Integration name"));
-		await user.type(within(dialog).getByLabelText("Integration name"), "Acme production");
-		await user.type(within(dialog).getByLabelText(/^Account ID/), "acct-42");
-		await user.type(within(dialog).getByLabelText(/^Nango connection/), connection);
+		await user.paste("Acme production");
+		await user.click(within(dialog).getByLabelText(/^Account ID/));
+		await user.paste("acct-42");
+		await user.click(within(dialog).getByLabelText(/^Nango connection/));
+		await user.paste(connection);
 		await user.click(within(dialog).getByRole("button", { name: "Save integration" }));
 
 		const detail = await screen.findByRole("dialog", { name: "Acme production" });

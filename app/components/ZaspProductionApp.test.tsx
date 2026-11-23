@@ -47,7 +47,7 @@ describe("production scoped activity navigation", () => {
     expect(document.activeElement).toHaveAttribute("id", "calibration-exports");
     expect(screen.getByRole("button", { name: "Verify identity to export" })).toBeVisible();
   });
-  it("routes a generic audit compliance selector to typed compliance detail, including reload", async () => {
+  it("keeps the scoped compliance detail when skipping navigation and reloading", async () => {
     window.history.replaceState({}, "", `/compliance/evidence?source_kind=administration&source_id=audit:42&source_version=1&organization_id=${organization}&workspace_id=${workspace}&environment_id=${environment}`);
     const reads: string[] = [];
     vi.stubGlobal("fetch", async (request: Request) => {
@@ -60,6 +60,14 @@ describe("production scoped activity navigation", () => {
     const view = render(<ZaspProductionApp />);
     expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
     expect(screen.getByText(/membership.updated/)).toBeVisible();
+    const detailURL = window.location.href;
+    const main = screen.getByRole("main");
+    main.scrollTop = 320;
+    screen.getByRole("link", { name: "Skip to content" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(main).toHaveFocus();
+    expect(main.scrollTop).toBe(0);
+    expect(window.location.href).toBe(detailURL);
     expect(reads.some(path => path.includes("security-agent") || path === "/api/v1/session/scope")).toBe(false);
     view.unmount(); render(<ZaspProductionApp />);
     expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();

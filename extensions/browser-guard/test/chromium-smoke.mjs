@@ -73,17 +73,26 @@ try {
     assert.equal(result.exceptionDetails, undefined);
     return result.result.value;
   }
-  if (fixtureUI) {
+  if (!managedProfile) {
     // Exercise the popup DOM and script with synthetic local data. No
     // attempt is made to install an extension or change browser management.
     const data = {policy:{status:"enabled",retentionDays:7,origins:["https://claude.ai"]},uploads:{status:"active",count:1},observations:[{day:"2026-01-01",origin:"https://claude.ai"}]};
+    const css = await readFile(join(extension, "status.css"), "utf8");
     const page = (await readFile(join(extension, "status.html"), "utf8"))
-      .replace('<script src="status.js"></script>', "").replace('<link rel="stylesheet" href="status.css">', "");
+      .replace('<script src="status.js"></script>', "").replace('<link rel="stylesheet" href="status.css">', () => `<style>${css}</style>`);
     const script = await readFile(join(extension,"status.js"),"utf8");
     const {frameTree} = await send("Page.getFrameTree", {}, sessionId);
+    await send("Emulation.setDeviceMetricsOverride", {width:320,height:600,deviceScaleFactor:1,mobile:false}, sessionId);
     await send("Page.setDocumentContent", {frameId:frameTree.frame.id, html:page}, sessionId);
-    await evaluate("globalThis.chrome ??= {}; chrome.runtime = {sendMessage:async () => (" +
-      JSON.stringify(data) + ")};\n" + script);
+    await evaluate(script);
+    await until(() => evaluate('document.querySelector("#status").textContent === "Local coverage unavailable."'));
+    assert.match(await evaluate('document.body.innerText'), /Open Zasp Browser Guard from your browser toolbar/);
+    assert.doesNotMatch(await evaluate('document.body.innerText'), /Upload controls|Enabled apps|Local app usage|Collection stays in this browser profile/);
+    assert.equal(await evaluate('document.querySelector("#retry").checkVisibility()'), false);
+    assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+    await evaluate('globalThis.chrome ??= {}; chrome.runtime = {sendMessage: async () => { throw Error("worker unavailable"); }}; readStatus()');
+    assert.equal(await evaluate('document.querySelector("#retry").checkVisibility()'), true);
+    await evaluate('chrome.runtime.sendMessage = async () => (' + JSON.stringify(data) + '); document.querySelector("#retry").click()');
     try {
       await until(async () => await evaluate('document.querySelector("#status")?.textContent') === "Local app usage collection enabled.");
     } catch (error) {
@@ -92,8 +101,11 @@ try {
     }
     assert.equal(await evaluate('document.querySelector("#observations").innerText'), "2026-01-01 · https://claude.ai");
     assert.match(await evaluate('document.querySelector("#uploads").innerText'), /^1 exact upload/);
-    console.log(version.product + ": real Chromium popup rendering with fixture data; extension APIs and enrollment outside this test");
-  } else if (managedProfile) {
+    assert.equal(await evaluate('document.querySelector("#retry").checkVisibility()'), false);
+    assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+    console.log(version.product + ": popup renders standalone guidance, worker recovery and local coverage at 320px");
+  }
+  if (managedProfile) {
     // The normal enterprise store installs the signed build. This mode only
     // reads the profile's actual managed storage, registered rules and popup.
     const url = "chrome-extension://" + managedID + "/status.html";
@@ -117,7 +129,7 @@ try {
     if (expected === "active") assert.equal(proof.valid,true);
     else assert.equal(proof.count,0);
     console.log(version.product+": signed managed profile acknowledged "+proof.count+" exact upload rules.");
-  } else {
+  } else if (!fixtureUI) {
     const loaded = await send("Extensions.loadUnpacked", { path: extension });
     await send("Page.navigate", {url:"chrome-extension://" + loaded.id + "/status.html"}, sessionId);
     const status = await until(async () =>

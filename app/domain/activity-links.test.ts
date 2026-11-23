@@ -32,6 +32,18 @@ describe("exact scoped activity links", () => {
     expect(parseActivityLink(link,{...scope,environmentID:id})).toEqual({state:"scope_mismatch"});
     expect(parseActivityLink(link + "&entity_id=" + id,scope)).toEqual({state:"invalid"});
   });
+  it("delegates only the four native Identity section links within a valid scope", () => {
+    const path = "/administration/identity-access";
+    for (const section of ["members", "roles", "provider", "groups"]) {
+      expect(parseActivityLink(path + "#identity-" + section, scope)).toEqual({ state: "none" });
+    }
+    for (const candidate of [path + "#unknown", path + "#identity-%72oles", path + "#identity-roles?x=1",
+      path + "?" + query + "#identity-members", "/policies#identity-groups"]) {
+      expect(parseActivityLink(candidate, scope)).toEqual({ state: "invalid" });
+    }
+    expect(parseActivityLink(path + "#identity-roles", { ...scope, environmentID: "" })).toEqual({ state: "invalid" });
+  });
+
   it("delegates the canonical Sensors device link and rejects mixed and malformed selectors", () => {
     const base = "/integrations/sensors?";
     expect(parseActivityLink(base + "device=" + id, scope)).toEqual({state: "none"});

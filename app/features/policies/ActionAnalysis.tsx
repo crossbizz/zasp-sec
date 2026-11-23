@@ -206,7 +206,7 @@ export function ActionAnalysis({
     }
   };
   return (
-    <section aria-label="Workload action analysis">
+    <section className="policy-stack policy-analysis" aria-label="Workload action analysis">
       <h3>Workload action analysis</h3>
       <p>
         Zasp analyzes admitted operations for agent-bound SDK credentials. Data classification and destination come from
@@ -225,13 +225,15 @@ export function ActionAnalysis({
             days: {current.analyzed} analyzed, {current.pending} pending, {current.unknown_destination} with unknown
             destination.
           </p>
-          <fieldset disabled={disabled || busy || !!attempt || !canManage || query.status !== "success"}>
+          <fieldset className="policy-section" disabled={disabled || busy || !!attempt || !canManage || query.status !== "success"}>
             <legend>Declared workload use</legend>
-            <label>
+            <div className="policy-stack">
+            <label className="policy-choice">
               <input type="checkbox" checked={values.classifier} onChange={(e) => change({ classifier: e.target.checked })} />
-              Enable draft intent recommendations for this agent
+              <span>Enable draft intent recommendations for this agent</span>
             </label>
             <p>When your organization and environment permit private model review, a qualified model receives the destination category and five action flags. Reviewers decide how to use its recommendations.</p>
+            <div className="policy-fields">
             <div role="group" aria-label="Operation settings" tabIndex={-1} ref={node => { settingGroups.current.review_purpose = node; }}>
               <Field
                 multiline
@@ -249,9 +251,10 @@ export function ActionAnalysis({
                 onChange={(e) => change({ classes: e.target.value })}
               />
             </div>
-            <fieldset tabIndex={-1} ref={node => { settingGroups.current.review_destination = node; }}>
+            </div>
+            <fieldset className="policy-destinations" tabIndex={-1} ref={node => { settingGroups.current.review_destination = node; }}>
               <legend>Allowed reported destinations</legend>
-              {destinations.map((d) => (
+              <div className="policy-choices">{destinations.map((d) => (
                 <label key={d}>
                   <input
                     type="checkbox"
@@ -260,9 +263,9 @@ export function ActionAnalysis({
                       change({ dest: e.target.checked ? [...values.dest, d] : values.dest.filter((x) => x !== d) })
                     }
                   />
-                  {d.replace("_", " ")}
+                  <span>{d.replace("_", " ")}</span>
                 </label>
-              ))}
+              ))}</div>
             </fieldset>
             <div role="group" aria-label="Sequence settings" tabIndex={-1} ref={node => { settingGroups.current.review_sequence = node; }}>
               <Field
@@ -272,6 +275,7 @@ export function ActionAnalysis({
                 value={values.transitions}
                 onChange={(e) => change({ transitions: e.target.value })}
               />
+            </div>
             </div>
           </fieldset>
           {canManage && (

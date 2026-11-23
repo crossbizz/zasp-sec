@@ -33,6 +33,7 @@ export default function RootLayout({
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body>
         {children}
+        <ThemeControl />
       </body>
     </html>
   );

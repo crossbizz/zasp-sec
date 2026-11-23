@@ -12,6 +12,7 @@ import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import { TicketCohort } from "./TicketCohort";
 import { EndpointPolicyCohort } from "./EndpointPolicyCohort";
 import { DeviceFleet } from "./DeviceFleet";
+import "../managed-device-layout.css";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
 
@@ -43,10 +44,35 @@ function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenti
   const scope = session?.status === "authenticated" ? [session.organizationID, session.workspaceID, session.environmentID].join("/") : undefined;
   const fleet = useMemo(() => createFleetAPI(client), [client]);
   const api = useMemo(() => createSensorsAPI(client), [client]);
-  return <SectionTabs active={section} onChange={setSection} sections={[
-    { id:"sensors", label:"Sensors", content:<ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} /> },
-    { id:"devices", label:"Devices", content:section==="devices" && <><DeviceFleet key={JSON.stringify([queryScopeKey,queryGeneration])} api={fleet} scope={scope} initialID={linkedDevice} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><TicketCohort key={"cohort"+JSON.stringify([queryScopeKey,queryGeneration])} canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate}/><EndpointPolicyCohort key={"pretool"+JSON.stringify([queryScopeKey,queryGeneration])} client={client} canManage={canManagePolicy} fresh={fresh} reauthenticate={onReauthenticate}/></> },
-  ]} />;
+  const scopeKey = JSON.stringify([queryScopeKey, queryGeneration]);
+  return (
+    <SectionTabs
+      active={section}
+      onChange={setSection}
+      sections={[
+        {
+          id: "sensors",
+          label: "Sensors",
+          content: <ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} />,
+        },
+        {
+          id: "devices",
+          label: "Devices",
+          content: section === "devices" && (
+            <div className="managed-device-space">
+              <PageHeader title="Managed devices" />
+              <DeviceFleet key={scopeKey} api={fleet} scope={scope} initialID={linkedDevice}
+                canWrite={canManagePolicy} fresh={fresh} onReauthenticate={onReauthenticate} />
+              <TicketCohort key={"cohort" + scopeKey} canWrite={canManagePolicy} fresh={fresh}
+                onReauthenticate={onReauthenticate} />
+              <EndpointPolicyCohort key={"pretool" + scopeKey} client={client} canManage={canManagePolicy}
+                fresh={fresh} reauthenticate={onReauthenticate} />
+            </div>
+          ),
+        },
+      ]}
+    />
+  );
 }
 
 export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }: { api: SensorsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
@@ -108,7 +134,16 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
     {feedback && <p role={feedback.role}>{feedback.message}</p>}
     <MetricGrid metrics={[{ label: "Sensors", value: sensors.length, tone: "brand" }, { label: "Active", value: active, tone: "success" }, { label: "Needs attention", value: attention, tone: attention > 0 ? "warning" : "success" }, { label: "Awaiting heartbeat", value: sensors.filter((item) => item.state === "pending").length }]} />
     <Card title="Authorized sensor coverage" action={loadState === "error" ? <Button onClick={() => void load()}>Retry</Button> : undefined}>
-      {loadState === "loading" ? <LoadingState label="Loading sensors…" /> : sensors.length === 0 ? <EmptyState title="No runtime sensors" description="Enroll a scoped Tetragon or OTLP sensor to begin runtime coverage." /> : <div className="connection-list">{sensors.map((sensor) => <button key={sensor.id} type="button" disabled={busy || detailLoading} aria-label={`Open ${sensor.name}`} onClick={() => void openSensor(sensor.id)}><strong>{sensor.name}</strong><span>{sensor.kind} · {sensor.mode.replace("_", " ")}</span><span>{sensor.state}</span></button>)}</div>}
+      {loadState === "loading" && <LoadingState label="Loading sensors…" />}
+      {loadState === "success" && sensors.length === 0 && <EmptyState title="No runtime sensors" description="Enroll a scoped Tetragon or OTLP sensor to begin runtime coverage." />}
+      {loadState !== "loading" && sensors.length > 0 && <div className="connection-list" aria-busy={detailLoading}>
+        {sensors.map(sensor => (
+          <button key={sensor.id} type="button" disabled={busy} aria-disabled={busy || detailLoading}
+            aria-label={`Open ${sensor.name}`} onClick={() => { if (!detailLoading) void openSensor(sensor.id); }}>
+            <strong>{sensor.name}</strong><span>{sensor.kind} · {sensor.mode.replace("_", " ")}</span><span>{sensor.state}</span>
+          </button>
+        ))}
+      </div>}
     </Card>
     <Modal open={enrolling} title="Enroll runtime sensor" onClose={closeEnrollment} closeDisabled={busy} footer={oneTime ? <Button onClick={closeEnrollment}>Done</Button> : <><Button disabled={busy} onClick={closeEnrollment}>Cancel</Button><Button variant="primary" disabled={busy || name.length < 1 || name.trim() !== name || pairingInvalid} onClick={create}>Create enrollment</Button></>}>
       {feedback && <p role={feedback.role}>{feedback.message}</p>}<div className="form-grid"><Field label="Sensor name" value={name} maxLength={128} disabled={busy || oneTime !== null} onChange={(event) => setName(event.target.value)} /><Select label="Sensor kind" value={kind} disabled={busy || oneTime !== null} onChange={(event) => { setKind(event.target.value as SensorInput["kind"]); setRuntimeSensorID(""); }}><option value="tetragon">Tetragon</option><option value="otlp">OTLP</option></Select><Select label="Collection mode" value={mode} disabled={busy || oneTime !== null} onChange={(event) => setMode(event.target.value as SensorMode)}><option value="metadata_only">Metadata only</option><option value="full">Full</option></Select>

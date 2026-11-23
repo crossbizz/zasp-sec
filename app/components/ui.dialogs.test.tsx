@@ -11,7 +11,11 @@ function ModalHarness({ closeDisabled = false }: { closeDisabled?: boolean }) {
 
 function DrawerHarness() {
   const [open, setOpen] = useState(false);
-  return <main data-testid="background"><button onClick={() => setOpen(true)}>Open drawer</button><Drawer open={open} title="Example drawer" onClose={() => setOpen(false)}><button>Drawer action</button></Drawer></main>;
+  return <main data-testid="background"><button onClick={() => setOpen(true)}>Open drawer</button><Drawer open={open} title="Example drawer" onClose={() => setOpen(false)}>
+    <button>Drawer action</button>
+    <div hidden><button>Inactive tab action</button></div>
+    <fieldset disabled><button>Unavailable action</button></fieldset>
+  </Drawer></main>;
 }
 
 function NestedHarness() {
@@ -69,6 +73,10 @@ describe("shared dialogs", () => {
     render(<DrawerHarness />);
     const invoker = screen.getByRole("button", { name: "Open drawer" });
     await user.click(invoker);
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "Drawer action" })).toHaveFocus();
+    await user.tab();
     expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "Example drawer" })).not.toBeInTheDocument();

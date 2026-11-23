@@ -5,13 +5,14 @@ import type { ComplianceControl, ComplianceDownloadFormat, ComplianceEvidence, C
 import type { ActivityScope } from "../../domain/activity-links";
 import { activityLink } from "../../domain/activity-links";
 import { complianceExportLink, complianceLink } from "../../domain/compliance-links";
-import { Badge, Button, Card, LoadingState, PageHeader } from "../../components/ui";
+import { Badge, Button, Card, LoadingState, PageHeader, Select } from "../../components/ui";
 import type { SessionsComplianceAPI } from "./SessionsComplianceView";
 import { complianceReadMode, createComplianceAPI } from "./compliance-api";
 import type { CatalogTarget } from "../../domain/coverage-links";
 import { FrameworkCoverage } from "./FrameworkCoverage";
 import { PilotEvidenceForm } from "./PilotEvidenceForm";
 import { Time } from "../../components/time";
+import "./evidence-layout.css";
 
 export type ComplianceBoundary = ActivityScope & { principalID: string; generation: number; permitted: boolean; fresh: boolean; isCurrent(): boolean; reauthenticate?(): void };
 export type ComplianceViewProps = { api: SessionsComplianceAPI | null; client?: APIClient; complianceBoundary?: ComplianceBoundary; selectedSource?: ComplianceEvidenceTarget; selectedExport?: string; selectedCatalog?: CatalogTarget; onNavigate?(path: string): void };
@@ -146,20 +147,35 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
     } catch (e) { if (current()) setExportError(message(e)); }
     finally { if (current()) setBusy(false); }
   }
-  if (!permitted) return <div className="page"><p role="alert">Access denied. Select an authorized scope and session.</p></div>;
   const header = <PageHeader title="Compliance evidence" description="Product evidence for review. Freshness and exports do not establish certification or control effectiveness." />;
+  if (!permitted) return <div className="page">{header}<p role="alert">Access denied. Select an authorized scope and session.</p></div>;
   const views = !selectedSource && client && boundary && <div className="page-actions" role="group" aria-label="Compliance views">
     <Button aria-pressed={!showCatalog} onClick={() => setShowCatalog(false)}>Evidence controls</Button>
     <Button aria-pressed={showCatalog} onClick={() => setShowCatalog(true)}>Framework coverage</Button>
   </div>;
   if (loading && !showCatalog) return <div className="page">{header}{views}<LoadingState label="Loading compliance evidence…" /></div>;
-if (selectedSource) return <div className="page">{header}<Button onClick={() => onNavigate ? onNavigate("/compliance/evidence") : window.location.assign("/compliance/evidence")}>Back to evidence</Button>{error && <p role="alert">{error}</p>}{detail && <section><h2>Evidence source</h2><p>{detail.record.target?.source_kind} · {detail.record.id} · version {detail.record.target?.source_version}</p><time dateTime={detail.record.at}>{detail.record.at}</time><p>{detail.freshness}</p><pre>{JSON.stringify(detail.record.metadata, null, 2)}</pre></section>}</div>;
+  if (selectedSource) return <div className="page">{header}
+    <div className="page-actions"><Button onClick={() => onNavigate ? onNavigate("/compliance/evidence") : window.location.assign("/compliance/evidence")}>Back to evidence</Button></div>
+    {error && <p role="alert">{error}</p>}
+    {detail && <Card className="evidence-source" title="Evidence source" action={<Badge tone={detail.freshness === "stale" ? "warning" : "success"}>{detail.freshness}</Badge>}>
+      <dl className="evidence-source-fields">
+        <div><dt>Source</dt><dd>{detail.record.target?.source_kind.replaceAll("_", " ")}</dd></div>
+        <div><dt>Source ID</dt><dd><code>{detail.record.id}</code></dd></div>
+        <div><dt>Version</dt><dd>{detail.record.target?.source_version}</dd></div>
+        <div><dt>Recorded</dt><dd><Time value={detail.record.at} /></dd></div>
+      </dl>
+      <h3>Recorded metadata</h3>
+      <pre>{JSON.stringify(detail.record.metadata, null, 2)}</pre>
+    </Card>}
+  </div>;
   const matches = controls.filter(c => !framework || frameworkID(c.framework) === framework);
   return <div className="page">{header}{views}{!showCatalog && error && <p role="alert">{error} <Button onClick={() => setRevision(v => v + 1)}>Retry evidence</Button></p>}
     {showCatalog && client && boundary ? <FrameworkCoverage client={client} boundary={boundary} initial={selectedCatalog}
       busy={busy} create={selector => void createJob(selector)} /> : <>
-    <label>Framework <select aria-label="Framework" value={framework} onChange={e => { setFramework(e.target.value as typeof framework); setControlID(""); }}><option value="">All frameworks</option>{complianceFrameworks.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-    <label>Control <select aria-label="Control" value={controlID} onChange={e => setControlID(e.target.value)}><option value="">All controls</option>{matches.map(c => <option key={c.id} value={c.id}>{c.finding_count === undefined ? c.name : `${c.id} · ${c.name}`}</option>)}</select></label>
+    <div className="form-grid framework-filters">
+      <Select label="Framework" value={framework} onChange={e => { setFramework(e.target.value as typeof framework); setControlID(""); }}><option value="">All frameworks</option>{complianceFrameworks.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</Select>
+      <Select label="Control" value={controlID} onChange={e => setControlID(e.target.value)}><option value="">All controls</option>{matches.map(c => <option key={c.id} value={c.id}>{c.finding_count === undefined ? c.name : `${c.id} · ${c.name}`}</option>)}</Select>
+    </div>
     <div className="dashboard-grid">{matches.filter(c => !controlID || c.id === controlID).map(control => {
       const rows = evidence.filter(e => e.control.id === control.id);
       if (control.finding_count !== undefined) {

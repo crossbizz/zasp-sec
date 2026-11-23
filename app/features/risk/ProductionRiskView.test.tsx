@@ -135,7 +135,9 @@ describe("production risk views", () => {
 		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Mark under review" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith(finding.id, "under_review", '"1"', expect.objectContaining({ idempotencyKey: expect.any(String) })));
-    await userEvent.type(screen.getByLabelText("Risk acceptance reason"), "Approved exception");
+    const reason = screen.getByRole("textbox", { name: "Risk acceptance reason" });
+    expect(reason).toHaveAttribute("maxlength", "512");
+    await userEvent.type(reason, "Approved exception");
     await userEvent.click(screen.getByRole("button", { name: "Accept risk" }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith(finding.id, "Approved exception", expect.any(String), expect.objectContaining({ idempotencyKey: expect.any(String) })));
   });

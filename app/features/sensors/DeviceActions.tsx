@@ -200,7 +200,7 @@ export function DeviceActions({ api, row, scope, fresh, reauthenticate, refresh,
       </div>
     );
   return (
-    <section aria-label={actionLabels[action]}>
+    <section className="managed-device-action-review" aria-label={actionLabels[action]}>
       <h3>{actionLabels[action]}</h3>
       {action === "publish" && (
         <>
@@ -261,25 +261,27 @@ export function DeviceActions({ api, row, scope, fresh, reauthenticate, refresh,
           reviewers.
         </p>
       )}
-      {fresh ? (
-        <Button
-          disabled={sending || (action === "publish" && !policy) || (action === "rotate" && !validRotation)}
-          onClick={() => void submit()}
-        >
-          {action === "publish"
-            ? policy
-              ? `Publish revision ${policy.revision}`
-              : "Publish revision"
-            : action === "rotate"
-              ? "Confirm credential rotation"
-              : "Confirm retirement"}
+      <div className="button-row">
+        {fresh ? (
+          <Button
+            disabled={sending || (action === "publish" && !policy) || (action === "rotate" && !validRotation)}
+            onClick={() => void submit()}
+          >
+            {action === "publish"
+              ? policy
+                ? `Publish revision ${policy.revision}`
+                : "Publish revision"
+              : action === "rotate"
+                ? "Confirm credential rotation"
+                : "Confirm retirement"}
+          </Button>
+        ) : (
+          <Button onClick={reauthenticate}>Reauthenticate</Button>
+        )}
+        <Button disabled={sending} onClick={() => start(null)}>
+          Cancel
         </Button>
-      ) : (
-        <Button onClick={reauthenticate}>Reauthenticate</Button>
-      )}{" "}
-      <Button disabled={sending} onClick={() => start(null)}>
-        Cancel
-      </Button>
+      </div>
     </section>
   );
 }

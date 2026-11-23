@@ -1,0 +1,119 @@
+.policies-page .policy-form-body,
+.policies-page .policy-stack {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+.policies-page .card > .policy-form-body {
+  margin: 16px;
+  container: policy-form / inline-size;
+}
+.policies-page .policy-form-body > .button,
+.policies-page .policy-stack > .button,
+.policies-page .policy-conditions > .button {
+  justify-self: start;
+  margin: 0;
+}
+.policies-page .policy-form-body > p,
+.policies-page .policy-stack > p,
+.policies-page .policy-conditions > p {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.policies-page .policy-fields,
+.policies-page .policy-condition {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  min-width: 0;
+}
+.policies-page .policy-fields--identity {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .8fr);
+}
+.policies-page .policy-section {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.policies-page .policy-section > legend {
+  padding: 0 6px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 500;
+}
+.policies-page .policy-conditions {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding-block: 14px;
+  border-block: 1px solid var(--border);
+}
+.policies-page .policy-conditions > p {
+  font-size: 13px;
+}
+.policies-page .policy-condition:has(> .button) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+}
+.policies-page .policy-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 4px 16px;
+}
+.policies-page .policy-choice,
+.policies-page .policy-choices > label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  min-height: 36px;
+  padding-block: 6px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.policies-page .policy-choice input,
+.policies-page .policy-choices input {
+  flex: none;
+  accent-color: var(--brand);
+}
+.policies-page .policy-result,
+.policies-page .policy-suggestions > li {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.policies-page .policy-suggestions > li > .button { justify-self: start; }
+.policies-page .policy-form-body .button-row { margin: 0; }
+.policies-page .policy-form-body > .button + .button { margin-left: 0; }
+.policies-page .policy-analysis h3 { font-size: 18px; font-weight: 500; }
+.policies-page .policy-destinations { min-width: 0; }
+.policies-page .policy-destinations .policy-choices {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+.policies-page .policy-suggestions { display: grid; gap: 12px; }
+.policies-page .policy-suggestion-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+@container policy-form (max-width: 52rem) {
+  .policies-page .policy-fields--identity { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container policy-form (max-width: 32rem) {
+  .policies-page .policy-fields,
+  .policies-page .policy-condition,
+  .policies-page .policy-condition:has(> .button) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .policies-page .policy-condition > .button { justify-self: start; }
+  .policies-page .policy-section { padding: 12px; }
+}
+
+@media (max-width: 760px) {
+  .policies-page .connection-list > button {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    overflow-wrap: anywhere;
+  }
+}

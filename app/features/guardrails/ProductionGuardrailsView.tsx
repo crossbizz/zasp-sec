@@ -81,6 +81,8 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
     }
   };
   const base = origin ?? (typeof window === "undefined" ? "https://<your Zasp address>" : window.location.origin);
+  const openAPIAccess = onNavigate && (!session || session.hasCapability("api-access.manage")) ? () => onNavigate("/administration/api-access") : undefined;
+  const openTools = onNavigate && (!session || session.hasCapability("inventory.read")) ? () => onNavigate("/inventory/tools") : undefined;
 
   return <div className="page guardrails">
     <PageHeader title="Guardrails" eyebrow="Protect" description="Manage gateway rules, review recorded decisions and calibrate optional model checks." />
@@ -116,14 +118,14 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
     {gatewayAPI && <div role="tabpanel" aria-label="Activity" hidden={section !== "activity"}><GatewayActivityCard api={gatewayAPI} /></div>}
     <div role="tabpanel" aria-label="Set up" hidden={section !== "setup"}>
     <ClaudeEnterpriseSetup
-      openAPIAccess={onNavigate && session?.hasCapability("api-access.manage") ? () => onNavigate("/administration/api-access") : undefined}
+      openAPIAccess={openAPIAccess}
       openPolicies={onNavigate && session?.hasCapability("policies.read") ? () => onNavigate("/policies") : undefined}
     />
-    {gatewayAPI && <HostedGatewaySetupCard origin={origin} onNavigate={onNavigate} />}
+    {gatewayAPI && <HostedGatewaySetupCard origin={origin} openAPIAccess={openAPIAccess} openTools={openTools} />}
     <Card title={<h2>Ask for a decision from your gateway</h2>}>
       <p>Nothing is installed in your runtime. A gateway you already run (for example a LiteLLM guardrail hook) sends the text going into a model or coming out of it, and acts on the answer: <code>allow</code>, <code>redact</code> (use the returned <code>redacted_text</code>) or <code>block</code>. The text is used for that request only; it is not stored. The audit record of a decision holds the decision, the matched rules, the size of the text and its SHA-256 digest.</p>
       <ol>
-        <li>Create an API token for the gateway under {onNavigate ? <Button onClick={() => onNavigate("/administration/api-access")}>API Access</Button> : "Administration, API Access"} with the use “Guardrail decisions only”. That token can ask for decisions and can read nothing.</li>
+        <li>Create an API token for the gateway under {openAPIAccess ? <Button onClick={openAPIAccess}>API Access</Button> : "Administration, API Access"} with the use “Guardrail decisions only”. That token can ask for decisions and can read nothing.</li>
         <li>Send each interaction:</li>
       </ol>
       <pre aria-label="Decision request example">{`curl -sS -X POST ${base}/api/v1/guardrails/decisions \\

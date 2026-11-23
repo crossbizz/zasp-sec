@@ -38,7 +38,8 @@ export function DeviceFleet(props: Props) {
     );
   return (
     <Card
-      title="Managed devices"
+      title={<h2>Device inventory</h2>}
+      className="managed-device-list"
       action={
         props.canWrite && (
           <Button onClick={() => (props.fresh ? setEnroll(true) : props.onReauthenticate())}>
@@ -62,32 +63,35 @@ export function DeviceFleet(props: Props) {
           {query.data.items.length === 0 ? (
             <p>No devices assigned on this page.</p>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Device</th>
-                  <th>Cohort</th>
-                  <th>Connection</th>
-                  <th>Policy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {query.data.items.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <Button onClick={() => setSelected(row.id)}>{row.id}</Button>
-                    </td>
-                    <td>{row.cohort}</td>
-                    <td>{row.connection.replace("_", " ")}</td>
-                    <td>
-                      {row.acknowledged
-                        ? `Acknowledged revision ${row.policy_revision}`
-                        : "No current acknowledgment"}
-                    </td>
+            <div className="table-scroll">
+              <table className="data-table managed-device-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">Cohort</th>
+                    <th scope="col">Connection</th>
+                    <th scope="col">Policy</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {query.data.items.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <Button onClick={() => setSelected(row.id)}>{row.id}</Button>
+                      </td>
+                      <td><span className="device-cell-label" aria-hidden="true">Cohort</span>{row.cohort}</td>
+                      <td><span className="device-cell-label" aria-hidden="true">Connection</span>{row.connection.replace("_", " ")}</td>
+                      <td>
+                        <span className="device-cell-label" aria-hidden="true">Policy</span>
+                        {row.acknowledged
+                          ? `Acknowledged revision ${row.policy_revision}`
+                          : "No current acknowledgment"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           {cursor && <Button onClick={() => setHistory((h) => h.slice(0, -1))}>Previous page</Button>}
           {query.data.next_after_id && (
@@ -145,7 +149,7 @@ function Enroll({ api, fresh, canWrite, onReauthenticate, done }: Props & { done
     /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(form.cohort) &&
     [form.device_public_key, form.policy_public_key].every((v) => /^[A-Za-z0-9+/]{43}=$/.test(v));
   return (
-    <Card title="Enroll pilot device">
+    <Card title={<h2>Enroll pilot device</h2>} className="managed-device-enroll">
       <p>
         Assign the public device and policy keys and the ID of a dedicated endpoint credential. The device
         reports health, applied revision, and scoped inventory metadata after check-in.
@@ -219,7 +223,8 @@ function DeviceDetail({
   const row = query.data;
   return (
     <Card
-      title="Device detail"
+      title={<h2>Device detail</h2>}
+      className="managed-device-detail"
       action={
         <Button disabled={busy} onClick={back}>
           All devices
@@ -234,7 +239,7 @@ function DeviceDetail({
       )}
       {row && (
         <>
-          <dl>
+          <dl className="managed-device-facts">
             <dt>Device</dt>
             <dd>{row.id}</dd>
             <dt>Cohort</dt>
@@ -310,7 +315,7 @@ function DeviceDetail({
                         ? "Would block in enforce mode"
                         : "Continued"}
                 </summary>
-                <dl>
+                <dl className="managed-device-facts">
                   {receipt.adapter && <><dt>Adapter</dt><dd>{endpointAdapterLabels[receipt.adapter as keyof typeof endpointAdapterLabels]}</dd></>}
                   {receipt.tool_class && <><dt>Tool class</dt><dd>{receipt.tool_class}</dd></>}
                   {receipt.rule_id && <><dt>Rule</dt><dd>{receipt.rule_id}</dd></>}

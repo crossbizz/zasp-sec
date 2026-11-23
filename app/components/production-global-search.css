@@ -1,0 +1,11 @@
+.production-global-search .global-results {
+  max-height: min(32rem, calc(100dvh - var(--header-height) - 1rem));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.production-global-search .global-results button { color: var(--text); }
+.production-global-search .global-results button span,
+.search-asset-detail dd { min-width: 0; overflow-wrap: anywhere; }
+.search-asset-detail { margin: 0; }
+.search-asset-detail dt { color: var(--muted); font-size: .875rem; font-weight: 500; }
+.search-asset-detail dd { margin: 0 0 1rem; }

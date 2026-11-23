@@ -797,8 +797,14 @@ export function ProductionSecurityAgentsView({ environmentID, surface = "all", s
   const query = useAPIQuery(`workflow:security-agents:${environmentID}`, load, !selectedID);
   if (selectedID && queryScopeKey !== null && session.status === "authenticated") return <SecurityAgentsView key={`${queryScopeKey}/${queryGeneration}/${selectedID}`} api={api} initialRunID={surface === "all" ? selectedID : undefined} initialApprovalID={surface === "approvals" ? selectedID : undefined} surface={surface} onReauthenticate={session.reauthenticate} canReadTests={session.hasCapability("red-team.read")} canReadRuns={queryScopeKey !== null && session.hasCapability("security-agents.read")} catalogAvailable={catalogAvailable} autoLoad={false} environmentID={environmentID} canWrite={session.hasCapability("security-agents.write")} fresh={session.isFreshAuthenticated} activityScope={session} activityPermissions={activityPermissions} onNavigate={onNavigate} />;
   if (query.status === "loading" || query.status === "idle") return <LoadingState label="Loading Security Agents…" />;
-  if (query.status === "forbidden") return <p role="alert">You are not authorized to view Security Agents.</p>;
-  if (query.status === "error") return <p role="alert">Security Agent definitions are unavailable. <Button onClick={() => void query.retry()}>Retry</Button></p>;
+  if (query.status === "forbidden" || query.status === "error") {
+    const title = surface === "approvals" ? "Security Agent approvals" : "Security agents";
+    return <div className="page">
+      <PageHeader title={title} />
+      {query.status === "forbidden" ? <p role="alert">You do not have access to this page in the selected Environment.</p> :
+        <p role="alert">{title} could not be loaded. <Button onClick={() => void query.retry()}>Retry</Button></p>}
+    </div>;
+  }
   if (!query.data) return null;
   return <SecurityAgentsView tabbed key={`${queryScopeKey}/${queryGeneration}/${surface}`} api={api} initialSnapshot={query.data} catalogAvailable={catalogAvailable} autoLoad={false} environmentID={environmentID} canWrite={session.hasCapability("security-agents.write")} canReadTests={session.hasCapability("red-team.read")} canReadRuns={queryScopeKey !== null && session.hasCapability("security-agents.read")} canManageControls={canManageControls} canApproveIrreversible={canManageControls} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} surface={surface} activityScope={session.status === "authenticated" ? session : undefined} activityPermissions={activityPermissions} onNavigate={onNavigate} />;
 }

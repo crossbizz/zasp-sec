@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Button, Card, Field, Select } from "../../components/ui";
 import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import type { APIClient } from "../../../apps/web/api/client";
 import type { ComplianceExportInput } from "../../../apps/web/api/generated";
@@ -55,60 +56,56 @@ export function PilotEvidenceForm({ client, fresh, busy, create, environmentID, 
   }, [fleet, page, open, scopeMismatch]);
   const selected = pilotSelection(scope, cohort, device, session);
   if (scopeMismatch) return <p role="alert">The export link belongs to a different Environment. Switch to the requested Environment before opening the link.</p>;
-  if (!open) return <button type="button" onClick={() => setOpen(true)}>Export managed pilot evidence</button>;
+  if (!open) return <div className="page-actions"><Button onClick={() => setOpen(true)}>Export managed pilot evidence</Button></div>;
   return (
-    <form
-      aria-label="Managed pilot evidence"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (selected && fresh && !busy) create(selected);
-      }}
-    >
-      <h3>Managed pilot evidence</h3>
-      <p>Capture registered devices, policy acknowledgments, endpoint decisions and installed digests. The report labels missing coverage and independent verification.</p>
-      <fieldset disabled={busy}>
-        <label>
-          Report scope
-          <select value={scope} onChange={(event) => setScope(event.target.value as PilotScope)}>
+    <Card title="Managed pilot evidence">
+      <form className="pilot-evidence-form"
+        aria-label="Managed pilot evidence"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (selected && fresh && !busy) create(selected);
+        }}
+      >
+        <p>Capture registered devices, policy acknowledgments, endpoint decisions and installed digests. The report labels missing coverage and independent verification.</p>
+        <fieldset disabled={busy}>
+          <Select label="Report scope" value={scope} onChange={(event) => setScope(event.target.value as PilotScope)}>
             <option value="cohort">Pilot cohort</option>
             <option value="device">One device</option>
             <option value="session">One device-bound session</option>
-          </select>
-        </label>
-        {scope === "cohort" ? (
-          <label>Cohort <input list="pilot-cohorts" value={cohort} onChange={(event) => setCohort(event.target.value)} /></label>
-        ) : (
-          <label>Device ID <input list="pilot-devices" value={device} onChange={(event) => setDevice(event.target.value)} /></label>
-        )}
-        <datalist id="pilot-cohorts">
-          {[...new Set(devices.map((row) => row.cohort))].map((name) => <option key={name} value={name} />)}
-        </datalist>
-        <datalist id="pilot-devices">
-          {devices.map((row) => <option key={row.id} value={row.id}>{row.cohort}</option>)}
-        </datalist>
-        {scope === "session" && (
-          <label>Session reference from a device observation
-            <input spellCheck={false} value={session} onChange={(event) => setSession(event.target.value)} />
-          </label>
-        )}
-        {scope === "cohort" && cohort && !cohortLabel.test(cohort) && <p>Use the registered cohort label, up to 64 letters, digits, dots, underscores or hyphens.</p>}
-        {scope !== "cohort" && device && !deviceID.test(device) && <p>Enter the complete device ID from the selected Environment.</p>}
-        {scope === "session" && session && !sessionRef.test(session) && <p>Copy the 64-character reference from the device observation.</p>}
-        {listState === "pending" && <p role="status">Loading registered devices…</p>}
-        {listState === "unavailable" && <p role="status">Device suggestions unavailable. Enter a known selector for the current Environment.</p>}
-        {next && devices.length < 250 && (
-          <button type="button" onClick={() => { setPage(next); setNext(null); setListState("pending"); }}>
-            Load more device suggestions
-          </button>
-        )}
-        {!fresh && (
-          <p>
-            Renew your browser session to request a retained report.{" "}
-            {reauthenticate && <button type="button" onClick={reauthenticate}>Renew session</button>}
-          </p>
-        )}
-        <button type="submit" disabled={!selected || !fresh || busy}>Request retained pilot report</button>
-      </fieldset>
-    </form>
+          </Select>
+          {scope === "cohort" ? (
+            <Field label="Cohort" list="pilot-cohorts" value={cohort} onChange={(event) => setCohort(event.target.value)} />
+          ) : (
+            <Field label="Device ID" list="pilot-devices" value={device} onChange={(event) => setDevice(event.target.value)} />
+          )}
+          <datalist id="pilot-cohorts">
+            {[...new Set(devices.map((row) => row.cohort))].map((name) => <option key={name} value={name} />)}
+          </datalist>
+          <datalist id="pilot-devices">
+            {devices.map((row) => <option key={row.id} value={row.id}>{row.cohort}</option>)}
+          </datalist>
+          {scope === "session" && (
+            <Field label="Session reference from a device observation" spellCheck={false} value={session} onChange={(event) => setSession(event.target.value)} />
+          )}
+          {scope === "cohort" && cohort && !cohortLabel.test(cohort) && <p>Use the registered cohort label, up to 64 letters, digits, dots, underscores or hyphens.</p>}
+          {scope !== "cohort" && device && !deviceID.test(device) && <p>Enter the complete device ID from the selected Environment.</p>}
+          {scope === "session" && session && !sessionRef.test(session) && <p>Copy the 64-character reference from the device observation.</p>}
+          {listState === "pending" && <p role="status">Loading registered devices…</p>}
+          {listState === "unavailable" && <p role="status">Device suggestions unavailable. Enter a known selector for the current Environment.</p>}
+          {next && devices.length < 250 && (
+            <Button type="button" onClick={() => { setPage(next); setNext(null); setListState("pending"); }}>
+              Load more device suggestions
+            </Button>
+          )}
+          {!fresh && (
+            <p>
+              Renew your browser session to request a retained report.{" "}
+              {reauthenticate && <Button type="button" onClick={reauthenticate}>Renew session</Button>}
+            </p>
+          )}
+          <Button variant="primary" type="submit" disabled={!selected || !fresh || busy}>Request retained pilot report</Button>
+        </fieldset>
+      </form>
+    </Card>
   );
 }

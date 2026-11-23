@@ -26,6 +26,9 @@ const routes: Record<ActivityKind, string> = {
 const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\s\S])/;
 const draftID = /^policy-(?:mcp|studio)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\s\S])/;
 const keys = ["entity_id", "organization_id", "workspace_id", "environment_id"] as const;
+const identitySectionLocations = new Set(
+  ["members", "roles", "provider", "groups"].map(section => `/administration/identity-access#identity-${section}`),
+);
 const inventoryRoutes = new Set(["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"]);
 function validScope(scope: ActivityScope): boolean {
   return [scope.organizationID, scope.workspaceID, scope.environmentID].every(value => productID.test(value));
@@ -53,6 +56,7 @@ export function parseActivityLink(location: string, scope: ActivityScope & { pri
   if (auditExport.state === "selected") return { state: "none" };
   if (auditExport.state !== "none") return auditExport;
   if (location === calibrationLocation || location === calibrationExportLocation) return { state: "none" };
+  if (identitySectionLocations.has(location)) return { state: "none" };
   if (!/^\/(?:[a-z0-9/-]*)(?:\?[^?#]*)?$(?![\s\S])/.test(location) || location.startsWith("//") || location.includes("//")) return invalid;
   const separator = location.indexOf("?");
   if (separator < 0) return { state: "none" };

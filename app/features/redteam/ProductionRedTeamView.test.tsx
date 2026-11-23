@@ -295,7 +295,16 @@ describe("production red team view", () => {
   it("creates a bounded definition for an authoritative target", async () => {
     const createDefinition = vi.fn(api().createDefinition); view(api({ createDefinition })); const user = userEvent.setup();
     await screen.findByRole("button", { name: "Staging agent safety" }); await user.click(screen.getByRole("button", { name: "Create test" }));
-    await user.clear(screen.getByLabelText("Test name")); await user.type(screen.getByLabelText("Test name"), "Customer agent safety");
+    const name = screen.getByLabelText("Test name");
+    const save = screen.getByRole("button", { name: "Save test" });
+    await user.clear(name);
+    expect(save).toBeDisabled();
+    expect(screen.getByText("Enter a test name without leading or trailing spaces.")).toBeVisible();
+    await user.type(name, " Customer agent safety");
+    expect(save).toBeDisabled();
+    await user.clear(name);
+    await user.type(name, "Customer agent safety");
+    expect(save).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Save test" }));
     expect(createDefinition).toHaveBeenCalledWith(expect.objectContaining({ name: "Customer agent safety", target_id: targetID, target_kind: "agent_endpoint", categories: ["prompt_injection"], safety: { environment: "staging", credential_class: "read_only", expected_side_effects: ["bounded evaluation"] } }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^redteam_/) }), expect.any(AbortSignal));
   });

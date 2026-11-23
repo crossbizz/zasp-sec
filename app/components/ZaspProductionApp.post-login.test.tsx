@@ -11,6 +11,30 @@ const bootstrap=(capabilities:string[], active=environment)=>({principal:{id:pri
 const emptyPage=()=>json({items:[],page_info:{has_more:false,next_cursor:null}});
 afterEach(()=>{vi.unstubAllGlobals();window.history.replaceState({},"","/");});
 
+it.each([
+  ["/protect/approvals", "Security Agent approvals"],
+  ["/protect/security-agents", "Security agents"],
+])("keeps the %s page identifiable during a failed read and retry", async (route, title) => {
+  window.history.replaceState({}, "", route);
+  let available = false;
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/v1/session/bootstrap") return json(bootstrap(["security-agents.read"]));
+    if (path === "/api/v1/security-agents") return emptyPage();
+    if (path === "/api/v1/security-agent-approvals" && !available) {
+      return json({ code: "unavailable", message: "Try again", correlation_id: principal, retryable: true }, 503);
+    }
+    return json({ items: [] });
+  });
+  render(<ZaspProductionApp />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(`${title} could not be loaded`);
+  expect(screen.getByRole("heading", { level: 1, name: title })).toBeVisible();
+  available = true;
+  await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  expect(await screen.findByRole("heading", { level: 1, name: title })).toBeVisible();
+});
+
 it.each([false,true])("keeps a permitted Security Agent visible with catalog authority %s",async(catalogAllowed)=>{
   window.history.replaceState({},"","/protect/security-agents");
   const catalogReads:string[]=[];
@@ -130,4 +154,62 @@ it.each([[true,false],[false,true],[true,true]] as const)("loads only authorized
   if(environmentAllowed){expect(within(screen.getByRole("combobox",{name:"Mapped role"})).getByRole("option",{name:"read only viewer"})).toBeVisible();expect(await screen.findByRole("button",{name:"Create workspace"})).toBeVisible();}
   expect(screen.queryByText("Identity data could not be loaded")).not.toBeInTheDocument();
   expect(forbidden).toEqual([]);
+});
+
+it("keeps Settings-only URLs, reloads, the brand and browser Back on permitted pages", async () => {
+  const user = userEvent.setup();
+  const first = "/administration/external-data-flows", second = "/administration/system-health";
+  const forbidden = "/violations?entity_id=" + principal;
+  const reads: string[] = [];
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const path = new URL(request.url).pathname;
+    reads.push(path);
+    if (path === "/api/v1/session/bootstrap") return json(bootstrap(["system.read"]));
+    if (path === "/api/v1/system/status") return json({security_plane_healthy:true, optional_degraded:false, fresh_at:"2026-08-19T00:00:00Z"});
+    return json({items:[]});
+  });
+  window.history.replaceState({}, "", forbidden);
+  const mounted = render(<ZaspProductionApp />);
+  const atFirst = async () => {
+    expect(await screen.findByRole("heading", {name:"External data flows"})).toBeVisible();
+    await waitFor(() => expect(window.location.pathname + window.location.search).toBe(first));
+  };
+  await atFirst();
+  mounted.unmount();
+  render(<ZaspProductionApp />);
+  await atFirst();
+  expect(screen.queryByRole("link", {name:"Overview"})).toBeNull();
+  await user.click(screen.getByRole("link", {name:"System Health"}));
+  await screen.findByRole("heading", {name:"System health"});
+  expect(window.location.pathname).toBe(second);
+  await user.click(screen.getByRole("button", {name:"Zasp · External Data Flows"}));
+  await atFirst();
+
+  // A history entry can outlive the permissions granted to its original user.
+  window.history.replaceState({}, "", forbidden);
+  await user.click(screen.getByRole("link", {name:"System Health"}));
+  await screen.findByRole("heading", {name:"System health"});
+  window.history.back();
+  await atFirst();
+  expect(reads).not.toContain("/api/v1/findings");
+  expect(reads).not.toContain("/api/v1/findings/" + principal);
+  expect(reads).not.toContain("/api/v1/home/summary");
+});
+
+it.each([
+  {capabilities:["policies.read"], route:"/policies", heading:"Policies"},
+  {capabilities:[], route:"/", heading:"No product capabilities"},
+])("resolves a stale inventory URL with capabilities $capabilities", async ({capabilities, route, heading}) => {
+  const reads: string[] = [];
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const path = new URL(request.url).pathname;
+    reads.push(path);
+    if (path === "/api/v1/session/bootstrap") return json(bootstrap(capabilities));
+    return emptyPage();
+  });
+  window.history.replaceState({}, "", "/discovery/assets?inventory=" + principal + "#stale");
+  render(<ZaspProductionApp />);
+  expect(await screen.findByRole("heading", {name:heading, level:1})).toBeVisible();
+  await waitFor(() => expect(window.location.pathname + window.location.search + window.location.hash).toBe(route));
+  expect(reads.some(path => path === "/api/v1/agents" || path.startsWith("/api/v1/agents/") || path === "/api/v1/home/summary")).toBe(false);
 });

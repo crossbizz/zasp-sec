@@ -8,7 +8,8 @@ import {
   type APIClient,
 } from "../../../apps/web/api/client";
 import type { WorkloadContainment, WorkloadCredentialBinding } from "../../../apps/web/api/generated";
-import { Button, Card, Field } from "../../components/ui";
+import "../workload-layout.css";
+import { Button, Card, Field, Select } from "../../components/ui";
 import { WorkloadDelegations } from "./WorkloadDelegations";
 import { Time } from "../../components/time";
 
@@ -90,19 +91,18 @@ export function WorkloadControls({ tokens, ...context }: Context & { tokens: Tok
   useEffect(() => subscribeToExpiry(nextExpiry, setNow), [nextExpiry, now]);
   if (!active.length) return null;
   return (
-    <Card title="Workload sessions">
-      <label>
-        Workload credential{" "}
-        <select value={tokenID} onChange={(e) => select(e.target.value)}>
+    <Card title={<h2>Workload sessions</h2>} className="workload-controls">
+      <div className="workload-body">
+        <Select label="Workload credential" value={tokenID} onChange={(e) => select(e.target.value)}>
           <option value="">Choose a workload credential</option>
           {active.map((t) => (
             <option value={t.id} key={t.id}>
               {t.name}
             </option>
           ))}
-        </select>
-      </label>
-      {active.some((t) => t.id === tokenID) && <Binding key={tokenID} id={tokenID} {...context} />}
+        </Select>
+        {active.some((t) => t.id === tokenID) && <Binding key={tokenID} id={tokenID} {...context} />}
+      </div>
     </Card>
   );
 }
@@ -144,7 +144,7 @@ function Binding({ id, client, fresh, canContain }: Context & { id: string }) {
     }
   }
   return (
-    <div>
+    <div className="workload-binding">
       {binding === undefined && !message && <p role="status">Checking binding…</p>}
       {message && (
         <p role="alert">
@@ -167,9 +167,10 @@ function Binding({ id, client, fresh, canContain }: Context & { id: string }) {
       )}
       {binding && (
         <>
-          <p>
-            Bound agent <code>{binding.agent_id}</code>. Governed session <code>{binding.session_id}</code>.
-          </p>
+          <dl className="workload-facts" aria-label="Credential binding">
+            <div><dt>Bound agent</dt><dd><code>{binding.agent_id}</code></dd></div>
+            <div><dt>Governed session</dt><dd><code>{binding.session_id}</code></dd></div>
+          </dl>
           <WorkloadDelegations client={client} credential={id} agent={binding.agent_id} />
           {canContain && (
             <Containment client={client} token={id} session={binding.session_id} fresh={fresh} />
@@ -229,38 +230,41 @@ function Containment({
     }
   }
   return (
-    <fieldset disabled={busy}>
+    <fieldset className="workload-containment" disabled={busy}>
       <legend>Approved session containment</legend>
-      <Field
-        label="Security Agent run ID"
-        value={run}
-        onChange={(e) => {
-          setRun(e.target.value);
-          setResult(undefined);
-          setStep("");
-          setMessage("");
-        }}
-      />
-      <Button disabled={!identifier(run)} onClick={() => void act("check")}>
-        Check containment
-      </Button>
-      <Field label="Approved isolation step ID" value={step} onChange={(e) => setStep(e.target.value)} />
-      <Button
-        disabled={!fresh || !identifier(run) || !identifier(step) || !!result}
-        onClick={() => void act("authorize")}
-      >
-        Apply approved isolation
-      </Button>
+      <div className="workload-form-row">
+        <Field
+          label="Security Agent run ID"
+          value={run}
+          onChange={(e) => {
+            setRun(e.target.value);
+            setResult(undefined);
+            setStep("");
+            setMessage("");
+          }}
+        />
+        <Button disabled={!identifier(run)} onClick={() => void act("check")}>
+          Check containment
+        </Button>
+      </div>
+      <div className="workload-form-row">
+        <Field label="Approved isolation step ID" value={step} onChange={(e) => setStep(e.target.value)} />
+        <Button
+          disabled={!fresh || !identifier(run) || !identifier(step) || !!result}
+          onClick={() => void act("authorize")}
+        >
+          Apply approved isolation
+        </Button>
+      </div>
       {message && <p role="status">{message}</p>}
       {result && (
         <>
-          <p>
-            State {result.state.replaceAll("_", " ")}. Expires <Time value={result.expires_at} />.
-          </p>
-          <p>
-            Block receipt {result.block_receipt_id ?? "pending"} · Release receipt{" "}
-            {result.release_receipt_id ?? "pending"}
-          </p>
+          <dl className="workload-facts" aria-label="Containment readback">
+            <div><dt>State</dt><dd>{result.state.replaceAll("_", " ")}</dd></div>
+            <div><dt>Expires</dt><dd><Time value={result.expires_at} /></dd></div>
+            <div><dt>Block receipt</dt><dd>{result.block_receipt_id ? <code>{result.block_receipt_id}</code> : "pending"}</dd></div>
+            <div><dt>Release receipt</dt><dd>{result.release_receipt_id ? <code>{result.release_receipt_id}</code> : "pending"}</dd></div>
+          </dl>
           <Button
             disabled={!fresh || result.state === "released" || result.state === "expired"}
             onClick={() => void act("release")}
