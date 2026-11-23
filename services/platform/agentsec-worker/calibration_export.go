@@ -11,6 +11,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
+const calibrationExportClaimSQL = `SELECT public.zasp_calibration_export_worker(NULL,NULL,NULL,NULL,$1,$2)`
+
 // Tier: 4 | Purpose: frozen calibration evidence export.
 // Model: none. A lease exposes only preselected redacted fields.
 // Authority: the compliance export identity writes a scoped, immutable object.
@@ -18,7 +20,7 @@ import (
 func (p *complianceExportProcessor) exportCalibration(ctx context.Context) error {
 	bounded, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
-	raw, err := p.authority.query(bounded, `SELECT public.zasp_calibration_export_worker(NULL,NULL,NULL,NULL,$1,$2)`, 2<<20)
+	raw, err := p.authority.query(bounded, calibrationExportClaimSQL, 2<<20)
 	if err != nil || string(raw) == "null" {
 		return err
 	}
