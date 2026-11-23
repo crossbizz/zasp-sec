@@ -42,6 +42,12 @@ screens:
   - id: recovery_operations
     label: Recovery Operations
     actions:
+      - id: put_recovery_intent
+        operation_id: putRecoveryIntent
+        availability: available
+      - id: get_recovery_intent
+        operation_id: getRecoveryIntent
+        availability: available
       - id: start_recovery_backup
         operation_id: startRecoveryBackup
         availability: available
@@ -234,6 +240,9 @@ screens:
       - id: delete_integration
         operation_id: deleteIntegration
         availability: available
+      - id: get_saa_ssign_in_attempt
+        operation_id: getSaaSSignInAttempt
+        availability: available
       - id: authorize_integration
         operation_id: authorizeIntegration
         availability: available
@@ -354,6 +363,18 @@ screens:
   - id: inventory
     label: Inventory
     actions:
+      - id: list_workforce_inventory
+        operation_id: listWorkforceInventory
+        availability: available
+      - id: verify_agent_discovery
+        operation_id: verifyAgentDiscovery
+        availability: available
+      - id: draft_agent_purpose
+        operation_id: draftAgentPurpose
+        availability: available
+      - id: get_agent_posture_summary
+        operation_id: getAgentPostureSummary
+        availability: available
       - id: view_agents
         operation_id: listAgents
         availability: available
@@ -401,6 +422,15 @@ screens:
         availability: available
       - id: read_addon_ci_origin
         operation_id: getAddonCIOrigin
+        availability: available
+      - id: deep_scan_addon_version
+        operation_id: deepScanAddonVersion
+        availability: available
+      - id: get_addon_deployment_approval
+        operation_id: getAddonDeploymentApproval
+        availability: available
+      - id: review_addon_deployment_approval
+        operation_id: reviewAddonDeploymentApproval
         availability: available
       - id: view_addon_versions
         operation_id: listAddonVersions
@@ -576,6 +606,27 @@ screens:
       - id: view_session
         operation_id: getSession
         availability: available
+      - id: get_analyst_threads
+        operation_id: getAnalystThreads
+        availability: available
+      - id: create_analyst_thread
+        operation_id: createAnalystThread
+        availability: available
+      - id: get_studio_remediation_advisory
+        operation_id: getStudioRemediationAdvisory
+        availability: available
+      - id: request_studio_remediation_advisory
+        operation_id: requestStudioRemediationAdvisory
+        availability: available
+      - id: get_analyst_thread
+        operation_id: getAnalystThread
+        availability: available
+      - id: stream_analyst_thread
+        operation_id: streamAnalystThread
+        availability: available
+      - id: get_session_intent
+        operation_id: getSessionIntent
+        availability: available
       - id: view_session_events
         operation_id: listSessionEvents
         availability: available
@@ -599,6 +650,18 @@ screens:
         availability: available
       - id: set_security_agent_execution_control
         operation_id: setSecurityAgentExecutionControl
+        availability: available
+      - id: list_custom_security_agents
+        operation_id: listCustomSecurityAgents
+        availability: available
+      - id: create_custom_security_agent
+        operation_id: createCustomSecurityAgent
+        availability: available
+      - id: get_custom_security_agent
+        operation_id: getCustomSecurityAgent
+        availability: available
+      - id: update_custom_security_agent
+        operation_id: updateCustomSecurityAgent
         availability: available
       - id: view_security_agents
         operation_id: listSecurityAgents
@@ -629,6 +692,12 @@ screens:
         availability: available
       - id: view_security_agent_runs
         operation_id: listSecurityAgentRuns
+        availability: available
+      - id: get_security_case_verification
+        operation_id: getSecurityCaseVerification
+        availability: available
+      - id: verify_security_case
+        operation_id: verifySecurityCase
         availability: available
       - id: view_security_agent_run
         operation_id: getSecurityAgentRun
@@ -720,6 +789,9 @@ screens:
       - id: release_bound_containment
         operation_id: releaseWorkloadContainment
         availability: available
+      - id: get_workload_delegations
+        operation_id: getWorkloadDelegations
+        availability: available
       - id: bind_workload_credential
         operation_id: bindWorkloadCredential
         availability: available
@@ -738,6 +810,30 @@ screens:
       - id: decide_guardrail_interaction
         operation_id: createGuardrailDecision
         availability: api_available
+      - id: create_calibration_export
+        operation_id: createCalibrationExport
+        availability: available
+      - id: get_calibration_export
+        operation_id: getCalibrationExport
+        availability: available
+      - id: create_calibration_download_grant
+        operation_id: createCalibrationDownloadGrant
+        availability: available
+      - id: download_calibration_export
+        operation_id: downloadCalibrationExport
+        availability: available
+      - id: get_calibration_metrics
+        operation_id: getCalibrationMetrics
+        availability: available
+      - id: submit_analyst_feedback
+        operation_id: submitAnalystFeedback
+        availability: available
+      - id: get_rule_suppression_mode
+        operation_id: getRuleSuppressionMode
+        availability: available
+      - id: put_rule_suppression_mode
+        operation_id: putRuleSuppressionMode
+        availability: available
       - id: view_guardrail_policy
         operation_id: getGuardrailPolicy
         availability: available
@@ -753,6 +849,15 @@ screens:
       - id: view_gateway_activity
         operation_id: listGatewayActivity
         availability: available
+      - id: issue_runtime_delegation
+        operation_id: issueRuntimeDelegation
+        availability: api_available
+      - id: verify_runtime_delegation
+        operation_id: verifyRuntimeDelegation
+        availability: api_available
+      - id: call_zasp_mcp
+        operation_id: callZaspMCP
+        availability: api_available
       - id: call_mcp_gateway
         operation_id: callMCPGateway
         availability: api_available
@@ -771,6 +876,27 @@ screens:
   - id: data_controls
     label: Data Controls
     actions:
+      - id: get_organization_ai_controls
+        operation_id: getOrganizationAIControls
+        availability: available
+      - id: update_organization_ai_controls
+        operation_id: updateOrganizationAIControls
+        availability: available
+      - id: get_environment_ai_controls
+        operation_id: getEnvironmentAIControls
+        availability: available
+      - id: update_environment_ai_controls
+        operation_id: updateEnvironmentAIControls
+        availability: available
+      - id: run_model_qualification
+        operation_id: runModelQualification
+        availability: available
+      - id: get_model_qualification_run
+        operation_id: getModelQualificationRun
+        availability: available
+      - id: list_model_qualifications
+        operation_id: listModelQualifications
+        availability: available
       - id: view_data_controls
         operation_id: getDataControls
         availability: available

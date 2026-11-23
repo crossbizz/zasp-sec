@@ -143,6 +143,50 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/addon-versions/{id}/deep-scan": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Review reported add-on findings using the qualified model
+         * @description Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+         */
+        readonly post: operations["deepScanAddonVersion"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/addon-versions/{id}/deployment-approvals": {
+        readonly parameters: {
+            readonly query: {
+                readonly agent_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Read the review for the current agent permission context */
+        readonly get: operations["getAddonDeploymentApproval"];
+        readonly put?: never;
+        /** Record a deployment-specific add-on decision */
+        readonly post: operations["reviewAddonDeploymentApproval"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/addon-versions/{id}/installations": {
         readonly parameters: {
             readonly query?: never;
@@ -588,6 +632,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/discovery/verify": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Review repository discovery evidence using the qualified model
+         * @description Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+         */
+        readonly post: operations["verifyAgentDiscovery"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/evidence-pack": {
         readonly parameters: {
             readonly query?: never;
@@ -610,6 +676,25 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/posture-summary": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Read deployment evidence, approved purpose, reachable access and observed activity */
+        readonly get: operations["getAgentPostureSummary"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/purpose": {
         readonly parameters: {
             readonly query?: never;
@@ -624,6 +709,28 @@ export type paths = {
         /** Record the intended tool set for one agent */
         readonly put: operations["putAgentPurpose"];
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/purpose/draft": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Draft an agent purpose from scoped tool evidence
+         * @description Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+         */
+        readonly post: operations["draftAgentPurpose"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -720,6 +827,74 @@ export type paths = {
         readonly put?: never;
         /** Generate suggestions using scoped indexed runtime tool events */
         readonly post: operations["refreshAgentSuggestions"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/workforce": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List registered security agents and their locked purposes */
+        readonly get: operations["listWorkforceInventory"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/ai/qualifications": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List model qualifications for this environment */
+        readonly get: operations["listModelQualifications"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/ai/qualifications/run": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Request measurement of a registered model deployment */
+        readonly post: operations["runModelQualification"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/ai/qualifications/runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read a qualification job */
+        readonly get: operations["getModelQualificationRun"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -994,6 +1169,91 @@ export type paths = {
         readonly put?: never;
         /** Submit signed origin days or an empty profile heartbeat */
         readonly post: operations["recordBrowserOriginDays"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Queue a redacted calibration export */
+        readonly post: operations["createCalibrationExport"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read calibration export status */
+        readonly get: operations["getCalibrationExport"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports/{id}/download": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Download a frozen calibration snapshot */
+        readonly post: operations["downloadCalibrationExport"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/exports/{id}/download-grants": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Issue a single-use calibration download grant */
+        readonly post: operations["createCalibrationDownloadGrant"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/calibration/metrics": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read calibration metrics for the past 30 days */
+        readonly get: operations["getCalibrationMetrics"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1497,6 +1757,23 @@ export type paths = {
         readonly head?: never;
         /** Update an authorized Environment */
         readonly patch: operations["updateEnvironment"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/feedback": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Label an observed guardrail decision */
+        readonly post: operations["submitAnalystFeedback"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
         readonly trace?: never;
     };
     readonly "/api/v1/findings": {
@@ -2125,6 +2402,23 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/integrations/{id}/sign-in-attempts/{attemptId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the provider sign-in result for this browser session */
+        readonly get: operations["getSaaSSignInAttempt"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/integrations/{id}/sync": {
         readonly parameters: {
             readonly query?: never;
@@ -2303,6 +2597,24 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/organization/ai-controls": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the organization AI policy */
+        readonly get: operations["getOrganizationAIControls"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update the organization AI policy */
+        readonly patch: operations["updateOrganizationAIControls"];
+        readonly trace?: never;
+    };
     readonly "/api/v1/policies": {
         readonly parameters: {
             readonly query?: never;
@@ -2457,6 +2769,26 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/recovery/intents/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Read the current actor's saved backup or restore parameters */
+        readonly get: operations["getRecoveryIntent"];
+        /** Save immutable request parameters before starting a backup or restore */
+        readonly put: operations["putRecoveryIntent"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/recovery/restores": {
         readonly parameters: {
             readonly query?: never;
@@ -2489,6 +2821,24 @@ export type paths = {
         /** Get one tenant-scoped isolated restore rehearsal */
         readonly get: operations["getRecoveryRestore"];
         readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/rules/{ruleId}/suppression-mode": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the suppression mode and shadow evidence for a rule */
+        readonly get: operations["getRuleSuppressionMode"];
+        /** Change the suppression mode of a heuristic rule */
+        readonly put: operations["putRuleSuppressionMode"];
         readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
@@ -2530,6 +2880,40 @@ export type paths = {
          * @description The same authenticated workload reports its local observation. Set the idempotency key to the action ID followed by -outcome. Duplicate delivery preserves the initial observation.
          */
         readonly post: operations["recordWorkloadActionOutcome"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/runtime/delegations/issue": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Issue an attenuated task delegation */
+        readonly post: operations["issueRuntimeDelegation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/runtime/delegations/verify": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Verify a task delegation for an operation and resource */
+        readonly post: operations["verifyRuntimeDelegation"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2623,6 +3007,23 @@ export type paths = {
          * @description Requires fresh browser authentication.
          */
         readonly delete: operations["releaseWorkloadContainment"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/runtime/workload-bindings/{id}/delegations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the delegation receipts for a workload credential */
+        readonly get: operations["getWorkloadDelegations"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
         readonly patch?: never;
@@ -3142,6 +3543,130 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-agents/cases/{id}/verify": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read security and business-task evidence for a case */
+        readonly get: operations["getSecurityCaseVerification"];
+        readonly put?: never;
+        /** Verify a case against linked fixture receipts */
+        readonly post: operations["verifySecurityCase"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/chat/threads": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List your investigations of a session */
+        readonly get: operations["getAnalystThreads"];
+        readonly put?: never;
+        /** Start a session investigation */
+        readonly post: operations["createAnalystThread"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/chat/threads/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read an investigation and its evidence history */
+        readonly get: operations["getAnalystThread"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/chat/threads/{id}/advisory": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the review of a pending containment approval */
+        readonly get: operations["getStudioRemediationAdvisory"];
+        readonly put?: never;
+        /** Request a bounded private review of an existing containment approval */
+        readonly post: operations["requestStudioRemediationAdvisory"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/chat/threads/{id}/stream": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Ask a question about observed session evidence */
+        readonly post: operations["streamAnalystThread"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/custom": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List versioned investigation definitions */
+        readonly get: operations["listCustomSecurityAgents"];
+        readonly put?: never;
+        /** Create a scoped investigation definition */
+        readonly post: operations["createCustomSecurityAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/security-agents/custom/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read an investigation definition */
+        readonly get: operations["getCustomSecurityAgent"];
+        /** Revise an investigation definition */
+        readonly put: operations["updateCustomSecurityAgent"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sensors": {
         readonly parameters: {
             readonly query?: never;
@@ -3404,6 +3929,41 @@ export type paths = {
         readonly options?: never;
         readonly head?: never;
         readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sessions/{id}/intent": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read correlated action outcomes for this session */
+        readonly get: operations["getSessionIntent"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/settings/ai-controls": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read environment AI controls */
+        readonly get: operations["getEnvironmentAIControls"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update environment AI controls */
+        readonly patch: operations["updateEnvironmentAIControls"];
         readonly trace?: never;
     };
     readonly "/api/v1/settings/data-controls": {
@@ -3781,6 +4341,23 @@ export type paths = {
         readonly patch: operations["updateWorkspace"];
         readonly trace?: never;
     };
+    readonly "/mcp": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Use authenticated investigation tools */
+        readonly post: operations["callZaspMCP"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
 };
 export type webhooks = Record<string, never>;
 export type components = {
@@ -3917,6 +4494,7 @@ export type components = {
             readonly framework_evidence?: readonly components["schemas"]["AddonFrameworkEvidence"][];
             readonly id: components["schemas"]["ProductID"];
             readonly manifest_digest: string;
+            readonly offline_observations?: readonly components["schemas"]["OfflineAddonObservation"][];
             /** @enum {string} */
             readonly origin: "local" | "ci" | "private_worker";
             /** @constant */
@@ -4056,6 +4634,37 @@ export type components = {
             readonly tags: readonly string[];
             readonly team: string;
         };
+        readonly AgentPostureSummary: {
+            readonly access_known: boolean;
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly allowed_tool_ids: readonly components["schemas"]["ProductID"][];
+            /** @enum {string} */
+            readonly deployment_evidence: "runtime_receipt" | "repository" | "provider_workload" | "unverified";
+            /** @enum {string} */
+            readonly deployment_kind: "deployed_agent" | "repo_code" | "unknown";
+            readonly discovery_evidence_id: string | null;
+            readonly granted_categories: readonly ("data_read" | "data_write" | "action_execute" | "identity_assume" | "network_egress" | "administration")[];
+            /** Format: date-time */
+            readonly last_observed_at: string | null;
+            readonly observed_evidence_id: string | null;
+            readonly purpose_revision: number;
+            readonly sync_reviews?: readonly components["schemas"]["AgentPostureSyncReview"][];
+        };
+        readonly AgentPostureSyncReview: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly purpose: "agent_discovery_verify" | "agent_purpose_draft";
+            readonly result: null | {
+                readonly evidence_refs: readonly string[];
+                /** @enum {string} */
+                readonly kind: "autonomous_agent" | "simple_llm_app" | "mcp_server" | "skill_addon" | "not_an_agent_fp";
+            } | {
+                readonly allowed_tool_ids: readonly components["schemas"]["ProductID"][];
+                readonly iam_mismatches: readonly string[];
+            };
+            /** @enum {string} */
+            readonly state: "pending" | "reviewed" | "uncertain";
+        };
         readonly AgentPurpose: {
             readonly agent_id: components["schemas"]["ProductID"];
             readonly allowed_tool_ids: readonly components["schemas"]["ProductID"][];
@@ -4103,6 +4712,8 @@ export type components = {
             readonly more: boolean;
             readonly purpose_revision: number;
         };
+        /** @enum {string} */
+        readonly AIControlMode: "deterministic_only" | "zasp_vpc_slm" | "privatelink_bedrock" | "privatelink_vertex" | "byoc_self_hosted" | "dev_openrouter";
         readonly AIExplanation: {
             readonly explanation: string;
             readonly model: string;
@@ -4123,6 +4734,50 @@ export type components = {
             /** @constant */
             readonly require_no_storage: true;
             readonly tokens: number;
+        };
+        readonly AnalystFeedback: {
+            readonly decision_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly label: "confirm_tp" | "mark_fp";
+            readonly rule_id: string;
+        };
+        readonly AnalystMessage: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly role: "user" | "assistant";
+            readonly text: string;
+        };
+        readonly AnalystQuestion: {
+            readonly approved_read_tools?: readonly ("inspect_session" | "external_inventory_status")[];
+            readonly message: string;
+            readonly request_id: components["schemas"]["ProductID"];
+        };
+        readonly AnalystThread: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly handoff?: components["schemas"]["StudioReviewHandoff"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly messages: readonly components["schemas"]["AnalystMessage"][];
+            readonly requires_external_inventory_approval?: boolean;
+            readonly requires_session_read_approval?: boolean;
+            readonly session_id: components["schemas"]["ProductID"];
+        };
+        readonly AnalystThreadInput: {
+            readonly session_id: components["schemas"]["ProductID"];
+            readonly studio_id?: components["schemas"]["ProductID"];
+            readonly studio_revision?: number;
+        };
+        readonly AnalystThreadPage: {
+            readonly items: readonly components["schemas"]["AnalystThreadSummary"][];
+        };
+        readonly AnalystThreadSummary: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly session_id: components["schemas"]["ProductID"];
         };
         readonly APIToken: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
@@ -4633,6 +5288,67 @@ export type components = {
             readonly items: readonly components["schemas"]["BuiltInRole"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly CalibrationBin: {
+            readonly count: number;
+            readonly lower: number;
+            readonly mean_probability: number | null;
+            readonly observed_rate: number | null;
+            readonly upper: number;
+        };
+        readonly CalibrationDecision: {
+            readonly decision_id: components["schemas"]["ProductID"];
+            /** @enum {string|null} */
+            readonly label: "confirm_tp" | "mark_fp" | null;
+            /** Format: date-time */
+            readonly occurred_at: string;
+            readonly rule_id: string;
+        };
+        readonly CalibrationDownloadGrant: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly grant: string;
+        };
+        readonly CalibrationExportFile: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly filename: string;
+            readonly jsonl: string;
+            readonly sha256: string;
+        };
+        readonly CalibrationExportJob: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly requested_at: string;
+            readonly samples: number;
+            /** @enum {string} */
+            readonly status: "queued" | "writing" | "ready" | "failed";
+        };
+        readonly CalibrationMetrics: {
+            readonly bins: readonly components["schemas"]["CalibrationBin"][];
+            readonly brier: number | null;
+            /** @constant */
+            readonly days: 30;
+            readonly discovery: components["schemas"]["DiscoveryAccuracy"];
+            readonly ece: number | null;
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly evaluated: number;
+            readonly labelled: number;
+            readonly recent: readonly components["schemas"]["CalibrationDecision"][];
+            readonly thresholds: readonly components["schemas"]["CalibrationThreshold"][];
+        };
+        readonly CalibrationThreshold: {
+            readonly fn: number;
+            readonly fp: number;
+            /** @description Confirmed serious observations below this threshold. */
+            readonly serious_fn?: number;
+            /** @description Confirmed serious observations at or above this threshold. */
+            readonly serious_tp?: number;
+            readonly threshold: number;
+            readonly tn: number;
+            readonly tp: number;
+        };
         readonly Capability: {
             readonly agent_id: components["schemas"]["ProductID"];
             /** @enum {string} */
@@ -4943,6 +5659,33 @@ export type components = {
         };
         /** @description Opaque canonical base64url cursor without padding. */
         readonly Cursor: string;
+        readonly CustomSecurityAgent: {
+            readonly definition: components["schemas"]["CustomSecurityAgentDefinition"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly revision: number;
+        };
+        readonly CustomSecurityAgentDefinition: {
+            readonly approval_required_tools?: readonly ("list_agents" | "get_posture_summary" | "inspect_session" | "get_addon_drift" | "external_inventory_status")[];
+            readonly budget_nano_credits: number;
+            readonly max_steps: number;
+            /** @enum {string} */
+            readonly minimum_evidence_confidence?: "strong" | "exact";
+            readonly mission: string;
+            readonly model_pin: string;
+            readonly name: string;
+            /** @enum {string} */
+            readonly proposal: "none" | "propose_policy" | "request_containment";
+            readonly read_tools: readonly ("list_agents" | "get_posture_summary" | "inspect_session" | "get_addon_drift" | "external_inventory_status")[];
+            /** @constant */
+            readonly require_approval: true;
+            /** @enum {string} */
+            readonly trigger: "manual" | "finding_opened";
+        };
+        readonly CustomSecurityAgentPage: {
+            readonly external_inventory_available?: boolean;
+            readonly items: readonly components["schemas"]["CustomSecurityAgent"][];
+            readonly next_cursor: string | null;
+        };
         readonly DataControls: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
             /** @enum {string} */
@@ -4962,6 +5705,15 @@ export type components = {
             readonly environment_class: "development" | "test" | "staging" | "production";
             readonly environment_id: components["schemas"]["ProductID"];
             readonly retention_days: number;
+        };
+        readonly DelegationHop: {
+            readonly allowed_operations: readonly string[];
+            readonly allowed_resources: readonly string[];
+            readonly child_agent_id: string;
+            readonly depth: number;
+            readonly expires_at: number;
+            readonly max_depth: number;
+            readonly parent_agent_id: string;
         };
         readonly DeleteIntegrationScheduleReceiptIntent: {
             readonly body: components["schemas"]["EmptyInput"];
@@ -4987,6 +5739,32 @@ export type components = {
             readonly resource_kind: "integration_schedule";
             readonly resource_version: number;
             readonly result: components["schemas"]["IntegrationSchedule"];
+        };
+        readonly DeploymentApproval: {
+            readonly access_revision: number;
+            readonly addon_version_id: components["schemas"]["ProductID"];
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly classifications: readonly string[];
+            readonly destinations: readonly string[];
+            readonly identity_count: number;
+            readonly permission_context_digest: string;
+            readonly purpose_revision: number;
+            readonly revision: number;
+            /** @enum {string} */
+            readonly state: "pending" | "approved" | "revoked" | "needs_re_review";
+            readonly version_approved: boolean;
+        };
+        readonly DeploymentApprovalInput: {
+            readonly permission_context_digest: string;
+            /** @enum {string} */
+            readonly state: "approved" | "revoked";
+        };
+        readonly DiscoveryAccuracy: {
+            readonly fn: number;
+            readonly fp: number;
+            readonly precision: number | null;
+            readonly recall: number | null;
+            readonly tp: number;
         };
         readonly EmptyInput: Record<string, never>;
         readonly EndpointBundle: {
@@ -5166,6 +5944,49 @@ export type components = {
             readonly version: number;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
+        readonly EnvironmentAIControls: {
+            readonly allow_approved_code_snippets: boolean;
+            readonly allow_private_addon_bytes: boolean;
+            readonly allow_redacted_summaries: boolean;
+            /** @enum {string} */
+            readonly collection_mode: "metadata_only" | "extended";
+            readonly credential_digest: string;
+            readonly credential_reference: string;
+            readonly effective_mode: components["schemas"]["AIControlMode"];
+            /** @enum {string} */
+            readonly environment_class: "development" | "test" | "staging" | "production";
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly mode: components["schemas"]["AIControlMode"];
+            readonly monthly_budget_nano_credits: number;
+            readonly tier2_heuristic_fp_suppression_enabled: boolean;
+            readonly tier2_profile: string;
+            readonly tier2_prompt_injection_enabled: boolean;
+            readonly tier2_purpose_drift_enabled: boolean;
+            readonly tier3_addon_audit_enabled: boolean;
+            readonly tier3_discovery_purpose_enabled: boolean;
+            readonly tier3_model_pin: string;
+            readonly tier3_provider: string;
+            readonly tier3_security_agent_planner_enabled: boolean;
+            readonly version: number;
+        };
+        readonly EnvironmentAIControlsInput: {
+            readonly allow_approved_code_snippets?: boolean;
+            readonly allow_private_addon_bytes?: boolean;
+            readonly allow_redacted_summaries?: boolean;
+            readonly credential_digest?: string;
+            readonly credential_reference?: string;
+            readonly mode?: components["schemas"]["AIControlMode"];
+            readonly monthly_budget_nano_credits?: number;
+            readonly tier2_heuristic_fp_suppression_enabled?: boolean;
+            readonly tier2_profile?: string;
+            readonly tier2_prompt_injection_enabled?: boolean;
+            readonly tier2_purpose_drift_enabled?: boolean;
+            readonly tier3_addon_audit_enabled?: boolean;
+            readonly tier3_discovery_purpose_enabled?: boolean;
+            readonly tier3_model_pin?: string;
+            readonly tier3_provider?: string;
+            readonly tier3_security_agent_planner_enabled?: boolean;
+        };
         readonly EnvironmentCreateInput: {
             readonly name: string;
             readonly workspace_id: components["schemas"]["ProductID"];
@@ -5194,10 +6015,10 @@ export type components = {
             readonly target?: components["schemas"]["ComplianceEvidenceTarget"];
         };
         readonly ExternalFlow: {
-            readonly categories: readonly ("identity_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
+            readonly categories: readonly ("identity_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry" | "approved_code_snippet" | "private_addon")[];
             readonly enabled: boolean;
             /** @enum {string} */
-            readonly health: "healthy" | "degraded" | "disabled";
+            readonly health: "healthy" | "degraded" | "disabled" | "unknown";
             readonly id: string;
             readonly required: boolean;
         };
@@ -5210,11 +6031,15 @@ export type components = {
             readonly compliance_context?: string;
             /** Format: date-time */
             readonly created_at: string;
+            /** @description Completed ticket for this principal and finding version. */
+            readonly current_ticket_id?: string;
             readonly evidence_ids: readonly components["schemas"]["ProductID"][];
             /** @description AI security framework controls this finding is evidence for, derived from its rule. Absent when the rule has no mapping. A reference means the finding is relevant to the control, not that the control is met or failed. */
             readonly frameworks?: readonly components["schemas"]["FindingFrameworkReference"][];
             readonly id: components["schemas"]["ProductID"];
             readonly path_id?: components["schemas"]["ProductID"];
+            /** @description Existing request key for a pending ticket for this principal and finding version. */
+            readonly pending_ticket_key?: string;
             readonly risk_factors: readonly components["schemas"]["RiskFactor"][];
             readonly rule?: string;
             readonly severity: components["schemas"]["FindingSeverity"];
@@ -5334,6 +6159,7 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly GuardrailDecision: {
+            readonly coverage_degraded?: boolean;
             /** @enum {string} */
             readonly decision: "allow" | "redact" | "block";
             readonly decision_id: components["schemas"]["ProductID"];
@@ -5342,10 +6168,17 @@ export type components = {
             readonly policy_version: number;
             /** @description Present only when decision is redact: the text with every match of a redacting rule replaced by [REDACTED:<rule id>]. Forward this instead of the original. */
             readonly redacted_text?: string;
+            /** @enum {string} */
+            readonly semantic_state?: "coverage_degraded" | "shadow" | "confirmed" | "suppressed_benign" | "detected" | "screened";
         };
         readonly GuardrailInteraction: {
             /** @description Optional identifier of the agent, as the gateway knows it. Recorded with the decision. */
             readonly agent_id?: string;
+            /**
+             * @description Explicitly identifies an approved snippet for optional private evaluation.
+             * @enum {string}
+             */
+            readonly content_mode?: "approved_code_snippet";
             /**
              * @description input is text on its way into a model; output is text a model produced.
              * @enum {string}
@@ -5390,6 +6223,8 @@ export type components = {
             readonly mode: components["schemas"]["GuardrailMode"];
             /** @description Only a redactable rule can have the redact mode. */
             readonly redactable: boolean;
+            /** @enum {string} */
+            readonly rule_class?: "hard" | "heuristic";
         };
         /** @enum {string} */
         readonly GuardrailRuleID: "injection.instruction_override" | "injection.role_switch" | "injection.hidden_text" | "injection.tool_call" | "pii.email" | "pii.phone" | "pii.credit_card" | "pii.us_ssn" | "secret.aws_access_key_id" | "secret.private_key" | "secret.bearer_token";
@@ -5701,6 +6536,25 @@ export type components = {
          */
         readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
+        readonly InventoryReviewReceipt: {
+            readonly coverage_degraded: boolean;
+            /** @enum {string} */
+            readonly purpose: "agent_discovery_verify" | "agent_purpose_draft" | "addon_semantic_audit";
+            readonly result: null | {
+                readonly evidence_refs: readonly string[];
+                /** @enum {string} */
+                readonly kind: "autonomous_agent" | "simple_llm_app" | "mcp_server" | "skill_addon" | "not_an_agent_fp";
+            } | {
+                readonly allowed_tool_ids: readonly components["schemas"]["ProductID"][];
+                readonly iam_mismatches: readonly string[];
+            } | {
+                readonly citations: readonly string[];
+                readonly risk_score: number;
+                readonly tags: readonly string[];
+                readonly threat_score: number;
+            };
+            readonly target_id: components["schemas"]["ProductID"];
+        };
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -5839,6 +6693,20 @@ export type components = {
         readonly MCPRegistryPage: {
             readonly items: readonly components["schemas"]["MCPRegistryEntry"][];
         };
+        readonly MCPRequest: {
+            readonly id?: string | number;
+            /** @constant */
+            readonly jsonrpc: "2.0";
+            readonly method: string;
+            readonly params?: Record<string, never>;
+        };
+        readonly MCPResponse: {
+            readonly error?: Record<string, never>;
+            readonly id: string | number | null;
+            /** @constant */
+            readonly jsonrpc: "2.0";
+            readonly result?: Record<string, never>;
+        };
         readonly MCPServer: {
             readonly agent_count: number;
             readonly agents: readonly components["schemas"]["MCPServerAgent"][];
@@ -5905,6 +6773,37 @@ export type components = {
         readonly MemberRoleInput: {
             readonly role: components["schemas"]["BuiltInRoleName"];
         };
+        readonly ModelQualification: {
+            /** Format: date-time */
+            readonly checked_at: string;
+            readonly evidence_digest: string;
+            readonly model: string;
+            readonly provider: string;
+            readonly purpose: string;
+            readonly qualified: boolean;
+        };
+        readonly ModelQualificationPage: {
+            readonly items: readonly components["schemas"]["ModelQualification"][];
+        };
+        readonly ModelQualificationRun: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly finished_at: string | null;
+            readonly id: components["schemas"]["ProductID"];
+            readonly model: string;
+            readonly provider: string;
+            readonly purpose: string;
+            /** Format: date-time */
+            readonly requested_at: string;
+            /** @enum {string} */
+            readonly status: "queued" | "running" | "passed" | "failed";
+        };
+        readonly ModelQualificationSelection: {
+            readonly model: string;
+            /** @enum {string} */
+            readonly provider: "zasp_vpc_slm" | "byoc_self_hosted" | "privatelink_bedrock" | "privatelink_vertex";
+            readonly purpose: string;
+        };
         readonly NameInput: {
             readonly name: string;
         };
@@ -5931,11 +6830,42 @@ export type components = {
             readonly resource_version: number;
             readonly result: components["schemas"]["Integration"];
         };
+        readonly OfflineAddonObservation: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly indicators: readonly ("honeytoken_read" | "honeytoken_egress_denied" | "unexpected_process" | "filesystem_write" | "instruction_override" | "credential_reference" | "network_reference" | "broad_permissions")[];
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly profile_digest: string;
+            /** @enum {string} */
+            readonly scanner: "gvisor_tetragon" | "cisco_skill_scanner" | "nvidia_skillspector";
+        };
         readonly Organization: {
             readonly domain: string;
             readonly id: components["schemas"]["ProductID"];
             readonly name: string;
             readonly version: number;
+        };
+        readonly OrganizationAIControls: {
+            readonly ai_enabled: boolean;
+            readonly allow_private_code_egress: boolean;
+            readonly allowed_modes: readonly components["schemas"]["AIControlMode"][];
+            /** @enum {string} */
+            readonly allowed_residency: "customer_vpc_only" | "us_only" | "eu_only" | "us_eu";
+            readonly organization_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly require_zero_retention: true;
+            readonly version: number;
+        };
+        readonly OrganizationAIControlsInput: {
+            readonly ai_enabled?: boolean;
+            readonly allow_private_code_egress?: boolean;
+            readonly allowed_modes?: readonly components["schemas"]["AIControlMode"][];
+            /** @enum {string} */
+            readonly allowed_residency?: "customer_vpc_only" | "us_only" | "eu_only" | "us_eu";
+            /** @constant */
+            readonly require_zero_retention?: true;
         };
         readonly PageInfo: {
             /** @constant */
@@ -6159,6 +7089,21 @@ export type components = {
         };
         /** @enum {string} */
         readonly RecoveryErrorCode: "dependency_unavailable" | "outcome_unknown" | "signature_invalid" | "manifest_invalid" | "manifest_expired" | "validation_failed" | "projection_mismatch" | "cleanup_failed" | "exhausted" | "lease_lost" | "cancelled";
+        readonly RecoveryIntent: {
+            readonly id: components["schemas"]["ProductID"];
+            readonly parameters: components["schemas"]["RecoveryIntentInput"];
+        };
+        readonly RecoveryIntentInput: {
+            readonly backup_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly kind: "backup";
+            readonly retention_days: number;
+        } | {
+            readonly backup_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly kind: "restore";
+            readonly target_environment: string;
+        };
         readonly RecoveryManifestLocator: {
             /** @constant */
             readonly media_type: "application/vnd.zasp.recovery-manifest+json";
@@ -6253,6 +7198,23 @@ export type components = {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly name: string;
         };
+        readonly RuleSuppressionInput: {
+            /** @enum {string} */
+            readonly mode: "off" | "shadow" | "active";
+        };
+        readonly RuleSuppressionMode: {
+            readonly eligible: boolean;
+            readonly false_alerts_avoided: number;
+            /** @enum {string} */
+            readonly mode: "off" | "shadow" | "active";
+            /** @enum {string} */
+            readonly rule_class: "hard" | "heuristic";
+            readonly rule_id: string;
+            readonly serious_missed: number;
+            readonly serious_total: number;
+            readonly shadow_labels: number;
+            readonly version: number;
+        };
         readonly RuntimeDecision: {
             /** Format: date-time */
             readonly at: string;
@@ -6265,6 +7227,31 @@ export type components = {
         };
         readonly RuntimeDecisionPage: {
             readonly items: readonly components["schemas"]["RuntimeDecision"][];
+        };
+        readonly RuntimeDelegation: {
+            readonly depth: number;
+            readonly expires_at: number;
+            readonly token: string;
+        };
+        readonly RuntimeDelegationDecision: {
+            readonly allowed: boolean;
+            /** @enum {string} */
+            readonly status: "verified" | "delegation_unverified" | "denied";
+        };
+        readonly RuntimeDelegationIssueInput: {
+            readonly allowed_operations: readonly string[];
+            readonly allowed_resources: readonly string[];
+            readonly child_agent_id: string;
+            readonly max_depth: number;
+            readonly parent_task_id: string;
+            readonly parent_token?: string;
+            readonly ttl_seconds: number;
+        };
+        readonly RuntimeDelegationVerifyInput: {
+            readonly operation: string;
+            readonly parent_task_id: string;
+            readonly resource: string;
+            readonly token?: string;
         };
         /** @description Summary derived from committed correlated events. Unattributed is a collection, not an inferred session. A null agent means unknown or multiple agents; a null principal means unknown. Counts preserve per-event attribution confidence. */
         readonly RuntimeSession: {
@@ -6302,6 +7289,7 @@ export type components = {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly id: components["schemas"]["ProductID"];
             readonly label: string;
+            readonly outcome?: components["schemas"]["SessionActionOutcome"];
             /** Format: date-time */
             readonly projected_at: string;
             /** @description Source-qualified sandbox identity, at most 256 UTF-8 bytes with no surrounding Unicode whitespace or CR/LF. Present only with its reporting sensor and Exact/Strong correlation. Omitted when unknown, including historical events; never inferred from session identity. */
@@ -6340,6 +7328,15 @@ export type components = {
             readonly selector_coverage: "observed_only";
             /** @enum {string} */
             readonly state: "empty" | "catching_up" | "blocked" | "current";
+        };
+        readonly SaaSSignInStatus: {
+            readonly attempt_id: components["schemas"]["ProductID"];
+            readonly connection_reference: string | null;
+            readonly failure_code: string | null;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly integration_version: number;
+            /** @enum {string} */
+            readonly status: "pending" | "consumed" | "completed" | "failed" | "superseded";
         };
         readonly SafetyMetadata: {
             /** @enum {string} */
@@ -6926,8 +7923,8 @@ export type components = {
         };
         readonly SecurityAgentPlannerPricingPolicy: {
             readonly account_profile: string;
-            /** @constant */
-            readonly cost_unit: "openrouter_credit";
+            /** @enum {string} */
+            readonly cost_unit: "openrouter_credit" | "model_credit";
             readonly credential_digest: string;
             /** @description A reference below secret_ref_planner/{organization}/{workspace}/{environment}/ of the current scope. Never a credential. */
             readonly credential_reference: string;
@@ -6939,8 +7936,8 @@ export type components = {
             readonly maximum_cost_nano_credits: number;
             readonly maximum_tokens: number;
             readonly model: string;
-            /** @constant */
-            readonly provider: "openrouter";
+            /** @enum {string} */
+            readonly provider: "openrouter" | "zasp_vpc_slm" | "bedrock_privatelink" | "vertex_privatelink" | "byoc_vllm";
             readonly request_policy_version: string;
             readonly request_token_limit: number;
         };
@@ -7204,6 +8201,22 @@ export type components = {
             /** @constant */
             readonly version: 1;
         };
+        readonly SecurityCaseVerification: {
+            readonly business_receipt_id: string | null;
+            readonly business_task_preserved: boolean;
+            readonly case_id: components["schemas"]["ProductID"];
+            readonly fixture_run_id: components["schemas"]["ProductID"] | null;
+            readonly reason: string;
+            readonly security_check_passed: boolean;
+            readonly security_receipt_id: string | null;
+            /** @enum {string} */
+            readonly state: "open" | "verified_complete" | "closed_business_task_unverified";
+        };
+        readonly SecurityCaseVerificationInput: {
+            /** @default false */
+            readonly business_fixture_unavailable: boolean;
+            readonly fixture_run_id: components["schemas"]["ProductID"];
+        };
         readonly Sensor: {
             /** Format: date-time */
             readonly created_at: string;
@@ -7289,6 +8302,8 @@ export type components = {
             readonly version: number;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
+        /** @enum {string} */
+        readonly SessionActionOutcome: "prevented" | "completed" | "outcome_unknown";
         readonly SessionBootstrap: {
             readonly capabilities: readonly string[];
             readonly correlation_id: components["schemas"]["ProductID"];
@@ -7329,6 +8344,29 @@ export type components = {
         };
         readonly SessionEventPage: components["schemas"]["ConsoleSessionEventPage"] | components["schemas"]["RuntimeSessionEventPage"];
         readonly SessionID: string;
+        readonly SessionIntent: {
+            readonly actions: readonly components["schemas"]["SessionIntentAction"][];
+            readonly links: readonly components["schemas"]["SessionIntentLink"][];
+            readonly session_id: components["schemas"]["ProductID"];
+            readonly truncated: boolean;
+        };
+        readonly SessionIntentAction: {
+            readonly attention: boolean;
+            readonly decision_id: components["schemas"]["ProductID"];
+            readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly operation: string;
+            readonly outcome: components["schemas"]["SessionActionOutcome"];
+            /** @enum {string} */
+            readonly source: "authenticated_workload" | "gateway" | "tetragon" | "otlp";
+        };
+        readonly SessionIntentLink: {
+            /** @enum {string} */
+            readonly reason: "read_then_tool" | "tool_then_activity" | "read_then_activity";
+            readonly source: components["schemas"]["ProductID"];
+            readonly target: components["schemas"]["ProductID"];
+        };
         /** @description A console login ID, a correlated runtime session ID, or the explicitly unattributed evidence collection. */
         readonly SessionInvestigationID: components["schemas"]["SessionID"] | components["schemas"]["RuntimeSessionID"];
         readonly SessionPage: components["schemas"]["ConsoleSessionPage"] | components["schemas"]["RuntimeSessionPage"];
@@ -7430,6 +8468,27 @@ export type components = {
             readonly resource_version: number;
             readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["IntegrationDeletionReceiptResult"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
         };
+        readonly StudioRemediationAdvisory: {
+            readonly approval_id: components["schemas"]["ProductID"];
+            readonly candidate?: {
+                /** @constant */
+                readonly action: "isolate_session";
+                /** @constant */
+                readonly rollback: "ttl_release";
+                readonly target_id: components["schemas"]["ProductID"];
+            };
+            readonly message_id: components["schemas"]["ProductID"];
+            readonly session_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly state: "available" | "pending" | "reviewed" | "no_recommendation" | "unavailable";
+        };
+        readonly StudioReviewHandoff: {
+            readonly message_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly proposal: "propose_policy" | "request_containment";
+            readonly revision: number;
+            readonly studio_id: components["schemas"]["ProductID"];
+        };
         readonly SuggestionDecision: {
             /** @enum {string} */
             readonly decision: "request_draft" | "dismiss";
@@ -7473,7 +8532,7 @@ export type components = {
             readonly id: string;
             readonly required: boolean;
             /** @enum {string} */
-            readonly state: "healthy" | "degraded" | "unavailable";
+            readonly state: "healthy" | "degraded" | "unavailable" | "unknown";
         };
         readonly SystemComponentPage: {
             readonly items: readonly components["schemas"]["SystemComponent"][];
@@ -7856,6 +8915,24 @@ export type components = {
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
         };
+        readonly WorkforceInventoryAgent: {
+            readonly actions: readonly string[];
+            readonly id: components["schemas"]["ProductID"];
+            readonly mission: string;
+            readonly name: string;
+            readonly read_tools: readonly string[];
+            readonly revision: number;
+            /** @enum {string} */
+            readonly source: "built_in" | "studio";
+            readonly trigger: string;
+            readonly trigger_receipts: number;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        readonly WorkforceInventoryPage: {
+            readonly items: readonly components["schemas"]["WorkforceInventoryAgent"][];
+            readonly next_cursor: string | null;
+        };
         readonly WorkloadActionDecision: {
             readonly action_id: components["schemas"]["WorkloadActionLabel"];
             /** @constant */
@@ -7930,6 +9007,21 @@ export type components = {
             readonly session_id: components["schemas"]["ProductID"];
             /** @constant */
             readonly source: "administrator_bound_credential";
+        };
+        readonly WorkloadDelegationPage: {
+            readonly agent_id: string;
+            readonly credential_id: components["schemas"]["ProductID"];
+            readonly items: readonly components["schemas"]["WorkloadDelegationReceipt"][];
+            readonly truncated: boolean;
+        };
+        readonly WorkloadDelegationReceipt: {
+            readonly grants: readonly components["schemas"]["DelegationHop"][];
+            readonly id: string;
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly parent_task_id: string;
+            /** @enum {string} */
+            readonly status: "issued" | "verified" | "denied" | "delegation_unverified";
         };
         /** @enum {string} */
         readonly WorkloadDestinationClass: "internal" | "approved_partner" | "external" | "public";
@@ -8035,14 +9127,24 @@ export type AgentEvidencePackResponse = components['schemas']['AgentEvidencePack
 export type AgentEvidencePackStatus = components['schemas']['AgentEvidencePackStatus'];
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
+export type AgentPostureSummary = components['schemas']['AgentPostureSummary'];
+export type AgentPostureSyncReview = components['schemas']['AgentPostureSyncReview'];
 export type AgentPurpose = components['schemas']['AgentPurpose'];
 export type AgentPurposeInput = components['schemas']['AgentPurposeInput'];
 export type AgentSession = components['schemas']['AgentSession'];
 export type AgentSessionPage = components['schemas']['AgentSessionPage'];
 export type AgentSuggestion = components['schemas']['AgentSuggestion'];
 export type AgentSuggestionPage = components['schemas']['AgentSuggestionPage'];
+export type AiControlMode = components['schemas']['AIControlMode'];
 export type AiExplanation = components['schemas']['AIExplanation'];
 export type AiExplanationInput = components['schemas']['AIExplanationInput'];
+export type AnalystFeedback = components['schemas']['AnalystFeedback'];
+export type AnalystMessage = components['schemas']['AnalystMessage'];
+export type AnalystQuestion = components['schemas']['AnalystQuestion'];
+export type AnalystThread = components['schemas']['AnalystThread'];
+export type AnalystThreadInput = components['schemas']['AnalystThreadInput'];
+export type AnalystThreadPage = components['schemas']['AnalystThreadPage'];
+export type AnalystThreadSummary = components['schemas']['AnalystThreadSummary'];
 export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
 export type ApiTokenPage = components['schemas']['APITokenPage'];
@@ -8095,6 +9197,13 @@ export type BrowserProfileRegistration = components['schemas']['BrowserProfileRe
 export type BuiltInRole = components['schemas']['BuiltInRole'];
 export type BuiltInRoleName = components['schemas']['BuiltInRoleName'];
 export type BuiltInRolePage = components['schemas']['BuiltInRolePage'];
+export type CalibrationBin = components['schemas']['CalibrationBin'];
+export type CalibrationDecision = components['schemas']['CalibrationDecision'];
+export type CalibrationDownloadGrant = components['schemas']['CalibrationDownloadGrant'];
+export type CalibrationExportFile = components['schemas']['CalibrationExportFile'];
+export type CalibrationExportJob = components['schemas']['CalibrationExportJob'];
+export type CalibrationMetrics = components['schemas']['CalibrationMetrics'];
+export type CalibrationThreshold = components['schemas']['CalibrationThreshold'];
 export type Capability = components['schemas']['Capability'];
 export type CapabilityPage = components['schemas']['CapabilityPage'];
 export type CapabilityState = components['schemas']['CapabilityState'];
@@ -8140,10 +9249,17 @@ export type CoverageFramework = components['schemas']['CoverageFramework'];
 export type CoverageSource = components['schemas']['CoverageSource'];
 export type CoverageSummary = components['schemas']['CoverageSummary'];
 export type Cursor = components['schemas']['Cursor'];
+export type CustomSecurityAgent = components['schemas']['CustomSecurityAgent'];
+export type CustomSecurityAgentDefinition = components['schemas']['CustomSecurityAgentDefinition'];
+export type CustomSecurityAgentPage = components['schemas']['CustomSecurityAgentPage'];
 export type DataControls = components['schemas']['DataControls'];
 export type DataControlsInput = components['schemas']['DataControlsInput'];
+export type DelegationHop = components['schemas']['DelegationHop'];
 export type DeleteIntegrationScheduleReceiptIntent = components['schemas']['DeleteIntegrationScheduleReceiptIntent'];
 export type DeleteIntegrationScheduleWorkflowMutationReceipt = components['schemas']['DeleteIntegrationScheduleWorkflowMutationReceipt'];
+export type DeploymentApproval = components['schemas']['DeploymentApproval'];
+export type DeploymentApprovalInput = components['schemas']['DeploymentApprovalInput'];
+export type DiscoveryAccuracy = components['schemas']['DiscoveryAccuracy'];
 export type EmptyInput = components['schemas']['EmptyInput'];
 export type EndpointBundle = components['schemas']['EndpointBundle'];
 export type EndpointDetail = components['schemas']['EndpointDetail'];
@@ -8165,6 +9281,8 @@ export type EndpointRotation = components['schemas']['EndpointRotation'];
 export type EndpointSigned = components['schemas']['EndpointSigned'];
 export type EndpointSnapshot = components['schemas']['EndpointSnapshot'];
 export type Environment = components['schemas']['Environment'];
+export type EnvironmentAiControls = components['schemas']['EnvironmentAIControls'];
+export type EnvironmentAiControlsInput = components['schemas']['EnvironmentAIControlsInput'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
@@ -8240,6 +9358,7 @@ export type InventoryManagementState = components['schemas']['InventoryManagemen
 export type InventoryPage = components['schemas']['InventoryPage'];
 export type InventoryProvider = components['schemas']['InventoryProvider'];
 export type InventoryRecord = components['schemas']['InventoryRecord'];
+export type InventoryReviewReceipt = components['schemas']['InventoryReviewReceipt'];
 export type InventorySourceObservation = components['schemas']['InventorySourceObservation'];
 export type InventorySummary = components['schemas']['InventorySummary'];
 export type KubernetesReferenceAuthorizationConfiguration = components['schemas']['KubernetesReferenceAuthorizationConfiguration'];
@@ -8252,16 +9371,25 @@ export type McpGatewayToolName = components['schemas']['MCPGatewayToolName'];
 export type McpRegistryEntry = components['schemas']['MCPRegistryEntry'];
 export type McpRegistryInput = components['schemas']['MCPRegistryInput'];
 export type McpRegistryPage = components['schemas']['MCPRegistryPage'];
+export type McpRequest = components['schemas']['MCPRequest'];
+export type McpResponse = components['schemas']['MCPResponse'];
 export type McpServer = components['schemas']['MCPServer'];
 export type McpServerAgent = components['schemas']['MCPServerAgent'];
 export type McpServerPage = components['schemas']['MCPServerPage'];
 export type McpTool = components['schemas']['MCPTool'];
 export type McpToolRiskClass = components['schemas']['MCPToolRiskClass'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
+export type ModelQualification = components['schemas']['ModelQualification'];
+export type ModelQualificationPage = components['schemas']['ModelQualificationPage'];
+export type ModelQualificationRun = components['schemas']['ModelQualificationRun'];
+export type ModelQualificationSelection = components['schemas']['ModelQualificationSelection'];
 export type NameInput = components['schemas']['NameInput'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
 export type OAuthCompletionWorkflowMutationReceipt = components['schemas']['OAuthCompletionWorkflowMutationReceipt'];
+export type OfflineAddonObservation = components['schemas']['OfflineAddonObservation'];
 export type Organization = components['schemas']['Organization'];
+export type OrganizationAiControls = components['schemas']['OrganizationAIControls'];
+export type OrganizationAiControlsInput = components['schemas']['OrganizationAIControlsInput'];
 export type PageInfo = components['schemas']['PageInfo'];
 export type Permission = components['schemas']['Permission'];
 export type Policy = components['schemas']['Policy'];
@@ -8289,6 +9417,8 @@ export type RecoveryBackupInput = components['schemas']['RecoveryBackupInput'];
 export type RecoveryCleanupEvidence = components['schemas']['RecoveryCleanupEvidence'];
 export type RecoveryCounts = components['schemas']['RecoveryCounts'];
 export type RecoveryErrorCode = components['schemas']['RecoveryErrorCode'];
+export type RecoveryIntent = components['schemas']['RecoveryIntent'];
+export type RecoveryIntentInput = components['schemas']['RecoveryIntentInput'];
 export type RecoveryManifestLocator = components['schemas']['RecoveryManifestLocator'];
 export type RecoveryRestore = components['schemas']['RecoveryRestore'];
 export type RecoveryRestoreInput = components['schemas']['RecoveryRestoreInput'];
@@ -8301,14 +9431,21 @@ export type Relationship = components['schemas']['Relationship'];
 export type RelationshipEnd = components['schemas']['RelationshipEnd'];
 export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type RiskFactor = components['schemas']['RiskFactor'];
+export type RuleSuppressionInput = components['schemas']['RuleSuppressionInput'];
+export type RuleSuppressionMode = components['schemas']['RuleSuppressionMode'];
 export type RuntimeDecision = components['schemas']['RuntimeDecision'];
 export type RuntimeDecisionPage = components['schemas']['RuntimeDecisionPage'];
+export type RuntimeDelegation = components['schemas']['RuntimeDelegation'];
+export type RuntimeDelegationDecision = components['schemas']['RuntimeDelegationDecision'];
+export type RuntimeDelegationIssueInput = components['schemas']['RuntimeDelegationIssueInput'];
+export type RuntimeDelegationVerifyInput = components['schemas']['RuntimeDelegationVerifyInput'];
 export type RuntimeSession = components['schemas']['RuntimeSession'];
 export type RuntimeSessionEvent = components['schemas']['RuntimeSessionEvent'];
 export type RuntimeSessionEventPage = components['schemas']['RuntimeSessionEventPage'];
 export type RuntimeSessionId = components['schemas']['RuntimeSessionID'];
 export type RuntimeSessionPage = components['schemas']['RuntimeSessionPage'];
 export type RuntimeSessionSearchStatus = components['schemas']['RuntimeSessionSearchStatus'];
+export type SaaSSignInStatus = components['schemas']['SaaSSignInStatus'];
 export type SafetyMetadata = components['schemas']['SafetyMetadata'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
@@ -8392,6 +9529,8 @@ export type SecurityAgentTestAttemptProof = components['schemas']['SecurityAgent
 export type SecurityAgentTestCheckChange = components['schemas']['SecurityAgentTestCheckChange'];
 export type SecurityAgentTestVerification = components['schemas']['SecurityAgentTestVerification'];
 export type SecurityAgentTriggerRules = components['schemas']['SecurityAgentTriggerRules'];
+export type SecurityCaseVerification = components['schemas']['SecurityCaseVerification'];
+export type SecurityCaseVerificationInput = components['schemas']['SecurityCaseVerificationInput'];
 export type Sensor = components['schemas']['Sensor'];
 export type SensorCoverage = components['schemas']['SensorCoverage'];
 export type SensorEnrollment = components['schemas']['SensorEnrollment'];
@@ -8402,12 +9541,16 @@ export type SensorPage = components['schemas']['SensorPage'];
 export type SensorState = components['schemas']['SensorState'];
 export type SensorUpdateInput = components['schemas']['SensorUpdateInput'];
 export type Session = components['schemas']['Session'];
+export type SessionActionOutcome = components['schemas']['SessionActionOutcome'];
 export type SessionBootstrap = components['schemas']['SessionBootstrap'];
 export type SessionCallbackInput = components['schemas']['SessionCallbackInput'];
 export type SessionCallbackResult = components['schemas']['SessionCallbackResult'];
 export type SessionEvent = components['schemas']['SessionEvent'];
 export type SessionEventPage = components['schemas']['SessionEventPage'];
 export type SessionId = components['schemas']['SessionID'];
+export type SessionIntent = components['schemas']['SessionIntent'];
+export type SessionIntentAction = components['schemas']['SessionIntentAction'];
+export type SessionIntentLink = components['schemas']['SessionIntentLink'];
 export type SessionInvestigationId = components['schemas']['SessionInvestigationID'];
 export type SessionPage = components['schemas']['SessionPage'];
 export type SessionScope = components['schemas']['SessionScope'];
@@ -8422,6 +9565,8 @@ export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
 export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
 export type SsoProtocol = components['schemas']['SSOProtocol'];
 export type StandardWorkflowMutationReceipt = components['schemas']['StandardWorkflowMutationReceipt'];
+export type StudioRemediationAdvisory = components['schemas']['StudioRemediationAdvisory'];
+export type StudioReviewHandoff = components['schemas']['StudioReviewHandoff'];
 export type SuggestionDecision = components['schemas']['SuggestionDecision'];
 export type SuggestionRefresh = components['schemas']['SuggestionRefresh'];
 export type SyncIntegrationReceiptIntent = components['schemas']['SyncIntegrationReceiptIntent'];
@@ -8466,6 +9611,8 @@ export type TicketWrite = components['schemas']['TicketWrite'];
 export type WorkflowMutationIntent = components['schemas']['WorkflowMutationIntent'];
 export type WorkflowMutationReceipt = components['schemas']['WorkflowMutationReceipt'];
 export type WorkflowMutationReceiptPage = components['schemas']['WorkflowMutationReceiptPage'];
+export type WorkforceInventoryAgent = components['schemas']['WorkforceInventoryAgent'];
+export type WorkforceInventoryPage = components['schemas']['WorkforceInventoryPage'];
 export type WorkloadActionDecision = components['schemas']['WorkloadActionDecision'];
 export type WorkloadActionLabel = components['schemas']['WorkloadActionLabel'];
 export type WorkloadActionOutcome = components['schemas']['WorkloadActionOutcome'];
@@ -8473,6 +9620,8 @@ export type WorkloadActionRequest = components['schemas']['WorkloadActionRequest
 export type WorkloadContainment = components['schemas']['WorkloadContainment'];
 export type WorkloadContextEvidence = components['schemas']['WorkloadContextEvidence'];
 export type WorkloadCredentialBinding = components['schemas']['WorkloadCredentialBinding'];
+export type WorkloadDelegationPage = components['schemas']['WorkloadDelegationPage'];
+export type WorkloadDelegationReceipt = components['schemas']['WorkloadDelegationReceipt'];
 export type WorkloadDestinationClass = components['schemas']['WorkloadDestinationClass'];
 export type WorkloadOutcomeAck = components['schemas']['WorkloadOutcomeAck'];
 export type Workspace = components['schemas']['Workspace'];
@@ -8707,6 +9856,117 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["AddonCIOrigin"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deepScanAddonVersion: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Review reported add-on findings using the qualified model. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryReviewReceipt"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAddonDeploymentApproval: {
+        readonly parameters: {
+            readonly query: {
+                readonly agent_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Decision and observed deployment permission context. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["DeploymentApproval"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly reviewAddonDeploymentApproval: {
+        readonly parameters: {
+            readonly query: {
+                readonly agent_id: components["schemas"]["ProductID"];
+            };
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["DeploymentApprovalInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Decision and observed deployment permission context. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["DeploymentApproval"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];
@@ -9658,6 +10918,44 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly verifyAgentDiscovery: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Review repository discovery evidence using the qualified model. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryReviewReceipt"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly getAgentEvidencePack: {
         readonly parameters: {
             readonly query?: {
@@ -9686,6 +10984,35 @@ export interface operations {
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAgentPostureSummary: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read deployment evidence, approved purpose, reachable access and observed activity. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentPostureSummary"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -9750,6 +11077,44 @@ export interface operations {
                 };
             };
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly draftAgentPurpose: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Draft an agent purpose from scoped tool evidence. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InventoryReviewReceipt"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -9898,6 +11263,119 @@ export interface operations {
                     readonly "application/json": components["schemas"]["AgentSuggestionPage"];
                 };
             };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listWorkforceInventory: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description List registered security agents and their locked purposes. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkforceInventoryPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listModelQualifications: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description List model qualifications for this environment. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ModelQualificationPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly runModelQualification: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ModelQualificationSelection"];
+            };
+        };
+        readonly responses: {
+            /** @description Qualification job accepted. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ModelQualificationRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getModelQualificationRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Qualification job. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ModelQualificationRun"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -10439,6 +11917,161 @@ export interface operations {
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createCalibrationExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationExportJob"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getCalibrationExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationExportJob"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly downloadCalibrationExport: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    readonly grant: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationExportFile"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createCalibrationDownloadGrant: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Scoped calibration export response. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationDownloadGrant"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getCalibrationMetrics: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read calibration metrics for the past 30 days. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CalibrationMetrics"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -11406,6 +13039,40 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["EnvironmentMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly submitAnalystFeedback: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AnalystFeedback"];
+            };
+        };
+        readonly responses: {
+            /** @description Label an observed guardrail decision. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AnalystFeedback"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -13038,6 +14705,32 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getSaaSSignInAttempt: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly attemptId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current sign-in result. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SaaSSignInStatus"];
+                };
+            };
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly syncIntegration: {
         readonly parameters: {
             readonly query?: never;
@@ -13357,6 +15050,63 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["Organization"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getOrganizationAIControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read the organization AI policy. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OrganizationAIControls"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateOrganizationAIControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["OrganizationAIControlsInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Update the organization AI policy. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["OrganizationAIControls"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -13727,6 +15477,62 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getRecoveryIntent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Saved request */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecoveryIntent"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putRecoveryIntent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RecoveryIntentInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Saved or previously recorded request */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecoveryIntent"];
+                };
+            };
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly startRecoveryRestore: {
         readonly parameters: {
             readonly query?: never;
@@ -13802,6 +15608,71 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getRuleSuppressionMode: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly ruleId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read the suppression mode and shadow evidence for a rule. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuleSuppressionMode"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putRuleSuppressionMode: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+                readonly "If-Match": components["parameters"]["ControlVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly ruleId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RuleSuppressionInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Change the suppression mode of a heuristic rule. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuleSuppressionMode"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly createWorkloadActionDecision: {
         readonly parameters: {
             readonly query?: never;
@@ -13869,6 +15740,60 @@ export interface operations {
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 422: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly issueRuntimeDelegation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RuntimeDelegationIssueInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Issue an attenuated task delegation. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuntimeDelegation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly verifyRuntimeDelegation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RuntimeDelegationVerifyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Verify a task delegation for an operation and resource. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuntimeDelegationDecision"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -14189,6 +16114,31 @@ export interface operations {
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getWorkloadDelegations: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read the delegation receipts for a workload credential. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkloadDelegationPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -15247,6 +17197,384 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getSecurityCaseVerification: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read security and business-task evidence for a case. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityCaseVerification"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly verifySecurityCase: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityCaseVerificationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Verify a case against linked fixture receipts. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityCaseVerification"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAnalystThreads: {
+        readonly parameters: {
+            readonly query: {
+                readonly session_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description List your investigations of a session. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AnalystThreadPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAnalystThread: {
+        readonly parameters: {
+            readonly query: {
+                readonly session_id: components["schemas"]["ProductID"];
+            };
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AnalystThreadInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Start a session investigation. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AnalystThreadSummary"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAnalystThread: {
+        readonly parameters: {
+            readonly query: {
+                readonly session_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read an investigation and its evidence history. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AnalystThread"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getStudioRemediationAdvisory: {
+        readonly parameters: {
+            readonly query: {
+                readonly approval_id: components["schemas"]["ProductID"];
+                readonly message_id: components["schemas"]["ProductID"];
+                readonly session_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current advisory for this approved candidate. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StudioRemediationAdvisory"];
+                };
+            };
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly requestStudioRemediationAdvisory: {
+        readonly parameters: {
+            readonly query: {
+                readonly approval_id: components["schemas"]["ProductID"];
+                readonly message_id: components["schemas"]["ProductID"];
+                readonly session_id: components["schemas"]["ProductID"];
+            };
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": Record<string, never>;
+            };
+        };
+        readonly responses: {
+            /** @description Current advisory for this approved candidate. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StudioRemediationAdvisory"];
+                };
+            };
+            /** @description Private review pending. */
+            readonly 202: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["StudioRemediationAdvisory"];
+                };
+            };
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly streamAnalystThread: {
+        readonly parameters: {
+            readonly query: {
+                readonly session_id: components["schemas"]["ProductID"];
+            };
+            readonly header: {
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AnalystQuestion"];
+            };
+        };
+        readonly responses: {
+            /** @description Ask a question about observed session evidence. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "text/event-stream": string;
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listCustomSecurityAgents: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description List versioned investigation definitions. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CustomSecurityAgentPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createCustomSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CustomSecurityAgentDefinition"];
+            };
+        };
+        readonly responses: {
+            /** @description Create a scoped investigation definition. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CustomSecurityAgent"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getCustomSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read an investigation definition. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CustomSecurityAgent"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateCustomSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CustomSecurityAgentDefinition"];
+            };
+        };
+        readonly responses: {
+            /** @description Revise an investigation definition. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CustomSecurityAgent"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listSensors: {
         readonly parameters: {
             readonly query?: {
@@ -15812,6 +18140,88 @@ export interface operations {
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSessionIntent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read correlated action outcomes for this session. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionIntent"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getEnvironmentAIControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Read environment AI controls. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EnvironmentAIControls"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateEnvironmentAIControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EnvironmentAIControlsInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Update environment AI controls. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["EnvironmentAIControls"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -16598,6 +19008,38 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["WorkspaceMutation"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly callZaspMCP: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["MCPRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Use authenticated investigation tools. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPResponse"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

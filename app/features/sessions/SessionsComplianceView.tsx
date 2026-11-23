@@ -10,6 +10,8 @@ import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader } from
 import { ComplianceEvidenceView, type ComplianceViewProps } from "./ComplianceEvidenceView";
 import type { ComplianceReadMode } from "./compliance-api";
 
+const aiControlsRoute = "/administration/ai-controls";
+
 type Surface = "sessions" | "compliance" | "data-controls";
 type SessionItem = SessionPage["items"][number];
 export type HydratedSession = SessionItem & { eventsUnavailable?: boolean };
@@ -83,13 +85,13 @@ export async function hydrateSessionEvents(
   return hydrated;
 }
 
-type ViewProps = { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean } & Pick<ComplianceViewProps, "complianceBoundary" | "selectedSource" | "selectedCatalog" | "onNavigate">;
+type ViewProps = { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean } & Pick<ComplianceViewProps, "complianceBoundary" | "selectedSource" | "selectedExport" | "selectedCatalog" | "onNavigate">;
 export function SessionsComplianceView(props: ViewProps) {
   const api = useMemo(() => props.api ?? (props.client ? createSessionsComplianceAPI(props.client) : null), [props.api, props.client]);
-  if (props.surface === "compliance") return <ComplianceEvidenceView api={api} client={props.client} complianceBoundary={props.complianceBoundary} selectedSource={props.selectedSource} selectedCatalog={props.selectedCatalog} onNavigate={props.onNavigate} />;
+  if (props.surface === "compliance") return <ComplianceEvidenceView api={api} client={props.client} complianceBoundary={props.complianceBoundary} selectedSource={props.selectedSource} selectedExport={props.selectedExport} selectedCatalog={props.selectedCatalog} onNavigate={props.onNavigate} />;
   return <SessionsAdministrationView {...props} />;
 }
-function SessionsAdministrationView({ surface, api: suppliedAPI, client, canMutate = false }: ViewProps) {
+function SessionsAdministrationView({ surface, api: suppliedAPI, client, canMutate = false, onNavigate }: ViewProps) {
   const api = useMemo(() => suppliedAPI ?? (client ? createSessionsComplianceAPI(client) : null), [suppliedAPI, client]);
   const sessionContext = useOptionalSession();
   const fresh = sessionContext?.status === "authenticated" ? sessionContext.isFreshAuthenticated : true;
@@ -147,6 +149,7 @@ function SessionsAdministrationView({ surface, api: suppliedAPI, client, canMuta
         <p>{dataControls.deletion_enabled ? "Deletion enabled" : "Deletion disabled"}</p>
         {canMutate && <Button disabled={!fresh || !validDays || savingControls || Boolean(error) || days === dataControls.retention_days} onClick={() => void saveControls()}>Save data controls</Button>}
       </Card>
+      <Card title="AI content permissions"><p>{dataControls.collection_mode === "metadata_only" ? "Metadata-only collection blocks private code snippets and add-on contents. Redacted summaries require explicit consent." : "Extended collection permits private content only when both organization and environment AI controls allow it."}</p><p><a href={aiControlsRoute} onClick={event => { if (onNavigate && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onNavigate(aiControlsRoute); } }}>Review AI &amp; Models</a></p></Card>
       <Card title="Data deletion unavailable"><p>Deletion requests remain disabled until the durable job and artifact lifecycle is installed.</p></Card>
     </div>
   );

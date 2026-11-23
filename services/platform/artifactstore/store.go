@@ -302,7 +302,7 @@ func validLocator(locator Locator) bool {
 
 func validMediaType(value string) bool {
 	switch value {
-	case "application/json", "application/octet-stream", "application/gzip", "text/plain",
+	case "application/json", "application/x-ndjson", "application/octet-stream", "application/gzip", "text/plain",
 		"application/vnd.zasp.recovery-configuration+json", "application/vnd.zasp.recovery-projection+json",
 		"application/vnd.zasp.recovery-evidence+json", "application/vnd.zasp.recovery-manifest+json":
 		return true

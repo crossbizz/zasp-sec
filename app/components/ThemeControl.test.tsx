@@ -4,16 +4,16 @@ import { afterEach, expect, it } from "vitest";
 import { ThemeControl } from "./ThemeControl";
 import { Tabs } from "./ui";
 
-afterEach(() => { localStorage.clear(); delete document.documentElement.dataset.theme; });
+afterEach(() => { document.cookie = "zasp.theme=; Max-Age=0; Path=/"; delete document.documentElement.dataset.theme; });
 
 it("persists theme changes and follows updates from other tabs", async () => {
   document.documentElement.dataset.theme = "light";
   render(<ThemeControl />);
   await userEvent.click(screen.getByRole("button", { name: "Switch to dark theme" }));
   expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-  expect(localStorage.getItem("zasp.theme")).toBe("dark");
-  localStorage.setItem("zasp.theme", "light");
-  fireEvent(window, new StorageEvent("storage", { key: "zasp.theme", newValue: "light" }));
+  expect(document.cookie).toContain("zasp.theme=dark");
+  document.cookie = "zasp.theme=light; Path=/";
+  fireEvent(window, new Event("focus"));
   expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
   expect(document.documentElement).toHaveAttribute("data-theme", "light");
 });

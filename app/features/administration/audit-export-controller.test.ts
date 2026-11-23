@@ -7,8 +7,8 @@ import { APIProductError } from "../../../apps/web/api/client";
 const read: AuditExportRead = JSON.parse(readFileSync("apps/web/api/testdata/audit-export-read.json", "utf8"));
 const authority: AuditExportAuthority = { principalID: read.export.audit_correlation_id, organizationID: read.export.organization_id, workspaceID: read.export.workspace_id, environmentID: read.export.environment_id, generation: 1, fresh: true, permitted: true };
 const queued: AuditExport = { id: read.export.id, organization_id: authority.organizationID, workspace_id: authority.workspaceID, environment_id: authority.environmentID, created_at: read.export.created_at, audit_correlation_id: authority.principalID, status: "queued", event_count: null };
-const options = (api: AuditExportsAPI) => ({ api, authority, storage: sessionStorage, retrySession: async () => {} });
-beforeEach(() => sessionStorage.clear());
+const options = (api: AuditExportsAPI) => ({ api, authority, retrySession: async () => {} });
+beforeEach(() => window.history.replaceState({}, "", "/administration/audit-log"));
 afterEach(() => vi.useRealTimers());
 it("retains the exact lost-POST key through reconstruction and never duplicates an active create", async () => {
   const keys: string[] = []; let release!: () => void;
@@ -52,14 +52,14 @@ it.each([false, true])("rechecks freshness after acquiring the create lane witho
   let release!: () => void; const keys: string[] = [];
   const api: AuditExportsAPI = { create: async key => { keys.push(key); if (keys.length === 1) await new Promise<void>(r => { release = r; }); return queued; }, read: async () => read };
   const old = new AuditExportController(options(api)); const creating = old.create(); await Promise.resolve();
-  const stored = sessionStorage.getItem(sessionStorage.key(0)!);
+  const stored = window.location.href;
   const disposed = old.dispose(); const next = new AuditExportController(options(api)); const successor = next.create(newJob);
   next.setFresh(false);
   try {
     await Promise.resolve(); expect(keys).toHaveLength(1);
     release(); await creating; await disposed; await successor;
     expect(keys).toHaveLength(1);
-    expect(sessionStorage.getItem(sessionStorage.key(0)!)).toBe(stored);
+    expect(window.location.href).toBe(stored);
     expect(next.snapshot().resume?.key).toBe(keys[0]);
     expect(next.snapshot().descriptor).toBeNull();
     next.setFresh(true); await next.create();

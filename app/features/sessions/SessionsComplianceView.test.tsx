@@ -1,3 +1,4 @@
+import { parseComplianceLink } from "../../domain/compliance-links";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -260,7 +261,11 @@ describe("current compliance UI", () => {
     expect(await screen.findByText("Export queued")).toBeVisible();
     const creation = requests.find(request => request.method === "POST" && new URL(request.url).pathname.endsWith("/exports"));
     expect(await creation?.json()).toEqual({ framework: "soc2_security", control_id: "soc2-policy" });
-    view.unmount(); render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
+    const resume = parseComplianceLink(window.location.pathname + window.location.search, boundary);
+    expect(resume).toEqual({ state: "export", id: job.id });
+    expect(parseComplianceLink(window.location.pathname + window.location.search, { ...boundary, principalID: organization })).toEqual({ state: "scope_mismatch" });
+    expect(window.location.href).not.toMatch(/token|grant|idempotency/);
+    view.unmount(); render(<SessionsComplianceView surface="compliance" client={client} selectedExport={resume.state === "export" ? resume.id : undefined} complianceBoundary={boundary} />);
     expect(await screen.findByText("Export completed")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Download JSON" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/Access denied/);

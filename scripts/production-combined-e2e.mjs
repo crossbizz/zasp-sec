@@ -5596,21 +5596,17 @@ async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary,
 	console.log("combined E2E: signed recovery manifest published last");
 
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp(),permissions='["view","manage_workflows","manage_findings","manage_identity"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
-	await navigateBrowser(cdp, `${publicOrigin}/administration/recovery`);
-	await waitForBrowserAction(cdp, `location.origin === ${JSON.stringify(publicOrigin)} && location.pathname === "/administration/recovery" && document.readyState !== "loading"`);
-	const retainedRecoveryState = JSON.stringify({ version: 1, backup: { id: backupID, retention_days: 30, idempotency_key: backupIdempotencyKey }, restore: null });
-	const storedRecoveryState = await cdp.send("Runtime.evaluate", { expression: `(() => { const key = ${JSON.stringify(`zasp:recovery:v1:${expectedScope}`)}; const value = ${JSON.stringify(retainedRecoveryState)}; sessionStorage.setItem(key, value); return sessionStorage.getItem(key) === value; })()`, returnByValue: true });
-	assert.equal(storedRecoveryState.exceptionDetails, undefined, "recovery session state storage raised a browser exception");
-	assert.equal(storedRecoveryState.result?.value, true, "recovery session state was not retained in the loaded product document");
-	await reloadBrowser(cdp);
+	const [organizationID, workspaceID, environmentID] = expectedScope.split("/");
+	const backupLink = new URLSearchParams({ backup_id: backupID, organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID });
+	await navigateBrowser(cdp, `${publicOrigin}/administration/recovery?${backupLink}`);
 	await waitForBrowserText(cdp, /Backup succeeded/);
 	await reloadBrowser(cdp);
 	await waitForBrowserText(cdp, /Backup succeeded/);
 	await cdp.send("Runtime.evaluate", { expression: "window.confirm = () => true", returnByValue: true });
 	await clickBrowserText(cdp, "Start restore rehearsal");
-	await waitForBrowserAction(cdp, `(() => { try { return JSON.parse(sessionStorage.getItem(${JSON.stringify(`zasp:recovery:v1:${expectedScope}`)})).restore?.id?.startsWith('pid_') === true; } catch { return false; } })()`);
-	const retained = await cdp.send("Runtime.evaluate", { expression: `JSON.parse(sessionStorage.getItem(${JSON.stringify(`zasp:recovery:v1:${expectedScope}`)}))`, returnByValue: true });
-	const restoreID = retained.result?.value?.restore?.id;
+	await waitForBrowserAction(cdp, `new URLSearchParams(location.search).has("restore_id")`);
+	const selection = await cdp.send("Runtime.evaluate", { expression: `new URLSearchParams(location.search).get("restore_id")`, returnByValue: true });
+	const restoreID = selection.result?.value;
 	assert.match(restoreID, /^pid_[0-9a-f-]{36}$/);
 	await waitForBrowserText(cdp, /Restore queued/);
 

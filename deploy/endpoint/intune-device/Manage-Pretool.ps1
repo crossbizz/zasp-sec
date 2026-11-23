@@ -3,7 +3,7 @@ param(
  [Parameter(Mandatory)][ValidateSet('Install','Detect','Uninstall')][string]$Action,
  [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{64}$')][string]$AgentSHA256,
  [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{40}$')][string]$SignerThumbprint,
- [string]$IssuerPublicKey,[string]$EmployeeHome,[string]$Workspace,
+ [string]$IssuerPublicKey,[string]$EmployeeHome,[string]$Workspace,[string]$DelegationVerifier,
  [ValidateSet('continue','deny')][string]$OnUnavailable='continue',[switch]$ExistingManagedHook
 )
 $ErrorActionPreference='Stop'
@@ -56,7 +56,8 @@ $job=Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
 $externalFlag=Join-Path $root 'pretool-external-hook.txt'
 Assert-Managed $externalFlag
 $external=($ExistingManagedHook -or (Test-Path -LiteralPath $externalFlag -PathType Leaf))
-$verb=if ($OnUnavailable -eq 'deny') {'claude-pretool'} else {'claude-pretool-open'}
+if ($DelegationVerifier) { $matcher='.*' }
+$verb=if ($DelegationVerifier) {'claude-pretool-delegated'} elseif ($OnUnavailable -eq 'deny') {'claude-pretool'} else {'claude-pretool-open'}
 $command='"'+$exe.Replace('\','/')+'" '+$verb
 function Has-ExternalHook {
  if (!$hasHook) {return $false}
@@ -68,7 +69,10 @@ function Has-ExternalHook {
  return $false
 }
 if ($external -and $hasMarker) { throw 'Remove the previous managed integration before changing hook ownership.' }
-if ($Action -eq 'Detect' -and $external) { $command=[IO.File]::ReadAllText($externalFlag) }
+if ($Action -eq 'Detect' -and $external) {
+ $command=[IO.File]::ReadAllText($externalFlag)
+ if ($command.EndsWith(' claude-pretool-delegated')) { $matcher='.*' }
+}
 if ($Action -eq 'Detect') {
  if ((Valid-Release) -and ($ownsHook -or ($external -and (Has-ExternalHook))) -and (Test-Path -LiteralPath $cfg -PathType Leaf) -and $job.State -eq 'Running' -and $job.Actions[0].Execute -eq $exe -and $job.Actions[0].Arguments -eq 'pretool-broker') { Write-Output 'Pretool broker installed'; exit 0 }
  exit 1
@@ -89,7 +93,22 @@ foreach ($dir in @($EmployeeHome,$Workspace)) {
 if ([Convert]::FromBase64String($IssuerPublicKey).Length -ne 32) { throw 'Expected an independently provisioned Ed25519 public key.' }
 $device=& $exe init-device-key
 if ($LASTEXITCODE -or ($device | ConvertFrom-Json).device_public_key -ceq $IssuerPublicKey) { throw 'The policy issuer and device key must differ.' }
-$config=@{issuer_public_key=$IssuerPublicKey;home=$EmployeeHome;workspace=$Workspace}|ConvertTo-Json -Compress
+$configBody=@{issuer_public_key=$IssuerPublicKey;home=$EmployeeHome;workspace=$Workspace}
+if ($DelegationVerifier) {
+ $verifier=$DelegationVerifier|ConvertFrom-Json
+ $fields=@('agent_id','environment_id','organization_id','parent_task_id','public_key','workspace_id')
+ if (Compare-Object $fields @($verifier.PSObject.Properties.Name)) { throw 'Delegation verifier fields are incomplete or unrecognized.' }
+ if ([Convert]::FromBase64String($verifier.public_key).Length -ne 32 -or $verifier.public_key -ceq ($device | ConvertFrom-Json).device_public_key) { throw 'Expected the independent delegation issuer public key.' }
+ $deviceConfig=[IO.File]::ReadAllText((Join-Path $root 'device.json'))|ConvertFrom-Json
+ foreach ($scopeField in @('organization_id','workspace_id','environment_id')) {
+  if ($verifier.$scopeField -cne $deviceConfig.binding.$scopeField) { throw 'Delegation must match the enrolled device scope.' }
+ }
+ foreach ($field in @('agent_id','parent_task_id')) {
+  if ($verifier.$field -cnotmatch '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$') { throw 'Invalid task or agent binding.' }
+ }
+ $configBody.delegation=$verifier
+}
+$config=$configBody|ConvertTo-Json -Depth 4 -Compress
 $settings=@{hooks=@{PreToolUse=@(@{matcher=$matcher;hooks=@(@{type='command';command=$command;timeout=3})})}}|ConvertTo-Json -Depth 8 -Compress
 if (!(Test-Path -LiteralPath $claude)) { [IO.Directory]::CreateDirectory($claude)|Out-Null; Assert-Managed $claude }
 # Stop exactly the existing broker when changing its pinned configuration. Keep

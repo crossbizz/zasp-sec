@@ -49,6 +49,7 @@ COPY --from=runner-assets /usr/local/bin/node /usr/local/bin/node
 COPY --from=runner-assets --chown=65532:65532 /app/ /app/
 COPY --from=build --chown=65532:65532 /out/agentsec-worker /out/agentsec-attack-lab-proxy /out/zasp-authorization-reconcile /out/zasp-healthcheck ./
 COPY --from=security-python-build --chown=65532:65532 /opt/zasp/security /opt/zasp/security
+COPY services/platform/licenses/segmentio-asm-MIT.txt /usr/share/licenses/zasp/segmentio-asm-MIT.txt
 USER 65532:65532
 EXPOSE 8081
 HEALTHCHECK --interval=10s --timeout=2s --start-period=10s --retries=3 CMD ["/app/zasp-healthcheck", "http://127.0.0.1:8081/healthz"]

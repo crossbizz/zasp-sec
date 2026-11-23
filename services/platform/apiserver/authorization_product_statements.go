@@ -42,6 +42,7 @@ type productStatementRule struct {
 	kind        string // The object's kind among the allowed targets; empty when PostgreSQL resolves the parent.
 	parameter   string // Path parameter holding the object; "id" when empty.
 	browserOnly bool
+	collection  bool
 	fresh       bool // The session must be freshly authenticated.
 	check       func(RequestAuthorization, []any) bool
 }
@@ -106,7 +107,7 @@ func productStatementAllowed(g RequestAuthorization, q string, args []any) (hand
 	if !ok {
 		return false, false
 	}
-	if len(args) != r.arguments || g.Collection || !stringIn(g.OperationID, r.operations...) {
+	if len(args) != r.arguments || g.Collection != r.collection || !stringIn(g.OperationID, r.operations...) {
 		return true, false
 	}
 	if r.browserOnly && g.Identity.CredentialKind != CredentialBrowserSession {

@@ -91,11 +91,23 @@ type LookupRequest struct {
 	AccountVersion       int64  `json:"account_version"`
 }
 
+// ValidLedger binds each approved pricing provider to its accounting unit.
+func ValidLedger(provider, unit string) bool {
+	switch provider {
+	case "openrouter":
+		return unit == "openrouter_credit"
+	case "zasp_vpc_slm", "bedrock_privatelink", "vertex_privatelink", "byoc_vllm":
+		return unit == "model_credit"
+	default:
+		return false
+	}
+}
+
 // ValidLookupIdentity validates every field that identifies an authorized
 // lookup without performing database or provider I/O. Body validation remains
 // separate because a release preflight has no prepared request body yet.
 func ValidLookupIdentity(q LookupRequest) bool {
-	if !validScope(q.Scope) || q.Provider != "openrouter" || q.CostUnit != "openrouter_credit" || len(q.Model) > 128 || !modelPattern.MatchString(q.Model) || !boundedToken(q.AccountProfile, 128) || !boundedToken(q.RequestPolicyVersion, 63) || !validReference(q.Scope, q.CredentialReference) || !digestPattern.MatchString(q.CredentialDigest) || !digestPattern.MatchString(q.PolicyDigest) || q.PolicyVersion < 1 || q.PolicyVersion > 999999 || q.AccountVersion < 1 || q.AccountVersion > 1000000 || q.RequestTokenLimit < 1 || q.RequestTokenLimit > 4096 {
+	if !validScope(q.Scope) || !ValidLedger(q.Provider, q.CostUnit) || len(q.Model) > 128 || !modelPattern.MatchString(q.Model) || !boundedToken(q.AccountProfile, 128) || !boundedToken(q.RequestPolicyVersion, 63) || !validReference(q.Scope, q.CredentialReference) || !digestPattern.MatchString(q.CredentialDigest) || !digestPattern.MatchString(q.PolicyDigest) || q.PolicyVersion < 1 || q.PolicyVersion > 999999 || q.AccountVersion < 1 || q.AccountVersion > 1000000 || q.RequestTokenLimit < 1 || q.RequestTokenLimit > 4096 {
 		return false
 	}
 	policyID, accountID := ids(q.Scope, q.Provider, q.Model, q.AccountProfile)
@@ -139,7 +151,7 @@ func validReference(s Scope, ref string) bool {
 func validPolicy(s Scope, p Policy) bool {
 	effective, ok := canonicalTime(p.EffectiveAt)
 	expires, ok2 := canonicalTime(p.ExpiresAt)
-	return validScope(s) && p.Provider == "openrouter" && p.CostUnit == "openrouter_credit" && len(p.Model) <= 128 && modelPattern.MatchString(p.Model) && boundedToken(p.AccountProfile, 128) && boundedToken(p.RequestPolicyVersion, 63) && p.MaximumTokens >= 1 && p.MaximumTokens <= 12000 && p.MaximumCostNanoCredits >= 1 && p.MaximumCostNanoCredits <= 1000000000000 && p.RequestTokenLimit >= 1 && p.RequestTokenLimit <= 4096 && p.RequestTokenLimit <= p.MaximumTokens && validReference(s, p.CredentialReference) && digestPattern.MatchString(p.CredentialDigest) && ok && ok2 && expires.After(effective) && !expires.After(effective.Add(30*24*time.Hour))
+	return validScope(s) && ValidLedger(p.Provider, p.CostUnit) && len(p.Model) <= 128 && modelPattern.MatchString(p.Model) && boundedToken(p.AccountProfile, 128) && boundedToken(p.RequestPolicyVersion, 63) && p.MaximumTokens >= 1 && p.MaximumTokens <= 12000 && p.MaximumCostNanoCredits >= 1 && p.MaximumCostNanoCredits <= 1000000000000 && p.RequestTokenLimit >= 1 && p.RequestTokenLimit <= 4096 && p.RequestTokenLimit <= p.MaximumTokens && validReference(s, p.CredentialReference) && digestPattern.MatchString(p.CredentialDigest) && ok && ok2 && expires.After(effective) && !expires.After(effective.Add(30*24*time.Hour))
 }
 func canonicalID(s Scope, kind, native string) string {
 	h := sha256.Sum256([]byte(strings.Join([]string{s.OrganizationID, s.WorkspaceID, s.EnvironmentID, kind, native}, "\x1f")))

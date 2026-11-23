@@ -10,5 +10,6 @@ RUN test -n "$VERSION" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="
 FROM alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412 AS runtime
 WORKDIR /app
 COPY --from=build --chown=65532:65532 /out/agentsec-attack-lab-runner ./
+COPY services/platform/licenses/segmentio-asm-MIT.txt /usr/share/licenses/zasp/segmentio-asm-MIT.txt
 USER 65532:65532
 ENTRYPOINT ["/app/agentsec-attack-lab-runner"]

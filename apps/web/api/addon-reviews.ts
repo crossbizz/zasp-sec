@@ -1,3 +1,6 @@
+import type {OfflineAddonObservation} from "./generated";
+import { reviewAPI } from "./inventory-review";
+import { deploymentAPI, type DeploymentAPI } from "./addon-deployments";
 import { decodeAddonInstallationPage } from "./addon-installations";
 import { APITransportError, requireAPIData, type APIClient } from "./client";
 
@@ -31,6 +34,7 @@ export type AddonVersion = Readonly<{
   ruleset: "zasp-static.v1" | "zasp-static.v2";
   findings: readonly { rule_id: string; count: number }[];
   framework_evidence?: readonly AddonFrameworkEvidence[];
+  offline_observations?: readonly OfflineAddonObservation[];
   review_state: ReviewDecision | "pending";
   revision: number;
 }>;
@@ -88,6 +92,23 @@ export function decodeAddonScan(value: unknown, expectedID: string) {
   return { ...receipt, completeness: "complete" as const, versionID: row.version_id, digest: row.manifest_digest };
 }
 
+function decodeOfflineObservations(value: unknown): readonly OfflineAddonObservation[] {
+  if (!Array.isArray(value) || value.length > 3) return invalid();
+  const seen = new Set<string>();
+  return value.map(item => {
+    const r = record(item);
+    const scanners = ["cisco_skill_scanner", "nvidia_skillspector", "gvisor_tetragon"];
+    const permitted = r.scanner === "gvisor_tetragon" ? ["honeytoken_read","honeytoken_egress_denied","unexpected_process","filesystem_write"] : ["instruction_override","credential_reference","network_reference","broad_permissions"];
+    if (typeof r.scanner !== "string" || !scanners.includes(r.scanner) || seen.has(r.scanner) ||
+      typeof r.evidence_id !== "string" || !addonID.test(r.evidence_id) || typeof r.profile_digest !== "string" || !digest.test(r.profile_digest) ||
+      typeof r.observed_at !== "string" || typeof r.expires_at !== "string" || !(Date.parse(r.expires_at) > Date.parse(r.observed_at)) ||
+      !Array.isArray(r.indicators) || r.indicators.length > 4 || new Set(r.indicators).size !== r.indicators.length ||
+      !r.indicators.every(v => permitted.includes(v))) return invalid();
+    seen.add(r.scanner);
+    return r as OfflineAddonObservation;
+  });
+}
+
 export function decodeAddonVersion(
   value: unknown,
   expectedID?: string,
@@ -139,14 +160,17 @@ export function decodeAddonVersion(
     provenance: row.provenance,
     ruleset: row.ruleset,
     findings,
+    ...(row.offline_observations !== undefined ? {offline_observations: decodeOfflineObservations(row.offline_observations)} : {}),
     ...(frameworkEvidence !== undefined ? { framework_evidence: frameworkEvidence } : {}),
     review_state: row.review_state,
     revision: row.revision,
   };
 }
-export type AddonReviewAPI = ReturnType<typeof createAddonReviewAPI>;
+export type AddonReviewAPI = Omit<ReturnType<typeof createAddonReviewAPI>, "deployments" | "reviewEvidence"> & { deployments?: DeploymentAPI;reviewEvidence?: ReturnType<typeof reviewAPI> };
 export function createAddonReviewAPI(client: APIClient) {
   return {
+    deployments: deploymentAPI(client),
+    reviewEvidence:reviewAPI(client),
     async scan(id: string, signal?: AbortSignal) {
       return requireAPIData(
         await client.GET("/api/v1/addon-scans/{id}", {params: {path: {id}}, signal}),

@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/internal/multisteppricing"
 )
 
 // The administrator's approval of the planner's provider account and price
@@ -88,7 +90,7 @@ func validSecurityAgentPricingPolicy(policy SecurityAgentPlannerPricingPolicy, o
 	effective, effectiveErr := time.Parse(securityAgentPricingTimeLayout, policy.EffectiveAt)
 	expires, expiresErr := time.Parse(securityAgentPricingTimeLayout, policy.ExpiresAt)
 	prefix := "secret_ref_planner/" + organization + "/" + workspace + "/" + environment + "/"
-	return policy.Provider == "openrouter" && policy.CostUnit == "openrouter_credit" &&
+	return multisteppricing.ValidLedger(policy.Provider, policy.CostUnit) &&
 		len(policy.Model) >= 1 && len(policy.Model) <= 128 && securityAgentPricingModelPattern.MatchString(policy.Model) &&
 		securityAgentPricingProfilePattern.MatchString(policy.AccountProfile) && securityAgentPricingPolicyPattern.MatchString(policy.RequestPolicyVersion) &&
 		securityAgentPricingReferencePattern.MatchString(policy.CredentialReference) && !bytes.Contains([]byte(policy.CredentialReference), []byte("..")) && !bytes.Contains([]byte(policy.CredentialReference), []byte("//")) &&

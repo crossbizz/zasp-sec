@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -18,10 +18,19 @@ function QueryScope({ children }: { children: ReactNode }) {
   useEffect(() => setQueryScope("search-test"), [setQueryScope]);
   return children;
 }
-function mount(get: ReturnType<typeof vi.fn>) {
+const allRoutes = ["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes", "/violations"].map(path => ({ path }));
+function mount(get: ReturnType<typeof vi.fn>, routes = allRoutes) {
   const navigate = vi.fn();
-  render(<APIProvider><QueryScope><ProductionGlobalSearch client={{ GET: get } as unknown as APIClient} scope={scope} onNavigate={navigate} /><button>Outside search</button></QueryScope></APIProvider>);
-  return { navigate, user: userEvent.setup(), input: screen.getByRole("searchbox") };
+  function Surface() {
+    const [resultsHost, setResultsHost] = useState<HTMLDivElement | null>(null);
+    return <APIProvider><QueryScope>
+      <ProductionGlobalSearch client={{ GET: get } as unknown as APIClient} scope={scope} routes={routes} resultsHost={resultsHost} onNavigate={navigate} />
+      <button>Outside search</button>
+      <div id="product-search-results" data-testid="search-results" ref={setResultsHost} />
+    </QueryScope></APIProvider>;
+  }
+  render(<Surface />);
+  return { navigate, user: userEvent.setup(), input: screen.getByRole("searchbox"), host: screen.getByTestId("search-results") };
 }
 
 describe("Production global search", () => {
@@ -31,8 +40,32 @@ describe("Production global search", () => {
   ] as const)("opens the exact %s record", async (type, route) => {
     const { navigate, user, input } = mount(vi.fn().mockResolvedValue(ok([row(type)])));
     await user.type(input, "Example{enter}");
-    await user.click(await screen.findByRole("button", { name: "Open Example result" }));
+    await user.click(await screen.findByRole("link", { name: "Open Example result" }));
     expect(navigate).toHaveBeenCalledWith(type === "finding" ? activityLink({ kind: "finding", id: id(4) }, scope) : `${route}?inventory=${id(4)}`);
+  });
+
+  it("shows unavailable destinations as text and keeps scoped links in the main results area", async () => {
+    const { navigate, user, input, host } = mount(vi.fn().mockResolvedValue(ok([
+      { ...row("finding"), name: "Invoice finding" }, { ...row("tool"), name: "Invoice tool" },
+    ])), [{path: "/violations"}]);
+    await user.type(input, "Invoice{enter}");
+    const link = await screen.findByRole("link", { name: "Open Invoice finding" });
+    const href = activityLink({ kind: "finding", id: id(4) }, scope);
+    expect(link).toHaveAttribute("href", href);
+    expect(host).toContainElement(link);
+    expect(screen.getByText("Invoice tool")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Open Invoice tool" })).toBeNull();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Dismiss results" })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "Search" })).toHaveFocus();
+    await user.tab();
+    await user.tab();
+    expect(link).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(navigate).toHaveBeenCalledWith(href);
+    expect(host).toBeEmptyDOMElement();
   });
 
   it("cancels superseded reads and dismisses pending or visible results", async () => {
@@ -45,24 +78,24 @@ describe("Production global search", () => {
     await user.type(input, "c");
     expect(get.mock.calls[0][1].signal.aborted).toBe(true);
     await act(async () => { finish(ok([row("agent")])); });
-    expect(screen.queryByRole("button", { name: "Open Example result" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open Example result" })).toBeNull();
     await user.keyboard("{Enter}");
-    const result = await screen.findByRole("button", { name: "Open Example result" });
+    const result = await screen.findByRole("link", { name: "Open Example result" });
     result.focus();
     await user.keyboard("{Escape}");
     expect(input).toHaveFocus();
     expect(input).toHaveValue("Abc");
     expect(result).not.toBeInTheDocument();
     await user.keyboard("{Enter}");
-    await screen.findByRole("button", { name: "Open Example result" });
+    await screen.findByRole("link", { name: "Open Example result" });
     await user.click(screen.getByRole("button", { name: "Outside search" }));
-    expect(screen.queryByRole("button", { name: "Open Example result" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open Example result" })).toBeNull();
   });
 
   it.each(["input", "submit"])("dismisses results from the %s and returns focus to the search box", async control => {
     const { user, input } = mount(vi.fn().mockResolvedValue(ok([row("tool")])));
     await user.type(input, "Example{enter}");
-    const result = await screen.findByRole("button", { name: "Open Example result" });
+    const result = await screen.findByRole("link", { name: "Open Example result" });
     if (control === "submit") await user.tab();
     expect(control === "submit" ? screen.getByRole("button", { name: "Search" }) : input).toHaveFocus();
     await user.keyboard("{Escape}");
@@ -75,9 +108,12 @@ describe("Production global search", () => {
     const { user, input, navigate } = mount(get);
     await user.type(input, "Example{enter}");
     await user.click(await screen.findByRole("button", { name: "Open Example result" }));
-    expect(await screen.findByRole("dialog", { name: "Example result" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Example result" })).toHaveFocus();
     expect(await screen.findByRole("alert")).toHaveTextContent("Asset details could not be refreshed");
     expect(get).toHaveBeenLastCalledWith("/api/v1/assets/{id}", expect.objectContaining({ params: { path: { id: id(4) } } }));
     expect(navigate).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(input).toHaveFocus();
+    expect(screen.queryByRole("heading", { name: "Example result" })).toBeNull();
   });
 });

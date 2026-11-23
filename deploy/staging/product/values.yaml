@@ -241,6 +241,12 @@ securityAgentRemediation:
 #                   it is told this number whether or not the gateway is
 #                   enabled, so records outlive a gateway that was turned
 #                   off by no more than this.
+studioInventory:
+  # Owner-readable binding and credentials mounted by the API secret provider.
+  bindingFile: ""
+taskDelegation:
+  # Owner-readable authority file mounted by the API secret provider.
+  authorityFile: ""
 hostedGateway:
   enabled: false
   timeoutSeconds: 300

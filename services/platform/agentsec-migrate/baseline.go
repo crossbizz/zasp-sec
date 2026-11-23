@@ -15,7 +15,7 @@ import (
 
 // baselineCommand reports whether the arguments select a baseline command.
 func baselineCommand(arguments []string) bool {
-	return len(arguments) == 1 && (arguments[0] == "upgrade-feature-v2" || arguments[0] == "install-baseline" || arguments[0] == "verify-baseline" || arguments[0] == "baseline-script")
+	return len(arguments) == 1 && (arguments[0] == "upgrade-feature-v3" || arguments[0] == "upgrade-feature-v2" || arguments[0] == "install-baseline" || arguments[0] == "verify-baseline" || arguments[0] == "baseline-script")
 }
 
 // writeBaselineScript prints the installation as a JSON array of single SQL
@@ -78,8 +78,8 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 	}
 	apply := baseline.Install
 	resultKey := "installed"
-	if arguments[0] == "upgrade-feature-v2" {
-		apply = baseline.UpgradeToV2
+	if arguments[0] == "upgrade-feature-v2" || arguments[0] == "upgrade-feature-v3" {
+		apply = baseline.UpgradeToV3
 		resultKey = "upgraded"
 	}
 	err = apply(ctx, conn, baseline.Check{

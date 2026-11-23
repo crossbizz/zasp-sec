@@ -1,0 +1,36 @@
+{
+  "verifier": {
+    "organization_id": "pid_90000001-0000-4000-8000-000000000001",
+    "workspace_id": "pid_90000002-0000-4000-8000-000000000002",
+    "environment_id": "pid_90000003-0000-4000-8000-000000000003",
+    "parent_task_id": "reply-task",
+    "agent_id": "pid_90000007-0000-4000-8000-000000000007",
+    "public_key": "XxKWkdWq5twKJOUUJhhzFkEWJpB0W5DmbwtE8Inovag="
+  },
+  "issued_at": 1787227200,
+  "protected_header": {
+    "alg": "EdDSA",
+    "typ": "zasp-task-delegation.v1+jwt"
+  },
+  "claims": {
+    "organization_id": "pid_90000001-0000-4000-8000-000000000001",
+    "workspace_id": "pid_90000002-0000-4000-8000-000000000002",
+    "environment_id": "pid_90000003-0000-4000-8000-000000000003",
+    "parent_task_id": "reply-task",
+    "parent_agent_id": "pid_90000006-0000-4000-8000-000000000006",
+    "child_agent_id": "pid_90000007-0000-4000-8000-000000000007",
+    "allowed_operations": [
+      "draft_reply",
+      "mcp__pilot__update_ticket"
+    ],
+    "allowed_resources": [
+      "inbox",
+      "internal"
+    ],
+    "depth": 1,
+    "max_depth": 2,
+    "iat": 1787227200,
+    "exp": 1787227260
+  },
+  "signature": "OxqKCFViuFu-Wo3sGKAnNpUMzD4nhhx8VStEASMjmL5Ozx2qFzPfrCnmb6M6G3J8neawFeETsU-GgEOXA_I6Ag"
+}

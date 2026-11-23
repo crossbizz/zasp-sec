@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -132,6 +131,15 @@ func newSecurityAgentPlannerFromFile(config workerRuntimeConfig) (*productionSec
 	return planner, nil
 }
 
+// The historical response-plan profile only supports a public router. It may
+// be exercised with an injected evaluation transport; installed workers must
+// never forward customer evidence through that profile.
+type disabledLegacyModelTransport struct{}
+
+func (disabledLegacyModelTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errRuntimeUnavailable
+}
+
 func newSecurityAgentPlanner(config securityAgentPlannerConfig) (*productionSecurityAgentPlanner, error) {
 	parsed, err := url.Parse(config.Endpoint)
 	if err != nil || parsed.String() != config.Endpoint || parsed.Scheme != "https" || parsed.Host != "openrouter.ai" || parsed.Path != "/api/v1/chat/completions" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || !validSecurityAgentPlannerToken(config.Model, 128, true) || !validSecurityAgentPlannerCredential(config.Token) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.MaximumTokens < 1 || config.MaximumTokens > 4096 || !validSecurityAgentPlannerToken(config.PolicyVersion, 63, false) {
@@ -139,14 +147,7 @@ func newSecurityAgentPlanner(config securityAgentPlannerConfig) (*productionSecu
 	}
 	transport := config.Transport
 	if transport == nil {
-		transport = &http.Transport{
-			Proxy:               nil,
-			TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
-			TLSHandshakeTimeout: 5 * time.Second,
-			IdleConnTimeout:     30 * time.Second,
-			MaxIdleConns:        4,
-			MaxIdleConnsPerHost: 2,
-		}
+		transport = disabledLegacyModelTransport{}
 	}
 	return &productionSecurityAgentPlanner{
 		endpoint: config.Endpoint, model: config.Model, token: bytes.Clone(config.Token), maximumTokens: config.MaximumTokens, policyVersion: config.PolicyVersion,

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
 	"net"
 	"os"
 	"os/user"
@@ -24,16 +25,17 @@ import (
 )
 
 type configuration struct {
-	Adapter         string        `json:"adapter,omitempty"`
-	Remote          *remoteConfig `json:"control_plane,omitempty"`
-	Binding         Binding       `json:"binding"`
-	UID             *int          `json:"allowed_uid"`
-	PolicyKey       []byte        `json:"policy_public_key"`
-	PolicyFile      string        `json:"policy_file"`
-	StateDir        string        `json:"state_dir"`
-	Socket          string        `json:"socket"`
-	KeychainAccount string        `json:"keychain_account,omitempty"`
-	SeedFile        string        `json:"seed_file,omitempty"`
+	Delegation      *delegation.Verifier `json:"delegation,omitempty"`
+	Adapter         string               `json:"adapter,omitempty"`
+	Remote          *remoteConfig        `json:"control_plane,omitempty"`
+	Binding         Binding              `json:"binding"`
+	UID             *int                 `json:"allowed_uid"`
+	PolicyKey       []byte               `json:"policy_public_key"`
+	PolicyFile      string               `json:"policy_file"`
+	StateDir        string               `json:"state_dir"`
+	Socket          string               `json:"socket"`
+	KeychainAccount string               `json:"keychain_account,omitempty"`
+	SeedFile        string               `json:"seed_file,omitempty"`
 }
 
 func checkOwned(path string, directory bool, permitted os.FileMode) error {
@@ -55,6 +57,9 @@ func loadConfig(path string) (configuration, error) {
 	}
 	data, err := readFile(path, 16<<10)
 	if err != nil || strictJSON(data, &c) != nil || !c.Binding.valid() || c.UID == nil || *c.UID < 0 || len(c.PolicyKey) != ed25519.PublicKeySize {
+		return c, errInvalid
+	}
+	if c.Delegation != nil && !c.Delegation.Valid(delegation.Tenant{Organization: c.Binding.Organization, Workspace: c.Binding.Workspace, Environment: c.Binding.Environment}) {
 		return c, errInvalid
 	}
 	if c.Adapter != "" && (!endpointprotocol.PretoolAdapter(c.Adapter) || !(runtime.GOOS == "linux" && c.Adapter == "linux_claude_pretool_v2_test" || runtime.GOOS == "darwin" && (c.Adapter == "macos_claude_pretool_v2" || c.Adapter == "macos_codex_pretool_v2"))) {
@@ -102,11 +107,13 @@ func deviceKey(c configuration) (ed25519.PrivateKey, error) {
 }
 
 type request struct {
-	Harness   string            `json:"harness,omitempty"`
-	Project   string            `json:"project,omitempty"`
-	Operation string            `json:"operation"`
-	Hook      json.RawMessage   `json:"hook,omitempty"`
-	Archived  map[string]string `json:"archived,omitempty"`
+	Delegation        string            `json:"delegation_token,omitempty"`
+	RequireDelegation bool              `json:"require_delegation,omitempty"`
+	Harness           string            `json:"harness,omitempty"`
+	Project           string            `json:"project,omitempty"`
+	Operation         string            `json:"operation"`
+	Hook              json.RawMessage   `json:"hook,omitempty"`
+	Archived          map[string]string `json:"archived,omitempty"`
 }
 
 type health struct {
@@ -173,6 +180,9 @@ func (b *broker) process(req request, uid int) response {
 		b.wakeSync()
 		return response{}
 	case "pre-tool":
+		if decision := b.checkDelegated(req); decision != nil {
+			return response{Decision: decision}
+		}
 		if req.Harness != "" && req.Harness != "claude" && req.Harness != "codex" {
 			return response{Error: "unsupported_harness"}
 		}
@@ -240,7 +250,7 @@ func serve(ctx context.Context, configPath string) error {
 	if peer, err := user.LookupId(strconv.Itoa(*config.UID)); err == nil && filepath.IsAbs(peer.HomeDir) {
 		home = peer.HomeDir
 	}
-	b := broker{adapter: config.Adapter, home: home, binding: config.Binding, uid: *config.UID, key: key, policyKey: config.PolicyKey, policyFile: config.PolicyFile, store: st, now: time.Now}
+	b := broker{delegation: config.Delegation, adapter: config.Adapter, home: home, binding: config.Binding, uid: *config.UID, key: key, policyKey: config.PolicyKey, policyFile: config.PolicyFile, store: st, now: time.Now}
 	if info, statErr := os.Lstat(config.Socket); statErr == nil {
 		if info.Mode()&os.ModeSocket == 0 {
 			return errInvalid

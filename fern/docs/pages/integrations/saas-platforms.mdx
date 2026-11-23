@@ -55,17 +55,17 @@ An integration names one tenant. Before anything is collected, Zasp asks the pla
     In the connector catalog, choose the platform. Enter its tenant identifier and save.
   </Step>
   <Step title="Sign in">
-    Open the integration and choose the sign-in button. You continue on the provider's site.
+    Open the integration and choose the button that starts with **Sign in to**. Select **Continue to provider** to open the provider in a second tab. Leave the original Zasp tab open.
   </Step>
   <Step title="Return">
-    The provider returns you to the Integrations page. Zasp asks the platform which tenant the new connection reaches. A connection that does not reach the tenant the integration names is deleted, and the sign-in fails.
+    After signing in, return to the original Zasp tab and select **Finish sign-in**. Zasp checks the provider's completed attempt and verifies the tenant before saving the connection. If the provider is still processing, select **Finish sign-in** again.
   </Step>
   <Step title="Authorize and sync">
     Authorize the integration, then sync. Authorizing needs a fresh sign-in to Zasp and checks the tenant again.
   </Step>
 </Steps>
 
-A sign-in is taken once, by the person and the browser session that started it, within ten minutes. Finish it in the browser tab you started it in.
+Finish in the same Zasp session and environment before the sign-in expires. If you close or reload the original tab, reopen the integration and start a new sign-in.
 
 ## Connect by reference
 
@@ -96,7 +96,7 @@ For a platform that is connected with an API key or token:
 | "The platform refused the Nango connection." | The connection is no longer authorized, or lacks read access | Check the connection in Nango, then authorize again |
 | "The sign-in did not reach the tenant this integration names, or the account may not read it." | You signed in to another tenant | Sign in with an account of the tenant you entered |
 | "The sign-in was cancelled at the provider. Nothing was connected." | You closed the provider's page | Sign in again |
-| "This sign-in was not started from this browser tab." | The provider returned to another tab | Open the integration and sign in again, in one tab |
+| "This sign-in is no longer available in this session. Start a new sign-in." | The original session or attempt expired | Reopen the integration in the intended environment and start a new sign-in |
 
 ## Limits to know
 

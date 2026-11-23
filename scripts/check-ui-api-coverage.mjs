@@ -94,7 +94,7 @@ export function parseOpenAPISource(source) {
       invariant(!allOperations.has(operation.operationId));
 
       let visibility;
-      if (path === "/api/v1" || path.startsWith("/api/v1/")) {
+      if (path === "/mcp" || path === "/api/v1" || path.startsWith("/api/v1/")) {
         visibility = "public";
         publicOperations.add(operation.operationId);
       } else if (path === "/internal/v1" || path.startsWith("/internal/v1/")) {

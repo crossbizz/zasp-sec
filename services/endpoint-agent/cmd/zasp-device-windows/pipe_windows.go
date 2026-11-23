@@ -21,6 +21,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/inventoryreport"
 	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/pretool"
 	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/windowsinventory"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
 	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 	"golang.org/x/sys/windows"
 )
@@ -31,6 +32,12 @@ const pipeName = `\\.\pipe\zasp-claude-pretool-v2`
 // FILE_APPEND_DATA would grant FILE_CREATE_PIPE_INSTANCE and is excluded.
 const pipeAccess = windows.FILE_READ_ATTRIBUTES | windows.FILE_READ_DATA | windows.FILE_WRITE_DATA | windows.FILE_WRITE_ATTRIBUTES | windows.SYNCHRONIZE | windows.READ_CONTROL
 const maxHook = 32768
+const delegationFrame = "ZASP-PRETOOL-DELEGATION-V1\n"
+
+type delegatedHook struct {
+	Hook  json.RawMessage `json:"hook"`
+	Token string          `json:"token"`
+}
 
 var impersonate = windows.NewLazySystemDLL("advapi32.dll").NewProc("ImpersonateNamedPipeClient")
 
@@ -170,11 +177,39 @@ func hookFallback(closed bool) []byte {
 	return []byte("{}")
 }
 func pipeHook(name string, closed bool, input io.Reader, out io.Writer) error {
+	return managedPipeHook(name, closed, false, input, out)
+}
+
+func managedPipeHook(name string, closed, requireDelegation bool, input io.Reader, out io.Writer) error {
+	token := os.Getenv("ZASP_TASK_DELEGATION")
+	delegated := requireDelegation || token != ""
 	raw, err := bounded(input, maxHook)
-	reply := hookFallback(closed)
+	reply := hookFallback(closed || delegated)
+	if delegated && err == nil {
+		if token == "" || len(token) > 16384 {
+			err = invalid
+		} else {
+			raw, err = json.Marshal(delegatedHook{Hook: raw, Token: token})
+			raw = append([]byte(delegationFrame), raw...)
+			if len(raw) > maxHook {
+				err = invalid
+			}
+		}
+	}
 	if err == nil && len(raw) > 0 {
-		if v, err := exchangePipe(name, raw); err == nil && json.Valid(v) {
-			reply = v
+		if v, err := exchangePipe(name, raw); err == nil {
+			if delegated {
+				var recognized bool
+				v, recognized = bytes.CutPrefix(v, []byte(delegationFrame))
+				// An older broker can answer a malformed delegated request with
+				// its monitor fallback. Only accept a delegation-aware reply.
+				if !recognized {
+					v = nil
+				}
+			}
+			if json.Valid(v) {
+				reply = v
+			}
 		}
 	}
 	_, err = out.Write(append(reply, '\n'))
@@ -182,9 +217,10 @@ func pipeHook(name string, closed bool, input io.Reader, out io.Writer) error {
 }
 
 type pretoolConfig struct {
-	Public    []byte `json:"issuer_public_key"`
-	Home      string `json:"home"`
-	Workspace string `json:"workspace"`
+	Delegation *delegation.Verifier `json:"delegation,omitempty"`
+	Public     []byte               `json:"issuer_public_key"`
+	Home       string               `json:"home"`
+	Workspace  string               `json:"workspace"`
 }
 
 func pretoolConfigAt(root string, key ed25519.PrivateKey) (pretoolConfig, error) {
@@ -210,7 +246,30 @@ func opaque(key []byte, kind, s string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func decidePretool(root string, c windowsinventory.Config, cfg pretoolConfig, key ed25519.PrivateKey, raw []byte) ([]byte, error) {
+// The verified named pipe transports a separately framed grant. A grant can
+// narrow the signed policy, but cannot independently allow an action.
+func checkDelegatedHook(binding endpointprotocol.Binding, verifier *delegation.Verifier, raw []byte, now time.Time) ([]byte, bool) {
+	tenant := delegation.Tenant{Organization: binding.Organization, Workspace: binding.Workspace, Environment: binding.Environment}
+	var request delegatedHook
+	frame, framed := bytes.CutPrefix(raw, []byte(delegationFrame))
+	if !framed && verifier == nil {
+		return raw, true
+	}
+	if !framed || !verifier.Valid(tenant) || !inventoryreport.UniqueJSON(frame) || !endpointprotocol.Strict(frame, &request) {
+		return nil, false
+	}
+	if !pretool.VerifyTicketDelegation(verifier, request.Token, request.Hook, now).Allowed {
+		return nil, false
+	}
+	return request.Hook, true
+}
+
+func decidePretool(root string, c windowsinventory.Config, cfg pretoolConfig, key ed25519.PrivateKey, wire []byte) ([]byte, error) {
+	now := time.Now().UTC()
+	raw, allowed := checkDelegatedHook(c.Binding, cfg.Delegation, wire, now)
+	if !allowed {
+		return hookDeny("This action requires a valid task delegation for its tool and destination."), nil
+	}
 	var event struct {
 		Event   string          `json:"hook_event_name"`
 		Session string          `json:"session_id"`
@@ -225,7 +284,6 @@ func decidePretool(root string, c windowsinventory.Config, cfg pretoolConfig, ke
 		return nil, err
 	}
 	var signed endpointprotocol.Signed
-	now := time.Now().UTC()
 	if !endpointprotocol.Strict(signedBytes, &signed) {
 		return nil, invalid
 	}
@@ -235,7 +293,7 @@ func decidePretool(root string, c windowsinventory.Config, cfg pretoolConfig, ke
 	}
 	closed := pol.Mode == "enforce" && pol.FailureMode == "closed"
 	if !validEvent {
-		return hookFallback(closed), nil
+		return hookFallback(closed || cfg.Delegation != nil), nil
 	}
 	eval := pretool.Result{}
 	if !pol.ExpiresAt.After(now) {
@@ -317,6 +375,9 @@ func servePretool(root string, c windowsinventory.Config, cfg pretoolConfig, key
 				// No trusted policy is available when decide returns an error. The installed
 				// managed hook then applies its independently configured transport fallback.
 				reply, _ = decidePretool(root, c, cfg, key, raw)
+				if len(reply) > 0 && bytes.HasPrefix(raw, []byte(delegationFrame)) {
+					reply = append([]byte(delegationFrame), reply...)
+				}
 			}
 			if len(reply) == 0 {
 				windows.DisconnectNamedPipe(pipe)

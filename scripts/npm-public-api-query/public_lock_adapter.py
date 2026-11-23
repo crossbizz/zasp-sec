@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from cursor_component import collect, exact_json, Refused, LIMITS
 
 PUBLIC_COMMIT='fcd4a52293434d962e04aa6428cb4e4c4afe5d28'
-PUBLIC_LOCK_SHA256='0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c'
+PUBLIC_LOCK_SHA256='4cfe99433e36b67716d6dc1528b69c8135799b4721b5537fbcfdf5d16053411a'
 
 
 def refuse():raise Refused('public npm query adapter refused')

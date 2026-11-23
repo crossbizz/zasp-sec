@@ -9,6 +9,7 @@ import { Badge, Button, Card, LoadingState, PageHeader, Select, Tabs } from "../
 import { createGatewayAPI, type GatewayAPI } from "../gateway/gateway-api";
 import { GatewayActivityCard, GatewayPolicyCard, HostedGatewaySetupCard } from "../gateway/GatewayViews";
 import { createGuardrailPolicyAPI, GuardrailPolicyConflict, type GuardrailPolicyAPI } from "./guardrail-policy-api";
+import { CalibrationPanel } from "./CalibrationPanel";
 import { ClaudeEnterpriseSetup } from "./ClaudeEnterpriseSetup";
 
 // The Guardrails page of the product: the Environment's guardrail policy
@@ -26,7 +27,7 @@ function modesOf(policy: GuardrailPolicy): Record<string, GuardrailMode> {
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; policy: GuardrailPolicy };
 
-export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAPI: providedGatewayAPI, origin, onNavigate }: { canWrite: boolean; api?: GuardrailPolicyAPI; gatewayAPI?: GatewayAPI; origin?: string; onNavigate?(path: string): void }) {
+export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAPI: providedGatewayAPI, origin, onNavigate, initialSection = "rules" }: { canWrite: boolean; api?: GuardrailPolicyAPI; gatewayAPI?: GatewayAPI; origin?: string; initialSection?: "rules" | "calibration"; onNavigate?(path: string): void }) {
   const { client } = useAPI();
   const session = useOptionalSession();
   const api = useMemo(() => providedAPI ?? createGuardrailPolicyAPI(client), [providedAPI, client]);
@@ -35,7 +36,7 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   const gatewayAPI = useMemo(() => providedGatewayAPI ?? (providedAPI ? null : createGatewayAPI(client)), [providedGatewayAPI, providedAPI, client]);
   const [load, setLoad] = useState<Load>({ status: "loading" });
   // One section at a time; the others stay loaded, so a draft is not lost.
-  const [section, setSection] = useState("rules");
+  const [section, setSection] = useState<string>(initialSection);
   const [draft, setDraft] = useState<Record<string, GuardrailMode>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -84,10 +85,11 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   const openTools = onNavigate && (!session || session.hasCapability("inventory.read")) ? () => onNavigate("/inventory/tools") : undefined;
 
   return <div className="page guardrails">
-    <PageHeader title="Guardrails" eyebrow="Protect" description="Decide what the hosted gateway, or a gateway you already run, blocks, redacts or lets through. Detection is deterministic: patterns, phrase lists and checksums, with no model call." />
+    <PageHeader title="Guardrails" eyebrow="Protect" description="Manage gateway rules, review recorded decisions and calibrate optional model checks." />
     {error && <div className="error-banner" role="alert">{error}</div>}
     {notice && <div className="success-banner" role="status">{notice}</div>}
-    <div className="page-tabs"><Tabs active={section} onChange={setSection} tabs={[{ id: "rules", label: "Rules" }, ...(gatewayAPI ? [{ id: "gateway", label: "Hosted gateway" }, { id: "activity", label: "Activity" }] : []), ...(onNavigate ? [{ id: "suggestions", label: "Suggestions" }] : []), { id: "setup", label: "Set up" }]} /></div>
+    <div className="page-tabs"><Tabs active={section} onChange={setSection} tabs={[{ id: "rules", label: "Rules" }, { id: "calibration", label: "Calibration" }, ...(gatewayAPI ? [{ id: "gateway", label: "Hosted gateway" }, { id: "activity", label: "Activity" }] : []), ...(onNavigate ? [{ id: "suggestions", label: "Suggestions" }] : []), { id: "setup", label: "Set up" }]} /></div>
+    {section === "calibration" && <CalibrationPanel canWrite={canWrite} ruleIDs={policy?.rules.map(rule => rule.id) ?? []} />}
     {onNavigate && <div role="tabpanel" aria-label="Suggestions" hidden={section !== "suggestions"}><Card title="Agent purpose and runtime policy"><p>Review observed tool access against an agent’s intended tools. An authorized reviewer can save a draft rule and replay it against scoped runtime history.</p><Button onClick={() => onNavigate("/policies")}>Open runtime policies</Button></Card></div>}
     <div role="tabpanel" aria-label="Rules" hidden={section !== "rules"}>
     <Card title={<h2>Policy for this Environment</h2>} action={policy ? <Badge tone={policy.version === 0 ? "neutral" : "brand"}>{policy.version === 0 ? "Defaults" : `Version ${policy.version}`}</Badge> : undefined}>
@@ -98,7 +100,7 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
         <div className="table-scroll"><table className="data-table" aria-label="Guardrail rules">
           <thead><tr><th scope="col">Rule</th><th scope="col">Category</th><th scope="col">What it matches</th><th scope="col">Mode</th></tr></thead>
           <tbody>{policy.rules.map((rule) => <tr key={rule.id}>
-            <td><code>{rule.id}</code></td>
+            <td><code>{rule.id}</code>{rule.rule_class && <small className="cell-subtitle">{rule.rule_class === "hard" ? "Hard rule" : "Heuristic rule"}</small>}</td>
             <td>{categoryLabels[rule.category]}</td>
             <td style={{ whiteSpace: "normal", minWidth: 280 }}>{rule.description}</td>
             <td><Select label={`Mode of ${rule.id}`} value={draft[rule.id] ?? rule.mode} disabled={!canWrite || busy} onChange={(event) => setDraft((current) => ({ ...current, [rule.id]: event.target.value as GuardrailMode }))}>

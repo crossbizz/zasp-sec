@@ -254,12 +254,16 @@ VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,clock_timestamp(),clock_timestamp()+interv
 // checked authorizes one request the way the router does and returns the
 // context a handler receives, or the authorizer's refusal.
 func (baseline *installedBaseline) checked(principal installedPrincipal, route RoutedOperation) (context.Context, error) {
-	ctx := context.WithValue(baseline.ctx, authorizationQueryContextKey{}, url.Values{})
+	return baseline.checkedQuery(principal, route, url.Values{})
+}
+
+func (baseline *installedBaseline) checkedQuery(principal installedPrincipal, route RoutedOperation, query url.Values) (context.Context, error) {
+	ctx := context.WithValue(baseline.ctx, authorizationQueryContextKey{}, query)
 	grant, err := baseline.authorizer.Authorize(ctx, principal.identity, principal.binding, route)
 	if err != nil {
 		return nil, err
 	}
-	ctx = context.WithValue(baseline.ctx, identityContextKey{}, principal.identity)
+	ctx = context.WithValue(ctx, identityContextKey{}, principal.identity)
 	ctx = context.WithValue(ctx, routedOperationContextKey{}, route)
 	ctx = context.WithValue(ctx, requestAuthorizationContextKey{}, grant)
 	return context.WithValue(ctx, requestAuthorizerContextKey{}, RequestAuthorizer(baseline.authorizer)), nil
@@ -271,11 +275,12 @@ func (baseline *installedBaseline) serve(handler http.Handler, principal install
 	if parameters == nil {
 		parameters = map[string]string{}
 	}
-	ctx, err := baseline.checked(principal, RoutedOperation{OperationID: operation, PathParameters: parameters})
+	request := httptest.NewRequest(method, path, strings.NewReader(body))
+	ctx, err := baseline.checkedQuery(principal, RoutedOperation{OperationID: operation, PathParameters: parameters}, request.URL.Query())
 	if err != nil {
 		baseline.t.Fatalf("authorize %s: %v", operation, err)
 	}
-	request := httptest.NewRequest(method, path, strings.NewReader(body)).WithContext(ctx)
+	request = request.WithContext(ctx)
 	if body != "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
@@ -329,7 +334,11 @@ func installedVersion(value int64) string { return `"` + strconv.FormatInt(value
 // step as the API login inside a checked request, every worker step as the
 // worker's own login.
 func TestProviderRemediationOnInstalledBaselinePostgres(t *testing.T) {
-	baseline := startInstalledBaseline(t)
+	exerciseInstalledProviderRemediation(t, startInstalledBaseline(t), nil)
+}
+
+func exerciseInstalledProviderRemediation(t *testing.T, baseline *installedBaseline, before func(installedPrincipal, string)) (installedPrincipal, installedPrincipal, string, string) {
+	t.Helper()
 	ctx := baseline.ctx
 	requester := baseline.member("security_engineer", "investigate_sessions", "manage_findings", "manage_workflows", "run_tests", "view")
 	administrator := baseline.member("security_admin", "investigate_sessions", "manage_api_tokens", "manage_data_controls", "manage_findings", "manage_identity", "manage_workflows", "revoke_sessions", "run_tests", "view", "view_audit", "view_compliance")
@@ -361,6 +370,9 @@ VALUES($1,$2,$3,$4,$5,'aws',$6,$7,$8,'uses_identity',$9,now(),now())`, baseline.
 	// The product's handlers on the API logins, with current authorization on.
 	if err := baseline.product.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
+	}
+	if before != nil {
+		before(administrator, agent)
 	}
 	if err := baseline.agents.RequireCurrentAuthorization(); err != nil {
 		t.Fatal(err)
@@ -655,6 +667,7 @@ VALUES($1,$2,$3,$4,$5,'aws',$6,$7,$8,'uses_identity',$9,now(),now())`, baseline.
 			t.Fatalf("%s answered the API login outside a checked request: %s", name, raw)
 		}
 	}
+	return administrator, requester, guardrailRun, agent
 }
 
 // TestGuardrailDecisionPermissionOnInstalledBaselinePostgres proves on an

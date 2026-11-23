@@ -32,6 +32,9 @@ spec:
     - host: {{ $host | quote }}
       http:
         paths:
+          - path: /mcp
+            pathType: Exact
+            backend: { service: { name: agentsec-api, port: { number: 8080 } } }
           - path: /api/v1
             pathType: Prefix
             backend: { service: { name: agentsec-api, port: { number: 8080 } } }

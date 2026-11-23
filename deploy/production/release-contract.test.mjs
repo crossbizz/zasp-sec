@@ -790,8 +790,11 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   const resources = await renderRelease(release);
   const ingress = one(resources, "Ingress", "zasp-product");
   assert.equal(ingress.spec.tls[0].secretName, release.tlsSecretName);
-  assert.deepEqual(ingress.spec.rules[0].http.paths.map(({ path, backend }) => [path, backend.service.name, backend.service.port.number]), [
-    ["/api/v1", "agentsec-api", 8080], ["/", "web", 3000],
+  assert.equal(ingress.spec.rules[0].host, release.host);
+  assert.deepEqual(ingress.spec.rules[0].http.paths.map(({ path, pathType, backend }) => [path, pathType, backend.service.name, backend.service.port.number]), [
+    ["/mcp", "Exact", "agentsec-api", 8080],
+    ["/api/v1", "Prefix", "agentsec-api", 8080],
+    ["/", "Prefix", "web", 3000],
   ]);
   const runtimeIngress = one(resources, "Ingress", "zasp-runtime");
   assert.equal(runtimeIngress.spec.tls[0].secretName, release.tlsSecretName);

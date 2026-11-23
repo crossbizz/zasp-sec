@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/mcpserver"
 )
 
 const browserSessionCookie = "__Host-zasp_session"
@@ -96,11 +97,16 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 		if maximumBody < guardrailMaxBodyBytes && request.URL != nil && request.URL.Path == guardrailDecisionPath && request.Method == http.MethodPost {
 			maximumBody = guardrailMaxBodyBytes
 		}
-		if security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path) {
+		gateway := security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path)
+		mcp := request.URL != nil && request.URL.Path == "/mcp"
+		if gateway {
 			maximumBody = security.GatewayMaximumBodyBytes
-			// The gateway's callers are MCP clients and model SDKs, some of
-			// which name the character set: "application/json; charset=utf-8"
-			// is JSON there. The product API's own routes stay exact.
+		}
+		if mcp {
+			maximumBody = min(maximumBody, mcpserver.MaximumRequestBytes)
+		}
+		if gateway || mcp {
+			// SDKs may identify UTF-8 explicitly on these public wire protocols.
 			if mediaType, parameters, err := mime.ParseMediaType(request.Header.Get("Content-Type")); err == nil && mediaType == "application/json" && (len(parameters) == 0 || len(parameters) == 1 && strings.EqualFold(parameters["charset"], "utf-8")) {
 				request.Header.Set("Content-Type", "application/json")
 			}

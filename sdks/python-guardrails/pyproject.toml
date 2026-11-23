@@ -9,6 +9,9 @@ description = "Check Zasp runtime policy at Python tool dispatch."
 requires-python = ">=3.11"
 readme = "README.md"
 
+[project.optional-dependencies]
+delegation = ["cryptography>=43"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

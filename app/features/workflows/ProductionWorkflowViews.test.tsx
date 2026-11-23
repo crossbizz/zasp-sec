@@ -39,6 +39,19 @@ const receiptHeaders = {
 const runtimePolicy: Policy = { id: "policy-runtime-history", name: "Runtime history", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "invoke" }], action: "block", rollout: "monitor", failure_mode: "closed" };
 
 describe("production policy evidence", () => {
+  it("opens the linked MCP draft for review without applying it", async () => {
+    const id = "policy-mcp-30000001-0000-4000-8000-000000000001";
+    const GET = vi.fn(async (path: string, opts?: {params:{path:{id:string}}}) => {
+      if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));
+      if (path === "/api/v1/policies/{id}" && opts?.params.path.id === id) return jsonResult({...runtimePolicy, id, rollout:"draft"},200,{ETag:'"1"'});
+      return jsonResult({items:[],page_info:{next_cursor:null,has_more:false}});
+    });
+    const POST = vi.fn();
+    render(<APIProvider client={{GET,POST} as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite initialPolicy={id} /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+    expect(await screen.findByText(`Policy detail · ${id}`)).toBeVisible();
+    expect(POST).not.toHaveBeenCalled();
+  });
+
   it("creates a provider tool-class draft and edits its exact condition with the acknowledged revision", async () => {
     const GET = vi.fn(async (path: string) => {
       if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));
@@ -315,28 +328,33 @@ describe("production integration deletion", () => {
 	});
 
 	it("blocks a retained reference authorization retry when fresh authentication expires", async () => {
-		const user = userEvent.setup();
-		const GET = vi.fn(async (path: string) => {
-			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
-			if (path === "/api/v1/integrations") return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
-			if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
-			throw new Error(`unexpected GET ${path}`);
-		});
-		const POST = vi.fn()
-			.mockRejectedValueOnce(new TypeError("response lost after commit"))
-			.mockRejectedValueOnce(new TypeError("replay response lost"));
-		renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 500).toISOString());
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
+			const GET = vi.fn(async (path: string) => {
+				if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+				if (path === "/api/v1/integrations") return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
+				if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
+				throw new Error(`unexpected GET ${path}`);
+			});
+			const POST = vi.fn()
+				.mockRejectedValueOnce(new TypeError("response lost after commit"))
+				.mockRejectedValueOnce(new TypeError("replay response lost"));
+			renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 120_000).toISOString());
 
-		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
-		await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
-		expect(await screen.findByText(/The response was lost\. The exact operation and idempotency key are retained\./)).toBeVisible();
-		await act(async () => { await new Promise((resolve) => setTimeout(resolve, 510)); });
+			await user.click(await screen.findByRole("button", { name: "Open AWS" }));
+			await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
+			expect(await screen.findByText(/The response was lost\. The exact operation and idempotency key are retained\./)).toBeVisible();
+			await act(async () => { await vi.advanceTimersByTimeAsync(120_010); });
 
-		expect(screen.getByRole("button", { name: "Retry retained integration operation" })).toBeDisabled();
-		expect(screen.getByText("Fresh authentication is required to retry this reference authorization.")).toBeVisible();
-		expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled();
-		fireEvent.click(screen.getByRole("button", { name: "Retry retained integration operation" }));
-		expect(POST).toHaveBeenCalledTimes(2);
+			expect(screen.getByRole("button", { name: "Retry retained integration operation" })).toBeDisabled();
+			expect(screen.getByText("Fresh authentication is required to retry this reference authorization.")).toBeVisible();
+			expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled();
+			fireEvent.click(screen.getByRole("button", { name: "Retry retained integration operation" }));
+			expect(POST).toHaveBeenCalledTimes(2);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("keeps a retained reference authorization locked through 409 refetch failures", async () => {
@@ -485,10 +503,14 @@ describe("production integration deletion", () => {
 		// The required fields gate the save; the optional one does not.
 		expect(within(dialog).getByRole("button", { name: "Save integration" })).toBeDisabled();
 		await user.clear(within(dialog).getByLabelText("Integration name"));
-		await user.type(within(dialog).getByLabelText("Integration name"), "Contoso tenant");
-		await user.type(within(dialog).getByLabelText(/^Directory \(tenant\) ID/), configuration.tenant_id);
-		await user.type(within(dialog).getByLabelText(/^Application \(client\) ID/), configuration.client_id);
-		await user.type(within(dialog).getByLabelText(/^Client secret/), configuration.client_secret_reference);
+		await user.click(within(dialog).getByLabelText("Integration name"));
+		await user.paste("Contoso tenant");
+		await user.click(within(dialog).getByLabelText(/^Directory \(tenant\) ID/));
+		await user.paste(configuration.tenant_id);
+		await user.click(within(dialog).getByLabelText(/^Application \(client\) ID/));
+		await user.paste(configuration.client_id);
+		await user.click(within(dialog).getByLabelText(/^Client secret/));
+		await user.paste(configuration.client_secret_reference);
 		expect(within(dialog).getByRole("button", { name: "Save integration" })).toBeEnabled();
 		await user.click(within(dialog).getByRole("button", { name: "Save integration" }));
 

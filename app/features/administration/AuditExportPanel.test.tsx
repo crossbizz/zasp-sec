@@ -13,7 +13,7 @@ const ready: AuditExport = JSON.parse(readFileSync("apps/web/api/testdata/audit-
 const authority = { principalID: ready.audit_correlation_id, organizationID: ready.organization_id, workspaceID: ready.workspace_id, environmentID: ready.environment_id, generation: 1, fresh: true, permitted: true };
 const queued: AuditExport = { id: ready.id, organization_id: ready.organization_id, workspace_id: ready.workspace_id, environment_id: ready.environment_id, created_at: ready.created_at, audit_correlation_id: ready.audit_correlation_id, status: "queued", event_count: null };
 const base = { authority, retrySession: async () => {}, reauthenticate: () => {} };
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => window.history.replaceState({}, "", "/administration/audit-log"));
 afterEach(() => vi.unstubAllGlobals());
 it("keeps the export action usable after React's effect cleanup and setup replay", async () => {
   render(<StrictMode><AuditExportPanel {...base} api={{ create: async () => queued, read: async () => { throw new Error("unused"); } }} /></StrictMode>);
@@ -45,7 +45,7 @@ it("shows supported-save limits and keeps failed jobs explicit with their correl
   const view = render(<AuditExportPanel {...base} api={{ create: async () => ready, read: async () => { throw new Error("unused"); } }} />);
   await userEvent.click(screen.getByRole("button", { name: "Create export" }));
   expect(await screen.findByRole("button", { name: "Save complete export" })).toBeDisabled();
-  expect(screen.getByText(/secure browser with directory access/)).toBeVisible(); view.unmount(); sessionStorage.clear();
+  expect(screen.getByText(/secure browser with directory access/)).toBeVisible(); view.unmount(); window.history.replaceState({}, "", "/administration/audit-log");
   render(<AuditExportPanel {...base} api={{ create: async () => ({ ...queued, status: "failed", failure_code: "invalid_source" }), read: async () => { throw new Error("unused"); } }} />);
   await userEvent.click(screen.getByRole("button", { name: "Create export" }));
   expect(await screen.findByText(/source records could not be verified/i)).toBeVisible(); expect(screen.getByText(new RegExp(ready.audit_correlation_id))).toBeVisible();

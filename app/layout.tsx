@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ThemeControl } from "./components/ThemeControl";
 import { themeBootstrap } from "./theme";
 import "./globals.css";
 
@@ -34,7 +33,6 @@ export default function RootLayout({
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body>
         {children}
-        <ThemeControl />
       </body>
     </html>
   );

@@ -23,10 +23,18 @@ func hook(socket, failureMode string, input io.Reader, out io.Writer, diag io.Wr
 	return hookVia("claude", socket, failureMode, input, out, diag)
 }
 func hookVia(harness, socket, failureMode string, input io.Reader, out, diag io.Writer) error {
+	return managedHook(harness, socket, failureMode, false, input, out, diag)
+}
+
+func managedHook(harness, socket, failureMode string, require bool, input io.Reader, out, diag io.Writer) error {
+	token := os.Getenv("ZASP_TASK_DELEGATION")
+	if require || token != "" {
+		failureMode = "deny"
+	}
 	data, err := boundedRead(input, wireLimit)
 	var r response
 	if err == nil && json.Valid(data) {
-		r, err = call(socket, request{Operation: "pre-tool", Hook: data, Harness: harness})
+		r, err = call(socket, request{Operation: "pre-tool", Hook: data, Harness: harness, Delegation: token, RequireDelegation: require})
 	}
 	reason := ""
 	message := ""
@@ -37,6 +45,9 @@ func hookVia(harness, socket, failureMode string, input io.Reader, out, diag io.
 		}
 	} else if r.Decision.Verdict == "deny" {
 		reason = "Zasp stopped the configured ticket action. Use an approved destination or contact your endpoint administrator."
+		if r.Decision.Reason == "delegation_unverified" || r.Decision.Reason == "delegation_denied" {
+			reason = "This action requires a valid task delegation for its tool and destination."
+		}
 		if r.Decision.Revision > 0 {
 			detail, _ := json.Marshal(map[string]any{"action_id": r.Decision.ReceiptID, "rule_id": r.Decision.RuleID, "policy_revision": r.Decision.Revision, "reason_code": r.Decision.Reason, "next_step_hint": r.Decision.NextStep})
 			reason = string(detail)
@@ -90,6 +101,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, diag io.Writer) 
 		}
 		return serve(ctx, *path)
 	case "codex-pre-tool", "claude-pre-tool", "status", "export", "archive", "inventory", "sync-now":
+		requireDelegation := f.Bool("require-delegation", false, "require a verified task grant and deny if the endpoint is unavailable")
 		socket := f.String("socket", defaultSocket, "endpoint socket path")
 		fail := f.String("on-unavailable", "continue", "continue or deny if the decision is unavailable")
 		project := f.String("project", "", "absolute project root used for this inventory")
@@ -102,7 +114,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, diag io.Writer) 
 			if args[0] == "codex-pre-tool" {
 				harness = "codex"
 			}
-			return hookVia(harness, *socket, *fail, in, out, diag)
+			return managedHook(harness, *socket, *fail, *requireDelegation, in, out, diag)
 		}
 		if args[0] == "archive" {
 			return archiveReceipts(*socket, *archive)

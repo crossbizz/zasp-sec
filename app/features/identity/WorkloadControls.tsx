@@ -10,6 +10,7 @@ import {
 import type { WorkloadContainment, WorkloadCredentialBinding } from "../../../apps/web/api/generated";
 import "../workload-layout.css";
 import { Button, Card, Field, Select } from "../../components/ui";
+import { WorkloadDelegations } from "./WorkloadDelegations";
 import { Time } from "../../components/time";
 
 const bindingPath = "/api/v1/runtime/workload-bindings/{id}" as const;
@@ -170,6 +171,7 @@ function Binding({ id, client, fresh, canContain }: Context & { id: string }) {
             <div><dt>Bound agent</dt><dd><code>{binding.agent_id}</code></dd></div>
             <div><dt>Governed session</dt><dd><code>{binding.session_id}</code></dd></div>
           </dl>
+          <WorkloadDelegations client={client} credential={id} agent={binding.agent_id} />
           {canContain && (
             <Containment client={client} token={id} session={binding.session_id} fresh={fresh} />
           )}

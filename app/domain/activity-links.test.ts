@@ -11,12 +11,27 @@ const query = "entity_id=pid_10000004-0000-4000-8000-000000000004&organization_i
 const routes: [ActivityKind, string][] = [
   ["finding", "/violations"], ["attack_path", "/exposure/attack-paths"],
   ["session", "/investigate/sessions"], ["audit", "/administration/audit-log"],
-  ["run", "/protect/security-agents"], ["purpose", "/policies"],
+  ["run", "/protect/security-agents"], ["approval", "/protect/approvals"], ["purpose", "/policies"],
   ["test_run", "/red-team/results"],
   ["attack_lab_run", "/test/attack-lab"],
 ];
 
 describe("exact scoped activity links", () => {
+  it("delegates the exact calibration export link to Guardrails", () => {
+    const calibration = "/protect/guardrails?tab=calibration";
+    expect(parseActivityLink(calibration, scope)).toEqual({state: "none"});
+    expect(parseActivityLink(calibration + "#calibration-exports", scope)).toEqual({state: "none"});
+    for (const extra of ["&entity_id=" + id, "#another-section", "&environment_id=" + scope.environmentID]) {
+      expect(parseActivityLink(calibration + extra, scope)).toEqual({state: "invalid"});
+    }
+  });
+  it("binds policy draft review to its exact record and environment", () => {
+    const draft = "policy-mcp-" + id.slice(4);
+    const link = activityLink({kind:"policy_draft", id:draft},scope);
+    expect(parseActivityLink(link,scope)).toEqual({state:"selected",target:{kind:"policy_draft",id:draft}});
+    expect(parseActivityLink(link,{...scope,environmentID:id})).toEqual({state:"scope_mismatch"});
+    expect(parseActivityLink(link + "&entity_id=" + id,scope)).toEqual({state:"invalid"});
+  });
   it("delegates only the four native Identity section links within a valid scope", () => {
     const path = "/administration/identity-access";
     for (const section of ["members", "roles", "provider", "groups"]) {

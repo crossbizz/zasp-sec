@@ -3,9 +3,18 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../apps/web/api/client";
 import { CallbackCompletion, callbackBody } from "./callback/page";
+import { buildSignInURL } from "./SessionProvider";
 import { buildIdentityStartURL, safeReturnPath } from "./browser-flow";
 
 describe("browser sign-in flow", () => {
+  it("restores the calibration export section after sign-in and excludes arbitrary fragments", () => {
+    const source = "/protect/guardrails?tab=calibration#calibration-exports";
+    const signIn = new URL(buildSignInURL(source), "https://zasp.test");
+    const start = new URL(buildIdentityStartURL(signIn.searchParams.get("return_to")!), "https://zasp.test");
+    expect(start.searchParams.get("return_to")).toBe(source);
+    expect(safeReturnPath("/protect/guardrails?tab=calibration#unknown")).toBe("/protect/guardrails?tab=calibration");
+  });
+
   it("starts identity only through the bounded same-origin API", () => {
     expect(buildIdentityStartURL("/discovery/assets?owner=security"))
       .toBe("/api/v1/session/start?return_to=%2Fdiscovery%2Fassets%3Fowner%3Dsecurity");

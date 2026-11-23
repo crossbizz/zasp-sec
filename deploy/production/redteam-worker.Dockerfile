@@ -20,6 +20,7 @@ ENV HOME=/tmp \
 WORKDIR /app
 COPY --from=build --chown=1000:1000 /out/agentsec-worker /out/red-team-adapter /out/zasp-healthcheck ./
 COPY --chown=promptfoo:promptfoo workers/redteam-node/runner.mjs ./redteam-runner.mjs
+COPY services/platform/licenses/segmentio-asm-MIT.txt /usr/share/licenses/zasp/segmentio-asm-MIT.txt
 USER 1000:1000
 EXPOSE 8081 8443
 HEALTHCHECK --interval=10s --timeout=2s --start-period=10s --retries=3 CMD ["/app/zasp-healthcheck", "http://127.0.0.1:8081/healthz"]

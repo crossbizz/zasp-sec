@@ -117,6 +117,7 @@ type workloadAdmission struct {
 }
 
 type workloadActionHandler struct {
+	delegations  *hostedGatewayHandler
 	database     JSONDatabase
 	newProductID func() (string, error)
 }
@@ -189,6 +190,15 @@ func (h *workloadActionHandler) serve(w http.ResponseWriter, r *http.Request, op
 		if !action.allowedFrom(r.Context(), i) {
 			writeProductionStatusError(w, r, http.StatusForbidden, "provider_binding_required", "Verified provider binding required", false)
 			return
+		}
+		if h.delegations != nil {
+			resource := r.Header.Get("X-Zasp-Delegation-Resource")
+			if len(r.Header.Values("X-Zasp-Delegation-Resource")) != 1 {
+				resource = ""
+			}
+			if !h.delegations.enforceDelegation(w, r, i, op.OperationID, action.Operation, resource) {
+				return
+			}
 		}
 		h.decide(w, r, i, action)
 	case "recordWorkloadActionOutcome":

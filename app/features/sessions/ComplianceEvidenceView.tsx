@@ -4,7 +4,7 @@ import { APIProductError, type APIClient } from "../../../apps/web/api/client";
 import type { ComplianceControl, ComplianceDownloadFormat, ComplianceEvidence, ComplianceEvidenceDetail, ComplianceEvidenceTarget, ComplianceExport, ComplianceExportInput } from "../../../apps/web/api/generated";
 import type { ActivityScope } from "../../domain/activity-links";
 import { activityLink } from "../../domain/activity-links";
-import { complianceLink } from "../../domain/compliance-links";
+import { complianceExportLink, complianceLink } from "../../domain/compliance-links";
 import { Badge, Button, Card, LoadingState, PageHeader, Select } from "../../components/ui";
 import type { SessionsComplianceAPI } from "./SessionsComplianceView";
 import { complianceReadMode, createComplianceAPI } from "./compliance-api";
@@ -15,7 +15,7 @@ import { Time } from "../../components/time";
 import "./evidence-layout.css";
 
 export type ComplianceBoundary = ActivityScope & { principalID: string; generation: number; permitted: boolean; fresh: boolean; isCurrent(): boolean; reauthenticate?(): void };
-export type ComplianceViewProps = { api: SessionsComplianceAPI | null; client?: APIClient; complianceBoundary?: ComplianceBoundary; selectedSource?: ComplianceEvidenceTarget; selectedCatalog?: CatalogTarget; onNavigate?(path: string): void };
+export type ComplianceViewProps = { api: SessionsComplianceAPI | null; client?: APIClient; complianceBoundary?: ComplianceBoundary; selectedSource?: ComplianceEvidenceTarget; selectedExport?: string; selectedCatalog?: CatalogTarget; onNavigate?(path: string): void };
 function message(error: unknown) {
   if (error instanceof APIProductError) {
     if (error.status === 401) return "Session expired. Sign in again.";
@@ -38,8 +38,6 @@ export const complianceFrameworks: readonly (readonly [FrameworkID, string])[] =
 ];
 function frameworkID(value: string): FrameworkID | undefined { return value === "HIPAA" ? "hipaa" : value.startsWith("SOC 2") ? "soc2_security" : complianceFrameworks.find(([id]) => id === value)?.[0]; }
 function frameworkName(value: string) { return complianceFrameworks.find(([id]) => id === value)?.[1] ?? value; }
-function remember(key: string, id?: string) { try { if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* Reload recovery is optional if storage is blocked. */ } }
-function recalled(key: string): string | undefined { try { const id = sessionStorage.getItem(key); return id && /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id) ? id : undefined; } catch { return undefined; } }
 
 export function ComplianceEvidenceView(props: ComplianceViewProps) {
   const b = props.complianceBoundary;
@@ -49,7 +47,7 @@ export function ComplianceEvidenceView(props: ComplianceViewProps) {
   const catalog = props.selectedCatalog;
   return <ComplianceEvidenceContent key={`${key}/${source ? `${source.source_kind}/${source.source_id}/${source.source_version}` : catalog ? `${catalog.framework}/${catalog.edition}/${catalog.upstream_id}` : "list"}`} {...props} />;
 }
-function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, selectedSource, selectedCatalog, onNavigate }: ComplianceViewProps) {
+function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, selectedSource, selectedCatalog, selectedExport, onNavigate }: ComplianceViewProps) {
   const remote = useMemo(() => client && boundary ? createComplianceAPI(client, boundary) : null, [client, boundary]);
   const [showCatalog, setShowCatalog] = useState(Boolean(selectedCatalog));
   const [controls, setControls] = useState<readonly ComplianceControl[]>([]);
@@ -67,7 +65,6 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
   const [clock, setClock] = useState(Date.now);
   const lifetime = useRef<AbortController | null>(null);
   const retryIntent = useRef<{ input: ComplianceExportInput; key: string } | null>(null);
-  const storageKey = boundary ? `zasp.compliance.export/${boundary.principalID}/${boundary.organizationID}/${boundary.workspaceID}/${boundary.environmentID}` : "";
   const permitted = !boundary || boundary.permitted && boundary.isCurrent();
   const current = () => !lifetime.current?.signal.aborted && (!boundary || boundary.permitted && boundary.isCurrent());
   useEffect(() => {
@@ -85,7 +82,7 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
     const valid = () => active && (!boundary || boundary.permitted && boundary.isCurrent());
     if (showCatalog && !selectedSource) return () => { active = false; controller.abort(); };
     queueMicrotask(async () => {
-      if (!valid()) { if (active) { setLoading(false); if (storageKey) remember(storageKey); } return; }
+      if (!valid()) { if (active) setLoading(false); return; }
       setLoading(true); setError(null); setDetail(null);
       try {
         if (selectedSource) {
@@ -104,14 +101,13 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
       finally { if (valid()) setLoading(false); }
     });
     return () => { active = false; controller.abort(); };
-  }, [api, remote, boundary, sourceKey, selectedSource, revision, storageKey, showCatalog]);
+  }, [api, remote, boundary, sourceKey, selectedSource, revision, showCatalog]);
   useEffect(() => {
     if (!remote || !boundary?.permitted) return;
     let active = true; const controller = new AbortController();
-    const id = recalled(storageKey);
-    if (id) void remote.status(id, controller.signal).then(value => { if (active && boundary.isCurrent()) setJob(value); }).catch(e => { if (active && boundary.isCurrent()) { setExportError(message(e)); remember(storageKey); } });
+    if (selectedExport) void remote.status(selectedExport, controller.signal).then(value => { if (active && boundary.isCurrent()) setJob(value); }).catch(e => { if (active && boundary.isCurrent()) { setExportError(message(e)); } });
     return () => { active = false; controller.abort(); };
-  }, [remote, storageKey, boundary]);
+  }, [remote, selectedExport, boundary]);
   const registered = controls.length > 0 && controls.every(control => control.freshness !== undefined);
   async function refreshJob() {
     if (!remote || !job || !current() || busy) return;
@@ -127,7 +123,12 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
     setBusy(true); setExportError(null); setNotice(null);
     try {
       const value = await remote.create(input, retryIntent.current.key, lifetime.current!.signal);
-      if (current()) { setJob(value); remember(storageKey, value.id); retryIntent.current = null; }
+      if (current()) {
+        setJob(value); retryIntent.current = null;
+        const link = complianceExportLink(value.id, boundary);
+        if (onNavigate) onNavigate(link);
+        else window.history.replaceState(window.history.state, "", link);
+      }
     } catch (e) { if (current()) setExportError(message(e)); }
     finally { if (current()) setBusy(false); }
   }

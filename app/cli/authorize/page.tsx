@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { APIProvider, useAPI } from "../../api/APIProvider";
 import { SessionProvider, useSession } from "../../auth/SessionProvider";
+import { AuthPage } from "../../components/AuthPage";
 import { approveCLIRequest, readCLIRequest, type CLIRequest } from "../../../apps/web/api/cli-consent";
 
 export function CLIConsent() {
@@ -63,18 +64,21 @@ export function CLIConsent() {
     content = <p>Your session cannot approve CLI credentials in this Environment. Ask your administrator for a developer or security role in this Environment.</p>;
   } else {
     const label = session.scopes.find((item) => item.environment_id === request.environment_id)?.label;
-    content = <form onSubmit={(event) => { event.preventDefault(); void approve(); }}>
+    content = <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void approve(); }}>
       <p><strong>Environment</strong> {label && <>{label} · </>}<code>{request.environment_id}</code></p>
       <p>This CLI can submit findings-only add-on scans to this Environment for up to 15 minutes. Consent uses your security-testing grant in this Environment.</p>
-      <label htmlFor="comparison-code">Enter the eight-character code shown in your terminal</label>{" "}
-      <input id="comparison-code" type="text" autoComplete="off" autoCapitalize="none" spellCheck={false}
-        maxLength={8} pattern="[0-9a-f]{8}" value={code} onChange={(event) => setCode(event.target.value.toLowerCase())} />
+      <label className="field" htmlFor="comparison-code">Enter the eight-character code shown in your terminal
+        <input id="comparison-code" type="text" autoComplete="off" autoCapitalize="none" spellCheck={false}
+          maxLength={8} pattern="[0-9a-f]{8}" value={code} onChange={(event) => setCode(event.target.value.toLowerCase())} />
+      </label>
       {phase === "error" && <p role="alert">Approval failed. Check the code and your permissions or start a new login.</p>}
-      <p><button type="submit" disabled={!/^[0-9a-f]{8}$/.test(code) || phase === "pending"}>Approve CLI access</button>{" "}
-        <button type="button" disabled={phase === "pending"} onClick={() => { setCode(""); setPhase("declined"); }}>Dismiss</button></p>
+      <div className="button-row">
+        <button type="submit" className="button button--primary" disabled={!/^[0-9a-f]{8}$/.test(code) || phase === "pending"}>Approve CLI access</button>
+        <button type="button" className="button button--secondary" disabled={phase === "pending"} onClick={() => { setCode(""); setPhase("declined"); }}>Dismiss</button>
+      </div>
     </form>;
   }
-  return <main className="page auth-page"><h1>Authorize zaspctl</h1>{content}</main>;
+  return <AuthPage><h1>Authorize zaspctl</h1>{content}</AuthPage>;
 }
 export default function CLIConsentPage() {
   return <APIProvider><SessionProvider><CLIConsent /></SessionProvider></APIProvider>;

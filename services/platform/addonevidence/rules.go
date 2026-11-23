@@ -1,6 +1,9 @@
 package addonevidence
 
-import "slices"
+import (
+	"github.com/zasp-ai/zasp-sec/services/platform/guardrail"
+	"slices"
+)
 
 const LegacyRuleset = "zasp-static.v1"
 const CurrentRuleset = "zasp-static.v2"
@@ -18,5 +21,16 @@ func Rules(version string) []string {
 		return slices.Clone(currentRules)
 	default:
 		return nil
+	}
+}
+
+// RuleClass protects exact dependency and transport requirements. Pattern-based
+// script and instruction findings can enter shadow review in the control plane.
+func RuleClass(id string) guardrail.RuleClass {
+	switch id {
+	case "instruction.hidden_text", "instruction.override", "script.network_access", "script.shell_execution", "script.credential_path_access", "script.remote_exec_pipe":
+		return guardrail.RuleHeuristic
+	default:
+		return guardrail.RuleHard
 	}
 }

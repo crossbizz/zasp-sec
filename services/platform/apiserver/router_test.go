@@ -55,6 +55,30 @@ func TestRouterRejectsDuplicateAndMalformedOperations(t *testing.T) {
 	}
 }
 
+func TestRouterAllowsDisjointProductIDAndNamedResources(t *testing.T) {
+	const id = "pid_20000001-0000-4000-8000-000000000001"
+	var called string
+	routes := []Operation{
+		{Method: "GET", Pattern: "/api/v1/agents/{id}", OperationID: "getAgent", Handler: namedHandler("agent", &called)},
+		{Method: "GET", Pattern: "/api/v1/agents/workforce", OperationID: "listWorkforceInventory", Handler: namedHandler("workforce", &called)},
+	}
+	router, err := NewRouter(routes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{id: "agent", "workforce": "workforce"} {
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/agents/"+path, nil))
+		if w.Code != http.StatusNoContent || called != want {
+			t.Fatalf("route %s returned %d, handler %q", path, w.Code, called)
+		}
+	}
+	routes[1].Pattern = "/api/v1/agents/" + id
+	if _, err := NewRouter(routes); !errors.Is(err, ErrDuplicateOperation) {
+		t.Fatalf("literal product ID competes with getAgent, got %v", err)
+	}
+}
+
 func TestRouterProvidesValidatedProductIDPathParametersAndOperation(t *testing.T) {
 	var route RoutedOperation
 	router, err := NewRouter([]Operation{{

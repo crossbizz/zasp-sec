@@ -5,6 +5,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import type { Principal, SessionBootstrap, SessionScope } from "../../apps/web/api/generated";
 import { APIProductError, APITransportError, requireAPIData } from "../../apps/web/api/client";
 import { decodeSessionBootstrap, decodeSessionScopePage } from "../../apps/web/api/decoders";
+import { safeReturnPath } from "./browser-flow";
 import { useAPI } from "../api/APIProvider";
 
 type AuthenticatedSession = {
@@ -237,9 +238,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setState({ status: "unauthenticated" });
   }, [client, getSessionInvalidationGeneration, getScopeStaleGeneration, setCSRFToken, setRequestScope, suspendQueryCache]);
   const signIn = useCallback((returnTo?: string) => {
-    window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
+    window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}${window.location.hash}`));
   }, []);
-	const reauthenticate = useCallback(() => signIn(`${window.location.pathname}${window.location.search}`), [signIn]);
+	const reauthenticate = useCallback(() => signIn(), [signIn]);
 	useEffect(() => {
 		if (state.status !== "authenticated") return;
 		const expires = Date.parse(state.freshAuthExpiresAt);
@@ -332,15 +333,7 @@ export function useOptionalSession(): SessionContextValue | null {
 }
 
 export function buildSignInURL(returnTo: string): string {
-  try {
-    if (!returnTo.startsWith("/") || returnTo.startsWith("//") || returnTo.includes("\\")) throw new Error("invalid return path");
-    const origin = "https://same-origin.invalid";
-    const parsed = new URL(returnTo, origin);
-    if (parsed.origin !== origin) throw new Error("foreign return path");
-    return `/sign-in?return_to=${encodeURIComponent(`${parsed.pathname}${parsed.search}`)}`;
-  } catch {
-    return "/sign-in?return_to=%2F";
-  }
+  return `/sign-in?return_to=${encodeURIComponent(safeReturnPath(returnTo))}`;
 }
 
 function authenticatedState(value: SessionBootstrap, scopes: readonly SessionScope[]): AuthenticatedSession {

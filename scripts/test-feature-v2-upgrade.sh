@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rehearse the actual predecessor -> V2 operator upgrade in a private PG cluster.
+# Rehearse supported predecessor upgrades and compare each to a fresh install.
 set -euo pipefail
 case "${1:-}" in
   "") upgrade_only=false ;;
@@ -105,6 +105,26 @@ ZASP_POSTGRES_DSN="$managed_dsn" "$fixture_dir/current-migrate" verify-baseline
 [[ "$("$pg_bin/psql" -XAt "$managed_dsn" -c "SELECT zasp_baseline.content()")" == "$fresh_catalog" ]]
 [[ "$("$pg_bin/psql" -XAt -d managed_upgrade -c "SELECT review_state FROM public.zasp_addon_versions WHERE origin_credential='staging-credential'")" == "approved" ]]
 
+# The last full V2 release is the normal production upgrade into V3. Its
+# sealed artifact and installer must agree before the candidate can run.
+v2_release=1e485d70a893d9ed18cc198dc17226d6774cf5e7
+mkdir "$fixture_dir/v2-release"
+git -C "$repo_dir" archive "$v2_release" services/platform services/health | tar -x -C "$fixture_dir/v2-release"
+go build -C "$fixture_dir/v2-release/services/platform" -o "$fixture_dir/v2-release-migrate" ./agentsec-migrate
+"$pg_bin/createdb" -O zasp_operator -T template0 v3_upgrade
+v3_dsn="postgres://zasp_operator@/v3_upgrade?host=$socket_dir&sslmode=disable"
+ZASP_POSTGRES_DSN="$v3_dsn" "$fixture_dir/v2-release-migrate" install-baseline
+ZASP_POSTGRES_DSN="$v3_dsn" "$fixture_dir/v2-release-migrate" verify-baseline
+for pass in 1 2; do
+  ZASP_POSTGRES_DSN="$v3_dsn" "$fixture_dir/current-migrate" upgrade-feature-v3
+  ZASP_POSTGRES_DSN="$v3_dsn" "$fixture_dir/current-migrate" verify-baseline
+done
+v3_catalog="$("$pg_bin/psql" -XAt "$v3_dsn" -c "SELECT zasp_baseline.content()")"
+if [[ -z "$v3_catalog" || "$fresh_catalog" != "$v3_catalog" ]]; then
+  echo "V2-to-V3 upgraded catalog differs from a fresh installation" >&2
+  exit 1
+fi
+
 if [[ "$upgrade_only" == true ]]; then exit 0; fi
 
 # Exercise the installed public authorization and data paths, including compiled
@@ -114,3 +134,7 @@ go test -C "$repo_dir/services/platform" -count=1 -timeout=20m -v -run \
   '^Test(Addon|AgentPurpose|AgentActionAnalysis|TicketCohort|AgentSuggestions|CLILogin|EndpointFleet|ManagedBrowserProfile|ImportedTicketProof|EndpointPolicy|EndpointPretool|Pretool|ClaudeEnterpriseHook|Framework|Intent|PolicyReplay|Pilot|PrivateAddon|Workload).*OnInstalledBaselinePostgres$' ./apiserver
 go test -C "$repo_dir/services/platform" -count=1 -timeout=10m -v \
   -run '^TestComplianceExportOnInstalledBaselinePostgres$' ./agentsec-worker
+
+# Exercise V3 routes against the installed database and its real role grants.
+go test -C "$repo_dir/services/platform" -count=1 -timeout=15m -v -run \
+  '^Test(V3|AIControlsInstalled|PrivatePlannerPricingInstalled|Calibration.*OnInstalledPostgres|QualificationRequestOnInstalledPostgres|CustomStudioRevisionProofOnInstalledDatabase|DeploymentReviewReopens|AgentPostureSeparates|RuntimeDelegationOnInstalledPostgres|ProductMCPTenantIsolated|InventoryReviewQualifiedDispatch|SyncDiscoveryReviewQualifies|OfflineAddonObservationBinds|WorkforceInventoryRegisters)' ./apiserver

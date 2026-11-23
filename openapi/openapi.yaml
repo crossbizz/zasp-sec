@@ -1701,6 +1701,18 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/sign-in-attempts/{attemptId}:
+    get:
+      operationId: getSaaSSignInAttempt
+      summary: Read the provider sign-in result for this browser session
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: attemptId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Current sign-in result., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SaaSSignInStatus' } } } }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/schedule:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -2219,6 +2231,132 @@ paths:
         '200':
           description: Read the reported findings and current version review.
           content: { application/json: { schema: { $ref: '#/components/schemas/AddonVersionDetail' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions/{id}/deployment-approvals:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: agent_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAddonDeploymentApproval
+      summary: Read the review for the current agent permission context
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Decision and observed deployment permission context.
+          content: { application/json: { schema: { $ref: '#/components/schemas/DeploymentApproval' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: reviewAddonDeploymentApproval
+      summary: Record a deployment-specific add-on decision
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DeploymentApprovalInput' } } }
+      responses:
+        '200':
+          description: Decision and observed deployment permission context.
+          content: { application/json: { schema: { $ref: '#/components/schemas/DeploymentApproval' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/discovery/verify:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: verifyAgentDiscovery
+      summary: Review repository discovery evidence using the qualified model
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      description: Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, maxProperties: 0 } } }
+      responses:
+        '200':
+          description: Review repository discovery evidence using the qualified model.
+          content: { application/json: { schema: { $ref: '#/components/schemas/InventoryReviewReceipt' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/purpose/draft:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: draftAgentPurpose
+      summary: Draft an agent purpose from scoped tool evidence
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      description: Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, maxProperties: 0 } } }
+      responses:
+        '200':
+          description: Draft an agent purpose from scoped tool evidence.
+          content: { application/json: { schema: { $ref: '#/components/schemas/InventoryReviewReceipt' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/addon-versions/{id}/deep-scan:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: deepScanAddonVersion
+      summary: Review reported add-on findings using the qualified model
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      description: Requires fresh authentication. Uses server-selected redacted metadata and preserves the current declaration.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, maxProperties: 0 } } }
+      responses:
+        '200':
+          description: Review reported add-on findings using the qualified model.
+          content: { application/json: { schema: { $ref: '#/components/schemas/InventoryReviewReceipt' } } }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -3029,6 +3167,47 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SuggestionDecision' } } } }
       responses:
         '200': { description: Current saved suggestions and observed coverage., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSuggestionPage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/workforce:
+    get:
+      operationId: listWorkforceInventory
+      summary: List registered security agents and their locked purposes
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 64 } }
+      responses:
+        '200':
+          description: List registered security agents and their locked purposes.
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkforceInventoryPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/posture-summary:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentPostureSummary
+      summary: Read deployment evidence, approved purpose, reachable access and observed activity
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Read deployment evidence, approved purpose, reachable access and observed activity.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AgentPostureSummary' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/purpose:
     parameters:
@@ -4400,6 +4579,399 @@ paths:
             text/plain: { schema: { type: string, format: binary } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/organization/ai-controls:
+    get:
+      operationId: getOrganizationAIControls
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read the organization AI policy
+      responses:
+        '200': { description: Read the organization AI policy., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationAIControls' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateOrganizationAIControls
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Update the organization AI policy
+      parameters:
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/ResourceVersion' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationAIControlsInput' } } } }
+      responses:
+        '200': { description: Update the organization AI policy., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationAIControls' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/settings/ai-controls:
+    get:
+      operationId: getEnvironmentAIControls
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read environment AI controls
+      responses:
+        '200': { description: Read environment AI controls., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/EnvironmentAIControls' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateEnvironmentAIControls
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Update environment AI controls
+      parameters:
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/ResourceVersion' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EnvironmentAIControlsInput' } } } }
+      responses:
+        '200': { description: Update environment AI controls., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/EnvironmentAIControls' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports:
+    post:
+      operationId: createCalibrationExport
+      summary: Queue a redacted calibration export
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
+      responses:
+        '202': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportJob' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports/{id}:
+    get:
+      operationId: getCalibrationExport
+      summary: Read calibration export status
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportJob' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports/{id}/download-grants:
+    post:
+      operationId: createCalibrationDownloadGrant
+      summary: Issue a single-use calibration download grant
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
+      responses:
+        '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationDownloadGrant' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/exports/{id}/download:
+    post:
+      operationId: downloadCalibrationExport
+      summary: Download a frozen calibration snapshot
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/BrowserMutationCSRFToken' }
+        - { $ref: '#/components/parameters/BrowserMutationOrigin' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [grant], properties: { grant: { type: string, pattern: '^[0-9a-f]{64}$' } } } } } }
+      responses:
+        '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportFile' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/ai/qualifications/run:
+    post:
+      operationId: runModelQualification
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Request measurement of a registered model deployment
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationSelection' } } } }
+      responses:
+        '202': { description: Qualification job accepted., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationRun' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/ai/qualifications/runs/{id}:
+    get:
+      operationId: getModelQualificationRun
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read a qualification job
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Qualification job., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationRun' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/ai/qualifications:
+    get:
+      operationId: listModelQualifications
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: List model qualifications for this environment
+      responses:
+        '200': { description: List model qualifications for this environment., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/delegations/issue:
+    post:
+      operationId: issueRuntimeDelegation
+      security: [{ ProductAPIToken: [] }]
+      summary: Issue an attenuated task delegation
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDelegationIssueInput' } } } }
+      responses:
+        '200': { description: Issue an attenuated task delegation., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDelegation' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/delegations/verify:
+    post:
+      operationId: verifyRuntimeDelegation
+      security: [{ ProductAPIToken: [] }]
+      summary: Verify a task delegation for an operation and resource
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDelegationVerifyInput' } } } }
+      responses:
+        '200': { description: Verify a task delegation for an operation and resource., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeDelegationDecision' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/cases/{id}/verify:
+    get:
+      operationId: getSecurityCaseVerification
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read security and business-task evidence for a case
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Read security and business-task evidence for a case., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityCaseVerification' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: verifySecurityCase
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Verify a case against linked fixture receipts
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityCaseVerificationInput' } } } }
+      responses:
+        '200': { description: Verify a case against linked fixture receipts., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityCaseVerification' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sessions/{id}/intent:
+    get:
+      operationId: getSessionIntent
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read correlated action outcomes for this session
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Read correlated action outcomes for this session., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SessionIntent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/calibration/metrics:
+    get:
+      operationId: getCalibrationMetrics
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read calibration metrics for the past 30 days
+      responses:
+        '200': { description: Read calibration metrics for the past 30 days., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationMetrics' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/feedback:
+    post:
+      operationId: submitAnalystFeedback
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Label an observed guardrail decision
+      parameters:
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystFeedback' } } } }
+      responses:
+        '200': { description: Label an observed guardrail decision., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystFeedback' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/rules/{ruleId}/suppression-mode:
+    get:
+      operationId: getRuleSuppressionMode
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read the suppression mode and shadow evidence for a rule
+      parameters:
+        - { name: ruleId, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+      responses:
+        '200': { description: Read the suppression mode and shadow evidence for a rule., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSuppressionMode' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putRuleSuppressionMode
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Change the suppression mode of a heuristic rule
+      parameters:
+        - { name: ruleId, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/ControlVersion' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSuppressionInput' } } } }
+      responses:
+        '200': { description: Change the suppression mode of a heuristic rule., headers: { Cache-Control: { schema: { type: string, const: no-store } }, ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSuppressionMode' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/custom:
+    get:
+      operationId: listCustomSecurityAgents
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: List versioned investigation definitions
+      parameters:
+        - { name: cursor, in: query, schema: { type: string, maxLength: 2048 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: List versioned investigation definitions., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSecurityAgentPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createCustomSecurityAgent
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Create a scoped investigation definition
+      parameters:
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSecurityAgentDefinition' } } } }
+      responses:
+        '200': { description: Create a scoped investigation definition., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSecurityAgent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/custom/{id}:
+    get:
+      operationId: getCustomSecurityAgent
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read an investigation definition
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Read an investigation definition., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSecurityAgent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: updateCustomSecurityAgent
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Revise an investigation definition
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/ResourceVersion' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSecurityAgentDefinition' } } } }
+      responses:
+        '200': { description: Revise an investigation definition., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CustomSecurityAgent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/chat/threads:
+    get:
+      operationId: getAnalystThreads
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: List your investigations of a session
+      parameters:
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: List your investigations of a session., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystThreadPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createAnalystThread
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Start a session investigation
+      parameters:
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystThreadInput' } } } }
+      responses:
+        '200': { description: Start a session investigation., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystThreadSummary' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/chat/threads/{id}:
+    get:
+      operationId: getAnalystThread
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read an investigation and its evidence history
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Read an investigation and its evidence history., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystThread' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/chat/threads/{id}/advisory:
+    get:
+      operationId: getStudioRemediationAdvisory
+      summary: Read the review of a pending containment approval
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: approval_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: message_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Current advisory for this approved candidate., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/StudioRemediationAdvisory' } } } }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: requestStudioRemediationAdvisory
+      summary: Request a bounded private review of an existing containment approval
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: approval_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: message_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+        - { $ref: '#/components/parameters/FreshAuth' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
+      responses:
+        '200': { description: Current advisory for this approved candidate., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/StudioRemediationAdvisory' } } } }
+        '202': { description: Private review pending., content: { application/json: { schema: { $ref: '#/components/schemas/StudioRemediationAdvisory' } } } }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/chat/threads/{id}/stream:
+    post:
+      operationId: streamAnalystThread
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Ask a question about observed session evidence
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: session_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/CSRFToken' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AnalystQuestion' } } } }
+      responses:
+        '200': { description: Ask a question about observed session evidence., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { text/event-stream: { schema: { type: string } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/runtime/workload-bindings/{id}/delegations:
+    get:
+      operationId: getWorkloadDelegations
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read the delegation receipts for a workload credential
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Read the delegation receipts for a workload credential., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/WorkloadDelegationPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /mcp:
+    post:
+      operationId: callZaspMCP
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]
+      summary: Use authenticated investigation tools
+      parameters:
+        - { $ref: '#/components/parameters/BrowserMutationCSRFToken' }
+        - { $ref: '#/components/parameters/BrowserMutationOrigin' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MCPRequest' } } } }
+      responses:
+        '200': { description: Use authenticated investigation tools., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/MCPResponse' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/settings/data-controls:
     get:
       operationId: getDataControls
@@ -4471,6 +5043,33 @@ paths:
       responses:
         '200': { description: Product service version., content: { application/json: { schema: { $ref: '#/components/schemas/SystemVersion' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/recovery/intents/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getRecoveryIntent
+      summary: Read the current actor's saved backup or restore parameters
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200': { description: Saved request, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putRecoveryIntent
+      summary: Save immutable request parameters before starting a backup or restore
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntentInput' } } } }
+      responses:
+        '200': { description: Saved or previously recorded request, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntent' } } } }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/recovery/backups:
     post:
@@ -5258,6 +5857,29 @@ components:
       {"type": "object", "additionalProperties": false, "required": ["partition_id", "snapshot_generation", "complete", "installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "snapshot_generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "installations": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}}}}}
     EndpointObservationBatch:
       {"type": "object", "additionalProperties": false, "required": ["receipts"], "properties": {"receipts": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/components/schemas/EndpointSigned"}}}}
+    RecoveryIntentInput:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, backup_id, retention_days]
+          properties:
+            kind: { type: string, enum: [backup] }
+            backup_id: { $ref: '#/components/schemas/ProductID' }
+            retention_days: { type: integer, minimum: 7, maximum: 90 }
+        - type: object
+          additionalProperties: false
+          required: [kind, backup_id, target_environment]
+          properties:
+            kind: { type: string, enum: [restore] }
+            backup_id: { $ref: '#/components/schemas/ProductID' }
+            target_environment: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
+    RecoveryIntent:
+      type: object
+      additionalProperties: false
+      required: [id, parameters]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        parameters: { $ref: '#/components/schemas/RecoveryIntentInput' }
     RecoveryBackupInput:
       type: object
       additionalProperties: false
@@ -5872,10 +6494,10 @@ components:
       additionalProperties: false
       required: [provider, model, account_profile, cost_unit, maximum_tokens, maximum_cost_nano_credits, request_policy_version, request_token_limit, credential_reference, credential_digest, effective_at, expires_at]
       properties:
-        provider: { type: string, const: openrouter }
+        provider: { type: string, enum: [openrouter, zasp_vpc_slm, bedrock_privatelink, vertex_privatelink, byoc_vllm] }
         model: { type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' }
         account_profile: { type: string, pattern: '^[A-Za-z0-9_.-]{1,128}$' }
-        cost_unit: { type: string, const: openrouter_credit }
+        cost_unit: { type: string, enum: [openrouter_credit, model_credit] }
         maximum_tokens: { type: integer, minimum: 1, maximum: 12000 }
         maximum_cost_nano_credits: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
         request_policy_version: { type: string, pattern: '^[A-Za-z0-9_.-]{1,63}$' }
@@ -6799,6 +7421,7 @@ components:
       if: { properties: { sandbox_id: {} }, required: [sandbox_id] }
       then: { properties: { confidence: { enum: [exact, strong] } } }
       properties:
+        outcome: { $ref: '#/components/schemas/SessionActionOutcome' }
         id: { $ref: '#/components/schemas/ProductID' }
         session_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
         agent_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
@@ -7158,6 +7781,433 @@ components:
         token: { type: string, minLength: 64, maxLength: 64, pattern: '^[a-f0-9]{64}$' }
         format: { $ref: '#/components/schemas/ComplianceDownloadFormat' }
         expires_at: { type: string, format: date-time }
+    AIControlMode: { type: string, enum: [deterministic_only, zasp_vpc_slm, privatelink_bedrock, privatelink_vertex, byoc_self_hosted, dev_openrouter] }
+    SessionActionOutcome: { type: string, enum: [prevented, completed, outcome_unknown] }
+    OrganizationAIControlsInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        ai_enabled: { type: boolean }
+        allowed_modes: { type: array, maxItems: 6, minItems: 1, uniqueItems: true, items: { $ref: '#/components/schemas/AIControlMode' } }
+        allowed_residency: { type: string, enum: [customer_vpc_only, us_only, eu_only, us_eu] }
+        allow_private_code_egress: { type: boolean }
+        require_zero_retention: { type: boolean, const: true }
+    OrganizationAIControls:
+      type: object
+      additionalProperties: false
+      required: [ai_enabled, allowed_modes, allowed_residency, allow_private_code_egress, require_zero_retention, organization_id, version]
+      properties:
+        ai_enabled: { type: boolean }
+        allowed_modes: { type: array, maxItems: 6, minItems: 1, uniqueItems: true, items: { $ref: '#/components/schemas/AIControlMode' } }
+        allowed_residency: { type: string, enum: [customer_vpc_only, us_only, eu_only, us_eu] }
+        allow_private_code_egress: { type: boolean }
+        require_zero_retention: { type: boolean, const: true }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+    EnvironmentAIControlsInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        mode: { $ref: '#/components/schemas/AIControlMode' }
+        tier2_prompt_injection_enabled: { type: boolean }
+        tier2_purpose_drift_enabled: { type: boolean }
+        tier2_heuristic_fp_suppression_enabled: { type: boolean }
+        tier3_discovery_purpose_enabled: { type: boolean }
+        tier3_addon_audit_enabled: { type: boolean }
+        tier3_security_agent_planner_enabled: { type: boolean }
+        allow_redacted_summaries: { type: boolean }
+        allow_approved_code_snippets: { type: boolean }
+        allow_private_addon_bytes: { type: boolean }
+        tier2_profile: { type: string, maxLength: 180 }
+        tier3_provider: { type: string, maxLength: 32 }
+        tier3_model_pin: { type: string, maxLength: 180 }
+        credential_reference: { type: string, maxLength: 239 }
+        credential_digest: { type: string, maxLength: 71 }
+        monthly_budget_nano_credits: { type: integer, minimum: 0, maximum: 9007199254740991 }
+    EnvironmentAIControls:
+      type: object
+      additionalProperties: false
+      required: [mode, tier2_prompt_injection_enabled, tier2_purpose_drift_enabled, tier2_heuristic_fp_suppression_enabled, tier3_discovery_purpose_enabled, tier3_addon_audit_enabled, tier3_security_agent_planner_enabled, allow_redacted_summaries, allow_approved_code_snippets, allow_private_addon_bytes, tier2_profile, tier3_provider, tier3_model_pin, credential_reference, credential_digest, monthly_budget_nano_credits, environment_id, version, effective_mode, environment_class, collection_mode]
+      properties:
+        mode: { $ref: '#/components/schemas/AIControlMode' }
+        tier2_prompt_injection_enabled: { type: boolean }
+        tier2_purpose_drift_enabled: { type: boolean }
+        tier2_heuristic_fp_suppression_enabled: { type: boolean }
+        tier3_discovery_purpose_enabled: { type: boolean }
+        tier3_addon_audit_enabled: { type: boolean }
+        tier3_security_agent_planner_enabled: { type: boolean }
+        allow_redacted_summaries: { type: boolean }
+        allow_approved_code_snippets: { type: boolean }
+        allow_private_addon_bytes: { type: boolean }
+        tier2_profile: { type: string, maxLength: 180 }
+        tier3_provider: { type: string, maxLength: 32 }
+        tier3_model_pin: { type: string, maxLength: 180 }
+        credential_reference: { type: string, maxLength: 239 }
+        credential_digest: { type: string, maxLength: 71 }
+        monthly_budget_nano_credits: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        effective_mode: { $ref: '#/components/schemas/AIControlMode' }
+        environment_class: { type: string, enum: [development, test, staging, production] }
+        collection_mode: { type: string, enum: [metadata_only, extended] }
+    ModelQualification:
+      type: object
+      additionalProperties: false
+      required: [provider, model, purpose, qualified, checked_at, evidence_digest]
+      properties:
+        provider: { type: string, maxLength: 128 }
+        model: { type: string, maxLength: 180 }
+        purpose: { type: string, maxLength: 64 }
+        qualified: { type: boolean }
+        checked_at: { type: string, format: date-time }
+        evidence_digest: { type: string, maxLength: 71 }
+    ModelQualificationPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 256, items: { $ref: '#/components/schemas/ModelQualification' } }
+    RuntimeDelegationIssueInput:
+      type: object
+      additionalProperties: false
+      required: [parent_task_id, child_agent_id, allowed_operations, allowed_resources, max_depth, ttl_seconds]
+      properties:
+        parent_task_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' }
+        child_agent_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' }
+        allowed_operations: { type: array, maxItems: 32, minItems: 1, uniqueItems: true, items: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' } }
+        allowed_resources: { type: array, maxItems: 32, minItems: 1, uniqueItems: true, items: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' } }
+        max_depth: { type: integer, minimum: 1, maximum: 8 }
+        ttl_seconds: { type: integer, minimum: 1, maximum: 300 }
+        parent_token: { type: string, maxLength: 16384 }
+    RuntimeDelegation:
+      type: object
+      additionalProperties: false
+      required: [token, expires_at, depth]
+      properties:
+        token: { type: string, maxLength: 16384 }
+        expires_at: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        depth: { type: integer, minimum: 1, maximum: 8 }
+    RuntimeDelegationVerifyInput:
+      type: object
+      additionalProperties: false
+      required: [parent_task_id, operation, resource]
+      properties:
+        parent_task_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' }
+        operation: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' }
+        resource: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$' }
+        token: { type: string, maxLength: 16384 }
+    RuntimeDelegationDecision:
+      type: object
+      additionalProperties: false
+      required: [status, allowed]
+      properties:
+        status: { type: string, enum: [verified, delegation_unverified, denied] }
+        allowed: { type: boolean }
+    SecurityCaseVerificationInput:
+      type: object
+      additionalProperties: false
+      required: [fixture_run_id]
+      properties:
+        business_fixture_unavailable: { type: boolean, default: false }
+        fixture_run_id: { $ref: '#/components/schemas/ProductID' }
+    SecurityCaseVerification:
+      type: object
+      additionalProperties: false
+      required: [case_id, state, security_check_passed, business_task_preserved, fixture_run_id, security_receipt_id, business_receipt_id, reason]
+      properties:
+        case_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, enum: [open, verified_complete, closed_business_task_unverified] }
+        security_check_passed: { type: boolean }
+        business_task_preserved: { type: boolean }
+        fixture_run_id: { anyOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        security_receipt_id: { type: [string, 'null'] }
+        business_receipt_id: { type: [string, 'null'] }
+        reason: { type: string, maxLength: 256 }
+    SessionIntentAction:
+      type: object
+      additionalProperties: false
+      required: [decision_id, operation, observed_at, outcome, source, evidence_ids, attention]
+      properties:
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, maxLength: 256 }
+        observed_at: { type: string, format: date-time }
+        outcome: { $ref: '#/components/schemas/SessionActionOutcome' }
+        source: { type: string, enum: [authenticated_workload, gateway, tetragon, otlp] }
+        evidence_ids: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/ProductID' } }
+        attention: { type: boolean }
+    SessionIntentLink:
+      type: object
+      additionalProperties: false
+      required: [source, target, reason]
+      properties:
+        source: { $ref: '#/components/schemas/ProductID' }
+        target: { $ref: '#/components/schemas/ProductID' }
+        reason: { type: string, enum: [read_then_tool, tool_then_activity, read_then_activity] }
+    SessionIntent:
+      type: object
+      additionalProperties: false
+      required: [session_id, truncated, actions, links]
+      properties:
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        truncated: { type: boolean }
+        actions: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionIntentAction' } }
+        links: { type: array, maxItems: 99, items: { $ref: '#/components/schemas/SessionIntentLink' } }
+    RuleSuppressionInput:
+      type: object
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [off, shadow, active] }
+    RuleSuppressionMode:
+      type: object
+      additionalProperties: false
+      required: [rule_id, rule_class, mode, version, shadow_labels, false_alerts_avoided, serious_total, serious_missed, eligible]
+      properties:
+        rule_id: { type: string, minLength: 1, maxLength: 128 }
+        rule_class: { type: string, enum: [hard, heuristic] }
+        mode: { type: string, enum: [off, shadow, active] }
+        version: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        shadow_labels: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        false_alerts_avoided: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        serious_total: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        serious_missed: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        eligible: { type: boolean }
+    AnalystFeedback:
+      type: object
+      additionalProperties: false
+      required: [decision_id, rule_id, label]
+      properties:
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        rule_id: { type: string, minLength: 1, maxLength: 128 }
+        label: { type: string, enum: [confirm_tp, mark_fp] }
+    CalibrationBin:
+      type: object
+      additionalProperties: false
+      required: [lower, upper, count, mean_probability, observed_rate]
+      properties:
+        lower: { type: number, minimum: 0, maximum: 1 }
+        upper: { type: number, minimum: 0, maximum: 1 }
+        count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        mean_probability: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        observed_rate: { type: [number, 'null'], minimum: 0, maximum: 1 }
+    CalibrationThreshold:
+      type: object
+      additionalProperties: false
+      required: [threshold, tp, fp, tn, fn]
+      properties:
+        serious_tp: { type: integer, minimum: 0, maximum: 9007199254740991, description: Confirmed serious observations at or above this threshold. }
+        serious_fn: { type: integer, minimum: 0, maximum: 9007199254740991, description: Confirmed serious observations below this threshold. }
+        threshold: { type: number, minimum: 0, maximum: 1 }
+        tp: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        fp: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        tn: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        fn: { type: integer, minimum: 0, maximum: 9007199254740991 }
+    CalibrationDecision:
+      type: object
+      additionalProperties: false
+      required: [decision_id, rule_id, label, occurred_at]
+      properties:
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        rule_id: { type: string, minLength: 1, maxLength: 128 }
+        label: { type: [string, 'null'], enum: [confirm_tp, mark_fp, null] }
+        occurred_at: { type: string, format: date-time }
+    DiscoveryAccuracy:
+      type: object
+      additionalProperties: false
+      required: [tp, fp, fn, precision, recall]
+      properties:
+        tp: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        fp: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        fn: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        precision: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        recall: { type: [number, 'null'], minimum: 0, maximum: 1 }
+    CalibrationMetrics:
+      type: object
+      additionalProperties: false
+      required: [environment_id, days, labelled, evaluated, brier, ece, bins, thresholds, recent, discovery]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        days: { type: integer, const: 30 }
+        labelled: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        evaluated: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        brier: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        ece: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        bins: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/CalibrationBin' } }
+        thresholds: { type: array, maxItems: 101, items: { $ref: '#/components/schemas/CalibrationThreshold' } }
+        recent: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/CalibrationDecision' } }
+        discovery: { $ref: '#/components/schemas/DiscoveryAccuracy' }
+    CustomSecurityAgentDefinition:
+      type: object
+      additionalProperties: false
+      required: [name, mission, trigger, read_tools, proposal, require_approval, max_steps, budget_nano_credits, model_pin]
+      properties:
+        name: { type: string, maxLength: 80 }
+        mission: { type: string, maxLength: 512 }
+        trigger: { type: string, enum: [manual, finding_opened] }
+        read_tools: { type: array, maxItems: 5, minItems: 1, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift, external_inventory_status] } }
+        approval_required_tools: { type: array, maxItems: 5, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift, external_inventory_status] } }
+        minimum_evidence_confidence: { type: string, enum: [strong, exact] }
+        proposal: { type: string, enum: [none, propose_policy, request_containment] }
+        require_approval: { type: boolean, const: true }
+        max_steps: { type: integer, minimum: 1, maximum: 6 }
+        budget_nano_credits: { type: integer, minimum: 0, maximum: 1000000000000 }
+        model_pin: { type: string, maxLength: 128 }
+    CustomSecurityAgent:
+      type: object
+      additionalProperties: false
+      required: [id, revision, definition]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        revision: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        definition: { $ref: '#/components/schemas/CustomSecurityAgentDefinition' }
+    CustomSecurityAgentPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        external_inventory_available: { type: boolean }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/CustomSecurityAgent' } }
+        next_cursor: { type: [string, 'null'] }
+    AnalystThreadInput:
+      type: object
+      additionalProperties: false
+      required: [session_id]
+      properties:
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        studio_id: { $ref: '#/components/schemas/ProductID' }
+        studio_revision: { type: integer, minimum: 1, maximum: 9007199254740991 }
+    AnalystThreadSummary:
+      type: object
+      additionalProperties: false
+      required: [id, session_id, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+    AnalystMessage:
+      type: object
+      additionalProperties: false
+      required: [id, role, text, created_at, evidence_ids]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        role: { type: string, enum: [user, assistant] }
+        text: { type: string, maxLength: 8192 }
+        created_at: { type: string, format: date-time }
+        evidence_ids: { type: array, maxItems: 24, items: { $ref: '#/components/schemas/ProductID' } }
+    StudioReviewHandoff:
+      type: object
+      additionalProperties: false
+      required: [studio_id, revision, proposal, message_id]
+      properties:
+        studio_id: { $ref: '#/components/schemas/ProductID' }
+        revision: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        proposal: { type: string, enum: [propose_policy, request_containment] }
+        message_id: { $ref: '#/components/schemas/ProductID' }
+    AnalystThread:
+      type: object
+      additionalProperties: false
+      required: [id, session_id, created_at, messages]
+      properties:
+        requires_session_read_approval: { type: boolean }
+        requires_external_inventory_approval: { type: boolean }
+        id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        messages: { type: array, maxItems: 48, items: { $ref: '#/components/schemas/AnalystMessage' } }
+        handoff: { $ref: '#/components/schemas/StudioReviewHandoff' }
+    AnalystThreadPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AnalystThreadSummary' } }
+    StudioRemediationAdvisory:
+      type: object
+      additionalProperties: false
+      required: [state, approval_id, session_id, message_id]
+      properties:
+        state: { type: string, enum: [available, pending, reviewed, no_recommendation, unavailable] }
+        approval_id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { $ref: '#/components/schemas/ProductID' }
+        message_id: { $ref: '#/components/schemas/ProductID' }
+        candidate:
+          type: object
+          additionalProperties: false
+          required: [action, target_id, rollback]
+          properties:
+            action: { type: string, const: isolate_session }
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            rollback: { type: string, const: ttl_release }
+    SaaSSignInStatus:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, integration_id, integration_version, status, connection_reference, failure_code]
+      properties:
+        attempt_id: { $ref: '#/components/schemas/ProductID' }
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        integration_version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [pending, consumed, completed, failed, superseded] }
+        connection_reference: { type: [string, 'null'], maxLength: 64 }
+        failure_code: { type: [string, 'null'], maxLength: 64 }
+    AnalystQuestion:
+      type: object
+      additionalProperties: false
+      required: [message, request_id]
+      properties:
+        message: { type: string, maxLength: 1000 }
+        approved_read_tools: { type: array, maxItems: 2, uniqueItems: true, items: { type: string, enum: [inspect_session, external_inventory_status] } }
+        request_id: { $ref: '#/components/schemas/ProductID' }
+    DelegationHop:
+      type: object
+      additionalProperties: false
+      required: [parent_agent_id, child_agent_id, depth, max_depth, allowed_operations, allowed_resources, expires_at]
+      properties:
+        parent_agent_id: { type: string, maxLength: 128 }
+        child_agent_id: { type: string, maxLength: 128 }
+        depth: { type: integer, minimum: 1, maximum: 8 }
+        max_depth: { type: integer, minimum: 1, maximum: 8 }
+        allowed_operations: { type: array, maxItems: 32, items: { type: string, maxLength: 128 } }
+        allowed_resources: { type: array, maxItems: 32, items: { type: string, maxLength: 128 } }
+        expires_at: { type: integer, minimum: 0, maximum: 1000000000000 }
+    WorkloadDelegationReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, parent_task_id, status, observed_at, grants]
+      properties:
+        id: { type: string, maxLength: 128 }
+        parent_task_id: { type: string, maxLength: 128 }
+        status: { type: string, enum: [issued, verified, denied, delegation_unverified] }
+        observed_at: { type: string, format: date-time }
+        grants: { type: array, maxItems: 8, items: { $ref: '#/components/schemas/DelegationHop' } }
+    WorkloadDelegationPage:
+      type: object
+      additionalProperties: false
+      required: [credential_id, agent_id, truncated, items]
+      properties:
+        credential_id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { type: string, maxLength: 128 }
+        truncated: { type: boolean }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/WorkloadDelegationReceipt' } }
+    MCPRequest:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc: { type: string, const: '2.0' }
+        id: { type: [string, integer] }
+        method: { type: string, maxLength: 128 }
+        params: { type: object }
+    MCPResponse:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, id]
+      properties:
+        jsonrpc: { type: string, const: '2.0' }
+        id: { type: [string, integer, 'null'] }
+        result: { type: object }
+        error: { type: object }
     DataControls:
       type: object
       additionalProperties: false
@@ -7187,9 +8237,9 @@ components:
       properties:
         id: { type: string, minLength: 1, maxLength: 64 }
         required: { type: boolean }
-        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [identity_metadata, product_usage, redacted_summary, remote_telemetry] } }
+        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [identity_metadata, product_usage, redacted_summary, remote_telemetry, approved_code_snippet, private_addon] } }
         enabled: { type: boolean }
-        health: { type: string, enum: [healthy, degraded, disabled] }
+        health: { type: string, enum: [healthy, degraded, disabled, unknown] }
     ExternalFlowPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 32, items: { $ref: '#/components/schemas/ExternalFlow' } } } }
     AIExplanationInput:
       type: object
@@ -7228,7 +8278,7 @@ components:
       properties:
         id: { type: string, minLength: 1, maxLength: 64 }
         required: { type: boolean }
-        state: { type: string, enum: [healthy, degraded, unavailable] }
+        state: { type: string, enum: [healthy, degraded, unavailable, unknown] }
         fresh_at: { type: string, format: date-time }
     SystemComponentPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SystemComponent' } } } }
     SystemVersion: { type: object, additionalProperties: false, required: [version], properties: { version: { type: string, minLength: 1, maxLength: 64 } } }
@@ -7412,6 +8462,17 @@ components:
         manifest_digest: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
         completeness: { type: string, enum: [complete, partial] }
         review_path: { type: [string, 'null'] }
+    OfflineAddonObservation:
+      type: object
+      additionalProperties: false
+      required: [scanner, profile_digest, evidence_id, indicators, observed_at, expires_at]
+      properties:
+        scanner: { type: string, enum: [gvisor_tetragon, cisco_skill_scanner, nvidia_skillspector] }
+        profile_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        indicators: { type: array, uniqueItems: true, maxItems: 4, items: { type: string, enum: [honeytoken_read, honeytoken_egress_denied, unexpected_process, filesystem_write, instruction_override, credential_reference, network_reference, broad_permissions] } }
+        observed_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
     AddonVersionDetail:
       type: object
       additionalProperties: false
@@ -7423,6 +8484,7 @@ components:
         provenance: { type: string, const: reported }
         ruleset: { type: string, enum: [zasp-static.v1, zasp-static.v2] }
         framework_evidence: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/AddonFrameworkEvidence' } }
+        offline_observations: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/OfflineAddonObservation' } }
         findings: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AddonFindingCount' } }
         review_state: { type: string, enum: [pending, approved, rejected, revoked] }
         revision: { type: integer, minimum: 0 }
@@ -7433,6 +8495,121 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AddonVersionDetail' } }
         next_cursor: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+    InventoryReviewReceipt:
+      type: object
+      additionalProperties: false
+      required: [target_id, purpose, coverage_degraded, result]
+      properties:
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        purpose: { type: string, enum: [agent_discovery_verify, agent_purpose_draft, addon_semantic_audit] }
+        coverage_degraded: { type: boolean }
+        result:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [kind, evidence_refs]
+              properties:
+                kind: { type: string, enum: [autonomous_agent, simple_llm_app, mcp_server, skill_addon, not_an_agent_fp] }
+                evidence_refs: { type: array, maxItems: 32, items: { type: string } }
+            - type: object
+              additionalProperties: false
+              required: [allowed_tool_ids, iam_mismatches]
+              properties:
+                allowed_tool_ids: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/ProductID' } }
+                iam_mismatches: { type: array, maxItems: 32, items: { type: string } }
+            - type: object
+              additionalProperties: false
+              required: [threat_score, risk_score, tags, citations]
+              properties:
+                threat_score: { type: number, minimum: 0, maximum: 1 }
+                risk_score: { type: number, minimum: 0, maximum: 1 }
+                tags: { type: array, maxItems: 16, items: { type: string } }
+                citations: { type: array, maxItems: 32, items: { type: string } }
+    WorkforceInventoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        next_cursor: { type: [string, 'null'] }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/WorkforceInventoryAgent' } }
+    WorkforceInventoryAgent:
+      type: object
+      additionalProperties: false
+      required: [id, source, revision, name, mission, trigger, read_tools, actions, trigger_receipts, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        source: { type: string, enum: [built_in, studio] }
+        revision: { type: integer, minimum: 1 }
+        name: { type: string }
+        mission: { type: string }
+        trigger: { type: string }
+        read_tools: { type: array, items: { type: string } }
+        actions: { type: array, items: { type: string } }
+        trigger_receipts: { type: integer, minimum: 0 }
+        updated_at: { type: string, format: date-time }
+    AgentPostureSyncReview:
+      type: object
+      additionalProperties: false
+      required: [purpose, state, evidence_id, result]
+      properties:
+        purpose: { type: string, enum: [agent_discovery_verify, agent_purpose_draft] }
+        state: { type: string, enum: [pending, reviewed, uncertain] }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        result:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [kind, evidence_refs]
+              properties:
+                kind: { type: string, enum: [autonomous_agent, simple_llm_app, mcp_server, skill_addon, not_an_agent_fp] }
+                evidence_refs: { type: array, maxItems: 32, items: { type: string } }
+            - type: object
+              additionalProperties: false
+              required: [allowed_tool_ids, iam_mismatches]
+              properties:
+                allowed_tool_ids: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/ProductID' } }
+                iam_mismatches: { type: array, maxItems: 32, items: { type: string } }
+    AgentPostureSummary:
+      type: object
+      additionalProperties: false
+      required: [agent_id, deployment_kind, deployment_evidence, discovery_evidence_id, purpose_revision, allowed_tool_ids, access_known, granted_categories, last_observed_at, observed_evidence_id]
+      properties:
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        sync_reviews: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/AgentPostureSyncReview' } }
+        deployment_kind: { type: string, enum: [deployed_agent, repo_code, unknown] }
+        deployment_evidence: { type: string, enum: [runtime_receipt, repository, provider_workload, unverified] }
+        discovery_evidence_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f-]{36}$' }
+        purpose_revision: { type: integer, minimum: 0 }
+        allowed_tool_ids: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/ProductID' } }
+        access_known: { type: boolean }
+        granted_categories: { type: array, maxItems: 6, items: { type: string, enum: [data_read, data_write, action_execute, identity_assume, network_egress, administration] } }
+        last_observed_at: { type: [string, 'null'], format: date-time }
+        observed_evidence_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f-]{36}$' }
+    DeploymentApprovalInput:
+      type: object
+      additionalProperties: false
+      required: [permission_context_digest, state]
+      properties:
+        permission_context_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        state: { type: string, enum: [approved, revoked] }
+    DeploymentApproval:
+      type: object
+      additionalProperties: false
+      required: [addon_version_id, agent_id, state, permission_context_digest, revision, purpose_revision, access_revision, identity_count, classifications, destinations, version_approved]
+      properties:
+        addon_version_id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, enum: [pending, approved, revoked, needs_re_review] }
+        permission_context_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        revision: { type: integer, minimum: 0 }
+        purpose_revision: { type: integer, minimum: 0 }
+        access_revision: { type: integer, minimum: 0 }
+        identity_count: { type: integer, minimum: 0 }
+        classifications: { type: array, items: { type: string } }
+        destinations: { type: array, items: { type: string } }
+        version_approved: { type: boolean }
     AddonReviewInput:
       type: object
       additionalProperties: false
@@ -8824,11 +10001,60 @@ components:
       required: [recorded]
       properties:
         recorded: { type: boolean, const: true }
+    ModelQualificationSelection:
+      type: object
+      additionalProperties: false
+      required: [provider, model, purpose]
+      properties:
+        provider: { type: string, enum: [zasp_vpc_slm, byoc_self_hosted, privatelink_bedrock, privatelink_vertex] }
+        model: { type: string, minLength: 1, maxLength: 128 }
+        purpose: { type: string, minLength: 1, maxLength: 63 }
+    CalibrationExportJob:
+      type: object
+      additionalProperties: false
+      required: [id, environment_id, status, requested_at, expires_at, samples]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, enum: [queued, writing, ready, failed] }
+        requested_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        samples: { type: integer, minimum: 0, maximum: 2048 }
+    CalibrationDownloadGrant:
+      type: object
+      additionalProperties: false
+      required: [grant, expires_at]
+      properties:
+        grant: { type: string, pattern: '^[0-9a-f]{64}$' }
+        expires_at: { type: string, format: date-time }
+    CalibrationExportFile:
+      type: object
+      additionalProperties: false
+      required: [environment_id, filename, sha256, jsonl]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        filename: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        jsonl: { type: string, maxLength: 1048576 }
+    ModelQualificationRun:
+      type: object
+      additionalProperties: false
+      required: [id, environment_id, provider, model, purpose, status, requested_at, finished_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        provider: { type: string }
+        model: { type: string }
+        purpose: { type: string }
+        status: { type: string, enum: [queued, running, passed, failed] }
+        requested_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
     GuardrailInteraction:
       type: object
       additionalProperties: false
       required: [direction, text]
       properties:
+        content_mode: { type: string, enum: [approved_code_snippet], description: Explicitly identifies an approved snippet for optional private evaluation. }
         direction: { type: string, enum: [input, output], description: input is text on its way into a model; output is text a model produced. }
         text: { type: string, description: The interaction text. At most 32768 bytes of UTF-8; a longer text is refused with 413. }
         agent_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: 'Optional identifier of the agent, as the gateway knows it. Recorded with the decision.' }
@@ -8847,6 +10073,8 @@ components:
       additionalProperties: false
       required: [decision_id, decision, matched_rules, policy_version]
       properties:
+        semantic_state: { type: string, enum: [coverage_degraded, shadow, confirmed, suppressed_benign, detected, screened] }
+        coverage_degraded: { type: boolean }
         decision_id: { $ref: '#/components/schemas/ProductID' }
         decision: { type: string, enum: [allow, redact, block] }
         redacted_text: { type: string, description: 'Present only when decision is redact: the text with every match of a redacting rule replaced by [REDACTED:<rule id>]. Forward this instead of the original.' }
@@ -8858,6 +10086,7 @@ components:
       required: [id, category, description, mode, default_mode, redactable]
       properties:
         id: { $ref: '#/components/schemas/GuardrailRuleID' }
+        rule_class: { type: string, enum: [hard, heuristic] }
         category: { type: string, enum: [prompt_injection, sensitive_data] }
         description: { type: string, minLength: 1, maxLength: 512 }
         mode: { $ref: '#/components/schemas/GuardrailMode' }
@@ -10272,6 +11501,8 @@ components:
         compliance_context: { type: string, minLength: 1, maxLength: 128 }
         evidence_ids: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
         risk_factors: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/RiskFactor' } }
+        current_ticket_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: Completed ticket for this principal and finding version. }
+        pending_ticket_key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$', description: Existing request key for a pending ticket for this principal and finding version. }
         acceptance_reason: { type: string, minLength: 1, maxLength: 512 }
         frameworks:
           type: array

@@ -26,6 +26,7 @@ const (
 var gatewayCredentialKeyIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`)
 
 type productionGatewayConfig struct {
+	Delegation             string
 	ControlPlaneURL        string
 	OrganizationID         string
 	WorkspaceID            string
@@ -65,6 +66,7 @@ func loadProductionGatewayConfig(getenv func(string) string) (productionGatewayC
 		EnvironmentID:          getenv("ZASP_GATEWAY_ENVIRONMENT_ID"),
 		DeviceID:               getenv("ZASP_GATEWAY_DEVICE_ID"),
 		CredentialID:           getenv("ZASP_GATEWAY_CREDENTIAL_ID"),
+		Delegation:             getenv("ZASP_GATEWAY_DELEGATION"),
 		PrivateKeyFile:         getenv("ZASP_GATEWAY_PRIVATE_KEY_FILE"),
 		PolicyKeysFile:         getenv("ZASP_GATEWAY_POLICY_KEYS_FILE"),
 		PolicyCacheFile:        getenv("ZASP_GATEWAY_POLICY_CACHE_FILE"),

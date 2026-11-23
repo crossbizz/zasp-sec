@@ -1914,3 +1914,8 @@ f398bb67d51db34a57ab82829ccee2d4419bdbaa:services/runtime-gateway/proxy_test.go:
 f398bb67d51db34a57ab82829ccee2d4419bdbaa:services/runtime-gateway/proxy_test.go:generic-api-key:37
 f398bb67d51db34a57ab82829ccee2d4419bdbaa:services/runtime-gateway/proxy_test.go:generic-api-key:79
 f398bb67d51db34a57ab82829ccee2d4419bdbaa:workers/security-python/tests/test_prowler_aws.py:aws-access-token:23
+
+# Historical SDK test vector for reserved synthetic tenants. Its 60-second
+# task grant expired on 2026-08-20. SDK tests now assemble the public test
+# vector from its signed JSON claims and detached Ed25519 signature.
+160742b632740f9940bb75ccc73affa9aa3b1aa6:sdks/fixtures/task-delegation.json:jwt:11

@@ -16,6 +16,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 type complianceCanceledProcessor struct{ entered, joined chan struct{} }
@@ -67,6 +68,7 @@ type complianceRuntimeDB struct {
 	finished                              bool
 	retry                                 string
 	heartbeat, claims, captures, prepares int
+	calibrationPolls                      int
 	leaseLost, revoked                    bool
 	captureFailure                        bool
 }
@@ -79,6 +81,12 @@ func (d *complianceRuntimeDB) QueryJSON(ctx context.Context, q string, args ...a
 	}
 	l := d.lease
 	switch q {
+	case calibrationExportClaimSQL:
+		if len(args) != 2 || args[0] != migrations.ComplianceChecksum() || args[1] != migrations.ComplianceFingerprint() {
+			return nil, errors.New("invalid calibration export release binding")
+		}
+		d.calibrationPolls++
+		return json.RawMessage(`null`), nil
 	case complianceCandidatesSQL:
 		if d.finished || d.retry != "" {
 			return json.RawMessage(`{"items":[]}`), nil
@@ -253,6 +261,9 @@ func TestComplianceRuntimeComposedLifecycle(t *testing.T) {
 			}
 			if db.captures != 1 || db.prepares != 1 || api.puts != 1 {
 				t.Fatalf("wrong render/upload lifecycle %+v puts=%d", db, api.puts)
+			}
+			if mode == "complete" && db.calibrationPolls != 1 {
+				t.Fatalf("empty calibration queue checked %d times", db.calibrationPolls)
 			}
 			if mode == "complete" && (db.heartbeat == 0 || !strings.Contains(string(api.body), "definition_only")) {
 				t.Fatal("missing heartbeat or real formatter")

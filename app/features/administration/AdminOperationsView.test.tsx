@@ -46,6 +46,23 @@ describe("production administration state", () => {
     expect(requests[2].searchParams.get("cursor")).toBe("cursor-2");
     expect(requests[2].searchParams.get("action")).toBe("identity_provider.createSSOConnection");
   });
+  it("distinguishes optional model degradation from required enforcement health", async () => {
+    render(<AdminOperationsView surface="health" api={api({ getHealth: async () => ({
+      status: { security_plane_healthy: true, optional_degraded: true, fresh_at: "2026-08-19T00:00:00Z" },
+      components: [{ id: "private-model", required: false, state: "unknown", fresh_at: "2026-08-19T00:00:00Z" }], version: "1.0.0",
+    }) })} />);
+    expect(await screen.findByText("Security plane healthy")).toBeVisible();
+    expect(screen.getByText("Optional components need attention.")).toBeVisible();
+    expect(screen.getByText("unknown")).toBeVisible();
+  });
+  it("shows a registered adapter's actual egress categories and enablement", async () => {
+    render(<AdminOperationsView surface="external" api={api({ getExternalFlows: async () => [
+      { id: "private-model", required: false, enabled: true, health: "unknown", categories: ["redacted_summary", "approved_code_snippet", "private_addon"] },
+    ] })} />);
+    expect(await screen.findByText("private-model")).toBeVisible();
+    expect(screen.getByText("Yes")).toBeVisible();
+    expect(screen.getByText("redacted_summary · approved_code_snippet · private_addon")).toBeVisible();
+  });
   it("labels both dimensions of the release evidence table", async () => {
     render(<AdminOperationsView surface="health" api={api()} />);
     const table = await screen.findByRole("table", { name: "Test scope and evidence needed for a live deployment" });

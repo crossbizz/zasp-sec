@@ -5,17 +5,37 @@ import assert from 'node:assert/strict';
 export async function captureViewport(page, destination, focus, contextLocators = []) {
   if (focus) {
     await focus.waitFor({ state: 'visible' });
+    // A drawer is visible while its entrance animation still moves its children.
+    // Measure the same settled layout that the PNG will show.
+    await Promise.all([focus, ...contextLocators].map(locator => locator.evaluate(async element => {
+      const transitions = [];
+      for (let node = element; node; node = node.parentElement) {
+        for (const animation of node.getAnimations()) {
+          if (animation.playState === 'running' && animation.playbackRate !== 0 &&
+              Number.isFinite(animation.effect?.getComputedTiming().endTime)) {
+            transitions.push(animation.finished);
+          }
+        }
+      }
+      await Promise.allSettled(transitions);
+    })));
     await focus.evaluate(node => node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
   } else {
-    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+    await page.evaluate(() => {
+      const scroller=document.querySelector('.production-app > main') || document.scrollingElement;
+      scroller.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    });
   }
   if (contextLocators.length) {
     const boxes = await Promise.all([focus, ...contextLocators].map(locator => locator.boundingBox()));
     assert(boxes.every(Boolean), 'Workflow context must be displayed');
     const top = Math.min(...boxes.map(r => r.y)), bottom = Math.max(...boxes.map(r => r.y + r.height));
-    await page.evaluate(({top,bottom}) => {
+    await focus.evaluate((node,{top,bottom}) => {
+      const container = node.closest('.drawer__body,.modal__body,.main-content') || document.scrollingElement;
       const header = Math.max(0, document.querySelector('.topbar')?.getBoundingClientRect().bottom || 0);
-      window.scrollBy({top:(top + bottom - innerHeight - header) / 2, behavior:'instant'});
+      const rect = container.getBoundingClientRect();
+      const upper = Math.max(0, header, rect.top), lower = Math.min(innerHeight, rect.bottom);
+      container.scrollBy({top:(top + bottom - upper - lower) / 2, behavior:'instant'});
     }, {top,bottom});
   }
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -51,6 +71,9 @@ export async function captureViewport(page, destination, focus, contextLocators 
   const png = await page.screenshot({ path: destination, fullPage: false, scale: 'css', animations: 'disabled' });
   const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
   assert.deepEqual({width, height}, viewport, 'PNG dimensions differ from the inspected viewport');
-  const scroll = await page.evaluate(() => ({x: scrollX, y: scrollY}));
+  const scroll = await page.evaluate(() => {
+    const scroller=document.querySelector('.production-app > main') || document.scrollingElement;
+    return {x:scroller.scrollLeft, y:scroller.scrollTop};
+  });
   return { width, height, scroll, ...(target ? {target, context} : {}) };
 }

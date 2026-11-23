@@ -119,6 +119,7 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 			name := path.Base(manifest)
 			evidence.Packages(agentsignals.DependencyManifests[name], manifestPackageNames(name, decoded)...)
 		}
+		evidence.RepositoryToolLayout(paths)
 		// The MCP servers the repository declares, and its skills (paths only).
 		configs, settings, extensions := mcpConfigCandidates(candidateFiles(*tree.Tree))
 		if servers, err = api.readRepositoryMCPServers(ctx, credential, repositoryURL, state.DefaultBranch, configs, settings, extensions); err != nil {

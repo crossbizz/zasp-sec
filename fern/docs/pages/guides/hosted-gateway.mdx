@@ -193,3 +193,24 @@ The two model SDK configurations were run as written, with the provider SDKs aga
 </Note>
 
 The full description, with protocol coverage, streaming and what was verified, is in the repository under `docs/operations/hosted-gateway.md`.
+
+## Delegate a bounded task
+
+Register the parent and child as distinct inventory agents. Bind each agent's workload credential in **Administration → API Access → Workload sessions**. Grant `use_gateway` to each credential. A Python adapter that also requests action decisions needs `decide_actions`.
+
+The API loads its authority at startup from the absolute path in `ZASP_DELEGATION_AUTHORITY_FILE`. Set `taskDelegation.authorityFile` to that path in the staging chart. Mount the JSON file as an owner-readable regular file on each API replica. Provision the same dedicated Ed25519 signing seed and approved configuration on all replicas.
+
+| Configuration | Content |
+| --- | --- |
+| `signing_seed` | A base64-encoded 32-byte Ed25519 seed from the deployment's secret store. |
+| `agents` | Each row has `organization_id`, `workspace_id`, `environment_id`, `agent_id`, `credential_id`, `delegated` and `purpose`. Set `delegated` for child credentials that require a grant on every call. |
+| `tasks` | Each row has the tenant IDs, owner's `agent_id`, `parent_task_id`, `allowed_operations`, `allowed_resources` and `max_depth` from 1 through 8. |
+| `policies` | Each row has the tenant IDs and the environment's allowed operations and resources. |
+
+A purpose has two arrays, `allowed_operations` and `allowed_resources`. Both use exact identifiers. For hosted MCP, use the registered gateway server ID as the resource and the MCP tool name as the operation. For clients that initialize or discover tools, explicitly admit the required protocol operations such as `mcp:initialize`, `mcp:notifications/initialized` and `mcp:tools/list`.
+
+The parent sends `POST /api/v1/runtime/delegations/issue` with its bearer credential. Supply the registered task ID, child agent ID, requested operations and resources, maximum depth and `ttl_seconds` from 1 through 300. A child redelegating the task must also supply its current grant as `parent_token`. Issuance checks the task, parent, child, environment policy and any current reviewed tool purpose.
+
+Pass the returned token privately to the child. On hosted calls the child sends its own bearer credential, the grant in `X-Zasp-Delegation` and the registered task in `X-Zasp-Parent-Task-Id`. For a preflight check, send the token, `parent_task_id`, `operation` and `resource` to `POST /api/v1/runtime/delegations/verify`. Open **Task delegation receipts** on the workload binding to inspect issuance, scope, denied calls and unverified hops.
+
+For a dedicated runtime gateway, `ZASP_GATEWAY_DELEGATION` contains the tenant IDs, `agent_id`, `parent_task_id` and base64-encoded Ed25519 `public_key`. The gateway reads the actual MCP tool name and resource argument, or the HTTP method and exact HTTPS target URL. For the managed endpoint ticket adapter, place the same verifier object in the broker's `delegation` configuration. Install the pre-tool hook with `--require-delegation` and pass the short-lived grant to the hook through `ZASP_TASK_DELEGATION`. The broker binds the grant to the actual ticket destination.

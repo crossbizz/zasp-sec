@@ -76,6 +76,7 @@ jobs:
           curl --fail --silent --show-error --retry 15 --retry-connrefused --retry-delay 1 "$ZASP_UI_REVIEW_ORIGIN" -o /dev/null
           node scripts/ui-review/capture.mjs
           node scripts/ui-review/verify-walkthrough.mjs
+          node scripts/ui-review/authorization.mjs
       - name: Save the console walkthrough and layout audit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -86,5 +87,7 @@ jobs:
             ${{ runner.temp }}/console-layout/manifest.json
             ${{ runner.temp }}/console-layout/layout-audit.json
             ${{ runner.temp }}/console-layout/walkthrough-verification.json
+            ${{ runner.temp }}/console-layout/authorization-audit.json
+            ${{ runner.temp }}/console-layout/authorization/
           if-no-files-found: ignore
           retention-days: 7

@@ -256,7 +256,7 @@ type temporalDiscoveryScheduleProcessor struct {
 	lastMaintain         time.Time
 	analyze              func(context.Context, int) (int, error)
 	lastAnalysis         time.Time
-	classifier           IntentClassifier
+	classifier           *privateIntentClassifier
 	lastIntent           time.Time
 }
 

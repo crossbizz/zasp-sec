@@ -92,6 +92,7 @@ test("the gateway's ingress exists only inside the gate and covers only its two 
   assert.equal(count(block, "- path:"), 2);
   // The product API's own ingress keeps its small body and short timeout.
   const product = ingress.slice(ingress.indexOf("name: zasp-product"), start);
+  assert.match(product, /- path: \/mcp\n\s+pathType: Exact\n\s+backend: \{ service: \{ name: agentsec-api, port: \{ number: 8080 \} \} \}/);
   assert.match(product, /proxy-body-size: "16k"/);
   assert.match(product, /proxy-read-timeout: "30"/);
 });

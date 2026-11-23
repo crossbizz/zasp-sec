@@ -38,6 +38,7 @@ const (
 	// evidencePackDependency is the agent evidence pack: a handler the
 	// composition owns, which reads the other operations through the router.
 	evidencePackDependency
+	mcpDependency
 )
 
 type coreOperation struct {
@@ -95,12 +96,19 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"DELETE", "/api/v1/sessions/{id}", "revokeSession", "revoke_sessions", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/compliance/controls", "listComplianceControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/compliance/evidence", "listComplianceEvidence", "view_compliance", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/organization/ai-controls", "getOrganizationAIControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/organization/ai-controls", "updateOrganizationAIControls", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/settings/ai-controls", "getEnvironmentAIControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/settings/ai-controls", "updateEnvironmentAIControls", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/ai/qualifications", "listModelQualifications", "view_compliance", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/settings/data-controls", "getDataControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/settings/data-controls", "updateDataControls", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/settings/external-data-flows", "getExternalDataFlows", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/status", "getSystemStatus", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/components", "listSystemComponents", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/version", "getSystemVersion", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/recovery/intents/{id}", "getRecoveryIntent", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/recovery/intents/{id}", "putRecoveryIntent", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/recovery/backups", "startRecoveryBackup", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/recovery/backups/{id}", "getRecoveryBackup", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/recovery/restores", "startRecoveryRestore", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -123,6 +131,24 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PUT", "/api/v1/agents/{id}/suggestions/{toolId}/decision", "reviewAgentSuggestion", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/action-analysis", "getAgentActionAnalysis", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/agents/{id}/action-analysis", "putAgentActionAnalysis", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/chat/threads", "getAnalystThreads", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/chat/threads", "createAnalystThread", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/chat/threads/{id}", "getAnalystThread", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/chat/threads/{id}/stream", "streamAnalystThread", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/chat/threads/{id}/advisory", "getStudioRemediationAdvisory", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/chat/threads/{id}/advisory", "requestStudioRemediationAdvisory", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/sessions/{id}/intent", "getSessionIntent", "investigate_sessions", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/cases/{id}/verify", "getSecurityCaseVerification", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/cases/{id}/verify", "verifySecurityCase", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/custom", "listCustomSecurityAgents", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/custom", "createCustomSecurityAgent", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agents/custom/{id}", "getCustomSecurityAgent", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/security-agents/custom/{id}", "updateCustomSecurityAgent", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/discovery/verify", "verifyAgentDiscovery", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/purpose/draft", "draftAgentPurpose", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/addon-versions/{id}/deep-scan", "deepScanAddonVersion", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/workforce", "listWorkforceInventory", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/posture-summary", "getAgentPostureSummary", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/purpose", "getAgentPurpose", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/agents/{id}/purpose", "putAgentPurpose", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -186,6 +212,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/sync", "syncIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/syncs", "listIntegrationSyncs", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/syncs/{syncId}", "getIntegrationSync", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/integrations/{id}/sign-in-attempts/{attemptId}", "getSaaSSignInAttempt", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/schedule", "getIntegrationSchedule", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/integrations/{id}/schedule", "putIntegrationSchedule", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/integrations/{id}/schedule", "deleteIntegrationSchedule", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -200,6 +227,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/addon-scans", "submitAddonScan", "submit_addon_scans", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/addon-versions", "listAddonVersions", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/addon-versions/{id}", "getAddonVersion", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/addon-versions/{id}/deployment-approvals", "getAddonDeploymentApproval", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/addon-versions/{id}/deployment-approvals", "reviewAddonDeploymentApproval", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/addon-versions/{id}/review-decisions", "reviewAddonVersion", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/runtime/workload-bindings/{id}/containments/{runId}", "authorizeWorkloadContainment", "revoke_sessions", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/runtime/workload-bindings/{id}/containments/{runId}", "getWorkloadContainment", "revoke_sessions", []string{"BrowserSession"}}, workflowDependency},
@@ -209,6 +238,16 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/runtime/action-decisions", "createWorkloadActionDecision", "decide_actions", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/runtime/actions/{actionId}/outcomes", "recordWorkloadActionOutcome", "decide_actions", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/guardrails/decisions", "createGuardrailDecision", "decide_guardrails", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/calibration/exports", "createCalibrationExport", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/calibration/exports/{id}", "getCalibrationExport", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/calibration/exports/{id}/download-grants", "createCalibrationDownloadGrant", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/calibration/exports/{id}/download", "downloadCalibrationExport", "view_compliance", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/ai/qualifications/run", "runModelQualification", "manage_data_controls", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/ai/qualifications/runs/{id}", "getModelQualificationRun", "view_compliance", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/calibration/metrics", "getCalibrationMetrics", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/feedback", "submitAnalystFeedback", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/rules/{ruleId}/suppression-mode", "getRuleSuppressionMode", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/rules/{ruleId}/suppression-mode", "putRuleSuppressionMode", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/guardrails/policy", "getGuardrailPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/guardrails/policy", "putGuardrailPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/gateway/policy", "getGatewayPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -217,6 +256,10 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PUT", "/api/v1/gateway/mcp-servers/{id}", "putMCPGatewayServer", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/gateway/mcp-servers/{id}", "deleteMCPGatewayServer", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/gateway/activity", "listGatewayActivity", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/mcp", "callZaspMCP", "view", []string{"BrowserSession", "ProductAPIToken"}}, mcpDependency},
+	{OperationDefinition{"GET", "/api/v1/runtime/workload-bindings/{id}/delegations", "getWorkloadDelegations", "manage_api_tokens", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/runtime/delegations/issue", "issueRuntimeDelegation", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/runtime/delegations/verify", "verifyRuntimeDelegation", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/gateway/mcp/{id}", "callMCPGateway", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/gateway/mcp/{id}", "closeMCPGatewaySession", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/gateway/llm/v1/chat/completions", "createGatewayChatCompletion", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
@@ -353,8 +396,31 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 	evidencePack := &agentEvidencePackHandler{}
 	for _, definition := range coreOperations {
 		handler := dependencyHandler(dependencies, definition.dependency)
+		if definition.dependency == mcpDependency {
+			handler = http.HandlerFunc(serveZaspMCP)
+		}
 		if definition.dependency == evidencePackDependency {
 			handler = evidencePack
+		}
+		if stringIn(definition.OperationID, "getRecoveryIntent", "putRecoveryIntent") {
+			endpoint := recoveryIntentEndpoint{}
+			if surface, ok := handler.(*discoveryWorkflowSurface); ok {
+				endpoint.db = surface.evidenceDB
+			}
+			handler = endpoint
+		}
+		if calibrationExportOperation(definition.OperationID) {
+			endpoint := calibrationExportHTTP{}
+			if surface, ok := handler.(*discoveryWorkflowSurface); ok {
+				endpoint.db = surface.evidenceDB
+			}
+			switch c := complianceHandler.(type) {
+			case *complianceProductionSurface:
+				endpoint.reader = c.reader
+			case *complianceHTTPHandler:
+				endpoint.reader = c.reader
+			}
+			handler = endpoint
 		}
 		if complianceHandler != nil && stringIn(definition.OperationID, "listComplianceControls", "listComplianceEvidence") {
 			handler = complianceHandler
@@ -411,18 +477,18 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
-	case "registerBrowserProfile", "retireBrowserProfile":
+	case "requestStudioRemediationAdvisory", "verifySecurityCase", "createCalibrationExport", "createCalibrationDownloadGrant", "runModelQualification", "submitAnalystFeedback", "putRuleSuppressionMode", "updateOrganizationAIControls", "updateEnvironmentAIControls", "registerBrowserProfile", "retireBrowserProfile":
 		return true
 	case "registerEndpointDevice", "rotateEndpointCredential", "retireEndpointDevice", "publishEndpointPolicy", "publishTicketCohort", "updateEndpointPolicyCohort":
 		return true
-	case "reviewAddonVersion", "approveCLILogin", "createPrivateAddonUpload":
+	case "verifyAgentDiscovery", "draftAgentPurpose", "deepScanAddonVersion", "createCustomSecurityAgent", "updateCustomSecurityAgent", "reviewAddonDeploymentApproval", "reviewAddonVersion", "approveCLILogin", "createPrivateAddonUpload":
 		return true
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"authorizeWorkloadContainment", "releaseWorkloadContainment", "bindWorkloadCredential", "updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "putAPITokenPolicy",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
-	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "setSecurityAgentPlannerPricing", "startRecoveryBackup", "startRecoveryRestore":
+	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "setSecurityAgentPlannerPricing", "startRecoveryBackup", "startRecoveryRestore", "putRecoveryIntent":
 		return true
 	default:
 		return false

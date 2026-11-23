@@ -1,6 +1,6 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, configure, getConfig, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZaspProductionApp } from "./ZaspProductionApp";
 
 // Keep the real provider/client/session flow; expose only its existing cache
@@ -13,6 +13,11 @@ vi.mock("../api/APIProvider", async importOriginal => {
   }
   return { ...actual, APIProvider: (props: React.ComponentProps<typeof actual.APIProvider>) => <actual.APIProvider {...props}><InvalidationControl />{props.children}</actual.APIProvider> };
 });
+
+const originalWait = getConfig().asyncUtilTimeout;
+// Production navigation loads session authorization, then the selected record.
+beforeAll(() => configure({ asyncUtilTimeout: 3_000 }));
+afterAll(() => configure({ asyncUtilTimeout: originalWait }));
 
 const organization = "pid_10000001-0000-4000-8000-000000000001";
 const workspace = "pid_10000002-0000-4000-8000-000000000002";
@@ -28,6 +33,20 @@ function page(action: string) {
 }
 
 describe("production scoped activity navigation", () => {
+  it("opens the calibration CLI link at the export form, including when metrics are unavailable", async () => {
+    window.history.replaceState({}, "", "/protect/guardrails?tab=calibration#calibration-exports");
+    vi.stubGlobal("fetch", async (request: Request) => {
+      const path = new URL(request.url).pathname;
+      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), capabilities: ["policies.read", "compliance.read"] });
+      if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
+      return json({ code: "unavailable", message: "Temporarily unavailable", retryable: true, correlation_id: principal }, 503);
+    });
+    render(<ZaspProductionApp />);
+    expect(await screen.findByRole("heading", { name: "Export calibration labels" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Calibration" })).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toHaveAttribute("id", "calibration-exports");
+    expect(screen.getByRole("button", { name: "Verify identity to export" })).toBeVisible();
+  });
   it("keeps the scoped compliance detail when skipping navigation and reloading", async () => {
     window.history.replaceState({}, "", `/compliance/evidence?source_kind=administration&source_id=audit:42&source_version=1&organization_id=${organization}&workspace_id=${workspace}&environment_id=${environment}`);
     const reads: string[] = [];
@@ -42,9 +61,12 @@ describe("production scoped activity navigation", () => {
     expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
     expect(screen.getByText(/membership.updated/)).toBeVisible();
     const detailURL = window.location.href;
+    const main = screen.getByRole("main");
+    main.scrollTop = 320;
     screen.getByRole("link", { name: "Skip to content" }).focus();
     await userEvent.keyboard("{Enter}");
-    expect(screen.getByRole("main")).toHaveFocus();
+    expect(main).toHaveFocus();
+    expect(main.scrollTop).toBe(0);
     expect(window.location.href).toBe(detailURL);
     expect(reads.some(path => path.includes("security-agent") || path === "/api/v1/session/scope")).toBe(false);
     view.unmount(); render(<ZaspProductionApp />);
@@ -93,7 +115,7 @@ describe("production scoped activity navigation", () => {
       expect(requests.every(request => request.method === "GET")).toBe(true);
       view.unmount();
       render(<ZaspProductionApp />);
-      expect(await screen.findByRole("heading", { name: "Canonical record" })).toBeVisible();
+      expect(await screen.findByRole("heading", { name: "Canonical record" }, { timeout: 3000 })).toBeVisible();
       expect(screen.getByRole("dialog", { name })).toHaveTextContent(id);
     });
   });
@@ -215,7 +237,7 @@ describe("production scoped activity navigation", () => {
     expect(relationReads[0].headers.get("X-Zasp-Expected-Scope")).toBe(`${organization}/${workspace}/${environment}`);
     expect(reads.some(request => ["/api/v1/findings", "/api/v1/attack-paths", "/api/v1/security-agent-runs"].includes(new URL(request.url).pathname))).toBe(false);
     await userEvent.click(await screen.findByRole("button", { name: `Open ${kind === "finding" ? "finding" : "attack path"} ${entityID}` }));
-    expect(await screen.findByRole("dialog", { name: kind === "finding" ? finding.title : "Attack path detail" })).toBeVisible();
+    expect(await screen.findByRole(kind === "finding" ? "dialog" : "region", { name: kind === "finding" ? finding.title : "Attack path detail" })).toBeVisible();
     expect(window.location.pathname + window.location.search).toBe(`${route}?entity_id=${entityID}&${scopeQuery}`);
     view.unmount();
   });
@@ -298,13 +320,17 @@ describe("production scoped activity navigation", () => {
     expect(await screen.findByRole("dialog", { name: finding.title })).toHaveTextContent(principal);
     await waitFor(() => expect(screen.getByRole("button", { name: "Open attack path" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Open attack path" }));
-    expect(await screen.findByRole("dialog", { name: "Attack path detail" })).toBeVisible();
-    await screen.findByText(`${principal} → ${otherPrincipal}`);
+    expect(await screen.findByRole("region", { name: "Attack path detail" })).toBeVisible();
+    const pathSteps = await screen.findByRole("list", { name: "Path steps" });
+    const objects = within(pathSteps).getAllByRole("button", { name: "Object outside your access" });
+    expect(objects).toHaveLength(2);
+    await userEvent.click(objects[1]);
+    expect(objects[1]).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(otherPrincipal, { selector: "code" })).toBeVisible();
     expect(window.location.pathname + window.location.search).toBe(`/exposure/attack-paths?entity_id=${pathID}&${scopeQuery}`);
     expect(requested).not.toContain("/api/v1/findings");
     expect(requested).not.toContain("/api/v1/attack-paths");
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    await userEvent.click(screen.getByRole("button", { name: "All attack paths" }));
     expect(await screen.findByText("No attack paths in this scope.")).toBeVisible();
     expect(window.location.search).toBe("");
     window.history.replaceState({}, "", `/violations?entity_id=${findingID}&${scopeQuery}`);
@@ -335,6 +361,24 @@ describe("production audit identity wiring", () => {
   beforeEach(() => window.history.replaceState({}, "", "/administration/audit-log"));
   afterEach(() => vi.unstubAllGlobals());
 
+  it("rejects another principal's retained export link on a new visit", async () => {
+    const query = new URLSearchParams({ export_request: principal.slice(4), principal_id: otherPrincipal,
+      organization_id: organization, workspace_id: workspace, environment_id: environment });
+    window.history.replaceState({}, "", `/administration/audit-log?${query}`);
+    const requested: string[] = [];
+    vi.stubGlobal("fetch", async (request: Request) => {
+      const path = new URL(request.url).pathname;
+      requested.push(path);
+      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), capabilities: ["audit.read", "audit.exports"] });
+      if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
+      throw Error(`Unexpected request ${path}`);
+    });
+    render(<ZaspProductionApp />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("This activity link belongs");
+    expect(window.location.search).toBe(`?${query}`);
+    expect(requested.some(path => path.startsWith("/api/v1/audit-"))).toBe(false);
+  });
+
   it.each(["fresh", "stale", "revoked", "other-principal"])("rebootstraps generic export forbidden and uses the resulting %s authority", async outcome => {
     sessionStorage.clear(); let bootstraps = 0; const posts: Request[] = [];
     let release!: (response: Response) => void; const rebootstrap = new Promise<Response>(resolve => { release = resolve; });
@@ -357,6 +401,7 @@ describe("production audit identity wiring", () => {
       const retry = await screen.findByRole("button", { name: outcome === "other-principal" ? "Create export" : "Retry create export" });
       if (outcome === "stale") { expect(retry).toBeDisabled(); expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled(); }
       else expect(retry).toBeEnabled();
+      if (outcome === "other-principal") expect(window.location.search).toBe("");
     }
     expect(posts).toHaveLength(1); expect(await posts[0].json()).toEqual({});
     expect(posts[0].headers.get("X-CSRF-Token")).toBe("c".repeat(32)); view.unmount();

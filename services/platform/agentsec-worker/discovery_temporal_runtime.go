@@ -132,6 +132,7 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		return fail()
 	}
 	borrowers := &discoveryRuntimeBorrowers{}
+	stopReviews := func() {}
 	var processor workerProcessor
 	var readyProduct func(context.Context) error
 	var sdkWorker worker.Worker
@@ -146,6 +147,7 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		}
 		processor = &temporalDiscoveryScheduleProcessor{source: source, classifier: configuredIntentClassifier(), reconciler: reconciler, limit: min(cfg.BatchSize, 100), startup: true, gatewayRetentionDays: cfg.GatewayDecisionRetentionDays}
 		readyProduct = source.Ready
+		stopReviews = startDiscoverySyncReviews(source)
 	} else if cfg.Mode == workerModeDiscovery {
 		dependencies, err := newProductionDiscoveryDependenciesWithIO(productionDiscoveryDependenciesConfig(cfg), external.discovery)
 		if err != nil {
@@ -234,6 +236,7 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		defer cancel()
 		stopOnce.Do(func() {
 			go func() {
+				stopReviews()
 				if sdkWorker != nil {
 					sdkWorker.Stop()
 				}

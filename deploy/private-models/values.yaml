@@ -1,0 +1,12 @@
+enabled: false
+kind: onnx
+region: ""
+model: ""
+inferenceImage: ""
+tlsProxyImage: ""
+tlsSecret: ""
+weightsClaim: ""
+clientNamespace: ""
+# CPU servers implement the TEI /predict endpoint. The GPU image must include vllm.
+cpu: "4"
+memory: 8Gi

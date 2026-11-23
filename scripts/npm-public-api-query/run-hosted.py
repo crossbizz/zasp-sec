@@ -1,5 +1,6 @@
 import pathlib,os,json,subprocess,hashlib,time,signal,tempfile,stat,ctypes
 from pathlib import Path
+from query_diagnostics import failure_code
 BASE=pathlib.Path(__file__).parent
 import sys
 OWNER_STARTED=time.monotonic()
@@ -18,7 +19,7 @@ def acquire_plan():
   return json.loads(raw.decode('utf-8','strict')),dict(requested=str(p),resolved=str(p),sha256=EXPECTED_PLAN_SHA,metadata=fields(before),requestedMetadata=fields(path))
  finally:os.close(fd)
 PLAN,PLAN_BINDING=acquire_plan()
-OUT=pathlib.Path(tempfile.mkdtemp(prefix='official-public-lock-advisory-query-actual-',dir='/tmp'));END=OWNER_STARTED+600;CANCELLED=False;TERMINAL=False;CHILD=None;RECORDS=[];REQUESTS=0;TOTAL=0;MEMBERS=0;COUNTS={};FORCED=False;CLEANUPS=[];GH=PLAN['ghExecutable']
+OUT=pathlib.Path(tempfile.mkdtemp(prefix='official-public-lock-advisory-query-actual-',dir='/tmp'));END=OWNER_STARTED+600;CANCELLED=False;TERMINAL=False;CHILD=None;RECORDS=[];REQUESTS=0;TOTAL=0;MEMBERS=0;COUNTS={};FORCED=False;CLEANUPS=[];PHASE='bootstrap';GH=PLAN['ghExecutable']
 def stop(sig,frame):
  global CANCELLED
  CANCELLED=True
@@ -119,10 +120,14 @@ def proc_row(pid,end):
   with (path/name).open('rb') as f:
    data=f.read(16385)
   if len(data)>16384:raise RuntimeError('proc_metadata_cap')
-  return data.decode('ascii')
- before=read_leaf('stat');tail=before.rsplit(') ',1)[1].split()
- if int(before.split(' ',1)[0])!=pid or len(tail)<20:raise RuntimeError('proc_identity_unknown')
- return {'pid':pid,'startTicks':tail[19],'ppid':int(tail[1]),'pgid':int(tail[2]),'sid':int(tail[3]),'state':tail[0]}
+  return data
+ # The kernel's command name is arbitrary bytes, including spaces and ')'.
+ # Only interpret the documented numeric fields and process state.
+ before=read_leaf('stat');tail=before.rsplit(b') ',1)[1].split()
+ if int(before.split(b' ',1)[0])!=pid or len(tail)<20:raise RuntimeError('proc_identity_unknown')
+ # Diagnostic only. Never retain other processes' command names or arguments.
+ label=before.partition(b' (')[2].rsplit(b') ',1)[0]
+ return {'nameClass':'gh' if label==b'gh' else 'other','pid':pid,'startTicks':tail[19].decode('ascii'),'ppid':int(tail[1]),'pgid':int(tail[2]),'sid':int(tail[3]),'state':tail[0].decode('ascii')}
 
 def stable(row):
  return tuple(row[k] for k in ('pid','startTicks','ppid','pgid','sid'))
@@ -156,20 +161,26 @@ def owned_session(sid,end):
   if not entry.name.isdigit():continue
   pid=int(entry.name)
   try:r=proc_row(pid,end)
-  except FileNotFoundError:continue
+  except (FileNotFoundError,ProcessLookupError):continue
   if r['sid']!=sid:continue
   try:after=credential_row(pid,end)
-  except FileNotFoundError:continue
+  except (FileNotFoundError,ProcessLookupError):continue
   if stable(r)!=stable(after):raise RuntimeError('owned_session_identity_unknown')
   r=after
   members.append(r)
  return members
 
-def end_child(p):
+def end_child(p,normal_join_deadline=None):
  global FORCED
- end=time.monotonic()+8
+ started=time.monotonic();end=started+8
  result={'scope':'exact original owned SID only; no escaped-session/global/fleet claim','sid':p.pid,'membersBefore':[],'membersAfter':None,'signals':[],'completed':False,'unknown':False,'intervened':False}
  try:
+  # A normally joined CLI may leave a helper finishing a short, independent
+  # teardown after it closes the response pipes. Observe that same session
+  # and reap exact zombies before deciding whether intervention is required.
+  settle_until=min(END,normal_join_deadline,time.monotonic()+.25) if normal_join_deadline is not None and p.returncode==0 else 0
+  result['normalJoin']=normal_join_deadline is not None
+  result['cliExitBeforeCleanup']=p.returncode
   result['membersBefore']=owned_session(p.pid,end)
   if p.poll() is None:
    result['intervened']=True
@@ -193,15 +204,17 @@ def end_child(p):
      try:os.waitpid(row['pid'],os.WNOHANG)
      except ChildProcessError:raise RuntimeError('owned_child_reap_unknown')
     elif row['state']!='Z':
+     if not CANCELLED and time.monotonic()<settle_until:continue
      result['intervened']=True
-
      sig=signal.SIGKILL if time.monotonic()>=term_until else signal.SIGTERM
      if sig==signal.SIGKILL:FORCED=True
      owned_signal(row,sig,end);result['signals'].append({'pid':row['pid'],'startTicks':row['startTicks'],'signal':'KILL' if sig==signal.SIGKILL else 'TERM'})
    time.sleep(.025)
   result['unknown']=True;return result
  except BaseException as e:
-  result['unknown']=True;result['error']=type(e).__name__;return result
+  result['unknown']=True;result['error']=type(e).__name__;result['reason']=failure_code(e);return result
+ finally:
+  result['elapsedMs']=int((time.monotonic()-started)*1000)
 
 
 import sys,re,selectors
@@ -231,21 +244,23 @@ def secure_snapshot():
  guard();return rows
 
 def acquire(endpoint,allowance):
- global REQUESTS,TOTAL,CHILD
+ global REQUESTS,TOTAL,CHILD,PHASE
+ PHASE='start_child'
  guard();REQUESTS+=1
  if REQUESTS>256 or not isinstance(endpoint,str) or not endpoint.startswith('/advisories?') or len(endpoint)>8192:raise RuntimeError('public query request bound')
  request_cap=min(20971520,allowance,134217728-TOTAL)
  if request_cap<=0:raise RuntimeError('public query aggregate cap')
  tag=str(REQUESTS).zfill(3);out=OUT/(tag+'.http');err=OUT/(tag+'.stderr');start=time.monotonic();deadline=min(END,start+30)
  allowed=['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY','http_proxy','https_proxy','all_proxy','no_proxy','SSL_CERT_FILE','SSL_CERT_DIR','CURL_CA_BUNDLE','REQUESTS_CA_BUNDLE','GH_TOKEN','GITHUB_TOKEN','GH_CONFIG_DIR','HOME']
- env={k:os.environ[k] for k in allowed if k in os.environ};env.update(PATH='/usr/local/bin:/usr/bin:/bin',GH_PROMPT_DISABLED='1',GH_PAGER='cat')
+ env={k:os.environ[k] for k in allowed if k in os.environ};env.update(PATH='/usr/local/bin:/usr/bin:/bin',GH_PROMPT_DISABLED='1',GH_PAGER='cat',GH_TELEMETRY='0',GH_NO_UPDATE_NOTIFIER='1')
  with out.open('xb') as f,err.open('xb') as e:
   guard();CHILD=subprocess.Popen([GH,'api','--include','--hostname','github.com',endpoint],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
-  counts={'stdout':0,'stderr':0};selector=None
+  counts={'stdout':0,'stderr':0};selector=None;normal_join_deadline=None;primary_error=None
   try:
    credential_row(CHILD.pid,min(END,time.monotonic()+2));selector=selectors.DefaultSelector()
    for pipe,name,destination in [(CHILD.stdout,'stdout',f),(CHILD.stderr,'stderr',e)]:
     os.set_blocking(pipe.fileno(),False);selector.register(pipe,selectors.EVENT_READ,(name,destination))
+   PHASE='read_response'
    while selector.get_map():
     guard()
     if time.monotonic()>=deadline:raise RuntimeError('public query request deadline')
@@ -255,19 +270,30 @@ def acquire(endpoint,allowance):
      if not chunk:selector.unregister(key.fileobj);continue
      if len(chunk)>limit-counts[name]:raise RuntimeError('public query byte cap')
      destination.write(chunk);counts[name]+=len(chunk)
+   PHASE='join_child'
    rc=CHILD.wait(timeout=max(.01,deadline-time.monotonic()));guard()
+   if rc==0:normal_join_deadline=deadline
+  except BaseException as error:
+   primary_error=error
+   raise
   finally:
-   if selector is not None:selector.close()
-   for pipe in [CHILD.stdout,CHILD.stderr]:
-    if pipe is not None:pipe.close()
    try:
+    if selector is not None:selector.close()
+    for pipe in [CHILD.stdout,CHILD.stderr]:
+     if pipe is not None:pipe.close()
     for stream in (f,e):stream.flush();os.fsync(stream.fileno())
     directory=os.open(OUT,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
     try:os.fsync(directory)
     finally:os.close(directory)
+   except BaseException as error:
+    if primary_error is not None:raise primary_error
+    primary_error=error
+    raise
    finally:
-    p=CHILD;cleanup=end_child(p);CLEANUPS.append(cleanup);CHILD=None
-    if not cleanup['completed'] or cleanup['unknown'] or cleanup['intervened'] or FORCED:raise RuntimeError('owned public query cleanup refusal')
+    p=CHILD;cleanup=end_child(p,normal_join_deadline);CLEANUPS.append(cleanup);CHILD=None
+    if primary_error is None and (not cleanup['completed'] or cleanup['unknown'] or cleanup['intervened'] or FORCED):
+     PHASE='cleanup_child';raise RuntimeError('owned public query cleanup refusal')
+ PHASE='parse_http'
  raw=out.read_bytes();TOTAL+=len(raw)
  if rc!=0 or TOTAL>134217728:raise RuntimeError('public query upstream refusal')
  header,sep,body=raw.partition(b'\r\n\r\n')
@@ -282,6 +308,7 @@ def acquire(endpoint,allowance):
   if not sep or not re.fullmatch(r'[A-Za-z0-9-]+',k):raise RuntimeError('public query HTTP header grammar')
   headers.append((k,v.strip()))
  RECORDS.append(dict(request=REQUESTS,endpoint=endpoint,exit=rc,normalJoined=True,responseBytes=len(raw),responseSHA256=hashlib.sha256(raw).hexdigest(),seconds=time.monotonic()-start))
+ PHASE='validate_page'
  guard();return int(m[1]),headers,body,len(raw)
 
 def persist(name,value):
@@ -302,30 +329,33 @@ def persist(name,value):
  return hashlib.sha256(raw).hexdigest()
 
 def main():
- global TERMINAL
+ global TERMINAL,PHASE
  signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop)
- complete=False;failure=None;before=None;after=None;value=None
+ complete=False;failure=None;reason=None;failed_phase=None;before=None;after=None;value=None
  libc=ctypes.CDLL(None,use_errno=True);old_subreaper=ctypes.c_int();acquired=False
  if libc.prctl(37,ctypes.byref(old_subreaper),0,0,0)!=0:raise RuntimeError('subreaper state unknown')
  try:
-  guard();before=secure_snapshot()
+  guard();PHASE='snapshot_before';before=secure_snapshot()
   if libc.prctl(36,1,0,0,0)!=0:raise RuntimeError('subreaper refused')
   acquired=True
   from public_lock_adapter import collect_public_lock
   # Exact issued published lock, bound by secure_snapshot and component SHA.
   raw=Path(PLAN['publicLock']).read_bytes()
+  PHASE='public_lock_traversal'
   value=collect_public_lock(raw,acquire,guard)
-  after=secure_snapshot()
+  PHASE='snapshot_after';after=secure_snapshot()
   if before!=after:raise RuntimeError('source/tool postcondition refusal')
   guard();complete=True
- except BaseException as error:failure=type(error).__name__
+ except BaseException as error:failure=type(error).__name__;reason=failure_code(error);failed_phase=PHASE
  finally:
-  if acquired and libc.prctl(36,old_subreaper.value,0,0,0)!=0:complete=False;failure='subreaper restore refused'
+  if acquired and libc.prctl(36,old_subreaper.value,0,0,0)!=0:complete=False;failure='RuntimeError';reason='subreaper_restore';failed_phase='final_guard'
   try:guard()
-  except BaseException:complete=False
+  except BaseException as error:
+   complete=False
+   if failure is None:failure=type(error).__name__;reason=failure_code(error);failed_phase='final_guard'
   if any(not c['completed'] or c['unknown'] or c['intervened'] for c in CLEANUPS) or FORCED:complete=False
   TERMINAL=True
-  result=dict(format='root-owned-official-public-lock-query-observation-v1',completeIssuedQueries=complete,failureClass=failure,forced=FORCED,cancelled=CANCELLED,requests=RECORDS,ownedSessionCleanup=CLEANUPS,sourceToolsBefore=before,sourceToolsAfter=after,elapsedSeconds=600-(END-time.monotonic()),component=value,portableMemoryObservations=MEMORY_PROBES,scope='Actual public API pages only when complete+ROOT normal0/no late-refusal. Current issued publiclock209 coverage, upstream affects semantics, no immutable snapshot/localOSV/allunrelatedmalware/Go/images/SBOM/release clearance.',releaseAccepted=False)
+  result=dict(format='root-owned-official-public-lock-query-observation-v1',completeIssuedQueries=complete,failureClass=failure,failureCode=reason,failurePhase=failed_phase,forced=FORCED,cancelled=CANCELLED,requests=RECORDS,ownedSessionCleanup=CLEANUPS,sourceToolsBefore=before,sourceToolsAfter=after,elapsedSeconds=600-(END-time.monotonic()),component=value,portableMemoryObservations=MEMORY_PROBES,scope='Actual public API pages only when complete+ROOT normal0/no late-refusal. Coverage of the pinned public lock, upstream affects semantics, no immutable snapshot/localOSV/allunrelatedmalware/Go/images/SBOM/release clearance.',releaseAccepted=False)
   digest=persist('result.json',result);print(json.dumps(dict(result=str(OUT/'result.json'),sha256=digest,complete=complete)),flush=True)
   try:guard()
   except BaseException:return 1

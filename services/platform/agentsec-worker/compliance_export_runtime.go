@@ -13,6 +13,7 @@ import (
 )
 
 type complianceExportProcessor struct {
+	calibrationEnabled bool
 	authority          *postgresComplianceExportAuthority
 	store              *artifactstore.Store
 	verifier           *s3driver.ExportVerifier
@@ -67,6 +68,9 @@ func (p *complianceExportProcessor) RunOnce(ctx context.Context) error {
 				return errWorkerExecution
 			}
 		}
+	}
+	if p.calibrationEnabled && !p.cleanupMode && p.exportCalibration(ctx) != nil {
+		failed = true
 	}
 	if failed {
 		return errWorkerExecution

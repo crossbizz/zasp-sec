@@ -1530,8 +1530,9 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 	assert.match(recoveryBoundary, /recoveryOrigin\.origin}\/api\/v1\/recovery\/backups/);
 	assert.match(recoveryBoundary, /JSON\.stringify\(\{ backup_id: foreignBackupID, retention_days: 30 \}\)/);
 	assert.doesNotMatch(recoveryBoundary, /publicOrigin}\/api\/v1\/recovery\/backups/);
-	assert.ok(recoveryBoundary.indexOf('document.readyState !== "loading"') < recoveryBoundary.indexOf("sessionStorage.setItem"), "recovery state was written before the replacement product document loaded");
-	assert.match(recoveryBoundary, /recovery session state was not retained in the loaded product document/);
+	assert.match(recoveryBoundary, /backup_id: backupID/);
+	assert.match(recoveryBoundary, /new URLSearchParams\(location.search\)\.get\("restore_id"\)/);
+	assert.doesNotMatch(recoveryBoundary, /sessionStorage/);
 	assert.doesNotMatch(recoveryBoundary, /zasp_recovery_(?:finish_backup|finish_restore|fail_operation|acknowledge_outbox)\s*\(/i);
 	const recoveryWorkerBoundary = recoveryWorkerSource.slice(recoveryWorkerSource.indexOf("func TestProductionCombinedE2ERecoveryWorker"), recoveryWorkerSource.indexOf("func combinedE2ERecoveryDatabase"));
 	for (const value of ["composeRecoveryOutboxWorkerRuntime", "composeRecoveryWorkerRuntime", ".Ready(ctx)", ".Processor.RunOnce(ctx)", ".Close()"]) assert.match(recoveryWorkerBoundary, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

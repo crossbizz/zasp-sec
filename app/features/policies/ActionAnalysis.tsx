@@ -232,7 +232,7 @@ export function ActionAnalysis({
               <input type="checkbox" checked={values.classifier} onChange={(e) => change({ classifier: e.target.checked })} />
               <span>Enable draft intent recommendations for this agent</span>
             </label>
-            <p>When your deployment enables OpenRouter, this sends the destination class, whether a previous action was observed, and four purpose-comparison flags. A reviewer decides how to use each recommendation.</p>
+            <p>When your organization and environment permit private model review, a qualified model receives the destination category and five action flags. Reviewers decide how to use its recommendations.</p>
             <div className="policy-fields">
             <div role="group" aria-label="Operation settings" tabIndex={-1} ref={node => { settingGroups.current.review_purpose = node; }}>
               <Field

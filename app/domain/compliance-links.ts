@@ -1,6 +1,6 @@
 import type { ComplianceEvidenceTarget } from "../../apps/web/api/generated";
 import type { ActivityScope } from "./activity-links";
-export type ComplianceLinkResult = { state: "none" | "invalid" | "scope_mismatch" } | { state: "selected"; target: ComplianceEvidenceTarget };
+export type ComplianceLinkResult = { state: "none" | "invalid" | "scope_mismatch" } | { state: "selected"; target: ComplianceEvidenceTarget } | { state: "export"; id: string };
 const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\s\S])/;
 const keys = ["source_kind", "source_id", "source_version", "organization_id", "workspace_id", "environment_id"];
 function validTarget(t: ComplianceEvidenceTarget): boolean {
@@ -18,7 +18,19 @@ export function complianceLink(target: ComplianceEvidenceTarget, scope: Activity
   if (!validTarget(target) || !validScope(scope)) throw new TypeError("Invalid compliance source");
   return `/compliance/evidence?source_kind=${target.source_kind}&source_id=${target.source_id}&source_version=${target.source_version}&organization_id=${scope.organizationID}&workspace_id=${scope.workspaceID}&environment_id=${scope.environmentID}`;
 }
-export function parseComplianceLink(location: string, scope: ActivityScope): ComplianceLinkResult {
+export function complianceExportLink(id: string, scope: ActivityScope & { principalID: string }): string {
+  if (!productID.test(id) || !productID.test(scope.principalID) || !validScope(scope)) throw new TypeError("Invalid compliance export reference");
+  return `/compliance/evidence?${new URLSearchParams({ export_id: id, principal_id: scope.principalID, organization_id: scope.organizationID, workspace_id: scope.workspaceID, environment_id: scope.environmentID })}`;
+}
+export function parseComplianceLink(location: string, scope: ActivityScope & { principalID?: string }): ComplianceLinkResult {
+  if (location.startsWith("/compliance/evidence?export_id=")) {
+    const query = new URLSearchParams(location.slice(location.indexOf("?") + 1));
+    const id = query.get("export_id") ?? "";
+    const linked = { principalID: query.get("principal_id") ?? "", organizationID: query.get("organization_id") ?? "", workspaceID: query.get("workspace_id") ?? "", environmentID: query.get("environment_id") ?? "" };
+    try { if (complianceExportLink(id, linked) !== location) return { state: "invalid" }; } catch { return { state: "invalid" }; }
+    if (scope.principalID !== linked.principalID || scope.organizationID !== linked.organizationID || scope.workspaceID !== linked.workspaceID || scope.environmentID !== linked.environmentID) return { state: "scope_mismatch" };
+    return { state: "export", id };
+  }
   if (location === "/compliance/evidence" && validScope(scope)) return { state: "none" };
   const invalid: ComplianceLinkResult = { state: "invalid" };
   if (!validScope(scope) || !location.startsWith("/compliance/evidence?") || /[%+#?\s]/.test(location.slice("/compliance/evidence?".length))) return invalid;

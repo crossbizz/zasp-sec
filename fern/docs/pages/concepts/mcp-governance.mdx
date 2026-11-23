@@ -82,3 +82,34 @@ The registry alone is a record of decisions. To enforce it on traffic, route the
 - For a Cloud Run MCP server on Google Cloud, no relationship says which agent uses it, so the findings above are not raised for it.
 - An agent that learns a server's address from a secret, a service mesh or a hard-coded address is not related to the server.
 - A local (stdio) server is found from configuration only. It cannot be put behind the hosted gateway, which fronts remote servers.
+
+## Read Zasp records from an MCP client
+
+Point a Streamable HTTP client at `https://<your Zasp address>/mcp` and use a product API token with `view`. The server offers `list_agents` and `get_attack_path` to eligible tokens. Send the returned cursor to continue an inventory page. A browser session with the corresponding permissions can also read session intent, add-on deployment review and agent posture through `inspect_session`, `get_addon_drift` and `get_posture_summary`. For a deployment review, supply both the version `id` and target `agent_id`.
+
+Each tool uses the current product route and its scope and object checks. Browser calls require the console Origin, CSRF token and expected scope. Tool calls are stateless. Clients send a single JSON-RPC message per POST and accept both `application/json` and `text/event-stream`.
+
+
+Clients with `manage_workflows` may use `propose_policy` to save a draft using a stable product `request_id`, short `name`, exact `tool_action` and proposed `effect` of `monitor` or `block`. Retry with the original request ID. The returned scoped review URL opens the draft for separate operator review and rollout.
+
+Eligible browser sessions can use `request_containment` with the ID of an existing pending session-isolation approval, or `trigger_verification` with the ID of an open remediated case. These tools return a scoped human review URL. The approval form rechecks its target and requires a fresh browser session. Case verification requires owner-approved signed evidence.
+
+
+## Read a private inventory status from Studio
+
+An API deployment can bind one private inventory endpoint to one Environment and agent. Mount an owner-readable JSON secret and set `ZASP_STUDIO_INVENTORY_MCP_FILE` to its absolute path. The Helm setting is `studioInventory.bindingFile`. The binding contains `organization_id`, `workspace_id`, `environment_id`, `agent_id`, `endpoint` (a fixed HTTPS hostname with path `/mcp` on port 443), `private_ip`, `ca_pem`, the hex SHA-256 digest of the TLS leaf public key in `tls_spki_sha256`, a base64 Ed25519 `receipt_public_key`, and a `read_token` dedicated to this one record and operation. The endpoint must enforce that credential's scope. Store the signing private key at the inventory publisher.
+
+Select **External inventory status** and **Inspect session** on a manual Studio definition with at least two steps. The reader approves the external lookup for each question. A lookup requires a current view grant on the exact inventory agent and exact local observations that all identify it. The status can supply inventory context to the private investigation model. Local session receipts remain the source of cited action outcomes.
+
+The endpoint serves stateless JSON Streamable HTTP and the fixed tool `external_inventory_status`. The tool receives the four bound IDs and a one-use base64url `nonce`. Return one MCP text item containing those same five fields, `status` (`present`, `not_listed` or `unknown`), integer Unix-seconds `observed_at`, and the base64 Ed25519 `signature`. Sign the UTF-8 newline-separated sequence below, without a trailing newline. The observation must come from the last minute.
+
+```text
+zasp.external-inventory.v1
+<organization_id>
+<workspace_id>
+<environment_id>
+<agent_id>
+<nonce>
+<status>
+<observed_at formatted as YYYY-MM-DDTHH:MM:SSZ>
+```

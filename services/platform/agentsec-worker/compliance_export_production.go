@@ -52,7 +52,7 @@ func composeComplianceExportWorkerRuntime(ctx context.Context, config workerRunt
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	pins := *config.ComplianceExports
-	p := &complianceExportProcessor{authority: newPostgresComplianceExportAuthority(database), worker: config.WorkerID, batch: config.BatchSize, timeout: config.ProviderTimeout, heartbeat: 20 * time.Second, cleanupMode: config.Mode == workerModeComplianceCleanup}
+	p := &complianceExportProcessor{calibrationEnabled: true, authority: newPostgresComplianceExportAuthority(database), worker: config.WorkerID, batch: config.BatchSize, timeout: config.ProviderTimeout, heartbeat: 20 * time.Second, cleanupMode: config.Mode == workerModeComplianceCleanup}
 	storage := s3driver.Config{Bucket: pins.Bucket, ExpectedBucketOwner: pins.Owner, KMSKeyARN: pins.KMSKey, MaximumBytes: 8 << 20}
 	var err error
 	lane := "execute"

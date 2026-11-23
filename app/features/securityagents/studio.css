@@ -1,0 +1,7 @@
+.studio, .studio-fields, .studio-run, .analyst-threads, .analyst-conversation, .analyst-conversation form { display: grid; gap: .9rem; min-width: 0; }
+.studio-fields { border: 0; padding: .75rem 0; }
+.studio-fields legend { font-weight: 700; }
+.studio-run { margin-top: 1.25rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.analyst-message { display: grid; gap: .35rem; padding: .75rem 1rem; border-inline-start: 3px solid var(--blue); background: var(--blue-soft); border-radius: var(--radius-control); overflow-wrap: anywhere; white-space: pre-wrap; }
+.analyst-message--user { border-color: var(--line); background: var(--surface2); }
+.analyst-conversation textarea { font: inherit; color: var(--text); background: var(--surface); width: 100%; min-height: 5rem; padding: .75rem; border: 1px solid var(--border-control); border-radius: var(--radius-control); }

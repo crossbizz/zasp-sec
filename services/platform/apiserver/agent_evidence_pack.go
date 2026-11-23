@@ -111,6 +111,10 @@ func (writer *evidencePackWriter) Write(payload []byte) (int, error) {
 // read performs one product read as the caller. The caller's credential and
 // scope headers are the request's own; nothing else is carried over.
 func (handler *agentEvidencePackHandler) read(parent *http.Request, path string, query url.Values) (int, []byte) {
+	return dispatchScopedProduct(parent, http.MethodGet, path, query, nil, "")
+}
+
+func dispatchScopedProduct(parent *http.Request, method, path string, query url.Values, body []byte, key string) (int, []byte) {
 	router, _ := parent.Context().Value(productRouterContextKey{}).(http.Handler)
 	if nilInterface(router) {
 		return http.StatusInternalServerError, nil
@@ -119,13 +123,22 @@ func (handler *agentEvidencePackHandler) read(parent *http.Request, path string,
 	if len(query) > 0 {
 		target += "?" + query.Encode()
 	}
-	request, err := http.NewRequestWithContext(parent.Context(), http.MethodGet, target, nil)
+	request, err := http.NewRequestWithContext(parent.Context(), method, target, bytes.NewReader(body))
 	if err != nil {
 		return http.StatusInternalServerError, nil
 	}
 	for _, name := range []string{"Cookie", "Authorization", expectedScopeHeader} {
 		for _, value := range parent.Header.Values(name) {
 			request.Header.Add(name, value)
+		}
+	}
+	if method == http.MethodPost {
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Idempotency-Key", key)
+		for _, name := range []string{"Origin", "X-CSRF-Token"} {
+			for _, value := range parent.Header.Values(name) {
+				request.Header.Add(name, value)
+			}
 		}
 	}
 	request.RemoteAddr = parent.RemoteAddr

@@ -12,6 +12,8 @@ const allowedExactSources = new Set([
 	// Production probe catalog of the red team page; reads only the API client.
 	"app/features/redteam/ProbeLibrary.tsx",
 	"app/features/redteam/redTeamMutationRecovery.ts",
+  "app/features/redteam/RedTeamRecordStatus.tsx",
+  "app/features/redteam/redTeamPendingRecord.ts",
 	"app/features/redteam/recommendations.ts",
 	"app/features/redteam/outcomes.ts",
 	"app/features/redteam/api.ts",
@@ -26,6 +28,11 @@ const allowedExactSources = new Set([
   "app/features/guardrails/ProductionGuardrailsView.tsx",
   "app/features/guardrails/ClaudeEnterpriseSetup.tsx",
   "app/features/guardrails/guardrail-policy-api.ts",
+  "app/features/guardrails/CalibrationPanel.tsx",
+  "app/features/guardrails/CalibrationExports.tsx",
+  "app/features/guardrails/CalibrationChart.tsx",
+  "app/features/guardrails/calibration-api.ts",
+  "app/features/tools/DeploymentReviews.tsx",
   "app/features/tools/MCPServersView.tsx",
   "app/features/tools/AddonReviews.tsx",
   "app/features/tools/AddonScanReceipt.tsx",
@@ -36,18 +43,6 @@ const allowedExactSources = new Set([
   "app/features/tools/cli-release-pin.json",
   // Public release surface IDs and labels shared by catalog review and the UI.
   "services/platform/compliancemap/surfaces.json",
-]);
-const allowedBrowserStorageSources = new Set([
-  // Metadata-only, identity-checked resume for a server-owned export job.
-  "app/features/administration/AuditExportPanel.tsx",
-	"app/features/sessions/ComplianceEvidenceView.tsx",
-	"app/features/redteam/ProductionRedTeamView.tsx",
-	"app/features/recovery/RecoveryOperationsView.tsx",
-  "app/features/risk/ProductionRiskView.tsx",
-  // sessionStorage holds one validated SaaS integration id (no token, no
-  // secret) so that an OAuth return is accepted only in the tab that started
-  // the sign-in. It is read once and removed.
-  "app/features/workflows/ProductionWorkflowViews.tsx",
 ]);
 const forbiddenExactSources = new Set([
   "app/domain/store.tsx",
@@ -129,7 +124,7 @@ export async function checkSourceGraph({ root = repositoryRoot, entries = produc
     const violation = sourceViolation(path);
     if (violation) throw new Error(`${violation} is reachable from production: ${path}`);
     const source = await readFile(file, "utf8");
-    if (browserStoragePattern.test(source) && !allowedBrowserStorageSources.has(path)) {
+    if (browserStoragePattern.test(source)) {
       throw new Error(`browser storage is reachable from production: ${path}`);
     }
     for (const specifier of importSpecifiers(source)) {

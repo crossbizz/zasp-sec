@@ -493,9 +493,9 @@ There are two ways to connect, depending on the platform.
 1. In **Add a source**, choose the platform. Enter its tenant identifier
    and save.
 2. Open the integration and choose the button that starts with "Sign in to".
-   You continue on the provider's site.
-3. You return to **Integrations** with the message "Signed in. Authorize the
-   integration to start collecting."
+   Select **Continue to provider** to open a second tab. Leave the original Zasp tab open.
+3. After signing in, return to the original tab and select **Finish sign-in**.
+   Zasp checks the completed provider attempt and current integration version before saving the connection.
 4. Authorize the integration, then sync.
 
 Use the same browser tab from start to end. A sign-in that returns to another
@@ -1216,7 +1216,7 @@ The messages below are the ones the product shows.
 | "Salesforce refused the connected app." | The secret, the flow or the run-as user is wrong | Check the consumer secret, the client credentials flow and the run-as user's permissions |
 | "The platform refused the Nango connection." | The connection is no longer authorized | Check the connection in Nango, then authorize again |
 | "The sign-in was cancelled at the provider. Nothing was connected." | You closed the provider's page | Sign in again |
-| "This sign-in was not started from this browser tab." | The provider returned to another tab | Open the integration and sign in again, in one tab |
+| "This sign-in is no longer available in this session. Start a new sign-in." | The original session or attempt expired | Reopen the integration in the intended environment and start a new sign-in |
 | "The provider rate limit delayed collection." | The provider throttled the sync | Wait and sync again; the last good inventory stays visible |
 | "Coverage is degraded." | A sync ended incomplete | Run the connection test, then sync again |
 | "Provider revocation is pending." | A deletion is waiting for the provider to revoke access | Wait, then choose **Retry pending integration deletion** |

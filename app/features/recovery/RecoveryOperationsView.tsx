@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { parseRecoveryLink, recoveryLink, type RecoverySelection } from "../../domain/recovery-links";
 import type { APIClient } from "../../../apps/web/api/client";
 import type { RecoveryBackup, RecoveryRestore } from "../../../apps/web/api/generated";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader } from "../../components/ui";
 import { createRecoveryAPI, type RecoveryAPI, type StartBackupInput, type StartRestoreInput } from "./api";
 
 type RetainedRecovery = Readonly<{
-  version: 1;
   backup: Readonly<{ id: string; retention_days: number; idempotency_key: string }> | null;
   restore: Readonly<{ id: string; target_environment: string; idempotency_key: string }> | null;
 }>;
@@ -20,27 +20,26 @@ type RecoveryOperationsViewProps = Readonly<{
   onReauthenticate(): void;
   api?: RecoveryAPI;
   client?: APIClient;
-  storage?: Storage;
   pollIntervalMs?: number;
   maximumPolls?: number;
 }>;
 
-const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
 const DEFAULT_MAXIMUM_POLLS = 120;
 
-export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReauthenticate, api: suppliedAPI, client, storage: suppliedStorage, pollIntervalMs = DEFAULT_POLL_INTERVAL_MS, maximumPolls = DEFAULT_MAXIMUM_POLLS }: RecoveryOperationsViewProps) {
+export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReauthenticate, api: suppliedAPI, client, pollIntervalMs = DEFAULT_POLL_INTERVAL_MS, maximumPolls = DEFAULT_MAXIMUM_POLLS }: RecoveryOperationsViewProps) {
   const api = useMemo(() => suppliedAPI ?? (client ? createRecoveryAPI(client, expectedScope) : null), [suppliedAPI, client, expectedScope]);
-  const storage = useMemo(() => suppliedStorage ?? browserSessionStorage(), [suppliedStorage]);
-  const storageKey = `zasp:recovery:v1:${expectedScope}`;
-  const [retained, setRetained] = useState<RetainedRecovery>(() => readRetained(storage, storageKey));
-  const startupRetained = useRef(retained);
+  const scope = useMemo(() => { const [organizationID, workspaceID, environmentID] = expectedScope.split("/"); return {organizationID, workspaceID, environmentID}; }, [expectedScope]);
+  const [initialLink, setInitialLink] = useState(() => typeof window === "undefined" ? null : parseRecoveryLink(window.location.pathname + window.location.search + window.location.hash, scope));
+  const linked = initialLink?.state === "selected" ? initialLink.ids : null;
+  const [reference, setReference] = useState<RecoverySelection | null>(linked);
+  const [retained, setRetained] = useState<RetainedRecovery>({ backup: null, restore: null });
+  const [lookupVersion, setLookupVersion] = useState(0);
   const [backup, setBackup] = useState<RecoveryBackup | null>(null);
   const [restore, setRestore] = useState<RecoveryRestore | null>(null);
   const [retentionDays, setRetentionDays] = useState(30);
   const [targetEnvironment, setTargetEnvironment] = useState("recovery-rehearsal");
-  const [loading, setLoading] = useState(retained.backup !== null || retained.restore !== null);
+  const [loading, setLoading] = useState(Boolean(linked || retained.backup || retained.restore));
   const [busy, setBusy] = useState(false);
   const [ambiguous, setAmbiguous] = useState<"backup" | "restore" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,16 +47,31 @@ export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReaut
   const backupPollingSeed = useRef(backup);
   const restorePollingSeed = useRef(restore);
 
-  const persist = (next: RetainedRecovery) => { setRetained(next); writeRetained(storage, storageKey, next); };
-
   useEffect(() => {
     const controller = new AbortController(); let current = true;
     const load = async () => {
-      const startup = startupRetained.current;
+      let startup: RetainedRecovery = { backup: null, restore: null };
       if (!api) { if (current) { setError("Recovery operations are unavailable."); setLoading(false); } return; }
+      // Bookmarks hold resource IDs. Read the original parameters from the
+      // authenticated server before offering an exact retry after reload.
+      if (linked) {
+        try {
+          const saved = await api.getIntent(linked.restore ?? linked.backup, controller.signal);
+          if (controller.signal.aborted) return;
+          const p = saved.parameters;
+          if (p.backup_id !== linked.backup || p.kind !== (linked.restore ? "restore" : "backup")) throw Error("Recovery request mismatch");
+          if (p.kind === "backup") startup = {backup: {id: linked.backup, retention_days: p.retention_days, idempotency_key: operationKey("backup", linked.backup)}, restore: null};
+          else startup = {backup: null, restore: {id: saved.id, target_environment: p.target_environment, idempotency_key: operationKey("restore", saved.id)}};
+          setRetained(startup);
+          if (p.kind === "restore") setTargetEnvironment(p.target_environment);
+          else setRetentionDays(p.retention_days);
+        } catch { if (controller.signal.aborted) return; }
+      }
+      const backupID = linked?.backup ?? startup.backup?.id;
+      const restoreID = linked?.restore ?? startup.restore?.id;
       const [backupResult, restoreResult] = await Promise.allSettled([
-        startup.backup ? api.getBackup(startup.backup.id, controller.signal) : Promise.resolve(null),
-        startup.restore ? api.getRestore(startup.restore.id, controller.signal) : Promise.resolve(null),
+        backupID ? api.getBackup(backupID, controller.signal) : Promise.resolve(null),
+        restoreID ? api.getRestore(restoreID, controller.signal) : Promise.resolve(null),
       ]);
       if (controller.signal.aborted || !current) return;
       if (backupResult.status === "fulfilled") setBackup(backupResult.value);
@@ -66,13 +80,14 @@ export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReaut
         setAmbiguous(restoreResult.status === "rejected" && startup.restore ? "restore" : "backup");
         setError("Recovery state could not be verified. Retry the authoritative status check.");
       } else {
+        setAmbiguous(null);
         setError(null);
       }
       setLoading(false);
     };
     void load();
     return () => { current = false; controller.abort(new DOMException("Recovery page changed", "AbortError")); };
-  }, [api]);
+  }, [api, linked, lookupVersion]);
 
   useEffect(() => { backupPollingSeed.current = backup; }, [backup]);
   useEffect(() => { restorePollingSeed.current = restore; }, [restore]);
@@ -85,14 +100,19 @@ export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReaut
     if (!retry && !validRetentionDays(retentionDays)) return;
     if (!fresh) { onReauthenticate(); return; }
     if (!retry && !window.confirm("Start a tenant-scoped signed backup? Mutations in this scope will drain briefly.")) return;
+    const newID = retry ? retained.backup?.id : recoveryProductID();
+    if (!newID) return;
     const input: StartBackupInput = retry && retained.backup
       ? { backupID: retained.backup.id, retentionDays: retained.backup.retention_days, idempotencyKey: retained.backup.idempotency_key }
-      : { backupID: recoveryProductID(), retentionDays, idempotencyKey: recoveryIdempotencyKey("backup") };
-    const pending: RetainedRecovery = { version: 1, backup: { id: input.backupID, retention_days: input.retentionDays, idempotency_key: input.idempotencyKey }, restore: null };
-    persist(pending); setBusy(true); setAmbiguous(null); setError(null); mutation.current?.abort(); mutation.current = new AbortController();
+      : { backupID: newID, retentionDays, idempotencyKey: operationKey("backup", newID) };
+    const pending: RetainedRecovery = { backup: { id: input.backupID, retention_days: input.retentionDays, idempotency_key: input.idempotencyKey }, restore: null };
+    setRetained(pending); setBusy(true); setAmbiguous(null); setError(null); mutation.current?.abort(); mutation.current = new AbortController();
     try {
+      await api.putIntent(input.backupID, {kind: "backup", backup_id: input.backupID, retention_days: input.retentionDays}, mutation.current.signal);
+      const ids = {backup: input.backupID};
+      window.history.replaceState(window.history.state, "", recoveryLink(ids, scope)); setReference(ids);
       const value = await api.startBackup(input, mutation.current.signal); setBackup(value); setRestore(null); setAmbiguous(null);
-      persist({ ...pending, backup: { ...pending.backup!, id: value.id } });
+      setRetained({ ...pending, backup: { ...pending.backup!, id: value.id } });
     } catch {
       if (mutation.current.signal.aborted) return;
       setAmbiguous("backup"); setError("The backup request may have committed. Retry only with the retained operation.");
@@ -104,14 +124,19 @@ export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReaut
     if (!retry && !validRecoveryTarget(targetEnvironment, expectedScope)) return;
     if (!fresh) { onReauthenticate(); return; }
     if (!retry && !window.confirm("Start an isolated restore rehearsal and delete its temporary resources after validation?")) return;
+    const newID = retry ? retained.restore?.id : recoveryProductID();
+    if (!newID) return;
     const input: StartRestoreInput = retry && retained.restore
       ? { restoreID: retained.restore.id, targetEnvironment: retained.restore.target_environment, manifest: backup.manifest, idempotencyKey: retained.restore.idempotency_key }
-      : { restoreID: recoveryProductID(), targetEnvironment, manifest: backup.manifest, idempotencyKey: recoveryIdempotencyKey("restore") };
+      : { restoreID: newID, targetEnvironment, manifest: backup.manifest, idempotencyKey: operationKey("restore", newID) };
     const pending: RetainedRecovery = { ...retained, restore: { id: input.restoreID, target_environment: input.targetEnvironment, idempotency_key: input.idempotencyKey } };
-    persist(pending); setBusy(true); setAmbiguous(null); setError(null); mutation.current?.abort(); mutation.current = new AbortController();
+    setRetained(pending); setBusy(true); setAmbiguous(null); setError(null); mutation.current?.abort(); mutation.current = new AbortController();
     try {
+      await api.putIntent(input.restoreID, {kind: "restore", backup_id: backup.id, target_environment: input.targetEnvironment}, mutation.current.signal);
+      const ids = {backup: backup.id, restore: input.restoreID};
+      window.history.replaceState(window.history.state, "", recoveryLink(ids, scope)); setReference(ids);
       const value = await api.startRestore(input, mutation.current.signal); setRestore(value); setAmbiguous(null);
-      persist({ ...pending, restore: { ...pending.restore!, id: value.id } });
+      setRetained({ ...pending, restore: { ...pending.restore!, id: value.id } });
     } catch {
       if (mutation.current.signal.aborted) return;
       setAmbiguous("restore"); setError("The restore request may have committed. Retry only with the retained operation.");
@@ -119,27 +144,41 @@ export function RecoveryOperationsView({ expectedScope, canWrite, fresh, onReaut
   };
 
   const refresh = async () => {
-    if (!api || busy) return; setBusy(true); setError(null); mutation.current?.abort(); mutation.current = new AbortController();
+    if (!api || busy || loading) return;
+    if (linked && linked.backup === reference?.backup && linked.restore === reference.restore) { setLoading(true); setLookupVersion(version => version + 1); return; }
+    setBusy(true); setError(null); mutation.current?.abort(); mutation.current = new AbortController();
     try {
-      if (retained.backup) setBackup(await api.getBackup(retained.backup.id, mutation.current.signal));
-      if (retained.restore) setRestore(await api.getRestore(retained.restore.id, mutation.current.signal));
+      const backupID = reference?.backup ?? retained.backup?.id;
+      const restoreID = reference?.restore ?? retained.restore?.id;
+      if (backupID) setBackup(await api.getBackup(backupID, mutation.current.signal));
+      if (restoreID) setRestore(await api.getRestore(restoreID, mutation.current.signal));
+      setAmbiguous(null);
     } catch { if (!mutation.current.signal.aborted) setError("Recovery state could not be verified. Retry the authoritative status check."); } finally { setBusy(false); }
   };
 
-  const backupAction = !fresh ? <Button disabled={!canWrite} onClick={onReauthenticate}>Reauthenticate to start backup</Button> : <Button variant="primary" disabled={!canWrite || busy || backup !== null || !validRetentionDays(retentionDays)} onClick={() => void startBackup(false)}>Start signed backup</Button>;
+  const clearSelection = () => {
+    window.history.replaceState(window.history.state, "", "/administration/recovery");
+    setInitialLink(null); setReference(null); setRetained({backup: null, restore: null});
+    setBackup(null); setRestore(null); setAmbiguous(null); setError(null);
+    setRetentionDays(30); setTargetEnvironment("recovery-rehearsal");
+  };
+  const unavailableLink = initialLink?.state === "invalid" || initialLink?.state === "scope_mismatch";
+  const backupAction = !fresh ? <Button disabled={!canWrite} onClick={onReauthenticate}>Reauthenticate to start backup</Button> : <Button variant="primary" disabled={!canWrite || busy || loading || reference !== null || retained.backup !== null || unavailableLink || backup !== null || !validRetentionDays(retentionDays)} onClick={() => void startBackup(false)}>Start signed backup</Button>;
   return <div className="page">
     <PageHeader eyebrow="Administration" title="Recovery operations" description="Create a signed tenant backup and validate it through an isolated restore rehearsal." actions={backupAction} />
+    {unavailableLink && <p role="alert">{initialLink?.state === "scope_mismatch" ? "This recovery link belongs to a different scope." : "This recovery link is invalid."}</p>}
     {!canWrite && <p role="status">Recovery operations are read-only for this account.</p>}
-    <Card title="Backup settings"><Field label="Retention days" type="number" min={7} max={90} value={retentionDays} disabled={!canWrite || backup !== null || busy} onChange={(event) => setRetentionDays(Number(event.target.value))} /></Card>
+    <Card title="Backup settings"><Field label="Retention days" type="number" min={7} max={90} value={retentionDays} disabled={!canWrite || reference !== null || retained.backup !== null || backup !== null || busy || unavailableLink} onChange={(event) => setRetentionDays(Number(event.target.value))} /></Card>
     {loading && <LoadingState label="Loading recovery state…" />}
-    {!loading && backup === null && <EmptyState title="No recovery operation in this scope" description="Start with a signed tenant backup." />}
+    {!loading && backup === null && !error && !unavailableLink && <EmptyState title="No recovery operation in this scope" description="Start with a signed tenant backup." />}
     {backup && <RecoveryBackupCard value={backup} />}
-    {backup?.state === "succeeded" && <Card title="Restore rehearsal"><Field label="Recovery target" value={targetEnvironment} disabled={!canWrite || restore !== null || busy} onChange={(event) => setTargetEnvironment(event.target.value)} /><Button variant="primary" disabled={!canWrite || busy || restore !== null || (fresh && !validRecoveryTarget(targetEnvironment, expectedScope))} onClick={fresh ? () => void startRestore(false) : onReauthenticate}>{fresh ? "Start restore rehearsal" : "Reauthenticate to start restore"}</Button></Card>}
+    {backup?.state === "succeeded" && <Card title="Restore rehearsal"><Field label="Recovery target" value={targetEnvironment} disabled={!canWrite || restore !== null || retained.restore !== null || Boolean(reference?.restore) || busy} onChange={(event) => setTargetEnvironment(event.target.value)} /><Button variant="primary" disabled={!canWrite || busy || restore !== null || retained.restore !== null || Boolean(reference?.restore) || (fresh && !validRecoveryTarget(targetEnvironment, expectedScope))} onClick={fresh ? () => void startRestore(false) : onReauthenticate}>{fresh ? "Start restore rehearsal" : "Reauthenticate to start restore"}</Button></Card>}
     {restore && <RecoveryRestoreCard value={restore} />}
     {error && <p role="alert">{error}</p>}
-    {ambiguous === "backup" && <Button disabled={busy} onClick={() => void startBackup(true)}>Retry retained backup</Button>}
-    {ambiguous === "restore" && <Button disabled={busy || backup?.state !== "succeeded"} onClick={() => void startRestore(true)}>Retry retained restore</Button>}
-    {(backup !== null || restore !== null) && <Button disabled={busy} onClick={() => void refresh()}>Refresh authoritative status</Button>}
+    {ambiguous === "backup" && retained.backup && <Button disabled={!canWrite || busy} onClick={() => void startBackup(true)}>Retry retained backup</Button>}
+    {ambiguous === "restore" && retained.restore && <Button disabled={!canWrite || busy || backup?.state !== "succeeded"} onClick={() => void startRestore(true)}>Retry retained restore</Button>}
+    {(backup !== null || restore !== null || reference !== null) && <Button disabled={busy || loading} onClick={() => void refresh()}>Refresh authoritative status</Button>}
+    {(unavailableLink || reference !== null || retained.backup !== null) && <Button disabled={busy || loading} onClick={clearSelection}>Close recovery details</Button>}
   </div>;
 }
 
@@ -171,15 +210,4 @@ function stateTone(value: string): "success" | "warning" | "info" { return value
 function validRetentionDays(value: number): boolean { return Number.isSafeInteger(value) && value >= 7 && value <= 90; }
 function validRecoveryTarget(value: string, expectedScope: string): boolean { return /^[a-z][a-z0-9-]{0,62}$/.test(value) && value !== "production" && value !== expectedScope.split("/")[2]; }
 function recoveryProductID(): string { return `pid_${globalThis.crypto.randomUUID()}`; }
-function recoveryIdempotencyKey(kind: "backup" | "restore"): string { return `recovery_${kind}_${globalThis.crypto.randomUUID()}`; }
-
-function browserSessionStorage(): Storage | undefined { try { return typeof window === "undefined" ? undefined : window.sessionStorage; } catch { return undefined; } }
-function emptyRetained(): RetainedRecovery { return { version: 1, backup: null, restore: null }; }
-function readRetained(storage: Storage | undefined, key: string): RetainedRecovery {
-  if (!storage) return emptyRetained(); let parsed: unknown; try { const raw = storage.getItem(key); if (raw === null || raw.length > 2_048) return emptyRetained(); parsed = JSON.parse(raw); } catch { return emptyRetained(); }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return emptyRetained(); const record = parsed as Record<string, unknown>; if (record.version !== 1 || Object.keys(record).some((field) => !["version", "backup", "restore"].includes(field))) return emptyRetained();
-  const backup = retainedBackup(record.backup); const restore = retainedRestore(record.restore); if (record.backup !== null && !backup || record.restore !== null && !restore || restore && !backup) return emptyRetained(); return { version: 1, backup, restore };
-}
-function retainedBackup(value: unknown): RetainedRecovery["backup"] { if (value === null) return null; if (!value || typeof value !== "object" || Array.isArray(value)) return null; const record = value as Record<string, unknown>; if (Object.keys(record).sort().join() !== "id,idempotency_key,retention_days" || typeof record.id !== "string" || !PRODUCT_ID.test(record.id) || typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key) || !Number.isSafeInteger(record.retention_days) || (record.retention_days as number) < 7 || (record.retention_days as number) > 90) return null; return { id: record.id, idempotency_key: record.idempotency_key, retention_days: record.retention_days as number }; }
-function retainedRestore(value: unknown): RetainedRecovery["restore"] { if (value === null) return null; if (!value || typeof value !== "object" || Array.isArray(value)) return null; const record = value as Record<string, unknown>; if (Object.keys(record).sort().join() !== "id,idempotency_key,target_environment" || typeof record.id !== "string" || !PRODUCT_ID.test(record.id) || typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key) || typeof record.target_environment !== "string" || !/^[a-z][a-z0-9-]{0,62}$/.test(record.target_environment) || record.target_environment === "production") return null; return { id: record.id, idempotency_key: record.idempotency_key, target_environment: record.target_environment }; }
-function writeRetained(storage: Storage | undefined, key: string, value: RetainedRecovery): void { try { storage?.setItem(key, JSON.stringify(value)); } catch { /* recovery remains available in memory */ } }
+function operationKey(kind: "backup" | "restore", id: string): string { return `recovery_${kind}_${id.slice(4)}`; }

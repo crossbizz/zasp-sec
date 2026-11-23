@@ -304,7 +304,9 @@ export function decodeHomeSummary(value: unknown): HomeSummary {
 
 export function decodeFinding(value: unknown): Finding {
   const required = ["id", "source", "title", "severity", "status", "evidence_ids", "risk_factors", "version", "created_at", "updated_at"];
-  const record = exactRecord(value, required, ["rule", "agent_id", "path_id", "compliance_context", "acceptance_reason", "frameworks"]);
+  const record = exactRecord(value, required, ["rule", "agent_id", "path_id", "compliance_context", "acceptance_reason", "frameworks", "current_ticket_id", "pending_ticket_key"]);
+  if (record.current_ticket_id !== undefined && (typeof record.current_ticket_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$(?![\s\S])/.test(record.current_ticket_id) || record.pending_ticket_key !== undefined)) fail();
+  if (record.pending_ticket_key !== undefined && (typeof record.pending_ticket_key !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$(?![\s\S])/.test(record.pending_ticket_key))) fail();
   productID(record.id); enumValue(record.source, ["posture", "prowler"]); boundedString(record.title, 1, 256);
   if (record.frameworks !== undefined) for (const reference of array(record.frameworks, 16)) { const item = exactRecord(reference, ["framework", "control", "title"]); enumValue(item.framework, ["owasp_agentic_top10_2026", "owasp_llm_top10_2025", "mitre_atlas", "nist_ai_rmf_1_0", "iso_iec_42001_2023", "eu_ai_act"]); boundedString(item.control, 1, 32); boundedString(item.title, 1, 128); }
   enumValue(record.severity, ["critical", "high", "medium", "low"]); enumValue(record.status, ["open", "under_review", "resolved", "accepted"]);
@@ -1636,7 +1638,7 @@ export function decodeIntegrationRemediationRole(value: unknown, expectedIntegra
 export const GUARDRAIL_RULE_IDS = ["injection.instruction_override", "injection.role_switch", "injection.hidden_text", "injection.tool_call", "pii.email", "pii.phone", "pii.credit_card", "pii.us_ssn", "secret.aws_access_key_id", "secret.private_key", "secret.bearer_token"] as const;
 export const GUARDRAIL_MODES = ["block", "redact", "monitor", "off"] as const;
 export type GuardrailMode = typeof GUARDRAIL_MODES[number];
-export type GuardrailPolicyRule = { id: typeof GUARDRAIL_RULE_IDS[number]; category: "prompt_injection" | "sensitive_data"; description: string; mode: GuardrailMode; default_mode: GuardrailMode; redactable: boolean };
+export type GuardrailPolicyRule = { rule_class?: "hard" | "heuristic"; id: typeof GUARDRAIL_RULE_IDS[number]; category: "prompt_injection" | "sensitive_data"; description: string; mode: GuardrailMode; default_mode: GuardrailMode; redactable: boolean };
 export type GuardrailPolicy = { environment_id: string; version: number; updated_at: string | null; rules: readonly GuardrailPolicyRule[] };
 
 export function decodeGuardrailPolicy(value: unknown): GuardrailPolicy {
@@ -1647,7 +1649,8 @@ export function decodeGuardrailPolicy(value: unknown): GuardrailPolicy {
   if (!Array.isArray(record.rules) || record.rules.length !== GUARDRAIL_RULE_IDS.length) fail();
   const seen = new Set<string>();
   for (const item of record.rules as unknown[]) {
-    const rule = exactRecord(item, ["id", "category", "description", "mode", "default_mode", "redactable"]);
+    const rule = exactRecord(item, ["id", "category", "description", "mode", "default_mode", "redactable"], ["rule_class"]);
+    if (rule.rule_class !== undefined) enumValue(rule.rule_class, ["hard", "heuristic"]);
     enumValue(rule.id, GUARDRAIL_RULE_IDS);
     if (seen.has(rule.id as string)) fail();
     seen.add(rule.id as string);

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation/issuer"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
@@ -60,6 +61,7 @@ type SessionGrant struct {
 }
 
 type CookiePolicy struct {
+	Delegation                      *issuer.Authority
 	SecurityAgentOrderedHTTPEnabled bool
 	SingleTestRecoveryReady         func(context.Context) (bool, error)
 	SingleTestOriginalObserver      orchestration.SingleTestOriginalObserver
@@ -156,13 +158,20 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		// are served from the same surface.
 		if surface, composed := workflowSurface.(*discoveryWorkflowSurface); composed {
 			surface.evidenceDB = repository.database
+			surface.analyst = configuredAnalystChat()
+			surface.advisory = configuredStudioAdvisory()
+			surface.inventoryModels = map[string]*analystChat{}
+			for op, p := range inventoryReviewPurposes {
+				surface.inventoryModels[op] = configuredPrivateModel(p, "ZASP_BEDROCK_INVENTORY_")
+			}
 			surface.addons = &addonReviewHandler{database: repository.database, newProductID: newWorkflowProductID}
 			surface.actions = &workloadActionHandler{database: repository.database, newProductID: newWorkflowProductID}
 			surface.fleet = &endpointFleetHandler{database: repository.database, clock: cookie.Clock, newID: newWorkflowProductID}
-			surface.guardrail = &guardrailHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}
+			surface.guardrail = &guardrailHTTPHandler{database: repository.database, newProductID: newWorkflowProductID, profiles: loadGuardrailProfiles()}
 			// The hosted gateway: its management always, its traffic routes
 			// where the deployment hosts them.
-			surface.gateway = &hostedGatewayHandler{database: repository.database, newProductID: newWorkflowProductID, gateway: cookie.HostedGateway}
+			surface.gateway = &hostedGatewayHandler{database: repository.database, newProductID: newWorkflowProductID, gateway: cookie.HostedGateway, authority: cookie.Delegation}
+			surface.actions.delegations = surface.gateway
 		}
 	}
 	if isRuntimeDataPlaneSchema(repository.schema) {
@@ -598,6 +607,13 @@ type administrationCursor struct {
 }
 
 func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if stringIn(routed.OperationID, "getOrganizationAIControls", "getEnvironmentAIControls", "listModelQualifications", "updateEnvironmentAIControls", "updateOrganizationAIControls") {
+		writer.Header().Set("Cache-Control", "no-store")
+		if request.URL.RawQuery != "" {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+	}
 	if routed.OperationID == "listAuditEvents" && handler.auditPublicPages != nil {
 		handler.serveAuditPublicPage(writer, request, identity)
 		return
@@ -717,6 +733,18 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
+	}
+	if runtimeSessionTarget(parameters["id"]) {
+		switch routed.OperationID {
+		case "getSessionEvent":
+			payload, err = runtimeEventOutcome(payload)
+		case "listSessionEvents":
+			payload, err = runtimePageOutcomes(payload)
+		}
+		if err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
 	}
 	if list {
 		handler.writeAdministrationPage(writer, request, identity, routed.OperationID, parameters, payload)
@@ -894,6 +922,15 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		}
 		if routed.OperationID == "revokeSession" {
 			status = http.StatusNoContent
+		}
+	case "updateEnvironmentAIControls", "updateOrganizationAIControls":
+		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
+		if err == nil {
+			err = decodeProductionJSON(request, &mutation.AIPatch)
+		}
+		if err != nil || len(mutation.AIPatch) < 2 || len(mutation.AIPatch) > 4096 || mutation.AIPatch[0] != '{' {
+			writeWorkflowMutationError(writer, request, errOrOperation(err))
+			return
 		}
 	case "updateDataControls":
 		var input struct {
@@ -1280,7 +1317,7 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			state = "healthy"
 		}
 		items := []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}
-		intent, err := handler.externalIntentFlow(request)
+		intent, err := handler.modelFlow(request, routed.OperationID)
 		if err != nil {
 			writeProductionError(writer, request, err)
 			return true
@@ -1296,8 +1333,9 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			databaseHealthy = repository.Ready(request.Context()) == nil
 		}
 		providerHealthy := handler.providerLiveVerified(request.Context())
+		flow, flowErr := handler.modelFlow(request, routed.OperationID)
 		if routed.OperationID == "getSystemStatus" {
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"security_plane_healthy": databaseHealthy && providerHealthy, "optional_degraded": !providerHealthy, "fresh_at": now}, nil)
+			writeJSONValue(writer, request, http.StatusOK, map[string]any{"security_plane_healthy": databaseHealthy && providerHealthy, "optional_degraded": !providerHealthy || flowErr != nil || (flow != nil && flow.Health != "healthy"), "fresh_at": now}, nil)
 		} else {
 			componentState := func(healthy bool) string {
 				if healthy {
@@ -1309,7 +1347,13 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			if providerHealthy {
 				providerState = "healthy"
 			}
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "postgresql", "required": true, "state": componentState(databaseHealthy), "fresh_at": now}, map[string]any{"id": "identity-provider", "required": true, "state": providerState, "fresh_at": now}}}, nil)
+			items := []any{map[string]any{"id": "postgresql", "required": true, "state": componentState(databaseHealthy), "fresh_at": now}, map[string]any{"id": "identity-provider", "required": true, "state": providerState, "fresh_at": now}}
+			if flowErr != nil {
+				items = append(items, map[string]any{"id": "model-telemetry", "required": false, "state": "unavailable", "fresh_at": now})
+			} else if flow != nil {
+				items = append(items, map[string]any{"id": flow.ID, "required": false, "state": flow.Health, "fresh_at": now})
+			}
+			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": items}, nil)
 		}
 	case "getSystemVersion":
 		writeJSONValue(writer, request, http.StatusOK, map[string]string{"version": handler.version}, nil)

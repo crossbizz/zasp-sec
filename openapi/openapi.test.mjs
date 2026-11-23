@@ -59,7 +59,7 @@ function verifyDocument(value, rawText) {
   assert.equal(value.paths !== null && typeof value.paths === "object" && !Array.isArray(value.paths), true);
   assert.equal(Object.keys(value.paths).length > 0, true);
   for (const path of Object.keys(value.paths)) {
-    assert.match(path, /^\/api\/v1\/[a-z](?:[a-z0-9_/-]|\{[A-Za-z][A-Za-z0-9]*\})*$/);
+    if (path !== "/mcp") assert.match(path, /^\/api\/v1\/[a-z](?:[a-z0-9_/-]|\{[A-Za-z][A-Za-z0-9]*\})*$/);
   }
   assert.deepEqual(value.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
 
@@ -282,7 +282,7 @@ function verifyDocument(value, rawText) {
       assert.match(entry, /^#\/components\/(?:headers|parameters|responses|schemas|securitySchemes)\/[A-Za-z][A-Za-z0-9]*$/);
     }
   });
-  assert.doesNotMatch(rawText.toLowerCase(), /(?:amazon|azure|customer_|example\.com|localstack|openai|stytch)/);
+  assert.doesNotMatch(rawText.toLowerCase().replaceAll('customer_vpc_only', ''), /(?:amazon|azure|customer_|example\.com|localstack|openai|stytch)/);
 }
 
 before(async () => {
@@ -766,7 +766,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 241);
+    assert.equal(operations.size, 283);
     for (const operation of ["listComplianceEditions", "listComplianceCoverage", "listComplianceCoverageEvidence"]) assert.ok(operations.has(operation));
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);

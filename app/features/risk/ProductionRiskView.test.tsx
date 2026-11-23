@@ -115,9 +115,9 @@ describe("production risk views", () => {
     const get = vi.fn(async (id: string) => { expect(id).toBe(path.id); return path; });
     const options = vi.fn(fixtureAPI().getAttackPathBreakOptions);
     renderRisk("/exposure/attack-paths", fixtureAPI({ listAttackPaths: list, getAttackPath: get, getAttackPathBreakOptions: options }), false, vi.fn(), path.id);
-    const dialog = await screen.findByRole("dialog", { name: "Attack path detail" });
+    const dialog = await screen.findByRole("region", { name: "Attack path detail" });
     await waitFor(() => expect(dialog).toHaveTextContent("1. Remove node"));
-    expect(dialog).toHaveTextContent(path.node_ids.join(" → "));
+    expect(within(dialog).getAllByRole("button", { pressed: true })).toHaveLength(1);
     expect(options).toHaveBeenCalledWith(path, expect.any(AbortSignal));
     expect(list).not.toHaveBeenCalled();
     expect(screen.queryByText("No attack paths in this scope.")).not.toBeInTheDocument();
@@ -199,44 +199,42 @@ describe("production risk views", () => {
 		expect(screen.queryByRole("button", { name: "Create ticket" })).not.toBeInTheDocument();
   });
 
-	it("restores an exact scoped ticket result after reload without a second delivery", async () => {
-		window.sessionStorage.clear();
-		const createTicket = vi.fn(fixtureAPI().createFindingTicket);
-		const api = fixtureAPI({ createFindingTicket: createTicket });
-		const first = renderRisk("/violations", api, true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		await userEvent.click(screen.getByRole("button", { name: "Create ticket" }));
-		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
-		first.unmount();
+  it("reads the reviewer's current ticket after reload without a second delivery", async () => {
+    const createTicket = vi.fn(fixtureAPI().createFindingTicket);
+    const getFinding = vi.fn(fixtureAPI().getFinding);
+    const api = fixtureAPI({ createFindingTicket: createTicket, getFinding });
+    const first = renderRisk("/violations", api, true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create ticket" }));
+    expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
+    first.unmount();
+    getFinding.mockResolvedValue({ value: { ...finding, current_ticket_id: "SEC-1234" }, version: '"1"' });
+    const second = renderRisk("/violations", api, true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
+    expect(createTicket).toHaveBeenCalledTimes(1);
+    second.unmount();
+    getFinding.mockResolvedValue({ value: { ...finding, version: 2 }, version: '"2"' });
+    renderRisk("/violations", api, true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    expect(await screen.findByRole("button", { name: "Create ticket" })).toBeEnabled();
+    expect(screen.queryByText("Ticket SEC-1234 created.")).not.toBeInTheDocument();
+  });
 
-		renderRisk("/violations", api, true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
-		expect(createTicket).toHaveBeenCalledTimes(1);
-		window.sessionStorage.clear();
-	});
-
-	it("removes a stored ticket result when the authoritative finding version changes", async () => {
-		window.sessionStorage.clear();
-		const first = renderRisk("/violations", fixtureAPI(), true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		await userEvent.click(screen.getByRole("button", { name: "Create ticket" }));
-		expect(await screen.findByText("Ticket SEC-1234 created.")).toBeVisible();
-		expect(window.sessionStorage.length).toBe(1);
-		first.unmount();
-
-		const changedFinding = { ...finding, status: "under_review" as const, version: 2 };
-		renderRisk("/violations", fixtureAPI({ getFinding: async () => ({ value: changedFinding, version: '"2"' }) }), true);
-		await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
-		expect(screen.queryByText("Ticket SEC-1234 created.")).not.toBeInTheDocument();
-		expect(window.sessionStorage.length).toBe(0);
-	});
+  it("reuses an outstanding ticket request created before the upgrade", async () => {
+    const key = "finding-ticket-existing-attempt";
+    const createFindingTicket = vi.fn(fixtureAPI().createFindingTicket);
+    renderRisk("/violations", fixtureAPI({ getFinding: async () => ({ value: { ...finding, pending_ticket_key: key }, version: '"1"' }), createFindingTicket }), true);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Retry ticket creation" }));
+    expect(createFindingTicket).toHaveBeenCalledWith(finding.id, '"1"', { idempotencyKey: key });
+  });
 
   it("renders API attack-path order, evidence, and ranked path-local break options", async () => {
     renderRisk("/exposure/attack-paths", fixtureAPI());
     await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
-    const dialog = await screen.findByRole("dialog", { name: "Attack path detail" });
-    expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
+    const dialog = await screen.findByRole("region", { name: "Attack path detail" });
+    expect(dialog).toHaveTextContent(path.entry_id);
     expect(dialog).toHaveTextContent("1. Remove node");
     expect(dialog).not.toHaveTextContent(/ticket|rerun|simulate/i);
   });
@@ -288,15 +286,15 @@ describe("production risk views", () => {
     }));
     await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
 
-    const dialog = screen.getByRole("dialog", { name: "Attack path detail" });
+    const dialog = screen.getByRole("region", { name: "Attack path detail" });
     expect(dialog).toHaveTextContent("Loading path detail…");
     expect(dialog).toHaveTextContent("Loading break options…");
     await act(async () => detail.resolve(path));
-    await waitFor(() => expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`));
+    await waitFor(() => expect(dialog).toHaveTextContent(path.entry_id));
     expect(dialog).toHaveTextContent("Loading break options…");
     await act(async () => options.reject(new Error("Break-option provider unavailable")));
     expect(await screen.findByText("Break-option provider unavailable")).toHaveAttribute("role", "alert");
-    expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
+    expect(dialog).toHaveTextContent(path.entry_id);
   });
 
   it("aborts finding detail on route unmount and ignores a late response", async () => {
@@ -328,6 +326,6 @@ describe("production risk views", () => {
     view.rerender(<APIProvider><QueryScope><ProductionRiskView path="/violations" api={api} canWrite={false} /></QueryScope></APIProvider>);
     expect(signals.every((signal) => signal.aborted)).toBe(true);
     await act(async () => { detail.resolve(path); options.resolve([]); });
-    expect(screen.queryByRole("dialog", { name: "Attack path detail" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Attack path detail" })).not.toBeInTheDocument();
   });
 });

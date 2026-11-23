@@ -91,6 +91,7 @@ var authorizationStatementRules = []authorizationStatementRule{
 	{`SELECT zasp_authorization80.compliance_read($1,$2,$3,$4,$5,$6,$7,$8,$9)`, []string{"listComplianceControls", "listComplianceEvidence", "getComplianceEvidence"}, 9, 4, 0, ""},
 	{`SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`, []string{"listAgents", "listTools", "listIdentities", "listRuntimes", "listAssets"}, 6, 0, 0, ""},
 	{`SELECT zasp_authorization80.receipt_page($1,$2,$3,$4,$5)`, []string{"listWorkflowMutationReceipts"}, 5, 4, 0, ""},
+	{currentRiskFindingGetSQL, []string{"getFinding"}, 5, 4, 5, "finding"},
 	{postgresRiskFindingGetSQL, []string{"getFinding"}, 4, 0, 4, "finding"},
 	{postgresRiskAttackPathGetSQL, []string{"getAttackPath"}, 4, 0, 4, "attack_path"},
 	{postgresRiskBreakOptionsGetSQL, []string{"getAttackPathBreakOptions"}, 4, 0, 4, "attack_path"},

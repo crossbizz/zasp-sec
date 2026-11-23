@@ -131,7 +131,7 @@ func TestAgentActionAnalysisOnInstalledBaselinePostgres(t *testing.T) {
 	claim := func() []byte {
 		t.Helper()
 		var raw []byte
-		if err := scheduler.QueryRow(b.ctx, `SELECT public.zasp_claim_intent_draft()`).Scan(&raw); err != nil {
+		if err := scheduler.QueryRow(b.ctx, `SELECT public.zasp_claim_qualified_intent('mistralai/Shieldstral-1.0-3B','eu',1,('sha256:'||repeat('3',64)))`).Scan(&raw); err != nil {
 			t.Fatal(err)
 		}
 		return raw
@@ -150,6 +150,25 @@ func TestAgentActionAnalysisOnInstalledBaselinePostgres(t *testing.T) {
 	write("intent-declaration-0001", `"2"`, optIn)
 	id := submit(work, "private.operation", "tenant.confidential", "external")
 	run()
+	if raw := claim(); string(raw) != "null" {
+		t.Fatal("per-agent consent exceeded environment policy")
+	}
+	b.seed(func() {
+		b.exec(`INSERT INTO public.zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled) VALUES($1,$2,$3,'production','metadata_only',30,false) ON CONFLICT DO NOTHING`, b.o, b.w, b.e)
+		b.exec(`INSERT INTO public.zasp_organization_ai_controls(organization_id,ai_enabled,allowed_modes,allowed_residency) VALUES($1,true,ARRAY['deterministic_only','zasp_vpc_slm'],'eu_only')`, b.o)
+		b.exec(`INSERT INTO public.zasp_environment_ai_controls(organization_id,workspace_id,environment_id,environment_class,mode,tier2_profile,tier2_purpose_drift_enabled,allow_redacted_summaries,monthly_budget_nano_credits)
+SELECT organization_id,workspace_id,environment_id,environment_class,'zasp_vpc_slm','mistralai/Shieldstral-1.0-3B',true,true,2 FROM public.zasp_data_controls WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, b.o, b.w, b.e)
+	})
+	if raw := claim(); string(raw) != "null" {
+		t.Fatal("unqualified model admitted")
+	}
+	b.seed(func() {
+		b.exec(`INSERT INTO public.model_qualifications(organization_id,workspace_id,environment_id,provider,model,purpose,qualified,evidence_digest,deployment_digest,expires_at) VALUES($1,$2,$3,'zasp_vpc_slm','mistralai/Shieldstral-1.0-3B','purpose_alignment_check',true,'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),now()+interval '1 day')`, b.o, b.w, b.e)
+	})
+	var retired string
+	if err := scheduler.QueryRow(b.ctx, `SELECT public.zasp_claim_intent_draft()::text`).Scan(&retired); err != nil || retired != "null" {
+		t.Fatal("legacy public router received a claim", retired, err)
+	}
 	raw := claim()
 	var job struct {
 		Lease    string

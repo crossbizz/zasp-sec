@@ -2,13 +2,16 @@ package baseline
 
 import (
 	"context"
-	_ "embed"
+	"embed"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-// Both supported predecessors have immutable, recorded catalog seals.
+// Supported predecessors have immutable, recorded catalog seals.
 const precedingV2Artifact = "eb705a3d269f2a632327d49514f5a790c29c3595c3a6e67d2f3d6ddd1dcddff9"
+
+const precedingV3Artifact = "93f816f311bae3bf0105c45979125d2c4d6ea93290e3ed54c37dadd16b046ebb"
 
 const precedingFrameworkArtifact = "44af7b31b098ad0a87dce6db8c3ab09e9204c321f1419140014575a0111e4b8d"
 
@@ -39,18 +42,32 @@ var policyReplayDDL string
 //go:embed provider_readiness.sql
 var providerReadinessDDL string
 
-// UpgradeToV2 applies the same DDL used by the fresh-install generator. The
+// Fresh installs and upgrades apply this single manifest in dependency order.
+//
+//go:embed feature_v3.order
+var v3Order string
+
+//go:embed feature_v3_*.sql
+var v3Sources embed.FS
+
+// UpgradeToV2 preserves the original operator API for deployments that
+// update their binary before they update their release command.
+func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+	return UpgradeToV3(ctx, conn, checks...)
+}
+
+// UpgradeToV3 applies the same DDL used by the fresh-install generator. The
 // transaction includes temporary privileges, all new objects, the new catalog
 // seal and caller-supplied readiness checks. Preserve preexisting privileges.
-func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+func UpgradeToV3(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	if ctx == nil || conn == nil {
 		return refuse(StagePreconditions, "no connection", nil)
 	}
 	if _, err := loadArtifact(); err != nil {
 		return refuse(StageArtifact, "invalid release artifact", err)
 	}
-	if Checksum() == precedingV2Artifact {
-		return refuse(StageArtifact, "V2 artifact required", nil)
+	if Checksum() == precedingV2Artifact || Checksum() == precedingFrameworkArtifact || Checksum() == precedingV3Artifact {
+		return refuse(StageArtifact, "V3 artifact required", nil)
 	}
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -68,7 +85,7 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	var artifact string
 	var intact bool
 	err = tx.QueryRow(ctx, `SELECT coalesce(state->>'artifact',''), coalesce((state->>'intact')::boolean AND (state->>'sealed')::boolean,false) FROM zasp_baseline.state() AS state`).Scan(&artifact, &intact)
-	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != Checksum()) {
+	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != precedingV3Artifact && artifact != Checksum()) {
 		return refuse(StagePreconditions, "an intact supported baseline is required", err)
 	}
 	if artifact != Checksum() {
@@ -90,9 +107,20 @@ func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 				return refuse(StageObjects, "V2 upgrade", err)
 			}
 		}
-		for _, ddl := range []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL} {
+		var updates []string
+		if artifact != precedingV3Artifact {
+			updates = []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL}
+		}
+		for _, name := range strings.Fields(v3Order) {
+			ddl, err := v3Sources.ReadFile(name)
+			if err != nil {
+				return refuse(StageArtifact, "missing schema source", err)
+			}
+			updates = append(updates, string(ddl))
+		}
+		for _, ddl := range updates {
 			if err = execScript(ctx, conn, ddl); err != nil {
-				return refuse(StageObjects, "framework coverage upgrade", err)
+				return refuse(StageObjects, "feature schema upgrade", err)
 			}
 		}
 		if !alreadyGranted {

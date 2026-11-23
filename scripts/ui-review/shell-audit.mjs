@@ -51,7 +51,8 @@ export async function inspectLayout(page, routes) {
         problems.push('Obscured control: '+name(e));
       }
     }
-    const start = window.scrollY, maxScroll = Math.max(0, document.documentElement.scrollHeight-innerHeight);
+    const scroller = shell && main ? main : document.scrollingElement;
+    const start = scroller.scrollTop, maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
     if (document.documentElement.scrollWidth>innerWidth+1) problems.push('Document overflows viewport');
     if (shell && !document.querySelector('[role=dialog]')) {
       const header=shell.querySelector('.topbar'), sidebar=shell.querySelector('.sidebar'), mobile=innerWidth<=760;
@@ -60,7 +61,7 @@ export async function inspectLayout(page, routes) {
       if (nav.filter(a=>a.getAttribute('aria-current')==='page').map(a=>a.getAttribute('href')).join()!==location.pathname) problems.push('Current navigation destination is missing');
       if (routes.some((path,i) => nav[i]?.getAttribute('href')!==path) || nav.length!==routes.length) problems.push('Navigation destinations incomplete');
       for (const stop of new Set([0,Math.round(maxScroll/2),maxScroll])) {
-        window.scrollTo({top:stop,behavior:'instant'});
+        scroller.scrollTo({top:stop,behavior:'instant'});
         await new Promise(done => requestAnimationFrame(done));
         const bounds = header.getBoundingClientRect();
         if (Math.abs(bounds.top)>1 || bounds.bottom>innerHeight || !receivesPointer(brand)) {
@@ -70,7 +71,16 @@ export async function inspectLayout(page, routes) {
       }
       const bounds=header.getBoundingClientRect();
       if (mobile) {
-        if (visuallyPresent(sidebar) || !visuallyPresent(toggle) || !receivesPointer(toggle)) problems.push('Incorrect mobile navigation visibility');
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        if (visuallyPresent(sidebar) !== expanded || !visuallyPresent(toggle) || !receivesPointer(toggle)) problems.push('Incorrect mobile navigation visibility');
+        if (expanded) {
+          const before = sidebar.scrollTop;
+          for (const [position, link] of [[0,nav[0]],[sidebar.scrollHeight,nav.at(-1)]]) {
+            sidebar.scrollTop=position;
+            if (!receivesPointer(link)) problems.push('Mobile destination unreachable: '+name(link));
+          }
+          sidebar.scrollTop=before;
+        }
       } else {
         const edge=sidebar.getBoundingClientRect();
         if (!visuallyPresent(sidebar) || edge.top<bounds.bottom-1 || edge.bottom>innerHeight+1 || visuallyPresent(toggle)) problems.push('Sidebar displaced after scrolling');
@@ -81,7 +91,7 @@ export async function inspectLayout(page, routes) {
         }
         sidebar.scrollTop=position;
       }
-      window.scrollTo({top:start,behavior:'instant'});
+      scroller.scrollTo({top:start,behavior:'instant'});
     } else if (!shell) inspectVisibleHitTargets(0);
     const alerts=[...panel.querySelectorAll('[role=alert]')].filter(visuallyPresent).map(e=>e.innerText.trim()).filter(Boolean);
     const emptyStates=[...panel.querySelectorAll('h2,h3,p,[role=status]')].filter(visuallyPresent).map(e=>e.innerText.trim())

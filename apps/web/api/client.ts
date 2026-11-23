@@ -1,3 +1,4 @@
+import { analystStreamURL, boundedUIMessageStream } from "./authorized-stream";
 import createClient from "openapi-fetch";
 import type { ClientOptions } from "openapi-fetch";
 
@@ -131,7 +132,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
       if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
     }
     const timeout = new AbortController();
-    const timer = globalThis.setTimeout(() => timeout.abort(), timeoutMs);
+    const privateEvidenceReview = request.method === "POST" && /\/api\/v1\/(?:agents\/[^/]+\/(?:purpose\/draft|discovery\/verify)|addon-versions\/[^/]+\/deep-scan)$/.test(new URL(request.url).pathname);
+    const timeoutBudget = options.timeoutMs ?? (privateEvidenceReview ? 35_000 : timeoutMs);
+    const timer = globalThis.setTimeout(() => timeout.abort(), timeoutBudget);
     const signal = AbortSignal.any([request.signal, timeout.signal]);
     const securedRequest = new Request(request, {
       credentials: "same-origin",
@@ -174,13 +177,36 @@ export function createAPIClient(options: APIClientOptions = {}) {
       if (settling) onAuthorizationSettling(false);
     }
   };
-  return createClient<paths>({
+  const openAuthorizedEventStream = async (threadID: string, sessionID: string, message: string, requestID: string, callerSignal?: AbortSignal, approvedReads: readonly ("inspect_session" | "external_inventory_status")[] = []): Promise<Response> => {
+    const expected = getExpectedScope();
+    const csrf = getCSRFToken();
+    const correlation = generateCorrelationID();
+    if (![threadID, sessionID, requestID, correlation].every(id => PRODUCT_ID.test(id)) || !expected || !validExpectedScope(expected)
+      || !csrf || approvedReads.length > 2 || new Set(approvedReads).size !== approvedReads.length || approvedReads.some(tool => tool !== "inspect_session" && tool !== "external_inventory_status") || !message.trim() || new TextEncoder().encode(message).byteLength > 2048) {
+      throw new APITransportError("invalid_configuration", "Invalid scoped investigation request");
+    }
+    const signal = AbortSignal.any([AbortSignal.timeout(60_000), ...(callerSignal ? [callerSignal] : [])]);
+    const endpoint = analystStreamURL(origin + baseUrl, threadID, sessionID);
+    const response = await configuredFetch(new Request(endpoint, {
+      method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store", signal,
+      headers: { Accept: "text/event-stream", "Content-Type": "application/json", "Cache-Control": "no-store",
+        [EXPECTED_SCOPE_HEADER]: expected, "X-CSRF-Token": csrf, "X-Correlation-ID": correlation },
+      body: JSON.stringify({ message, request_id: requestID, ...(approvedReads.length ? {approved_read_tools:approvedReads} : {}) }),
+    }));
+    if (!response.ok) {
+      await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);
+      throw new APIProductError(response.status, await response.json() as ProductError);
+    }
+    return boundedUIMessageStream(response, Math.min(maximumResponseBytes, 256 * 1024), signal, () => expected === getExpectedScope());
+  };
+  const client = createClient<paths>({
     ...clientOptions,
     baseUrl: `${origin}${baseUrl}`,
     credentials: "same-origin",
     redirect: "error",
     fetch: transport,
   });
+  return Object.assign(client, { openAuthorizedEventStream });
 }
 
 export type APIClient = ReturnType<typeof createAPIClient>;

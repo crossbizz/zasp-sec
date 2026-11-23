@@ -1,8 +1,11 @@
 "use client";
+import { Time } from "../../components/time";
 
 import { CLIReleaseDownloads } from "./CLIReleaseDownloads";
 import { AddonScanReceipt } from "./AddonScanReceipt";
 import type { ScanTarget } from "../../domain/addon-links";
+import { InventoryReview } from "../agents/InventoryReview";
+import { DeploymentReviews } from "./DeploymentReviews";
 import { AddonInstallations } from "./AddonInstallations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { APIProductError } from "../../../apps/web/api/client";
@@ -308,7 +311,18 @@ function VersionReview({
             <dt>Observed usage</dt>
             <dd>Unknown</dd>
           </dl>
+          {api.deployments && <DeploymentReviews key={row.id} api={api.deployments} versionID={row.id} versionRevision={row.revision} canReview={canReview && query.status === "success" && session?.status === "authenticated" && session.isFreshAuthenticated} />}
           <AddonInstallations key={row.id} api={api} version={row} />
+          {api.reviewEvidence && canReview && <InventoryReview key={row.id} id={row.id} purposes={["addon_semantic_audit"]} review={api.reviewEvidence} />}
+          <section aria-label="Offline scanner evidence">
+            <h3>Offline scanner evidence</h3>
+            {!row.offline_observations?.some(obs => obs.scanner === "gvisor_tetragon") && <p>No current signed sandbox observations for this version.</p>}
+            {!!row.offline_observations?.length && <ul>{row.offline_observations.map(obs => <li key={obs.scanner}>
+              <strong>{{gvisor_tetragon:"gVisor and Tetragon sandbox",cisco_skill_scanner:"Cisco Skill Scanner",nvidia_skillspector:"NVIDIA SkillSpector"}[obs.scanner]}</strong>
+              <p>{obs.indicators.length ? obs.indicators.map(v => v.replaceAll("_"," ")).join(", ") : "The scanner reported no configured indicators."}</p>
+              <small>Observed <Time value={obs.observed_at}/> · evidence <code>{obs.evidence_id}</code></small>
+            </li>)}</ul>}
+          </section>
           <h3>Static scan</h3>
           <p>{row.ruleset}</p>
           {row.findings.length === 0 ? (

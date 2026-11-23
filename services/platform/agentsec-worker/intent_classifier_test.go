@@ -1,68 +1,65 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/aigateway"
 )
 
-func TestOptionalIntentClassifierUsesBoundedMetadataAndDraftCodes(t *testing.T) {
-	t.Setenv("ZASP_INTENT_CLASSIFIER_ENABLED", "")
-	t.Setenv("ZASP_INTENT_CLASSIFIER_KEY_FILE", filepath.Join(t.TempDir(), "test-key"))
-	if configuredIntentClassifier() != nil {
-		t.Fatal("provider enabled without deployment consent")
+type intentStub struct {
+	output string
+	calls  int
+}
+
+func (s *intentStub) Evaluate(_ context.Context, p aigateway.Purpose, r json.RawMessage) (json.RawMessage, error) {
+	s.calls++
+	var fields map[string]any
+	if p != aigateway.PurposeAlignment || json.Unmarshal(r, &fields) != nil || len(fields) != 6 {
+		return nil, errors.New("unexpected request")
 	}
+	return json.RawMessage(s.output), nil
+}
+
+func TestPrivateIntentClassifierConfig(t *testing.T) {
 	t.Setenv("ZASP_INTENT_CLASSIFIER_ENABLED", "true")
-	client := configuredIntentClassifier().(*openRouterIntentClassifier)
-	transport := &securityAgentPlannerTransport{responseStatus: 200}
-	client.client.Transport = transport
-	if _, err := client.Classify(context.Background(), intentFeatures{Destination: "internal"}); err == nil || transport.calls != 0 {
-		t.Fatal("contacted provider without credentials")
+	t.Setenv("ZASP_INTENT_CLASSIFIER_MODEL", aigateway.ModelShieldstral)
+	t.Setenv("ZASP_INTENT_CLASSIFIER_RESIDENCY", "eu")
+	t.Setenv("ZASP_INTENT_CLASSIFIER_MAX_NANO_CREDITS", "123")
+	t.Setenv("ZASP_INTENT_CLASSIFIER_PRIVATE_IP", "10.3.4.5")
+	t.Setenv("ZASP_INTENT_CLASSIFIER_WEIGHTS_SHA256", strings.Repeat("a", 64))
+	t.Setenv("ZASP_INTENT_CLASSIFIER_ENDPOINT", "https://inference.internal/v1/chat/completions")
+	if c := configuredIntentClassifier(); c == nil || len(c.deployment) != 71 {
+		t.Fatal("missing private deployment")
 	}
-	token := "sk-or-v1-" + strings.Repeat("x", 32)
-	if err := os.WriteFile(client.tokenPath, []byte(token), 0400); err != nil {
-		t.Fatal(err)
+	for _, invalid := range [][2]string{{"ENABLED", "false"}, {"MODEL", "unrecognized"}, {"RESIDENCY", "any"}, {"PRIVATE_IP", "192.0.2.1"}, {"ENDPOINT", "http://inference.internal/v1/chat/completions"}, {"MAX_NANO_CREDITS", "0"}, {"WEIGHTS_SHA256", "unpinned"}} {
+		t.Run(invalid[0], func(t *testing.T) {
+			t.Setenv("ZASP_INTENT_CLASSIFIER_"+invalid[0], invalid[1])
+			if configuredIntentClassifier() != nil {
+				t.Fatal("accepted invalid profile")
+			}
+		})
 	}
-	content := func(answer string) []byte {
-		reply := map[string]any{"model": intentModel, "choices": []any{map[string]any{"index": 0, "finish_reason": "stop", "message": map[string]any{"role": "assistant", "content": answer}}}}
-		blob, _ := json.Marshal(reply)
-		return blob
+}
+func TestPrivateIntentDraftIsOnlyAReviewCode(t *testing.T) {
+	driver := &intentStub{}
+	c := privateIntentClassifier{driver: driver}
+	features := intentFeatures{Destination: "external", DestinationMismatch: true}
+	driver.output = `{"verdict":"drift","violated_clause":"destination","confidence":0.9}`
+	if got, err := c.Classify(t.Context(), features); err != nil || got != "review_destination" {
+		t.Fatal(got, err)
 	}
-	transport.responseBody = content(`{"recommendation":"review_destination"}`)
-	f := intentFeatures{Destination: "external", DestinationMismatch: true}
-	code, err := client.Classify(t.Context(), f)
-	if err != nil || code != "review_destination" || transport.request.URL.String() != intentEndpoint || transport.request.Header.Get("Authorization") != "Bearer "+token {
-		t.Fatalf("classification = %s, %v", code, err)
-	}
-	var sent securityAgentOpenRouterRequest
-	if err := json.Unmarshal(transport.requestBody, &sent); err != nil {
-		t.Fatal(err)
-	}
-	want, _ := json.Marshal(f)
-	if len(sent.Messages) != 2 || sent.Messages[1].Content != string(want) || bytes.Contains(transport.requestBody, []byte(token)) || sent.Provider.DataCollection != "deny" || !sent.Provider.RequireParameters {
-		t.Fatalf("unexpected provider boundary %s", transport.requestBody)
-	}
-	for _, result := range []string{`{"recommendation":"block"}`, `{"recommendation":"none","policy":"active"}`, `{"recommendation":"none","recommendation":"review_purpose"}`, strings.Repeat("X", 8193)} {
-		transport.responseBody = content(result)
-		if value, err := client.Classify(t.Context(), f); err == nil || value != "" {
-			t.Fatal("unreviewed or malformed answer")
+	for _, bad := range []string{`{"verdict":"drift","violated_clause":"none","confidence":1}`, `{"verdict":"uncertain","violated_clause":"none","confidence":0}`, `{}`, `{"verdict":"aligned","verdict":"drift","violated_clause":"purpose","confidence":1}`} {
+		driver.output = bad
+		if got, err := c.Classify(t.Context(), features); err == nil || got != "" {
+			t.Fatal("accepted ambiguous output", got)
 		}
 	}
-	calls := transport.calls
-	if _, err := client.Classify(t.Context(), intentFeatures{Destination: "private.example.org"}); err == nil || transport.calls != calls {
-		t.Fatal("unbounded destination reached provider")
-	}
-	transport.err = errors.New("upstream unavailable")
-	if value, err := client.Classify(t.Context(), f); err == nil || value != "" {
-		t.Fatal("outage produced a draft")
-	}
-	if err := client.client.CheckRedirect(nil, []*http.Request{}); !errors.Is(err, http.ErrUseLastResponse) {
-		t.Fatal("provider credentials could follow a redirect")
+	calls := driver.calls
+	if _, err := c.Classify(t.Context(), intentFeatures{Destination: "raw host"}); err == nil || driver.calls != calls {
+		t.Fatal("raw destination reached driver")
 	}
 }

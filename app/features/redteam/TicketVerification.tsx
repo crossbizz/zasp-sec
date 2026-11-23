@@ -27,7 +27,7 @@ export function TicketVerification({ runID, canWrite, locked }: { runID: string;
     if (!canWrite || locked || busy || value || query.status !== "empty") return;
     setBusy(true); setError("");
     try {
-      const pairs = await Promise.all(inputs.map(async ([name]) => {
+      const pairs: (readonly [keyof TicketVerificationBundle, string])[] = await Promise.all(inputs.map(async ([name]) => {
         const file = files[name];
         if (!file || file.size >= 64 * 1024) throw new RangeError();
         // Keep original JSON bytes until the backend validates duplicate keys.
@@ -35,6 +35,13 @@ export function TicketVerification({ runID, canWrite, locked }: { runID: string;
         JSON.parse(text);
         return [name, text] as const;
       }));
+      const signatures = files.attestations;
+      if (signatures) {
+        if (signatures.size >= 64 * 1024) throw new RangeError();
+        const text = await signatures.text();
+        JSON.parse(text);
+        pairs.push(["attestations", text]);
+      }
       const body = `{${pairs.map(([key, text]) => `${JSON.stringify(key)}:${text}`).join(",")}}`;
       if (new Blob([body]).size >= 64 * 1024) throw new RangeError();
       const response = await client.PUT("/api/v1/test-runs/{id}/ticket-verification", { params: { path: { id: runID }, header: { "X-CSRF-Token": "" } }, body: JSON.parse(body) as TicketVerificationBundle, bodySerializer: () => body });
@@ -56,6 +63,9 @@ export function TicketVerification({ runID, canWrite, locked }: { runID: string;
       {!value && query.status === "empty" && <><p>This run has no imported ticket proof.</p>{canWrite && <fieldset disabled={locked || busy}><legend>Import a synthetic staging experiment</legend>
         <p>Use separately authenticated exports from the adapter and target recorder. Confirm the run declares <code>synthetic_ticket_update</code> with a test-write credential. An import is immutable and retains the run’s existing test verdict.</p>
         {inputs.map(([key, label]) => <label key={key}>{label}<input type="file" accept="application/json,.json" onChange={event => { const file = event.currentTarget.files?.[0]; setError(""); setFiles(previous => ({ ...previous, [key]: file })); }} /></label>)}
+        <label>Independent source signatures (optional)<input type="file" accept="application/json,.json" onChange={event => {
+          const file = event.currentTarget.files?.[0]; setError(""); setFiles(previous => ({ ...previous, attestations: file }));
+        }} /></label>
         <Button disabled={busy || locked || inputs.some(([key]) => !files[key])} onClick={() => void submit()}>Import ticket proof</Button>
       </fieldset>}</>}
       {error && <p role="alert">{error}</p>}

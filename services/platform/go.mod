@@ -20,13 +20,23 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
 	github.com/aws/smithy-go v1.27.8
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/lestrrat-go/jwx/v3 v3.1.1
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/neo4j/neo4j-go-driver/v6 v6.2.0
 	github.com/open-policy-agent/opa v1.17.0
 	github.com/openfga/go-sdk v0.8.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/zasp-ai/zasp-sec/services/health v0.0.0
 	go.temporal.io/api v1.63.4
 	go.temporal.io/sdk v1.48.0
 	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
+	github.com/google/jsonschema-go v0.4.3 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 )
 
 require (
@@ -81,10 +91,9 @@ require (
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.5 // indirect
-	github.com/lestrrat-go/jwx/v3 v3.1.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
-	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/segmentio/asm v1.2.1-0.20231018155815-7fd3678d1b7f // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
@@ -102,3 +111,7 @@ require (
 )
 
 replace github.com/zasp-ai/zasp-sec/services/health => ../health
+
+// The excluded tag changes only LICENSE from MIT to MIT-0. The preceding
+// upstream commit retains the original MIT notice and identical source files.
+exclude github.com/segmentio/asm v1.2.1

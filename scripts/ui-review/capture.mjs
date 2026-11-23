@@ -7,6 +7,7 @@ import { bootstrap, fixture, fixtureStatus } from './fixtures.mjs';
 import { captureViewport } from './viewport-capture.mjs';
 import { inspectLayout, inspectDrawer, inspectSignOutFailure, visitTabs } from './shell-audit.mjs';
 import { captureWorkflows } from './workflows.mjs';
+import { investigationStream, reviewModelWorkflows, reviewQualification } from './model-workflows.mjs';
 import { buildWalkthrough } from './walkthrough.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -18,7 +19,7 @@ const browser = await chromium.launch({ executablePath: process.env.ZASP_CHROMIU
 const origin = process.env.ZASP_UI_REVIEW_ORIGIN || 'http://localhost:3000';
 const source = await readFile(path.join(root, 'app/components/ZaspProductionApp.tsx'), 'utf8');
 const routes = [...source.matchAll(/\{ path: "([^"]+)", label: "([^"]+)"/g)].map(match => ({ route: match[1], title: match[2] }));
-assert.equal(routes.length, 24, 'Update review coverage if production routes change');
+assert.equal(routes.length, 25, 'Update review coverage if production routes change');
 const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 1000 }, { width: 1024, height: 768 }, { width: 390, height: 844 }];
 const slides = [], failures = [], consoleErrors = [], assertions = [];
 const audit = [], fallbackReads = new Set();
@@ -29,6 +30,7 @@ await context.route('**/*', async route => {
   if (url.origin !== new URL(origin).origin) return route.abort();
   if (!url.pathname.startsWith('/api/v1/')) return route.continue();
   // Review never changes a real backend, even if a control is activated accidentally.
+  if (request.method() === 'POST' && /^\/api\/v1\/security-agents\/chat\/threads\/[^/]+\/stream$/.test(url.pathname)) return investigationStream(route);
   if (request.method() !== 'GET') return route.fulfill({ status: 405, json: { code: 'review_read_only', message: 'Visual review does not submit mutations.' } });
   if (mode === 'error' && url.pathname.endsWith('/agents')) return route.fulfill({ status: 503, json: { code: 'service_unavailable', message: 'Review error state', correlation_id: 'pid_00000004-0000-4000-8000-000000000004', retryable: true } });
   if (mode === 'loading' && url.pathname.endsWith('/home/summary')) await new Promise(resolve => setTimeout(resolve, 1500));
@@ -37,12 +39,14 @@ await context.route('**/*', async route => {
 const page = await context.newPage();
 page.on('pageerror', error => consoleErrors.push(error.message));
 let theme = 'light', viewport = viewports[0];
-await context.addInitScript(() => { if (!localStorage.getItem('zasp.theme')) localStorage.setItem('zasp.theme', 'light'); });
+
 async function open(route) {
   fallbackReads.clear();
-  await page.goto(origin + route, { waitUntil: 'networkidle' });
-  await page.locator('h1').first().waitFor({state: 'attached'});
-  await page.evaluate(theme => { document.documentElement.dataset.theme = theme; localStorage.setItem('zasp.theme', theme); window.dispatchEvent(new Event('zasp-theme-change')); }, theme);
+  await context.addCookies([{ name: 'zasp.theme', value: theme, url: origin }]);
+  const response = await page.goto(origin + route, { waitUntil: 'networkidle' });
+  assert(response?.ok(), `Route ${route} returned HTTP ${response?.status()}`);
+  await page.getByRole('heading', { level: 1 }).first().waitFor();
+  if (routes.some(item => item.route === route)) await page.waitForSelector('.app-shell');
   await page.evaluate(() => document.fonts.ready);
 }
 async function capture(title, route, state = 'Page', focus, contextLocators) {
@@ -94,7 +98,7 @@ for (viewport of viewports) {
         if (viewport.width === 390) {
           const menu = page.getByRole('button',{name:'Open navigation',exact:true});
           await menu.click();
-          const nav = page.getByRole('dialog',{name:'Navigation',exact:true}).getByRole('navigation');
+          const nav = page.getByRole('navigation',{name:'Main navigation',exact:true});
           assert.deepEqual(await nav.getByRole('link').evaluateAll(links=>links.map(a=>a.getAttribute('href'))),routes.map(r=>r.route));
           assert.equal(await nav.locator('[aria-current=page]').getAttribute('href'),item.route);
           await page.keyboard.press('Escape');
@@ -169,7 +173,7 @@ for (theme of ['light', 'dark']) {
   await open('/');
   const search = page.getByRole('search'), input = search.getByRole('searchbox');
   await input.fill('agent'); await input.press('Enter');
-  const results = search.locator('.global-results'), options = results.getByRole('button');
+  const results = page.locator('#product-search-results .search-results-inline'), options = results.locator('li a[href], li button');
   await options.last().waitFor();
   assert.equal(await options.count(),12);
   await options.first().focus();
@@ -179,7 +183,8 @@ for (theme of ['light', 'dark']) {
   const dimensions = await results.evaluate(el=>{
     const r=el.getBoundingClientRect();return {top:r.top,left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight};
   });
-  assert(dimensions.top>=0 && dimensions.left>=-1 && dimensions.right<=dimensions.width+1 && dimensions.bottom<=dimensions.height+1,'Search results exceed the visible viewport');
+  assert(dimensions.left>=-1 && dimensions.right<=dimensions.width+1, 'Search results exceed the content width');
+  assert(await lastMatch.evaluate(el=>{const r=el.getBoundingClientRect(), hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2); return !!hit && el.contains(hit);}), 'Final search result must scroll into view and receive pointer input');
   await capture('Search results','/','Search menu',lastMatch);
   await page.keyboard.press('Escape');
   await results.waitFor({state:'detached'});
@@ -189,7 +194,7 @@ for (theme of ['light', 'dark']) {
   await open('/auth/callback'); await capture('Sign in callback', '/auth/callback', 'Missing callback parameters');
 }
 }
-// Mobile navigation uses the production links inside the existing accessible drawer.
+// Mobile navigation uses the production links in an inline disclosure.
 viewport = viewports[3]; await page.setViewportSize(viewport);
 for (theme of ['light','dark']) {
   await open('/');
@@ -205,26 +210,31 @@ for (theme of ['light','dark']) {
   await page.keyboard.press('Enter');
   assert.equal(page.url(), pageURL, 'Skipping to main content must preserve scoped navigation');
   assert(await page.locator('#main-content').evaluate(node => node === document.activeElement));
-  await page.getByRole('button', {name:'Sign out',exact:true}).focus();
+  await page.getByRole('button', {name:/Switch to .* theme/}).focus();
   await page.keyboard.press('Tab');
   assert(await page.locator('#main-content').evaluate(node => node.contains(document.activeElement)), 'Collapsed navigation must be excluded from the tab order');
   assertions.push(`${theme}: mobile skip link and collapsed navigation tab order`);
   const toggle = page.getByRole('button', { name: 'Open navigation' });
   await toggle.click();
-  await page.getByRole('dialog', { name: 'Navigation', exact: true }).waitFor();
-  const mobileDialog=page.getByRole('dialog',{name:'Navigation'});
-  assert.deepEqual(await mobileDialog.getByRole('link').evaluateAll(links=>links.map(a=>a.getAttribute('href'))), routes.map(r=>r.route));
-  audit.push({title:'Mobile navigation',theme,viewport:viewport.width,drawer:await inspectDrawer(page,mobileDialog)});
-  await capture('Mobile navigation', '/', 'Navigation drawer', page.getByRole('dialog').getByRole('link').first());
+  const menu = page.getByRole('navigation', { name: 'Main navigation' });
+  await menu.waitFor();
+  assert.equal(await menu.getByRole('link').count(), routes.length);
+  await capture('Mobile navigation', '/', 'Expanded navigation');
   await page.keyboard.press('Escape');
-  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  await menu.waitFor({ state: 'hidden' });
   assert(await toggle.evaluate(node => node === document.activeElement));
-  assertions.push(`${theme}: all 24 mobile destinations, Escape and focus restoration`);
+  assertions.push(`${theme}: all ${routes.length} mobile destinations, Escape and focus restoration`);
   const target = theme === 'light' ? 'dark' : 'light';
   await page.getByRole('button', { name: `Switch to ${target} theme` }).click();
   await page.reload({ waitUntil: 'networkidle' });
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), target);
   assertions.push(`${theme}: theme preference survives reload`);
+}
+for (viewport of [viewports[1], viewports[3]]) {
+  await page.setViewportSize(viewport);
+  await reviewModelWorkflows(page, open, capture);
+  await reviewQualification(page, open, capture, fixture);
+  assertions.push(`Workflow Studio, analyst history and streaming, calibration and confidence bins at ${viewport.width}px`);
 }
 }
 if (!workflowsOnly) {

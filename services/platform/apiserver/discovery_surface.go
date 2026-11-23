@@ -13,7 +13,10 @@ func NewDiscoveryWorkflowSurface(workflow, discovery http.Handler) (http.Handler
 }
 
 type discoveryWorkflowSurface struct {
-	evidenceDB JSONDatabase
+	inventoryModels map[string]*analystChat
+	evidenceDB      JSONDatabase
+	analyst         *analystChat
+	advisory        *analystChat
 	// guardrail serves the guardrail decision API and the Environment's
 	// guardrail policy. It is nil where they are not composed.
 	addons    *addonReviewHandler
@@ -46,12 +49,56 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		serveTicketProof(surface.evidenceDB, writer, request, routed)
+	case "getStudioRemediationAdvisory", "requestStudioRemediationAdvisory":
+		serveStudioAdvisory(surface.evidenceDB, surface.advisory, writer, request, routed)
+	case "getAnalystThreads", "getAnalystThread", "createAnalystThread", "streamAnalystThread":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		serveAnalystChat(surface.evidenceDB, surface.analyst, writer, request, routed)
+	case "getSessionIntent", "getSecurityCaseVerification", "verifySecurityCase":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		if routed.OperationID == "getSessionIntent" {
+			serveSessionIntent(surface.evidenceDB, writer, request, routed)
+		} else {
+			serveSecurityCaseVerification(surface.evidenceDB, writer, request, routed)
+		}
 	case "getAgentActionAnalysis", "putAgentActionAnalysis":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
 		serveActionAnalysis(surface.evidenceDB, writer, request, routed)
+	case "listCustomSecurityAgents", "getCustomSecurityAgent", "createCustomSecurityAgent", "updateCustomSecurityAgent":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveCustomStudio(surface.evidenceDB, writer, request, routed)
+	case "verifyAgentDiscovery", "draftAgentPurpose", "deepScanAddonVersion":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveInventoryReview(surface.evidenceDB, surface.inventoryModels[routed.OperationID], writer, request, routed)
+	case "getSaaSSignInAttempt":
+		serveSaaSAttemptStatus(surface.evidenceDB, writer, request, routed)
+	case "listWorkforceInventory":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveWorkforceInventory(surface.evidenceDB, writer, request)
+	case "getAgentPostureSummary":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveAgentPosture(surface.evidenceDB, writer, request, routed)
 	case "getAgentPurpose", "putAgentPurpose":
 		if surface.evidenceDB == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -70,6 +117,12 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		surface.fleet.serve(writer, request, routed)
+	case "getAddonDeploymentApproval", "reviewAddonDeploymentApproval":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveDeploymentReview(surface.evidenceDB, writer, request, routed)
 	case "listAddonVersionInstallations", "getAddonScan", "attestAddonScan", "getAddonCIOrigin", "submitAddonScan", "listAddonVersions", "getAddonVersion", "reviewAddonVersion":
 		if surface.addons == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -82,6 +135,12 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		surface.actions.containment(writer, request, routed)
+	case "getWorkloadDelegations":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		serveWorkloadDelegations(surface.evidenceDB, writer, request, routed)
 	case "bindWorkloadCredential", "getWorkloadCredentialBinding":
 		if surface.actions == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -94,13 +153,25 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 			return
 		}
 		surface.actions.serve(writer, request, routed)
+	case "getModelQualificationRun", "runModelQualification":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		serveQualificationRun(surface.evidenceDB, writer, request, routed)
+	case "getCalibrationMetrics", "submitAnalystFeedback", "getRuleSuppressionMode", "putRuleSuppressionMode":
+		if surface.evidenceDB == nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		serveCalibration(surface.evidenceDB, writer, request, routed)
 	case "createGuardrailDecision", "getGuardrailPolicy", "putGuardrailPolicy":
 		if surface.guardrail == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
 		surface.guardrail.ServeHTTP(writer, request, routed.OperationID)
-	case "callMCPGateway", "closeMCPGatewaySession", "createGatewayChatCompletion", "createGatewayResponse", "createGatewayMessage",
+	case "issueRuntimeDelegation", "verifyRuntimeDelegation", "callMCPGateway", "closeMCPGatewaySession", "createGatewayChatCompletion", "createGatewayResponse", "createGatewayMessage",
 		"getGatewayPolicy", "putGatewayPolicy", "listMCPGatewayServers", "putMCPGatewayServer", "deleteMCPGatewayServer", "listGatewayActivity":
 		if surface.gateway == nil {
 			writeProductionError(writer, request, ErrRepositoryNotFound)

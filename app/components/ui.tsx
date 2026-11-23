@@ -137,7 +137,13 @@ export function PageHeader({ title, description, eyebrow, actions }: { title: st
 }
 
 export function MetricGrid({ metrics, columns = 4 }: { metrics: Array<{ label: string; value: ReactNode; note?: string; tone?: "danger" | "success" | "brand" | "warning"; onClick?: () => void }>; columns?: number }) {
-  return <div className="metric-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>{metrics.map((metric) => <button type="button" onClick={metric.onClick} disabled={!metric.onClick} className={`metric metric--${metric.tone ?? "default"}`} key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong>{metric.note && <small>{metric.note}</small>}</button>)}</div>;
+  return <div className="metric-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>{metrics.map((metric) => {
+    const content = <><span>{metric.label}</span><strong>{metric.value}</strong>{metric.note && <small>{metric.note}</small>}</>;
+    const className = `metric metric--${metric.tone ?? "default"}`;
+    return metric.onClick
+      ? <button type="button" key={metric.label} className={className} onClick={metric.onClick}>{content}</button>
+      : <div key={metric.label} className={className}>{content}</div>;
+  })}</div>;
 }
 
 export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: Severity | "neutral" | "success" | "brand" | "warning" | "info" }) {
