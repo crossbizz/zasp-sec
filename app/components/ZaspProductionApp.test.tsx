@@ -457,6 +457,12 @@ describe("production audit identity wiring", () => {
   it.each([principal, otherPrincipal])("discards old pages and pending cursors after scope invalidation and rebootstrap as %s", async nextPrincipal => {
     let bootstraps = 0; let resolveOld!: (response: Response) => void;
     const old = new Promise<Response>(resolve => { resolveOld = resolve; });
+    let releaseScopeResponse!: () => void;
+    const scopeResponse = new Promise<void>(resolve => { releaseScopeResponse = resolve; });
+    const search = vi.fn(async () => {
+      await scopeResponse;
+      return json({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: principal, retryable: true }, 409);
+    });
     const auditRequests: Request[] = [];
     vi.stubGlobal("fetch", async (request: Request) => {
       const path = new URL(request.url).pathname;
@@ -466,7 +472,7 @@ describe("production audit identity wiring", () => {
         auditRequests.push(request);
         return auditRequests.length === 1 ? page("audit.original") : auditRequests.length === 2 ? old : page("audit.revalidated");
       }
-      if (path === "/api/v1/search") return json({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: principal, retryable: true }, 409);
+      if (path === "/api/v1/search") return search();
       throw new Error(`Unexpected request ${path}`);
     });
     render(<ZaspProductionApp />);
@@ -478,7 +484,10 @@ describe("production audit identity wiring", () => {
       await waitFor(() => expect(auditRequests).toHaveLength(2));
       await userEvent.type(screen.getByRole("searchbox", { name: "Search product entities" }), "invalidate");
       await userEvent.click(screen.getByRole("button", { name: "Search" }));
-      expect(auditRequests[1].signal.aborted).toBe(true);
+      await waitFor(() => expect(search).toHaveBeenCalledOnce());
+      expect(auditRequests[1].signal.aborted).toBe(false);
+      await act(async () => { releaseScopeResponse(); });
+      await waitFor(() => expect(auditRequests[1].signal.aborted).toBe(true));
       await act(async () => resolveOld(page("audit.late")));
       expect(await screen.findByText("audit.revalidated")).toBeVisible();
       expect(new URL(auditRequests[2].url).searchParams.has("cursor")).toBe(false);
@@ -487,6 +496,6 @@ describe("production audit identity wiring", () => {
       expect(screen.queryByText("audit.late")).not.toBeInTheDocument();
       expect(screen.getByText("Audit exports unavailable")).toBeVisible();
       expect(screen.queryByRole("button", { name: /export|reauthenticate/i })).not.toBeInTheDocument();
-    } finally { await act(async () => resolveOld(page("audit.late"))); }
+    } finally { await act(async () => { releaseScopeResponse(); resolveOld(page("audit.late")); }); }
   });
 });
