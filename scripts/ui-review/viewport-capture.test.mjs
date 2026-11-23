@@ -28,3 +28,25 @@ test('the PNG contains the named action in viewport coordinates after scrolling 
     await browser.close(); await rm(dir,{recursive:true,force:true});
   }
 });
+
+test('a phone drawer target is measured after its ancestor finishes entering the viewport', async () => {
+  const { chromium } = await import(process.env.ZASP_PLAYWRIGHT_MODULE || 'playwright-core');
+  const browser = await chromium.launch({executablePath:process.env.ZASP_CHROMIUM || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+  const dir = await mkdtemp(path.join(tmpdir(), 'zasp-drawer-test-'));
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.setContent(`<style>
+      body { margin: 0 }
+      aside { position: fixed; inset: 0; padding: 20px; animation: enter 300ms steps(1, end) }
+      @keyframes enter { from { transform: translateX(30px) } }
+    </style><aside><h2>Canonical record</h2></aside>`);
+    const heading = page.getByRole('heading', { name: 'Canonical record' });
+    const frame = await captureViewport(page, path.join(dir, 'drawer.png'), heading);
+    assert.equal(frame.target.x, 20);
+    assert.equal(frame.target.width, 350);
+    assert.equal(frame.target.visible, true);
+  } finally {
+    await browser.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

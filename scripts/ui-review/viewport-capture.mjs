@@ -5,6 +5,20 @@ import assert from 'node:assert/strict';
 export async function captureViewport(page, destination, focus, contextLocators = []) {
   if (focus) {
     await focus.waitFor({ state: 'visible' });
+    // A drawer is visible while its entrance animation still moves its children.
+    // Measure the same settled layout that the PNG will show.
+    await Promise.all([focus, ...contextLocators].map(locator => locator.evaluate(async element => {
+      const transitions = [];
+      for (let node = element; node; node = node.parentElement) {
+        for (const animation of node.getAnimations()) {
+          if (animation.playState === 'running' && animation.playbackRate !== 0 &&
+              Number.isFinite(animation.effect?.getComputedTiming().endTime)) {
+            transitions.push(animation.finished);
+          }
+        }
+      }
+      await Promise.allSettled(transitions);
+    })));
     await focus.evaluate(node => node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
   } else {
     await page.evaluate(() => {
