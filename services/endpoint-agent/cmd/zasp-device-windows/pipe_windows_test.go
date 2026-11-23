@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/endpoint-agent/internal/windowsinventory"
-	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation/testfixture"
 	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 	"golang.org/x/sys/windows"
 )
@@ -45,18 +45,7 @@ func TestHookFallbackAndCacheHeartbeat(t *testing.T) {
 }
 
 func TestWindowsTaskGrantFrameUsesDeviceBindingAndActualHook(t *testing.T) {
-	raw, err := os.ReadFile("../../../../sdks/fixtures/task-delegation.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var grant struct {
-		Verifier delegation.Verifier
-		Token    string
-		Issued   int64 `json:"issued_at"`
-	}
-	if err := json.Unmarshal(raw, &grant); err != nil {
-		t.Fatal(err)
-	}
+	grant := testfixture.Read(t, "../../../../sdks/fixtures/task-delegation.json")
 	now := time.Unix(grant.Issued, 0)
 	binding := endpointprotocol.Binding{Organization: grant.Verifier.Organization, Workspace: grant.Verifier.Workspace, Environment: grant.Verifier.Environment}
 	hook := json.RawMessage(`{"hook_event_name":"PreToolUse","session_id":"session","tool_use_id":"call","tool_name":"mcp__pilot__update_ticket","tool_input":{"destination":"internal"}}`)

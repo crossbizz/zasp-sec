@@ -3,6 +3,7 @@ import base64
 import json
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from zasp_guardrails import DelegationDenied, TaskDelegation, ToolGuard
@@ -32,6 +33,26 @@ class TaskScope(unittest.TestCase):
         body = b64(b'{"alg":"EdDSA","typ":"zasp-task-delegation.v1+jwt"}') + "." + b64(json.dumps(claims).encode())
         return TaskDelegation(public_key=self.key.public_key().public_bytes_raw(), **self.binding,
                               token=body + "." + b64(self.key.sign(body.encode())))
+
+    def test_shared_sdk_delegation_vector(self):
+        path = Path(__file__).resolve().parents[2] / "fixtures" / "task-delegation.json"
+        vector = json.loads(path.read_text(encoding="utf-8"))
+        verifier = vector["verifier"]
+        parts = [b64(json.dumps(vector[k], separators=(",", ":")).encode())
+                 for k in ("protected_header", "claims")]
+        grant = TaskDelegation(
+            public_key=base64.b64decode(verifier["public_key"]),
+            organization_id=verifier["organization_id"], workspace_id=verifier["workspace_id"],
+            environment_id=verifier["environment_id"], parent_task_id=verifier["parent_task_id"],
+            child_agent_id=verifier["agent_id"], token=".".join([*parts, vector["signature"]]),
+        )
+        with patch("time.time", return_value=vector["issued_at"]):
+            grant.check("draft_reply", "inbox")
+            with self.assertRaises(DelegationDenied):
+                grant.check("send_reply", "inbox")
+        with patch("time.time", return_value=vector["claims"]["exp"]):
+            with self.assertRaises(DelegationDenied):
+                grant.check("draft_reply", "inbox")
 
     def test_signature_tenant_task_and_bounds(self):
         grant = self.grant()

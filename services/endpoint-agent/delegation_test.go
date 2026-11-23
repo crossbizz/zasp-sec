@@ -1,27 +1,14 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation/testfixture"
 )
 
 func TestTaskGrantPrecedesEndpointMonitorAndCachedReceipt(t *testing.T) {
-	raw, err := os.ReadFile("../../sdks/fixtures/task-delegation.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var grant struct {
-		Verifier delegation.Verifier
-		Token    string
-		Issued   int64 `json:"issued_at"`
-	}
-	if json.Unmarshal(raw, &grant) != nil {
-		t.Fatal("wire fixture")
-	}
+	grant := testfixture.Read(t, "../../sdks/fixtures/task-delegation.json")
 	f := newFixture(t)
 	f.now = time.Unix(grant.Issued, 0).UTC()
 	f.p.IssuedAt = f.now.Add(-time.Minute)

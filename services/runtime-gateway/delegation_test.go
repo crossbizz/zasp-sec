@@ -4,30 +4,18 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/json"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/delegation"
+	"github.com/zasp-ai/zasp-sec/services/platform/delegation/testfixture"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
 func TestDelegationHardBlockEvenWhenPolicyCacheFailsOpen(t *testing.T) {
-	raw, err := os.ReadFile("../../sdks/fixtures/task-delegation.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var f struct {
-		Verifier delegation.Verifier
-		Token    string
-		Issued   int64 `json:"issued_at"`
-	}
-	if json.Unmarshal(raw, &f) != nil {
-		t.Fatal("fixture decode")
-	}
+	f := testfixture.Read(t, "../../sdks/fixtures/task-delegation.json")
 	now := time.Unix(f.Issued, 0).UTC()
 	authority := gatewayRuntimeAuthority()
 	pk, _, _ := ed25519.GenerateKey(rand.Reader)
