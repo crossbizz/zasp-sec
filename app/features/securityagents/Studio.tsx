@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { decodeEnvironmentAIControls, decodeQualifications } from "../../../apps/web/api/ai-controls";
+import { useOptionalSession } from "../../auth/SessionProvider";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Button, Card, Field, Select } from "../../components/ui";
@@ -26,7 +28,10 @@ function decodeAgent(value: unknown): CustomSecurityAgent {
   if (typeof d.name !== "string" || typeof d.mission !== "string" || !["manual","finding_opened"].includes(String(d.trigger)) ||
     !Array.isArray(d.read_tools) || !d.read_tools.length || !d.read_tools.every(t => tools.includes(t)) || d.require_approval !== true ||
     !["none","propose_policy","request_containment"].includes(String(d.proposal)) || !Number.isSafeInteger(d.max_steps) ||
-    !Number.isSafeInteger(d.budget_nano_credits) || typeof d.model_pin !== "string") throw Error("Invalid definition settings");
+    !Number.isSafeInteger(d.budget_nano_credits) || typeof d.model_pin !== "string"
+    || (d.approval_required_tools !== undefined && (!Array.isArray(d.approval_required_tools)
+      || !d.approval_required_tools.every(tool => d.read_tools!.includes(tool))))
+    || (d.minimum_evidence_confidence !== undefined && !["strong", "exact"].includes(d.minimum_evidence_confidence))) throw Error("Invalid definition settings");
   return value as CustomSecurityAgent;
 }
 const stageNames = { trigger: "Trigger", tools: "Read tools", approval: "Approval", bounds: "Run limits" } as const;
@@ -36,6 +41,19 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
   saved?: CustomSecurityAgent; canWrite: boolean; fresh: boolean; reauthenticate?: () => void; onSaved: (agent: CustomSecurityAgent) => void; onClose: () => void;
 }) {
   const { client } = useAPI();
+  const session = useOptionalSession();
+  const canViewModels = session?.status === "authenticated" && session.hasCapability("compliance.read");
+  const modelOptions = useAPIQuery("studio:qualified-models", useCallback(async (signal?: AbortSignal) => {
+    const [controlsResponse, qualificationsResponse] = await Promise.all([
+      client.GET("/api/v1/settings/ai-controls", { signal }),
+      client.GET("/api/v1/ai/qualifications", { signal }),
+    ]);
+    const controls = requireAPIData(controlsResponse, decodeEnvironmentAIControls);
+    const qualifications = requireAPIData(qualificationsResponse, decodeQualifications);
+    if (session?.status !== "authenticated" || controls.environment_id !== session.environmentID) throw Error("Environment changed");
+    return [...new Set(qualifications.items.filter(row => row.qualified && row.purpose === "security_agent_triage"
+      && row.provider === controls.effective_mode && row.model === controls.tier3_model_pin).map(row => row.model))];
+  }, [client, session]), Boolean(canViewModels));
   const [draft, setDraft] = useState<Definition>(saved?.definition ?? defaultDefinition);
   const [stage, setStage] = useState<Stage>("trigger");
   const [busy, setBusy] = useState(false);
@@ -43,6 +61,17 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
   const [sessionID, setSessionID] = useState("");
   const attempt = useRef<{ body: string; key: string } | null>(null);
   const change = (patch: Partial<Definition>) => setDraft(value => ({ ...value, ...patch }));
+  function toggleReadTool(tool: Tool, enabled: boolean) {
+    if (enabled) { change({ read_tools: [...draft.read_tools, tool] }); return; }
+    change({
+      read_tools: draft.read_tools.filter(value => value !== tool),
+      approval_required_tools: draft.approval_required_tools?.filter(value => value !== tool),
+    });
+  }
+  function toggleApproval(tool: Tool, required: boolean) {
+    const approvals = draft.approval_required_tools ?? [];
+    change({ approval_required_tools: required ? [...approvals, tool] : approvals.filter(value => value !== tool) });
+  }
   const stages = Object.entries(stageNames).map(([id, label]) => ({ id, label }));
   const valid = draft.name.trim() && draft.mission.trim() && draft.read_tools.length && draft.max_steps >= 1 && draft.max_steps <= 6 &&
     Number.isSafeInteger(draft.budget_nano_credits) && draft.budget_nano_credits >= 0 && draft.budget_nano_credits <= 1e12;
@@ -70,11 +99,21 @@ function StudioEditor({ saved, canWrite, fresh, reauthenticate, onSaved, onClose
     <EvidenceGraph label="Investigation workflow" nodes={stages} edges={stages.slice(1).map((s, i) => ({ source: stages[i].id, target: s.id, kind: "configured" }))} selectedID={stage} onSelect={id => setStage(id as Stage)} />
     <fieldset disabled={!editable} className="studio-fields"><legend>{stageNames[stage]}</legend>
       {stage === "trigger" && <Select label="Start this workflow" value={draft.trigger} onChange={e => change({trigger:e.target.value as Definition["trigger"]})}><option value="manual">Manually</option><option value="finding_opened">When a finding opens</option></Select>}
-      {stage === "tools" && tools.map(t => <label key={t}><input type="checkbox" checked={draft.read_tools.includes(t)} onChange={e => change({read_tools:e.target.checked ? [...draft.read_tools, t] : draft.read_tools.filter(v => v !== t)})} /> {labels[t]}</label>)}
+      {stage === "tools" && tools.map(tool => <div key={tool}>
+        <label><input type="checkbox" checked={draft.read_tools.includes(tool)} onChange={event => toggleReadTool(tool, event.target.checked)} /> {labels[tool]}</label>
+        {draft.read_tools.includes(tool) && <label><input type="checkbox" checked={draft.approval_required_tools?.includes(tool) ?? false} onChange={event => toggleApproval(tool, event.target.checked)} /> Require approval for {labels[tool].toLowerCase()}</label>}
+      </div>)}
       {stage === "approval" && <><Select label="Proposal allowed" value={draft.proposal} onChange={e => change({proposal:e.target.value as Definition["proposal"]})}><option value="none">Read-only investigation</option><option value="propose_policy">Propose a policy</option><option value="request_containment">Request containment</option></Select><p>Each proposed change requires an authorized reviewer.</p></>}
-      {stage === "bounds" && <><Field label="Maximum steps" type="number" min={1} max={6} value={draft.max_steps} onChange={e => change({max_steps:e.target.valueAsNumber})} />
+      {stage === "bounds" && <><Select label="Minimum evidence confidence" value={draft.minimum_evidence_confidence ?? ""} onChange={event => change({ minimum_evidence_confidence: event.target.value === "" ? undefined : event.target.value as Definition["minimum_evidence_confidence"] })}>
+        <option value="">Use the existing evidence policy</option><option value="strong">Strong or exact attribution</option><option value="exact">Exact attribution only</option>
+        </Select><Field label="Maximum steps" type="number" min={1} max={6} value={draft.max_steps} onChange={e => change({max_steps:e.target.valueAsNumber})} />
         <Field label="Budget in nano-credits" type="number" min={0} max={1e12} value={draft.budget_nano_credits} onChange={e => change({budget_nano_credits:e.target.valueAsNumber})} />
-        <Field label="Qualified model pin" maxLength={128} hint="Leave empty for deterministic handling." value={draft.model_pin} onChange={e => change({model_pin:e.target.value})} /></>}
+        <Select label="Investigation model" value={draft.model_pin} onChange={e => change({ model_pin: e.target.value })}>
+          <option value="">Deterministic handling</option>
+          {draft.model_pin && !modelOptions.data?.includes(draft.model_pin) && <option value={draft.model_pin} disabled>{draft.model_pin} (saved pin)</option>}
+          {modelOptions.data?.map(model => <option key={model} value={model}>{model}</option>)}
+        </Select>
+        {canViewModels && modelOptions.status === "error" && <p role="status">Could not load model qualifications. <Button onClick={() => void modelOptions.retry()}>Retry</Button></p>}</>}
     </fieldset>
     {error && <p role="alert">{error}</p>}
     {canWrite && (fresh ? <Button variant="primary" disabled={!valid || busy || !dirty} onClick={() => void save()}>{busy ? "Saving…" : "Save revision"}</Button> : <Button onClick={reauthenticate}>Reauthenticate to save</Button>)}

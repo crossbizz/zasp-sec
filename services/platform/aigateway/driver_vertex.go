@@ -17,6 +17,7 @@ type VertexDriver struct {
 	purpose                Purpose
 	client                 *http.Client
 	endpoint, model, token string
+	workload               *privateFederation
 }
 
 func vertexResidency(location string) string {
@@ -42,7 +43,7 @@ func NewVertexForPurpose(p Purpose, location, project string, ip netip.Addr, mod
 		return nil, b, err
 	}
 	b = BedrockBinding{Provider: ModeVertex, Model: model, Region: region, CredentialReference: reference, CredentialDigest: digest(token), DeploymentDigest: digest("vertex-generate-v1\n" + endpoint + "\n" + ip.String() + "\n" + model), Cost: upperCost}
-	return &VertexDriver{p, client, endpoint, model, token}, b, nil
+	return &VertexDriver{p, client, endpoint, model, token, nil}, b, nil
 }
 
 // Tier: 3 | Purpose: bounded advisory analysis and investigation.
@@ -73,8 +74,14 @@ func (d *VertexDriver) Evaluate(ctx context.Context, p Purpose, input json.RawMe
 	if err != nil {
 		return nil, ErrGeneration
 	}
-	req.Header.Set("Authorization", "Bearer "+d.token)
 	req.Header.Set("Content-Type", "application/json")
+	if d.workload != nil {
+		if err := d.workload.sign(req, body); err != nil {
+			return nil, ErrGeneration
+		}
+	} else {
+		req.Header.Set("Authorization", "Bearer "+d.token)
+	}
 	res, err := d.client.Do(req)
 	if err != nil {
 		return nil, ErrGeneration

@@ -1500,3 +1500,13 @@ describe("Security Agent run closure", () => {
     await expect(api.closeSecurityAgentRun!(runID, 3, { reason: "resolved_outside_product" }, { idempotencyKey: "close-attempt-0002" })).rejects.toThrow("invalid authority");
   });
 });
+
+it("opens the linked MCP approval without deciding on behalf of its reviewer", async () => {
+  const read = vi.fn(async () => approval);
+  const decide = vi.fn();
+  render(<SecurityAgentsView api={fixtureAPI({getSecurityAgentApproval:read,decideSecurityAgentApproval:decide})} environmentID={environmentID} surface="approvals" autoLoad={false} initialApprovalID={approvalID} canWrite fresh={false} />);
+  expect(await screen.findByText(`Approval ${approvalID}`)).toBeVisible();
+  expect(await screen.findByRole("button",{name:"Reauthenticate to decide"})).toBeVisible();
+  expect(read.mock.calls.length).toBe(1);
+  expect(decide).not.toHaveBeenCalled();
+});

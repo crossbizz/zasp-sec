@@ -27,7 +27,7 @@ function modesOf(policy: GuardrailPolicy): Record<string, GuardrailMode> {
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; policy: GuardrailPolicy };
 
-export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAPI: providedGatewayAPI, origin, onNavigate }: { canWrite: boolean; api?: GuardrailPolicyAPI; gatewayAPI?: GatewayAPI; origin?: string; onNavigate?(path: string): void }) {
+export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAPI: providedGatewayAPI, origin, onNavigate, initialSection = "rules" }: { canWrite: boolean; api?: GuardrailPolicyAPI; gatewayAPI?: GatewayAPI; origin?: string; initialSection?: "rules" | "calibration"; onNavigate?(path: string): void }) {
   const { client } = useAPI();
   const session = useOptionalSession();
   const api = useMemo(() => providedAPI ?? createGuardrailPolicyAPI(client), [providedAPI, client]);
@@ -36,10 +36,7 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAP
   const gatewayAPI = useMemo(() => providedGatewayAPI ?? (providedAPI ? null : createGatewayAPI(client)), [providedGatewayAPI, providedAPI, client]);
   const [load, setLoad] = useState<Load>({ status: "loading" });
   // One section at a time; the others stay loaded, so a draft is not lost.
-  const [section, setSection] = useState("rules");
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("tab") === "calibration") setSection("calibration");
-  }, []);
+  const [section, setSection] = useState<string>(initialSection);
   const [draft, setDraft] = useState<Record<string, GuardrailMode>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");

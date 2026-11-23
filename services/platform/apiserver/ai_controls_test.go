@@ -70,6 +70,16 @@ func TestAIControlsInstalledPolicyAndAudit(t *testing.T) {
 		t.Fatalf("unobserved private flow: %s", flow)
 	}
 	assertValue(call("getSystemStatus", "", "", 200), "optional_degraded", true)
+	for _, observation := range []struct {
+		healthy bool
+		state   string
+	}{{true, "healthy"}, {false, "degraded"}} {
+		b.exec("SELECT zasp_authorization80.ai_observed_health($1,$2,$3,'zasp_vpc_slm','mistralai/Shieldstral-1.0-3B','purpose_alignment_check',$4,$5)", b.o, b.w, b.e, "sha256:"+strings.Repeat("a", 64), observation.healthy)
+		flow = call("getExternalDataFlows", "", "", 200).Body.String()
+		if !strings.Contains(flow, `"health":"`+observation.state+`"`) {
+			t.Fatalf("private model observation %s: %s", observation.state, flow)
+		}
+	}
 	call("updateOrganizationAIControls", `{"ai_enabled":false}`, `"2"`, 200)
 	assertValue(call("getEnvironmentAIControls", "", "", 200), "effective_mode", "deterministic_only")
 	if s := call("getExternalDataFlows", "", "", 200).Body.String(); strings.Contains(s, "zasp_vpc_slm") {

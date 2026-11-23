@@ -6,11 +6,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestProductMCPTenantIsolatedAgentListingOnInstalledPostgres(t *testing.T) {
 	first, second := startInstalledV2Baseline(t), startInstalledV2Baseline(t)
-	setup := func(b *installedBaseline) (*PostgresRepository, string, string) {
+	setup := func(b *installedBaseline) (*PostgresRepository, string, string, string) {
 		t.Helper()
 		if err := b.product.RequireCurrentAuthorization(); err != nil {
 			t.Fatal(err)
@@ -19,18 +20,19 @@ func TestProductMCPTenantIsolatedAgentListingOnInstalledPostgres(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		admin := b.member("security_admin", "manage_api_tokens", "manage_identity", "view")
+		admin := b.member("security_admin", "manage_api_tokens", "manage_identity", "manage_workflows", "view")
 		issue, tokens := installedWorkloadTokenIssuer(t, b, repo, admin)
 		issue("MCP inventory reader", `["view"]`)
+		issue("MCP policy author", `["view","manage_workflows"]`)
 		id := b.id()
 		b.seed(func() {
 			b.exec(`INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,first_seen_at,last_seen_at,product_kind)
 VALUES($1,$2,$3,$4,'agent','MCP audit agent','{"name":"audit-agent"}',now(),now(),'agent')`, b.o, b.w, b.e, id)
 		})
-		return repo, tokens["MCP inventory reader"], id
+		return repo, tokens["MCP inventory reader"], tokens["MCP policy author"], id
 	}
-	repo, a, agentA := setup(first)
-	_, b, agentB := setup(second)
+	repo, a, writer, agentA := setup(first)
+	_, b, _, agentB := setup(second)
 	inventory, err := NewPostgresInventoryRepository(first.product)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +41,11 @@ VALUES($1,$2,$3,$4,'agent','MCP audit agent','{"name":"audit-agent"}',now(),now(
 	if err != nil {
 		t.Fatal(err)
 	}
-	product, err := NewComposition(Dependencies{Authorizer: first.authorizer, Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: reads, Risk: handlerResponse("risk"), Workflow: handlerResponse("workflow"), Connector: handlerResponse("connector")})
+	workflows, err := newWorkflowHTTPHandler(repo, bytes.Repeat([]byte{2}, 32), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	product, err := NewComposition(Dependencies{Authorizer: first.authorizer, Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: reads, Risk: handlerResponse("risk"), Workflow: workflows, Connector: handlerResponse("connector")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,15 +53,48 @@ VALUES($1,$2,$3,$4,'agent','MCP audit agent','{"name":"audit-agent"}',now(),now(
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct{ token, own, other string }{{a, agentA, agentB}, {b, agentB, agentA}} {
-		r := httptest.NewRequest("POST", "https://app.zasp.test/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_agents","arguments":{}}}`))
-		r.Header.Set("Authorization", "Bearer "+tc.token)
-		r.Header.Set("Content-Type", "application/json")
+	call := func(token, method, params string) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRequest("POST", "https://app.zasp.test/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"`+method+`","params":`+params+`}`))
+		r.Header.Set("Authorization", "Bearer "+token)
+		r.Header.Set("Content-Type", "application/json; charset=utf-8")
 		r.Header.Set("Accept", "application/json, text/event-stream")
+		r.Header.Set("Mcp-Protocol-Version", "2025-11-25")
 		w := httptest.NewRecorder()
 		server.ServeHTTP(w, r)
+		return w
+	}
+	for _, tc := range []struct{ token, own, other string }{{a, agentA, agentB}, {b, agentB, agentA}} {
+		w := call(tc.token, "tools/call", `{"name":"list_agents","arguments":{}}`)
 		if w.Code != 200 || !strings.Contains(w.Body.String(), tc.own) || strings.Contains(w.Body.String(), tc.other) {
 			t.Fatalf("MCP scoped read %d %s", w.Code, w.Body)
+		}
+	}
+	ref := first.id()
+	draft := "policy-mcp-" + ref[4:]
+	input := `{"name":"propose_policy","arguments":{"request_id":"` + ref + `","name":"Review file reads","tool_action":"read","effect":"monitor"}}`
+	for _, token := range []string{a, b} {
+		w := call(token, "tools/call", input)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), "error") || strings.Contains(w.Body.String(), draft) {
+			t.Fatalf("reader authorized draft: %s", w.Body)
+		}
+	}
+	for range 2 {
+		w := call(writer, "tools/call", input)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), draft) || !strings.Contains(w.Body.String(), "human_review_required") {
+			t.Fatalf("persisted draft: %d %s", w.Code, w.Body)
+		}
+	}
+	for _, tc := range []struct {
+		token    string
+		expected int
+	}{{a, 200}, {b, 404}} {
+		r := httptest.NewRequest("GET", "https://app.zasp.test/api/v1/policies/"+draft, nil)
+		r.Header.Set("Authorization", "Bearer "+tc.token)
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, r)
+		if w.Code != tc.expected || (w.Code == 200 && !strings.Contains(w.Body.String(), `"rollout":"draft"`)) {
+			t.Fatalf("draft readback %d %s", w.Code, w.Body)
 		}
 	}
 }

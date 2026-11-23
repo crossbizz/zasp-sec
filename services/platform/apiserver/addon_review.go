@@ -20,7 +20,7 @@ const (
 	addonListSQL               = `SELECT zasp_authorization80.addon_versions_list($1,$2,$3,$4,NULLIF($5,''))`
 	permissionSubmitAddonScans = "submit_addon_scans"
 	addonSubmitSQL             = `SELECT zasp_authorization80.addon_scan_submit($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`
-	addonVersionSQL            = `SELECT zasp_authorization80.addon_version_get($1,$2,$3,$4)`
+	addonVersionSQL            = `SELECT zasp_authorization80.addon_version_with_observations($1,$2,$3,$4)`
 	addonReviewSQL             = `SELECT zasp_authorization80.addon_version_review($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 

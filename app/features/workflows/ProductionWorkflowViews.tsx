@@ -64,7 +64,7 @@ function PolicyRiskField({ label, value, disabled, onChange }: { label: string; 
   return <label className="field"><span>{label}</span><select value={value} disabled={disabled} onChange={event => onChange(event.target.value as Policy["risk"] | "")}><option value="">Unknown (not annotated)</option>{["low", "medium", "high", "critical"].map(risk => <option key={risk} value={risk}>{risk}</option>)}</select></label>;
 }
 
-export function ProductionPoliciesView({ canWrite, initialAgent }: { canWrite: boolean; initialAgent?: string }) {
+export function ProductionPoliciesView({ canWrite, initialAgent, initialPolicy }: { canWrite: boolean; initialAgent?: string; initialPolicy?: string }) {
   const { client, invalidate } = useAPI();
   const session = useSession();
   const api = useMemo(() => createPoliciesAPI(client), [client]);
@@ -84,6 +84,25 @@ export function ProductionPoliciesView({ canWrite, initialAgent }: { canWrite: b
 	const [simulation, setSimulation] = useState<DiscoveryLoad<PolicySimulation>>({ status: "idle" });
 	const [decisions, setDecisions] = useState<DiscoveryLoad<readonly RuntimeDecision[]>>({ status: "idle" });
 	const decisionHistoryGeneration = useRef(0);
+
+  useEffect(() => {
+    if (!initialPolicy) return;
+    const controller = new AbortController();
+    void api.getPolicy(initialPolicy, controller.signal).then(current => {
+      if (controller.signal.aborted) return;
+      if (current.value.id !== initialPolicy) throw new TypeError("The policy identifier changed");
+      setSelected(current);
+      setEditName(current.value.name);
+      setEditRisk(current.value.risk ?? "");
+      const generation = ++decisionHistoryGeneration.current;
+      setDecisions({ status: "loading" });
+      void api.listPolicyDecisions(initialPolicy, 100, controller.signal).then(
+        value => { if (!controller.signal.aborted && generation === decisionHistoryGeneration.current) setDecisions({ status: "success", value }); },
+        () => { if (!controller.signal.aborted && generation === decisionHistoryGeneration.current) setDecisions({ status: "error" }); },
+      );
+    }).catch(() => { if (!controller.signal.aborted) setFeedback({tone:"alert",message:"This policy draft is unavailable in the current environment."}); });
+    return () => controller.abort();
+  }, [api, initialPolicy]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setFeedback(null);

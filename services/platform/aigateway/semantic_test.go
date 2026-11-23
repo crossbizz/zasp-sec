@@ -1,6 +1,10 @@
 package aigateway
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+
 	"bytes"
 	"context"
 	"crypto/ed25519"
@@ -127,4 +131,27 @@ func TestONNXBinaryLabelMapAndOutputBounds(t *testing.T) {
 			t.Fatal("invalid TEI score accepted")
 		}
 	}
+}
+
+func TestBlockingQualificationRejectsBenignOnlyBeforeInference(t *testing.T) {
+	data, err := os.ReadFile("../../../testdata/v3/benign-heuristic-matches.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(data)
+	att := DeploymentAttestation{Purpose: PurposeHeuristicVerify, CorpusSHA256: hex.EncodeToString(digest[:])}
+	result, err := MeasureCorpus(context.Background(), unreachableQualificationDriver{t}, att, data)
+	if err == nil || result.Total != 0 || result.Qualified {
+		t.Fatal(result, err)
+	}
+	if matchesGroundTruth(PurposeHeuristicVerify, []byte(`{"verdict":"benign_context","confidence":0.1}`), false) {
+		t.Fatal("weak confidence cannot prove a reduction in false alerts")
+	}
+}
+
+type unreachableQualificationDriver struct{ t *testing.T }
+
+func (d unreachableQualificationDriver) Evaluate(context.Context, Purpose, json.RawMessage) (json.RawMessage, error) {
+	d.t.Fatal("incomplete corpus reached driver")
+	return nil, ErrInvalidRequest
 }

@@ -16,7 +16,7 @@ import (
 
 func TestCalibrationExportOnInstalledPostgres(t *testing.T) {
 	b := startInstalledV2Baseline(t)
-	user := b.member("security_admin", "view_compliance")
+	user := b.member("security_admin", "manage_api_tokens", "view_compliance")
 	reader := &compliancePGReader{}
 	h := calibrationExportHTTP{b.product, reader}
 	b.seed(func() {
@@ -79,12 +79,24 @@ func TestCalibrationExportOnInstalledPostgres(t *testing.T) {
 	download := func() *httptest.ResponseRecorder {
 		return op("downloadCalibrationExport", "POST", "/download", string(req))
 	}
+	if err := b.product.RequireCurrentAuthorization(); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := NewPostgresRepository(b.product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issueToken, _ := installedWorkloadTokenIssuer(t, b, repo, user)
+	token := issueToken("Calibration export", `["view_compliance"]`)
+	downloadPAT := func() *httptest.ResponseRecorder {
+		return b.serve(h, token, "downloadCalibrationExport", "POST", path+"/download", map[string]string{"id": job.ID}, string(req), nil)
+	}
 	reader.artifact.MediaType = "text/plain"
 	if bad := download(); bad.Code != 503 {
 		t.Fatal("storage integrity", bad.Code, bad.Body)
 	}
 	reader.artifact.MediaType = "application/x-ndjson"
-	if res := download(); res.Code != 200 || res.Header().Get("Cache-Control") != "no-store" || !strings.Contains(res.Body.String(), hex.EncodeToString(sum[:])) {
+	if res := downloadPAT(); res.Code != 200 || res.Header().Get("Cache-Control") != "no-store" || !strings.Contains(res.Body.String(), hex.EncodeToString(sum[:])) {
 		t.Fatal("download", res.Code, res.Body)
 	}
 	if replay := download(); replay.Code != 409 {

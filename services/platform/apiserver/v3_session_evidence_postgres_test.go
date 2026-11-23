@@ -22,14 +22,15 @@ func TestV3SessionIntentInstalledReceipts(t *testing.T) {
 func exerciseSessionOutcomes(t *testing.T, b *installedBaseline, admin installedPrincipal, agent string) {
 	t.Helper()
 	session, credential, event, decision := b.id(), b.id(), b.id(), b.id()
-	readEvent, execEvent := b.id(), b.id()
+	readEvent, toolEvent, execEvent := b.id(), b.id(), b.id()
 	b.seed(func() {
 		b.exec(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time)
 VALUES($1,$2,$3,$4,$5,$6,'strong','gateway','policy','block','Gateway request blocked',$7,now())`, b.o, b.w, b.e, event, session, agent, b.id())
 		b.exec(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES
-		($1,$2,$3,$4,$5,$6,'strong','otlp','file','read','Read observed',$7,now()-interval '1 minute'),
-		($1,$2,$3,$8,$5,$6,'strong','tetragon','process','exec','Process executed',$9,now()-interval '30 seconds')`, b.o, b.w, b.e, readEvent, session, agent, b.id(), execEvent, b.id())
-		b.exec(`INSERT INTO zasp_runtime_session_summaries(organization_id,workspace_id,environment_id,id,first_event_at,last_event_at,projected_at,event_count,exact_count,strong_count,probable_count,unattributed_count,minimum_agent_id,maximum_agent_id) VALUES($1,$2,$3,$4,now()-interval '1 minute',now(),now(),3,0,3,0,0,$5,$5)`, b.o, b.w, b.e, session, agent)
+		($1,$2,$3,$4,$5,$6,'strong','tetragon','file','read','Read observed',$7,now()-interval '1 minute'),
+        ($1,$2,$3,$10,$5,$6,'strong','otlp','tool','invoke','Tool request observed',$11,now()-interval '45 seconds'),
+		($1,$2,$3,$8,$5,$6,'strong','tetragon','process','exec','Process executed',$9,now()-interval '30 seconds')`, b.o, b.w, b.e, readEvent, session, agent, b.id(), execEvent, b.id(), toolEvent, b.id())
+		b.exec(`INSERT INTO zasp_runtime_session_summaries(organization_id,workspace_id,environment_id,id,first_event_at,last_event_at,projected_at,event_count,exact_count,strong_count,probable_count,unattributed_count,minimum_agent_id,maximum_agent_id) VALUES($1,$2,$3,$4,now()-interval '1 minute',now(),now(),4,0,4,0,0,$5,$5)`, b.o, b.w, b.e, session, agent)
 		b.exec(`INSERT INTO zasp_workload_bindings(organization_id,workspace_id,environment_id,credential_id,agent_id,session_id,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,now()-interval '1 hour')`, b.o, b.w, b.e, credential, agent, session, admin.identity.PrincipalID.String())
 		b.exec(`INSERT INTO zasp_workload_actions(organization_id,workspace_id,environment_id,credential_id,action_id,principal_id,request,receipt) VALUES($1,$2,$3,$4,'draft',$5,'{"operation":"draft_reply"}',jsonb_build_object('decision_id',$6::text,'verdict','allow'))`, b.o, b.w, b.e, credential, admin.identity.PrincipalID.String(), decision)
 	})
@@ -40,16 +41,15 @@ VALUES($1,$2,$3,$4,$5,$6,'strong','gateway','policy','block','Gateway request bl
 			Actions []sessionActionResult `json:"actions"`
 			Links   []sessionintent.Link  `json:"links"`
 		}
-		if out.Code != 200 || json.Unmarshal(out.Body.Bytes(), &doc) != nil || len(doc.Actions) != 4 {
+		if out.Code != 200 || json.Unmarshal(out.Body.Bytes(), &doc) != nil || len(doc.Actions) != 5 {
 			t.Fatalf("read=%d %s", out.Code, out.Body)
 		}
-		foundLink := false
+		toolLinked, execLinked := false, false
 		for _, link := range doc.Links {
-			if link.Source == readEvent && link.Target == execEvent && link.Reason == "read_then_activity" {
-				foundLink = true
-			}
+			toolLinked = toolLinked || (link.Source == readEvent && link.Target == toolEvent && link.Reason == "read_then_tool")
+			execLinked = execLinked || (link.Source == toolEvent && link.Target == execEvent && link.Reason == "tool_then_activity")
 		}
-		if !foundLink {
+		if !toolLinked || !execLinked {
 			t.Fatalf("missing observed-time sequence %v", doc.Links)
 		}
 		results := map[string]sessionActionResult{}

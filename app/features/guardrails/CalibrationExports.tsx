@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { APIProductError, requireAPIData } from "../../../apps/web/api/client";
-import type { CalibrationDownloadGrant, CalibrationExportJob } from "../../../apps/web/api/generated";
+import type { CalibrationDownloadGrant, CalibrationExportFile, CalibrationExportJob } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useOptionalSession } from "../../auth/SessionProvider";
 import { Button, Card } from "../../components/ui";
@@ -32,6 +32,13 @@ function ExportForm({ environment, scope, fresh, reauthenticate }: {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (window.location.hash === "#calibration-exports") {
+      section.current?.focus({ preventScroll: true });
+      section.current?.scrollIntoView?.({ block: "start" });
+    }
+  }, []);
   const request = useRef<AbortController | null>(null);
   const key = useRef<string | null>(null);
   useEffect(() => () => request.current?.abort(), []);
@@ -107,7 +114,7 @@ function ExportForm({ environment, scope, fresh, reauthenticate }: {
     });
     if (signal.aborted) return;
     setGrant(null);
-    const file = requireAPIData<import("../../../apps/web/api/generated").CalibrationExportFile>(result);
+    const file = requireAPIData<CalibrationExportFile>(result);
     if (file.environment_id !== environment || file.filename !== `calibration-${job.id}.jsonl` || typeof file.jsonl !== "string"
       || !digestOrGrant.test(file.sha256)) throw Error("Unexpected export file");
     const bytes = new TextEncoder().encode(file.jsonl);
@@ -118,10 +125,10 @@ function ExportForm({ environment, scope, fresh, reauthenticate }: {
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/x-ndjson" }));
     const link = document.createElement("a");
     link.href = url; link.download = file.filename;
-    document.body.append(link); link.click(); link.remove();
+    document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <section id="calibration-exports"><Card title={<h2>Export calibration labels</h2>}>
+  return <section id="calibration-exports" ref={section} tabIndex={-1}><Card title={<h2>Export calibration labels</h2>}>
     <p>Download up to 2,048 redacted samples from the past 30 days as JSON Lines.</p>
     {job && <p role="status">{expired ? "Expired" : job.status} · {job.samples} samples · Expires <Time value={job.expires_at} /></p>}
     {queued && error && <Button onClick={() => void run(signal => readStatus(job!.id, signal))}>Check export status</Button>}

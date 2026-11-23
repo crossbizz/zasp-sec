@@ -28,7 +28,7 @@ it("keeps possible follow-ups distinct from source receipts and lets the analyst
   const read = async () => ({
     session_id: session, truncated: false, links: [{source:session, target:next, reason:"read_then_activity" as const}],
     actions: [{decision_id: next, operation:"Process executed", source:"tetragon" as const, observed_at:"2026-11-20T10:01:00Z", evidence_ids:[next], outcome:"completed" as const,attention:false},
-      {decision_id:session,operation:"Read observed",source:"otlp" as const,observed_at:"2026-11-20T10:00:00Z",evidence_ids:[receipt],outcome:"outcome_unknown" as const,attention:true}],
+      {decision_id:session,operation:"Read observed",source:"tetragon" as const,observed_at:"2026-11-20T10:00:00Z",evidence_ids:[receipt],outcome:"outcome_unknown" as const,attention:true}],
   });
   render(<SessionIntentPanel id={session} read={read} />);
   await userEvent.click(screen.getByRole("button",{name:"View outcomes"}));

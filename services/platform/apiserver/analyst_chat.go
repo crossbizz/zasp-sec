@@ -56,6 +56,8 @@ func chatError(w http.ResponseWriter, r *http.Request, raw json.RawMessage, err 
 		writeProductionStatusError(w, r, 409, "investigation_conflict", "An investigation is pending or this request ID has already been used", false)
 	case `"no_evidence"`:
 		writeProductionStatusError(w, r, 409, "session_evidence_missing", "This session has no linked evidence to investigate", false)
+	case `"approval_required"`:
+		writeProductionStatusError(w, r, 409, "tool_approval_required", "Approve a session evidence read for this question", false)
 	case `"ineligible"`:
 		writeProductionError(w, r, ErrRepositoryOperation)
 	default:
@@ -64,11 +66,20 @@ func chatError(w http.ResponseWriter, r *http.Request, raw json.RawMessage, err 
 	return true
 }
 
+type studioHandoff struct {
+	StudioID  string `json:"studio_id"`
+	Revision  int64  `json:"revision"`
+	Proposal  string `json:"proposal"`
+	MessageID string `json:"message_id"`
+}
+
 type analystThread struct {
-	ID       string           `json:"id"`
-	Session  string           `json:"session_id"`
-	Created  time.Time        `json:"created_at"`
-	Messages []analystMessage `json:"messages,omitempty"`
+	RequiresReadApproval bool             `json:"requires_session_read_approval,omitempty"`
+	Handoff              *studioHandoff   `json:"handoff,omitempty"`
+	ID                   string           `json:"id"`
+	Session              string           `json:"session_id"`
+	Created              time.Time        `json:"created_at"`
+	Messages             []analystMessage `json:"messages,omitempty"`
 }
 type analystMessage struct {
 	ID          string    `json:"id"`
@@ -98,6 +109,22 @@ func validChatHistory(op, s, t string, raw json.RawMessage) bool {
 	for _, row := range rows {
 		if !validProductID(row.ID) || row.Session != s || row.Created.IsZero() || len(row.Messages) > 48 {
 			return false
+		}
+		if row.Handoff != nil {
+			h := row.Handoff
+			if op != "getAnalystThread" || !validProductID(h.StudioID) || !validProductID(h.MessageID) || h.Revision < 1 || !stringIn(h.Proposal, "propose_policy", "request_containment") {
+				return false
+			}
+			cited := false
+			for _, m := range row.Messages {
+				if m.ID == h.MessageID && m.Role == "assistant" && len(m.EvidenceIDs) > 0 {
+					cited = true
+					break
+				}
+			}
+			if !cited {
+				return false
+			}
 		}
 		for _, m := range row.Messages {
 			if !validProductID(m.ID) || !stringIn(m.Role, "assistant", "user") || m.Created.IsZero() || m.Text == "" || m.EvidenceIDs == nil || len(m.EvidenceIDs) > 6 {

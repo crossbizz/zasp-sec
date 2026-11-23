@@ -41,7 +41,7 @@ export function AgentPosture({agent,capabilities,getPosture}: Props) {
           {review.state === "pending" ? <p>Awaiting qualified model review.</p> : review.state === "uncertain" ? <p>Insufficient verified evidence.</p> :
             review.result && ("kind" in review.result ? <p>{review.result.kind.replaceAll("_", " ")} · evidence <code>{review.evidence_id}</code></p> :
             <><p>{review.result.allowed_tool_ids.length} proposed tools · evidence <code>{review.evidence_id}</code></p>
-              {review.result.iam_mismatches.length > 0 && <p>Access requires review.</p>}
+              {review.result.iam_mismatches.length > 0 && <p>Access evidence to review · {review.result.iam_mismatches.join(", ")}</p>}
               {session?.status === "authenticated" && session.hasCapability("policies.write") &&
                (session.isFreshAuthenticated ? <ReviewedPurpose agent={agent} tools={review.result.allowed_tool_ids} /> : <Button onClick={session.reauthenticate}>Verify identity to review declaration</Button>)}</>)}
         </div>)}

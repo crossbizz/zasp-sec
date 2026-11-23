@@ -177,7 +177,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
       if (settling) onAuthorizationSettling(false);
     }
   };
-  const openAuthorizedEventStream = async (threadID: string, sessionID: string, message: string, requestID: string, callerSignal?: AbortSignal): Promise<Response> => {
+  const openAuthorizedEventStream = async (threadID: string, sessionID: string, message: string, requestID: string, callerSignal?: AbortSignal, approveSessionRead = false): Promise<Response> => {
     const expected = getExpectedScope();
     const csrf = getCSRFToken();
     const correlation = generateCorrelationID();
@@ -191,7 +191,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
       method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store", signal,
       headers: { Accept: "text/event-stream", "Content-Type": "application/json", "Cache-Control": "no-store",
         [EXPECTED_SCOPE_HEADER]: expected, "X-CSRF-Token": csrf, "X-Correlation-ID": correlation },
-      body: JSON.stringify({ message, request_id: requestID }),
+      body: JSON.stringify({ message, request_id: requestID, ...(approveSessionRead ? {approved_read_tools:["inspect_session"]} : {}) }),
     }));
     if (!response.ok) {
       await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);

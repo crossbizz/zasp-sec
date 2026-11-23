@@ -50,6 +50,27 @@ func TestCalibrationOnInstalledPostgres(t *testing.T) {
 	if metrics.Code != 200 || json.Unmarshal(metrics.Body.Bytes(), &marked) != nil || marked.Labelled != 1 || marked.Brier != nil || len(marked.Recent) != 1 || marked.Recent[0].Label == nil || *marked.Recent[0].Label != "mark_fp" {
 		t.Fatal(metrics.Code, metrics.Body)
 	}
+	// A real evaluation makes the day dirty. On the next read the persisted
+	// histogram includes the existing feedback; subsequent corrections update it.
+	b.exec(`INSERT INTO public.semantic_evaluations VALUES($1,$2,$3,$4,$5,0.2,true,'sha256:'||repeat('a',64),now())`, b.o, b.w, b.e, decision, rule)
+	if res := get(); res.Code != 200 {
+		t.Fatal(res.Code, res.Body)
+	}
+	rollup := func() string {
+		return b.text(`SELECT concat(n,'/',tn,'/',fn) FROM public.calibration_daily_rollups WHERE (organization_id,workspace_id,environment_id,bucket)=($1,$2,$3,2)`, b.o, b.w, b.e)
+	}
+	if v := rollup(); v != "1/1/0" {
+		t.Fatal("initial day", v)
+	}
+	if res := feedback("confirm_tp", "calibration-relabel-123"); res.Code != 200 {
+		t.Fatal(res.Code, res.Body)
+	}
+	if res := get(); res.Code != 200 {
+		t.Fatal(res.Code, res.Body)
+	}
+	if v := rollup(); v != "1/0/1" {
+		t.Fatal("relabelled day", v)
+	}
 	mode := func(id, value, match, key string) *httptest.ResponseRecorder {
 		return b.serve(h, user, "putRuleSuppressionMode", "PUT", "/api/v1/rules/"+id+"/suppression-mode", map[string]string{"ruleId": id}, `{"mode":"`+value+`"}`, map[string]string{"Idempotency-Key": key, "If-Match": match})
 	}

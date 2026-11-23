@@ -68,6 +68,7 @@ func (d Deployment) Driver() (ProviderDriver, error) {
 }
 
 type DeploymentAttestation struct {
+	WorkloadIdentity *WorkloadIdentityProfile     `json:"workload_identity,omitempty"`
 	Vertex           *VertexQualificationProfile  `json:"vertex,omitempty"`
 	Bedrock          *BedrockQualificationProfile `json:"bedrock,omitempty"`
 	CorpusSHA256     string                       `json:"corpus_sha256,omitempty"`
@@ -92,7 +93,7 @@ func VerifyAttestation(raw, signature []byte, key ed25519.PublicKey, now time.Ti
 			return a, ErrInvalidRequest
 		}
 	}
-	if a.Bedrock != nil && a.Vertex != nil || (a.Bedrock != nil || a.Vertex != nil) && a.Deployment != (Deployment{}) {
+	if a.WorkloadIdentity != nil && a.Bedrock == nil && a.Vertex == nil || a.Bedrock != nil && a.Vertex != nil || (a.Bedrock != nil || a.Vertex != nil) && a.Deployment != (Deployment{}) {
 		return a, ErrInvalidRequest
 	}
 	if a.Bedrock != nil || a.Vertex != nil {

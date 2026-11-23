@@ -6,6 +6,14 @@ The API evaluates an approved snippet only when the caller supplies `content_mod
 
 Configure the private service and its TLS certificate in the approved US or EU region. The control plane connects to the configured private IP and validates the certificate for the endpoint hostname. vLLM uses its OpenAI-compatible chat completions endpoint. The ONNX sequence classifier uses the TEI-compatible binary classification endpoint at `/predict`, with a text preprocessing pipeline, a fixed maximum input size, and both model labels returned as probabilities.
 
+For Kubernetes VPC and BYOC installations, install one release of the [private model chart](../../deploy/private-models) per inference profile. The chart is disabled by default. Populate a read-only PVC with the reviewed model weights and tokenizer. Provision a TLS secret for the private service hostname and ensure the API and qualification runner trust the issuing CA. Select reviewed inference and nginx image digests from the installation registry. The ONNX image must implement TEI-compatible classification for the selected model. The vLLM image must include the `vllm serve` command. The deployment mounts local weights without Internet access.
+
+```sh
+helm upgrade --install reasoning deploy/private-models -n model-services -f private-values.yaml
+```
+
+In the operator values file, set `enabled: true`, `kind` (`onnx` or `vllm`), `model`, `region`, `weightsClaim`, `tlsSecret`, `inferenceImage`, `tlsProxyImage`, and `clientNamespace`. Set resource requests for the measured model. The release exposes a ClusterIP and restricts ingress to labelled API, classifier and qualification pods in the specified namespace. Run in a dedicated namespace with a CNI that enforces NetworkPolicy. Ensure no other policy grants egress or expands ingress to these pods. Record the assigned private IP and verify the weight digest, certificate, region, accelerator capacity and isolation against the installed cluster before enabling the profile.
+
 A deployment profile is a JSON object. Fill in the actual endpoint, address, SHA-256 of the deployed weights, model identifier, region and operator-approved maximum charge per request.
 
 ```json
@@ -27,7 +35,7 @@ The asynchronous purpose review worker accepts the same model, endpoint, IP, wei
 
 The trusted release operator reviews weight provenance, deployment region, exact model bytes and the zero-retention agreement. Sign an attestation JSON object containing the deployment profile under `deployment`, the `purpose`, `base_weight_origin` (`us` or `eu`), `zero_retention` (true) and an RFC 3339 `expires_at` within 90 days. Supply a detached Ed25519 signature over the exact manifest bytes. Encode the public key and signature as standard base64.
 
-For `purpose_alignment_check` the runner supplies its fixed suite of 128 synthetic observations. For `heuristic_fp_verify` and `indirect_injection_screen` the attestation must also cover the hex `corpus_sha256` of a release-reviewed JSONL corpus. Each record contains `input`, boolean `positive` and boolean `counterfeit_policy`. Include at least 60 unique negative and 50 unique positive examples and mark the policy-isolation cases. Use sanitized fixtures prepared for offline qualification.
+For `purpose_alignment_check` the runner supplies its fixed suite of 128 synthetic observations. For `heuristic_fp_verify` and `indirect_injection_screen` the attestation must also cover the hex `corpus_sha256` of a release-reviewed JSONL corpus. Each record contains `input`, boolean `positive` and boolean `counterfeit_policy`. Include at least 60 unique negative and 50 unique positive examples and mark the policy-isolation cases. Use sanitized fixtures prepared for offline qualification. The repository includes 60 benign heuristic matches at `testdata/v3/benign-heuristic-matches.jsonl`. Combine them with the release operator’s independent positive and policy-isolation cases before signing the corpus digest. The benign subset alone cannot qualify a deployment.
 
 Run from a trusted control-plane host with private endpoint access. Set `ZASP_QUALIFICATION_DATABASE_URL` to an operator connection authorized to write scoped qualification rows. Choose the public key from the trusted issuer’s installation.
 
@@ -53,11 +61,31 @@ The API reads one provider configuration at startup for investigation and one fo
 | Session investigation | `ZASP_BEDROCK_TRIAGE_` | `ZASP_VERTEX_TRIAGE_` |
 | Inventory review | `ZASP_BEDROCK_INVENTORY_` | `ZASP_VERTEX_INVENTORY_` |
 
-Append `MODEL`, `TOKEN_FILE`, `CREDENTIAL_REFERENCE` and `MAX_NANO_CREDITS` to the selected prefix. Mount the bearer credential in a regular file with write access restricted to its owner. Use the exact reference under `secret_ref_planner/{organization}/{workspace}/{environment}/` and a positive integer upper cost in nano-credits. A short-lived token must remain valid for the request.
+Append `MODEL`, `TOKEN_FILE`, `CREDENTIAL_REFERENCE` and `MAX_NANO_CREDITS` to the selected prefix. Mount the bearer credential in a regular file with write access restricted to its owner. Use the exact reference under `secret_ref_planner/{organization}/{workspace}/{environment}/` and a positive integer upper cost in nano-credits. For a mounted bearer token, arrange rotation before expiry with the infrastructure credential broker. Mount the refreshed token, update the environment’s SHA-256 credential digest, and roll the API, discovery scheduler and qualification worker that use it. An expired token or mismatched binding suspends optional coverage.
 
 For Bedrock, supply `VPCE_HOST` and `VPCE_IP` for the regional Bedrock Runtime interface endpoint. For Vertex, supply `LOCATION`, `PROJECT` and `PSC_IP` for the Google Cloud project and Private Service Connect endpoint. For example, `ZASP_VERTEX_TRIAGE_LOCATION=europe-west4` selects the regional Vertex API in the Netherlands. The API dials the pinned private address with TLS verification of the regional service hostname.
 
 Qualification evidence and policy consent must match the runtime binding before it can serve customer traffic. The no-retention agreement, US or EU hosting and model provenance are operator-signed facts about the real deployment.
+
+## Use customer workload identity
+
+For automatic renewal, mount a projected OIDC token and a separate JSON workload identity profile. Set `SUBJECT_TOKEN_FILE` and `WORKLOAD_IDENTITY_FILE` under the job’s provider prefix. Leave `TOKEN_FILE` unset. The signed qualification manifest must contain the same profile under `workload_identity`. Set `ZASP_QUALIFICATION_SUBJECT_TOKEN_FILE` on the qualification worker. At startup the worker prints the credential digest to enter under **AI & Models**. This digest binds the issuer, subject, audience, regional STS private address, and customer role or pool provider.
+
+For AWS, create a workload role whose trust policy fixes the OIDC provider, exact subject and `sts.amazonaws.com` audience. Grant `bedrock:InvokeModel` for the approved model in the selected region. Create a regional STS interface VPC endpoint alongside the Bedrock runtime endpoint. An example workload identity profile follows.
+
+```json
+{
+  "issuer": "https://issuer.customer.example",
+  "subject": "system:serviceaccount:security:analyst",
+  "token_audience": "sts.amazonaws.com",
+  "sts_private_ip": "10.20.30.41",
+  "role_arn": "arn:aws:iam::123456789012:role/zasp-model-reader"
+}
+```
+
+For Google Cloud, bind the federated subject directly to the approved project and model through a custom role with `aiplatform.endpoints.predict`. Configure the pool’s provider to validate the trusted issuer and the token audience. Supply `workload_provider` as `//iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER` in place of `role_arn`. Use the regional Security Token Service’s Private Service Connect address for `sts_private_ip` and the projected token’s audience for `token_audience`.
+
+Each invocation checks the mounted token’s issuer, subject, audience and expiry. The application sends it only to the configured regional STS over pinned private TLS. AWS issues a 15-minute session for signing Bedrock requests. Google issues a short-lived federated access token. Both providers verify the OIDC signature. A changed projected JWT refreshes the cached session automatically. Changing the configured role, subject, provider, private endpoint or credential reference changes the deployment digest and requires a fresh qualification.
 
 ## Run qualifications from AI & Models
 

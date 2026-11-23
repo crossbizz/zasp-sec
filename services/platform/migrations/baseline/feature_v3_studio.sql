@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION zasp_authorization80.studio_valid(d jsonb) RETURNS bo
 LANGUAGE plpgsql IMMUTABLE SET search_path=pg_catalog,public AS $valid$
 DECLARE keys text[]:=ARRAY['name','mission','trigger','read_tools','proposal','require_approval','max_steps','budget_nano_credits','model_pin']; attr text;
 BEGIN
- IF jsonb_typeof(d) IS DISTINCT FROM 'object' OR NOT (d ?& keys) OR d-keys<>'{}' OR octet_length(d::text)>8192 THEN RETURN false; END IF;
+ IF jsonb_typeof(d) IS DISTINCT FROM 'object' OR NOT (d ?& keys) OR d-keys-'approval_required_tools'-'minimum_evidence_confidence'<>'{}' OR octet_length(d::text)>8192 THEN RETURN false; END IF;
  FOREACH attr IN ARRAY ARRAY['name','mission','trigger','proposal','model_pin'] LOOP
   IF jsonb_typeof(d->attr) IS DISTINCT FROM 'string' OR d->>attr<>btrim(d->>attr) OR (d->>attr) ~ '[[:cntrl:]]' THEN RETURN false; END IF;
  END LOOP;
@@ -37,6 +37,11 @@ BEGIN
  OR d->'require_approval' IS DISTINCT FROM 'true'::jsonb OR jsonb_typeof(d->'read_tools') IS DISTINCT FROM 'array'
  OR jsonb_typeof(d->'max_steps') IS DISTINCT FROM 'number' OR (d->>'max_steps')!~'^[1-6]$'
  OR jsonb_typeof(d->'budget_nano_credits') IS DISTINCT FROM 'number' OR (d->>'budget_nano_credits')!~'^(0|[1-9][0-9]{0,12})$' THEN RETURN false; END IF;
+ IF d?'minimum_evidence_confidence' AND (jsonb_typeof(d->'minimum_evidence_confidence') IS DISTINCT FROM 'string' OR d->>'minimum_evidence_confidence' NOT IN ('strong','exact')) THEN RETURN false; END IF;
+ IF d?'approval_required_tools' THEN
+  IF jsonb_typeof(d->'approval_required_tools') IS DISTINCT FROM 'array' OR jsonb_array_length(d->'approval_required_tools')>4 OR NOT ((d->'read_tools') @> (d->'approval_required_tools')) THEN RETURN false; END IF;
+  IF EXISTS(SELECT FROM jsonb_array_elements_text(d->'approval_required_tools') t GROUP BY t HAVING count(*)>1) THEN RETURN false; END IF;
+ END IF;
  RETURN (d->>'budget_nano_credits')::bigint<=1000000000000 AND jsonb_array_length(d->'read_tools') BETWEEN 1 AND 4
  AND (SELECT count(DISTINCT t)=count(*) AND bool_and(t IN ('list_agents','get_posture_summary','inspect_session','get_addon_drift'))
       FROM jsonb_array_elements_text(d->'read_tools') t);

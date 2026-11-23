@@ -1,7 +1,12 @@
 -- Snapshot every seeded row including primary keys, digests, payloads and
 -- relations. Authenticated reads legitimately change the token's last_used_at.
+-- Existing decisions acquire nullable V3 semantic columns. Exclude only
+-- those newly declared columns while null; an actual backfill still fails.
 SELECT jsonb_build_array(to_jsonb(o),to_jsonb(w),to_jsonb(e),to_jsonb(m),to_jsonb(s),
-         to_jsonb(t)-'last_used_at',to_jsonb(p),to_jsonb(d),to_jsonb(x),to_jsonb(j),to_jsonb(b))::text
+         to_jsonb(t)-'last_used_at',to_jsonb(p),(SELECT jsonb_object_agg(key,value) FROM jsonb_each(to_jsonb(d))
+           WHERE value <> 'null'::jsonb OR key NOT IN
+            ('semantic_lease','semantic_job','semantic_rule','semantic_profile','semantic_region',
+             'semantic_deployment_digest','semantic_state','semantic_deadline')),to_jsonb(x),to_jsonb(j),to_jsonb(b))::text
 FROM zasp_organizations o
 JOIN zasp_workspaces w ON w.organization_id=o.id
 JOIN zasp_environments e ON (e.organization_id,e.workspace_id)=(o.id,w.id)

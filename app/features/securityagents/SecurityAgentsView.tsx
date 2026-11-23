@@ -653,7 +653,7 @@ export function SecurityAgentsView(props: Parameters<typeof SecurityAgentsScoped
   return <SecurityAgentsScopedView key={`${props.boundaryKey ?? "local"}:${props.environmentID ?? "production"}`} {...props} />;
 }
 
-function SecurityAgentsScopedView({ tabbed = false, api = defaultSecurityAgentsAPI, environmentID = "production", canWrite = true, canReadTests = false, canReadRuns = false, catalogAvailable = true, canManageControls = false, canApproveIrreversible = false, fresh = false, onReauthenticate = () => undefined, surface = "all", initialSnapshot, autoLoad = true, initialRunID, activityScope, onNavigate, activityPermissions = {} }: { tabbed?: boolean; api?: SecurityAgentsAPI; activityPermissions?: ActivityPermissions; environmentID?: string; canWrite?: boolean; canReadTests?: boolean; canReadRuns?: boolean; catalogAvailable?: boolean; canManageControls?: boolean; canApproveIrreversible?: boolean; fresh?: boolean; onReauthenticate?: () => void; surface?: "all" | "approvals"; initialSnapshot?: SecurityAgentSnapshot; autoLoad?: boolean; initialRunID?: string; activityScope?: ActivityScope; onNavigate?: (path: string) => void }) {
+function SecurityAgentsScopedView({ tabbed = false, api = defaultSecurityAgentsAPI, environmentID = "production", canWrite = true, canReadTests = false, canReadRuns = false, catalogAvailable = true, canManageControls = false, canApproveIrreversible = false, fresh = false, onReauthenticate = () => undefined, surface = "all", initialSnapshot, autoLoad = true, initialRunID, initialApprovalID, activityScope, onNavigate, activityPermissions = {} }: { tabbed?: boolean; api?: SecurityAgentsAPI; activityPermissions?: ActivityPermissions; environmentID?: string; canWrite?: boolean; canReadTests?: boolean; canReadRuns?: boolean; catalogAvailable?: boolean; canManageControls?: boolean; canApproveIrreversible?: boolean; fresh?: boolean; onReauthenticate?: () => void; surface?: "all" | "approvals"; initialSnapshot?: SecurityAgentSnapshot; autoLoad?: boolean; initialRunID?: string; initialApprovalID?: string; activityScope?: ActivityScope; onNavigate?: (path: string) => void }) {
   const [agents, setAgents] = useState<readonly SecurityAgentDefinition[]>(initialSnapshot?.agents ?? []);
   const [templates, setTemplates] = useState<readonly SecurityAgentTemplate[]>(initialSnapshot?.templates ?? []);
   const [actions, setActions] = useState<readonly SecurityAction[]>(initialSnapshot?.actions ?? []);
@@ -713,7 +713,7 @@ function SecurityAgentsScopedView({ tabbed = false, api = defaultSecurityAgentsA
       setSelected(definition); setSelectedActivation(activation);
     } catch { if (!controller.signal.aborted && detailRead.current === controller) setError(true); }
   };
-  const openApproval = async (id: string) => {
+  const openApproval = useCallback(async (id: string) => {
     readGeneration.current++;
     detailRead.current?.abort(); const controller = new AbortController(); detailRead.current = controller;
     setError(false); setSelected(null); setSelectedRun(null); setSelectedApproval(null);
@@ -723,7 +723,12 @@ function SecurityAgentsScopedView({ tabbed = false, api = defaultSecurityAgentsA
       if (value.id !== id) throw new TypeError("Approval detail identity mismatch");
       setSelectedApproval(value);
     } catch { if (!controller.signal.aborted && detailRead.current === controller) setError(true); }
-  };
+  }, [api]);
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => { if (active && initialApprovalID) void openApproval(initialApprovalID); });
+    return () => { active = false; detailRead.current?.abort(); };
+  }, [initialApprovalID, openApproval]);
   const refreshRun = useCallback(async (id: string) => {
     const generation = ++readGeneration.current;
     try {
@@ -762,7 +767,8 @@ function SecurityAgentsScopedView({ tabbed = false, api = defaultSecurityAgentsA
   return <div className="page"><PageHeader title={surface === "approvals" ? "Security Agent approvals" : "Security agents"} description="Tenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification." actions={!initialRunID && surface === "all" && canWrite && catalogAvailable ? <Button variant="primary" disabled={mutationLocked} onClick={() => setBuilder(true)}>Create Security Agent</Button> : undefined} />
     {initialRunID && <Card title="Linked Security Agent run"><p><code>{initialRunID}</code></p>{!selectedRun && !error && <p>Open the run to inspect its current authority.</p>}{onNavigate && <Button disabled={mutationLocked} onClick={() => onNavigate("/protect/security-agents")}>All Security Agent runs</Button>}<Button disabled={mutationLocked} onClick={() => void openRun(initialRunID)}>Reload linked run</Button></Card>}
     {error && <p role="alert">Security Agent data is unavailable. Retry the page to load current tenant authority.</p>}
-    {!initialRunID && (surface === "all" ? <SectionTabs stacked={!tabbed} active={activeSection} onChange={setActiveSection} sections={[
+    {initialApprovalID && <Card title="Linked containment approval"><p><code>{initialApprovalID}</code></p><Button disabled={mutationLocked} onClick={() => void openApproval(initialApprovalID)}>Reload approval</Button></Card>}
+    {!initialApprovalID && !initialRunID && (surface === "all" ? <SectionTabs stacked={!tabbed} active={activeSection} onChange={setActiveSection} sections={[
       { id: "agents", label: "Agents", count: agents.length, content: <>{!catalogAvailable && <p role="status">Environment catalog access is unavailable. Creating definitions requires catalog access; permitted resources remain available.</p>}{builder && canWrite && catalogAvailable && <Builder templates={templates} actions={actions} canReadTests={canReadTests} api={api} environmentID={environmentID} mutation={createMutation} onCreated={(value) => { setAgents((items) => [value, ...items]); setBuilder(false); }} />}<Card title="Security Agent definitions">{agents.length ? <div className="connection-list">{agents.map((agent) => <button type="button" key={agent.id} disabled={mutationLocked} aria-label={`Open ${agent.name}`} onClick={() => void open(agent.id)}><strong>{agent.name}</strong><span>{agent.trigger_kind}</span><span>{agent.enabled ? "enabled" : "disabled"}</span></button>)}</div> : <EmptyState title="No Security Agent definitions" description="Create one from a locally supported template." />}</Card></> },
       tabbed && catalogAvailable && { id: "studio", label: "Workflow Studio", content: activeSection === "studio" && <SecurityAgentStudio canWrite={canWrite} fresh={fresh} reauthenticate={onReauthenticate} /> },
       { id: "runs", label: "Runs", count: runs.length, content: <Card title="Security Agent runs">{runs.length ? <div className="connection-list">{runs.map((run) => <button type="button" key={run.id} disabled={mutationLocked} aria-label={`Open run ${run.id}`} onClick={() => void openRun(run.id)}><strong>{run.state}</strong><span>{run.id}</span><span>{run.evidence_ids.length} evidence item{run.evidence_ids.length === 1 ? "" : "s"}</span></button>)}</div> : <EmptyState title="No Security Agent runs" description="Automatic and manual runs appear here after durable acceptance." />}</Card> },
@@ -789,7 +795,7 @@ export function ProductionSecurityAgentsView({ environmentID, surface = "all", s
   const activityPermissions: ActivityPermissions = session.status === "authenticated" ? { finding: session.hasCapability("findings.read"), attack_path: session.hasCapability("attack-paths.read"), session: session.hasCapability("sessions.read"), audit: session.hasCapability("audit.read") } : {};
   const load = useCallback((signal?: AbortSignal) => loadSecurityAgentSnapshot(api, canManageControls, signal, catalogAvailable), [api, canManageControls, catalogAvailable]);
   const query = useAPIQuery(`workflow:security-agents:${environmentID}`, load, !selectedID);
-  if (selectedID && queryScopeKey !== null && session.status === "authenticated") return <SecurityAgentsView key={`${queryScopeKey}/${queryGeneration}/${selectedID}`} api={api} initialRunID={selectedID} onReauthenticate={session.reauthenticate} canReadTests={session.hasCapability("red-team.read")} canReadRuns={queryScopeKey !== null && session.hasCapability("security-agents.read")} catalogAvailable={catalogAvailable} autoLoad={false} environmentID={environmentID} canWrite={session.hasCapability("security-agents.write")} fresh={session.isFreshAuthenticated} activityScope={session} activityPermissions={activityPermissions} onNavigate={onNavigate} />;
+  if (selectedID && queryScopeKey !== null && session.status === "authenticated") return <SecurityAgentsView key={`${queryScopeKey}/${queryGeneration}/${selectedID}`} api={api} initialRunID={surface === "all" ? selectedID : undefined} initialApprovalID={surface === "approvals" ? selectedID : undefined} surface={surface} onReauthenticate={session.reauthenticate} canReadTests={session.hasCapability("red-team.read")} canReadRuns={queryScopeKey !== null && session.hasCapability("security-agents.read")} catalogAvailable={catalogAvailable} autoLoad={false} environmentID={environmentID} canWrite={session.hasCapability("security-agents.write")} fresh={session.isFreshAuthenticated} activityScope={session} activityPermissions={activityPermissions} onNavigate={onNavigate} />;
   if (query.status === "loading" || query.status === "idle") return <LoadingState label="Loading Security Agents…" />;
   if (query.status === "forbidden") return <p role="alert">You are not authorized to view Security Agents.</p>;
   if (query.status === "error") return <p role="alert">Security Agent definitions are unavailable. <Button onClick={() => void query.retry()}>Retry</Button></p>;

@@ -4439,6 +4439,7 @@ export type components = {
             readonly framework_evidence?: readonly components["schemas"]["AddonFrameworkEvidence"][];
             readonly id: components["schemas"]["ProductID"];
             readonly manifest_digest: string;
+            readonly offline_observations?: readonly components["schemas"]["OfflineAddonObservation"][];
             /** @enum {string} */
             readonly origin: "local" | "ci" | "private_worker";
             /** @constant */
@@ -4695,14 +4696,17 @@ export type components = {
             readonly text: string;
         };
         readonly AnalystQuestion: {
+            readonly approved_read_tools?: readonly "inspect_session"[];
             readonly message: string;
             readonly request_id: components["schemas"]["ProductID"];
         };
         readonly AnalystThread: {
             /** Format: date-time */
             readonly created_at: string;
+            readonly handoff?: components["schemas"]["StudioReviewHandoff"];
             readonly id: components["schemas"]["ProductID"];
             readonly messages: readonly components["schemas"]["AnalystMessage"][];
+            readonly requires_session_read_approval?: boolean;
             readonly session_id: components["schemas"]["ProductID"];
         };
         readonly AnalystThreadInput: {
@@ -5601,8 +5605,11 @@ export type components = {
             readonly revision: number;
         };
         readonly CustomSecurityAgentDefinition: {
+            readonly approval_required_tools?: readonly ("list_agents" | "get_posture_summary" | "inspect_session" | "get_addon_drift")[];
             readonly budget_nano_credits: number;
             readonly max_steps: number;
+            /** @enum {string} */
+            readonly minimum_evidence_confidence?: "strong" | "exact";
             readonly mission: string;
             readonly model_pin: string;
             readonly name: string;
@@ -6757,6 +6764,17 @@ export type components = {
             readonly resource_kind: "integration";
             readonly resource_version: number;
             readonly result: components["schemas"]["Integration"];
+        };
+        readonly OfflineAddonObservation: {
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly indicators: readonly ("honeytoken_read" | "honeytoken_egress_denied" | "unexpected_process" | "filesystem_write" | "instruction_override" | "credential_reference" | "network_reference" | "broad_permissions")[];
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly profile_digest: string;
+            /** @enum {string} */
+            readonly scanner: "gvisor_tetragon" | "cisco_skill_scanner" | "nvidia_skillspector";
         };
         readonly Organization: {
             readonly domain: string;
@@ -8361,6 +8379,13 @@ export type components = {
             readonly resource_version: number;
             readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["IntegrationDeletionReceiptResult"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
         };
+        readonly StudioReviewHandoff: {
+            readonly message_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly proposal: "propose_policy" | "request_containment";
+            readonly revision: number;
+            readonly studio_id: components["schemas"]["ProductID"];
+        };
         readonly SuggestionDecision: {
             /** @enum {string} */
             readonly decision: "request_draft" | "dismiss";
@@ -9258,6 +9283,7 @@ export type ModelQualificationSelection = components['schemas']['ModelQualificat
 export type NameInput = components['schemas']['NameInput'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
 export type OAuthCompletionWorkflowMutationReceipt = components['schemas']['OAuthCompletionWorkflowMutationReceipt'];
+export type OfflineAddonObservation = components['schemas']['OfflineAddonObservation'];
 export type Organization = components['schemas']['Organization'];
 export type OrganizationAiControls = components['schemas']['OrganizationAIControls'];
 export type OrganizationAiControlsInput = components['schemas']['OrganizationAIControlsInput'];
@@ -9433,6 +9459,7 @@ export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
 export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
 export type SsoProtocol = components['schemas']['SSOProtocol'];
 export type StandardWorkflowMutationReceipt = components['schemas']['StandardWorkflowMutationReceipt'];
+export type StudioReviewHandoff = components['schemas']['StudioReviewHandoff'];
 export type SuggestionDecision = components['schemas']['SuggestionDecision'];
 export type SuggestionRefresh = components['schemas']['SuggestionRefresh'];
 export type SyncIntegrationReceiptIntent = components['schemas']['SyncIntegrationReceiptIntent'];
@@ -11843,7 +11870,12 @@ export interface operations {
     readonly downloadCalibrationExport: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header?: {
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };

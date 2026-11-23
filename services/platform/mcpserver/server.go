@@ -16,6 +16,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
+const MaximumRequestBytes = 16 << 10
+
 type Read func(context.Context, string, string, url.Values) (int, []byte)
 
 type tool struct {
@@ -93,14 +95,14 @@ func addTool(s *mcp.Server, t tool, read Read) {
 
 // Each request gets its own catalog and reader. There is no shared MCP session
 // or cached product authorization between requests, tenants or replicas.
-func Serve(w http.ResponseWriter, r *http.Request, visible func(string) bool, read Read) {
+func Serve(w http.ResponseWriter, r *http.Request, visible func(string) bool, read Read, review *ReviewTools) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Body == nil {
 		http.Error(w, "A JSON-RPC message is required", http.StatusBadRequest)
 		return
 	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, (16<<10)+1))
-	if err != nil || len(raw) > 16<<10 {
+	raw, err := io.ReadAll(io.LimitReader(r.Body, MaximumRequestBytes+1))
+	if err != nil || len(raw) > MaximumRequestBytes {
 		http.Error(w, "MCP message exceeds the request limit", http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -116,6 +118,7 @@ func Serve(w http.ResponseWriter, r *http.Request, visible func(string) bool, re
 			addTool(server, t, read)
 		}
 	}
+	addReviewTools(server, review)
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
 	handler.ServeHTTP(w, r)
 }

@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -75,7 +76,12 @@ func run(manifest, signature, key, corpus string, workQueue bool, ids []string) 
 		return errors.New("deployment scope does not match qualification scope")
 	}
 	token := ""
-	if a.Bedrock != nil || a.Vertex != nil {
+	if a.WorkloadIdentity != nil {
+		token = os.Getenv("ZASP_QUALIFICATION_SUBJECT_TOKEN_FILE")
+		if token == "" {
+			return errors.New("missing projected workload identity")
+		}
+	} else if a.Bedrock != nil || a.Vertex != nil {
 		filename := os.Getenv("ZASP_QUALIFICATION_BEDROCK_TOKEN_FILE")
 		if a.Vertex != nil {
 			filename = os.Getenv("ZASP_QUALIFICATION_VERTEX_TOKEN_FILE")
@@ -88,12 +94,15 @@ func run(manifest, signature, key, corpus string, workQueue bool, ids []string) 
 		if readErr != nil {
 			return errors.New("qualification credential unavailable")
 		}
-		token = string(secret)
+		token = strings.TrimSuffix(string(secret), "\n")
 		clear(secret)
 	}
 	driver, deploymentID, err := a.MeasuredDriver(token)
 	if err != nil {
 		return err
+	}
+	if a.WorkloadIdentity != nil {
+		fmt.Fprintln(os.Stderr, "Workload identity credential digest", a.WorkloadIdentity.CredentialDigest())
 	}
 	var data []byte
 	if a.Purpose != aigateway.PurposeAlignment {

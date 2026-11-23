@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { connect, disconnect, init, use, type EChartsCoreOption } from "echarts/core";
+import { connect, disconnect, init, use as registerCharts, type EChartsCoreOption } from "echarts/core";
 import { HeatmapChart, LineChart } from "echarts/charts";
 import { AriaComponent, DataZoomComponent, GridComponent, LegendComponent, MarkLineComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import type { CalibrationMetrics } from "../../../apps/web/api/generated";
 
-use([LineChart, HeatmapChart, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent, MarkLineComponent, AriaComponent, DataZoomComponent, SVGRenderer]);
+registerCharts([LineChart, HeatmapChart, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent, MarkLineComponent, AriaComponent, DataZoomComponent, SVGRenderer]);
 
 function useEChart(ref: React.RefObject<HTMLDivElement | null>, options: EChartsCoreOption, group?: string) {
   useEffect(() => {

@@ -33,12 +33,20 @@ func (f analystTurn) answered() bool {
 func serveAnalystTurn(db JSONDatabase, h *analystChat, w http.ResponseWriter, r *http.Request, op RoutedOperation, args []any) {
 	id := op.PathParameters["id"]
 	var msg struct {
-		Message   string `json:"message"`
-		RequestID string `json:"request_id"`
+		Approved  []string `json:"approved_read_tools,omitempty"`
+		Message   string   `json:"message"`
+		RequestID string   `json:"request_id"`
 	}
-	if r.Method != http.MethodPost || !validProductID(id) || decodeProductionJSON(r, &msg) != nil || !validQuestion(msg.Message) || !validProductID(msg.RequestID) {
+	if r.Method != http.MethodPost || !validProductID(id) || decodeProductionJSON(r, &msg) != nil || !validQuestion(msg.Message) || !validProductID(msg.RequestID) || len(msg.Approved) > 1 || len(msg.Approved) == 1 && msg.Approved[0] != "inspect_session" {
 		writeProductionError(w, r, ErrRepositoryOperation)
 		return
+	}
+	if len(msg.Approved) > 0 {
+		identity, ok := IdentityFromRequest(r)
+		if !ok || !identity.FreshAuthenticated {
+			writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
+			return
+		}
 	}
 	assistant, err := newWorkflowProductID()
 	if err != nil {
@@ -54,7 +62,11 @@ func serveAnalystTurn(db JSONDatabase, h *analystChat, w http.ResponseWriter, r 
 		payload, _ := json.Marshal(q)
 		return db.QueryJSON(ctx, chatTurnSQL, append(args, json.RawMessage(payload), binding)...)
 	}
-	raw, err := query(r.Context(), map[string]any{"phase": "start", "question": msg.Message, "assistant_id": assistant})
+	start := map[string]any{"phase": "start", "question": msg.Message, "assistant_id": assistant}
+	if len(msg.Approved) > 0 {
+		start["approved_read_tools"] = msg.Approved
+	}
+	raw, err := query(r.Context(), start)
 	if chatError(w, r, raw, err) {
 		return
 	}

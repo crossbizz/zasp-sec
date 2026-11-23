@@ -37,8 +37,9 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	})
 	path := "/api/v1/security-agents/chat/threads"
 	query := "?session_id=" + s
+	threadInput := `{"session_id":"` + s + `"}`
 	create := func() *httptest.ResponseRecorder {
-		return b.serve(h, admin, "createAnalystThread", "POST", path+query, nil, `{"session_id":"`+s+`"}`, map[string]string{"Idempotency-Key": "analyst-thread-fixture-001"})
+		return b.serve(h, admin, "createAnalystThread", "POST", path+query, nil, threadInput, map[string]string{"Idempotency-Key": "analyst-thread-fixture-001"})
 	}
 	if out := create(); out.Code != 409 || model.calls != 0 {
 		t.Fatalf("default off=%d %s", out.Code, out.Body)
@@ -50,6 +51,17 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 		b.exec(`INSERT INTO model_qualifications(organization_id,workspace_id,environment_id,provider,model,purpose,qualified,deployment_digest,evidence_digest,expires_at) VALUES($1,$2,$3,'privatelink_bedrock',$4,'security_agent_triage',true,$5,$5,now()+interval '1 hour')`, b.o, b.w, b.e, cfg.Model, cfg.DeploymentDigest)
 		b.exec(`INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$2,$3,'*',true,'fixture') ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true`, b.o, b.w, b.e)
 	})
+	workflow := studioDefinition{ApprovalTools: []string{"inspect_session"}, MinimumConfidence: "strong", Name: "Session containment review", Mission: "Review recorded session activity", Trigger: "manual", Tools: []string{"inspect_session"}, Proposal: "request_containment", Approval: true, Steps: 3, Budget: 20, Model: cfg.Model}
+	save, _ := json.Marshal(workflow)
+	saved := b.serve(h, admin, "createCustomSecurityAgent", "POST", "/api/v1/security-agents/custom", nil, string(save), map[string]string{"Idempotency-Key": b.id()})
+	var definition struct {
+		ID       string `json:"id"`
+		Revision int    `json:"revision"`
+	}
+	if saved.Code != 200 || json.Unmarshal(saved.Body.Bytes(), &definition) != nil || !validProductID(definition.ID) || definition.Revision != 1 {
+		t.Fatalf("studio=%d %s", saved.Code, saved.Body)
+	}
+	threadInput = `{"session_id":"` + s + `","studio_id":"` + definition.ID + `","studio_revision":1}`
 	out := create()
 	var thread analystThread
 	if out.Code != 200 || json.Unmarshal(out.Body.Bytes(), &thread) != nil {
@@ -63,8 +75,31 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 		t.Fatal("foreign thread disclosed", foreign.Code)
 	}
 	k := b.id()
+	unapproved := b.serve(h, admin, "streamAnalystThread", "POST", path+"/"+thread.ID+"/stream"+query, params, `{"request_id":"`+k+`","message":"Review the session"}`, nil)
+	if unapproved.Code != 409 || !strings.Contains(unapproved.Body.String(), "tool_approval_required") || model.calls != 0 {
+		t.Fatalf("approval bypass %d %s", unapproved.Code, unapproved.Body)
+	}
 	stream := func(k string) *httptest.ResponseRecorder {
-		return b.serve(h, admin, "streamAnalystThread", "POST", path+"/"+thread.ID+"/stream"+query, params, `{"request_id":"`+k+`","message":"Which actions were blocked?"}`, nil)
+		return b.serve(h, admin, "streamAnalystThread", "POST", path+"/"+thread.ID+"/stream"+query, params, `{"request_id":"`+k+`","message":"Which actions were blocked?","approved_read_tools":["inspect_session"]}`, nil)
+	}
+	exactProfile := workflow
+	exactProfile.MinimumConfidence = "exact"
+	exactBody, _ := json.Marshal(exactProfile)
+	exactSave := b.serve(h, admin, "createCustomSecurityAgent", "POST", "/api/v1/security-agents/custom", nil, string(exactBody), map[string]string{"Idempotency-Key": b.id()})
+	var otherDef struct {
+		ID string `json:"id"`
+	}
+	if exactSave.Code != 200 || json.Unmarshal(exactSave.Body.Bytes(), &otherDef) != nil || !validProductID(otherDef.ID) {
+		t.Fatalf("exact-only definition: %d %s", exactSave.Code, exactSave.Body)
+	}
+	createExact := b.serve(h, admin, "createAnalystThread", "POST", path+query, nil, `{"session_id":"`+s+`","studio_id":"`+otherDef.ID+`","studio_revision":1}`, map[string]string{"Idempotency-Key": b.id()})
+	var exactThread analystThread
+	if createExact.Code != 200 || json.Unmarshal(createExact.Body.Bytes(), &exactThread) != nil {
+		t.Fatalf("exact-only thread: %d %s", createExact.Code, createExact.Body)
+	}
+	insufficient := b.serve(h, admin, "streamAnalystThread", "POST", path+"/"+exactThread.ID+"/stream"+query, map[string]string{"id": exactThread.ID}, `{"request_id":"`+b.id()+`","message":"Review","approved_read_tools":["inspect_session"]}`, nil)
+	if insufficient.Code != 409 || !strings.Contains(insufficient.Body.String(), "session_evidence_missing") || model.calls != 0 {
+		t.Fatalf("weak evidence escaped filter: %d %s", insufficient.Code, insufficient.Body)
 	}
 	first := stream(k)
 	if first.Code != 200 || !strings.Contains(first.Body.String(), "[DONE]") || !strings.Contains(first.Body.String(), receipt) {
@@ -78,8 +113,24 @@ func TestV3AnalystChatScopedPrivateInvestigation(t *testing.T) {
 	if history.Code != 200 || json.Unmarshal(history.Body.Bytes(), &persisted) != nil || len(persisted.Messages) != 2 || persisted.Messages[0].Role != "user" || persisted.Messages[0].ID != k || persisted.Messages[1].Role != "assistant" || len(persisted.Messages[1].EvidenceIDs) != 1 || persisted.Messages[1].EvidenceIDs[0] != receipt {
 		t.Fatalf("missing scoped message history: %d %s", history.Code, history.Body)
 	}
+	if !persisted.RequiresReadApproval {
+		t.Fatal("required per-question approval missing from history")
+	}
+	if persisted.Handoff == nil || persisted.Handoff.StudioID != definition.ID || persisted.Handoff.Proposal != "request_containment" || persisted.Handoff.MessageID != persisted.Messages[1].ID {
+		t.Fatalf("unbound handoff %+v", persisted.Handoff)
+	}
 	if limited := stream(b.id()); limited.Code != 409 || model.calls != 1 {
 		t.Fatalf("budget ignored: %d", limited.Code)
+	}
+	workflow.Proposal = "none"
+	save, _ = json.Marshal(workflow)
+	updated := b.serve(h, admin, "updateCustomSecurityAgent", "PUT", "/api/v1/security-agents/custom/"+definition.ID, map[string]string{"id": definition.ID}, string(save), map[string]string{"Idempotency-Key": b.id(), "If-Match": `"1"`})
+	if updated.Code != 200 {
+		t.Fatalf("revision=%d %s", updated.Code, updated.Body)
+	}
+	history = b.serve(h, admin, "getAnalystThread", "GET", path+"/"+thread.ID+query, params, "", nil)
+	if history.Code != 200 || strings.Contains(history.Body.String(), `"handoff"`) {
+		t.Fatalf("superseded proposal survived: %d %s", history.Code, history.Body)
 	}
 	b.seed(func() {
 		b.exec(`UPDATE zasp_environment_ai_controls SET tier3_security_agent_planner_enabled=false WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, b.o, b.w, b.e)

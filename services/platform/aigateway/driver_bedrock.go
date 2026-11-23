@@ -21,6 +21,7 @@ type BedrockDriver struct {
 	purpose         Purpose
 	client          *http.Client
 	endpoint, token string
+	workload        *privateFederation
 }
 
 type BedrockBinding struct {
@@ -51,7 +52,7 @@ func NewBedrockForPurpose(p Purpose, host string, ip netip.Addr, model, referenc
 	}
 
 	b = BedrockBinding{Provider: ModeBedrock, Model: model, Region: awsResidency(match[1]), CredentialReference: reference, CredentialDigest: digest(token), DeploymentDigest: digest(fmt.Sprintf("bedrock-converse-v1\n%s\n%s\n%s", endpoint, ip.String(), model)), Cost: upperCost}
-	return &BedrockDriver{p, client, endpoint, token}, b, nil
+	return &BedrockDriver{p, client, endpoint, token, nil}, b, nil
 }
 
 func digest(s string) string {
@@ -92,8 +93,14 @@ func (d *BedrockDriver) Evaluate(ctx context.Context, p Purpose, input json.RawM
 	if err != nil {
 		return nil, ErrGeneration
 	}
-	req.Header.Set("Authorization", "Bearer "+d.token)
 	req.Header.Set("Content-Type", "application/json")
+	if d.workload != nil {
+		if err := d.workload.sign(req, body); err != nil {
+			return nil, ErrGeneration
+		}
+	} else {
+		req.Header.Set("Authorization", "Bearer "+d.token)
+	}
 	resp, err := d.client.Do(req)
 	if err != nil {
 		return nil, ErrGeneration

@@ -1,0 +1,143 @@
+{{- if .Values.enabled }}
+{{- $name := printf "%s-model" .Release.Name }}
+{{- $kind := .Values.kind }}
+{{- if not (has $kind (list "onnx" "vllm")) }}{{ fail "kind must be onnx or vllm" }}{{ end }}
+{{- $regions := list "us-east-1" "us-east-2" "us-west-1" "us-west-2" "eu-west-1" "eu-west-3" "eu-central-1" "eu-north-1" "eu-south-1" "eu-south-2" "us-central1" "us-east1" "us-east4" "us-east5" "us-west1" "us-west2" "us-west3" "us-west4" "europe-west1" "europe-west3" "europe-west4" "europe-west8" "europe-west9" "europe-north1" }}
+{{- if not (has .Values.region $regions) }}{{ fail "select an approved US or EU compute region" }}{{ end }}
+{{- $models := dict "onnx" (list "Horizon-Labs/prompt-injection-guard-base" "patronus-studio/wolf-defender-prompt-injection") "vllm" (list "mistralai/Shieldstral-1.0-3B" "nvidia/Nemotron-3.5-Content-Safety") }}
+{{- if not (has .Values.model (index $models $kind)) }}{{ fail "model is ineligible for the chosen engine" }}{{ end }}
+{{- range $image := list .Values.inferenceImage .Values.tlsProxyImage }}
+{{- if not (regexMatch "^[a-zA-Z0-9._:/-]+@sha256:[a-f0-9]{64}$" $image) }}{{ fail "both images require a registry path and SHA-256 digest" }}{{ end }}
+{{- end }}
+{{- $client := required "set clientNamespace to the trusted API and qualification namespace" .Values.clientNamespace }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-proxy
+data:
+  nginx.conf: |
+    worker_processes 1;
+    pid /tmp/nginx.pid;
+    events { worker_connections 128; }
+    http {
+      access_log off;
+      error_log /dev/stderr crit;
+      client_body_temp_path /tmp/client;
+      proxy_temp_path /tmp/upstream;
+      fastcgi_temp_path /tmp/fastcgi;
+      uwsgi_temp_path /tmp/uwsgi;
+      scgi_temp_path /tmp/scgi;
+      server {
+        listen 8443 ssl;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_certificate /tls/tls.crt;
+        ssl_certificate_key /tls/tls.key;
+        client_max_body_size 16k;
+        location = /health { proxy_pass http://127.0.0.1:8000/health; }
+        location = {{ ternary "/predict" "/v1/chat/completions" (eq $kind "onnx") }} {
+          limit_except POST { deny all; }
+          proxy_set_header Authorization "";
+          proxy_set_header Cookie "";
+          proxy_pass http://127.0.0.1:8000;
+          proxy_read_timeout 3s;
+        }
+        location / { return 404; }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app.kubernetes.io/instance: {{ $name }} } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/instance: {{ $name }} }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        topology.kubernetes.io/region: {{ .Values.region | quote }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: inference
+          image: {{ .Values.inferenceImage | quote }}
+          {{- if eq $kind "vllm" }}
+          command: ["vllm"]
+          args: ["serve", "/weights", "--served-model-name", {{ .Values.model | quote }}, "--host", "127.0.0.1", "--port", "8000", "--disable-log-requests"]
+          {{- else }}
+          args: ["--model-id", "/weights", "--hostname", "127.0.0.1", "--port", "8000"]
+          {{- end }}
+          env:
+            - { name: HF_HUB_OFFLINE, value: "1" }
+            - { name: TRANSFORMERS_OFFLINE, value: "1" }
+            - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
+            - { name: VLLM_NO_USAGE_STATS, value: "1" }
+            - { name: DO_NOT_TRACK, value: "1" }
+            - { name: HOME, value: /tmp }
+            - { name: XDG_CACHE_HOME, value: /tmp/cache }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          resources:
+            requests: { cpu: {{ .Values.cpu | quote }}, memory: {{ .Values.memory | quote }} }
+            limits:
+              cpu: {{ .Values.cpu | quote }}
+              memory: {{ .Values.memory | quote }}
+              {{- if eq $kind "vllm" }}
+              nvidia.com/gpu: "1"
+              {{- end }}
+          volumeMounts:
+            - { name: weights, mountPath: /weights, readOnly: true }
+            - { name: cache, mountPath: /tmp }
+            - { name: shm, mountPath: /dev/shm }
+        - name: tls
+          image: {{ .Values.tlsProxyImage | quote }}
+          command: ["nginx"]
+          args: ["-c", "/config/nginx.conf", "-g", "daemon off;"]
+          ports: [{ name: https, containerPort: 8443 }]
+          readinessProbe: { httpGet: { scheme: HTTPS, path: /health, port: https }, periodSeconds: 5 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          resources: { requests: { cpu: 20m, memory: 32Mi }, limits: { cpu: 200m, memory: 64Mi } }
+          volumeMounts:
+            - { name: config, mountPath: /config, readOnly: true }
+            - { name: tls, mountPath: /tls, readOnly: true }
+            - { name: proxy-tmp, mountPath: /tmp }
+      volumes:
+        - name: weights
+          persistentVolumeClaim: { claimName: {{ required "set weightsClaim to a preloaded model volume" .Values.weightsClaim | quote }}, readOnly: true }
+        - { name: cache, emptyDir: { sizeLimit: 2Gi } }
+        - { name: shm, emptyDir: { medium: Memory, sizeLimit: 1Gi } }
+        - { name: proxy-tmp, emptyDir: { sizeLimit: 32Mi } }
+        - { name: config, configMap: { name: {{ $name }}-proxy } }
+        - { name: tls, secret: { secretName: {{ required "set tlsSecret for this service's private hostname" .Values.tlsSecret | quote }}, defaultMode: 288 } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/instance: {{ $name }} }
+  ports: [{ name: https, port: 443, targetPort: https }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/instance: {{ $name }} } }
+  policyTypes: [Ingress, Egress]
+  egress: []
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $client | quote }} } }
+          podSelector: { matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-api, agentsec-discovery-scheduler, zasp-model-qualify] }] }
+      ports: [{ protocol: TCP, port: 8443 }]
+{{- end }}

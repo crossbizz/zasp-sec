@@ -85,6 +85,11 @@ The registry alone is a record of decisions. To enforce it on traffic, route the
 
 ## Read Zasp records from an MCP client
 
-Point a Streamable HTTP client at `https://<your Zasp address>/mcp` and use a product API token with `view`. The server offers `list_agents` and `get_attack_path` to eligible tokens. Send the returned cursor to continue an inventory page. A browser session with the corresponding permissions can also read session intent, add-on deployment review and agent posture through `inspect_session`, `get_addon_drift` and `get_posture_summary`.
+Point a Streamable HTTP client at `https://<your Zasp address>/mcp` and use a product API token with `view`. The server offers `list_agents` and `get_attack_path` to eligible tokens. Send the returned cursor to continue an inventory page. A browser session with the corresponding permissions can also read session intent, add-on deployment review and agent posture through `inspect_session`, `get_addon_drift` and `get_posture_summary`. For a deployment review, supply both the version `id` and target `agent_id`.
 
 Each tool uses the current product route and its scope and object checks. Browser calls require the console Origin, CSRF token and expected scope. Tool calls are stateless. Clients send a single JSON-RPC message per POST and accept both `application/json` and `text/event-stream`.
+
+
+Clients with `manage_workflows` may use `propose_policy` to save a draft using a stable product `request_id`, short `name`, exact `tool_action` and proposed `effect` of `monitor` or `block`. Retry with the original request ID. The returned scoped review URL opens the draft for separate operator review and rollout.
+
+Eligible browser sessions can use `request_containment` with the ID of an existing pending session-isolation approval, or `trigger_verification` with the ID of an open remediated case. These tools return a scoped human review URL. The approval form rechecks its target and requires a fresh browser session. Case verification requires owner-approved signed evidence.

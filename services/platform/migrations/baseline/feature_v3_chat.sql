@@ -32,6 +32,10 @@ END $chat_rls$;
 
 -- Verify effective consent at each admission/readback. The model dispatch also
 -- pins residency, credential material, model and the qualified deployment.
+ALTER TABLE public.zasp_security_agent_chat_messages
+ ADD COLUMN IF NOT EXISTS approved_session_read boolean NOT NULL DEFAULT false,
+ ADD COLUMN IF NOT EXISTS reserved_nano_credits bigint CHECK(reserved_nano_credits>0);
+
 CREATE OR REPLACE FUNCTION zasp_authorization80.chat_allowed(o text,w text,e text,config jsonb) RETURNS boolean
 LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $allowed$
  SELECT EXISTS(
@@ -56,7 +60,7 @@ $allowed$;
 
 CREATE OR REPLACE FUNCTION zasp_authorization80.analyst_threads(o text,w text,e text,a text,s text,op text,t text,studio text,revision bigint) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $threads$
-DECLARE proof jsonb; value jsonb; history jsonb; profile jsonb;
+DECLARE proof jsonb; value jsonb; history jsonb; profile jsonb; handoff jsonb;
 BEGIN
  IF op NOT IN('getAnalystThreads','getAnalystThread','createAnalystThread') THEN RAISE EXCEPTION USING ERRCODE='22023';END IF;
  proof:=zasp_authorization80.product_request(o,w,e,a,op,'investigate_sessions','session',s,false,true,false,op='createAnalystThread');
@@ -92,6 +96,24 @@ BEGIN
     (x.request_id,'user',x.question,x.created_at,'[]'::jsonb),(x.assistant_id,'assistant',x.answer,x.finished_at,x.evidence_ids)) v(id,role,text,created_at,evidence_ids)
    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id,x.status)=(o,w,e,a,s,t,'answered')) m;
   value:=value||jsonb_build_object('messages',history);
+  IF EXISTS (SELECT FROM public.zasp_security_agent_chat_threads x
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.id)=(o,w,e,a,s,t) AND x.studio_id IS NOT NULL
+   AND (zasp_authorization80.studio_revision(o,w,e,x.studio_id,x.studio_revision)#>'{definition,approval_required_tools}')?'inspect_session') THEN
+   value:=value||jsonb_build_object('requires_session_read_approval',true);
+  END IF;
+  -- Return a handoff descriptor only for an admitted, current Studio revision
+  -- and a committed, cited answer. The approval itself has a separate object
+  -- check through the product's existing authorized workflow read routes.
+  SELECT jsonb_build_object('studio_id',x.studio_id,'revision',x.studio_revision,'proposal',d.item#>>'{definition,proposal}','message_id',m.assistant_id)
+   INTO handoff FROM public.zasp_security_agent_chat_threads x
+   CROSS JOIN LATERAL (SELECT zasp_authorization80.studio_revision(o,w,e,x.studio_id,0) item) d
+   CROSS JOIN LATERAL (SELECT m.assistant_id FROM public.zasp_security_agent_chat_messages m WHERE
+    (m.organization_id,m.workspace_id,m.environment_id,m.owner_id,m.session_id,m.thread_id,m.status)=(o,w,e,a,s,t,'answered')
+    AND jsonb_array_length(m.evidence_ids)>0 ORDER BY m.finished_at DESC,m.assistant_id DESC LIMIT 1) m
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.id)=(o,w,e,a,s,t) AND x.studio_id IS NOT NULL
+    AND (d.item->>'revision')::bigint=x.studio_revision AND d.item#>>'{definition,require_approval}'='true'
+    AND d.item#>>'{definition,proposal}' IN('request_containment','propose_policy');
+  IF handoff IS NOT NULL THEN value:=value||jsonb_build_object('handoff',handoff); END IF;
  END IF;
  RETURN value;
 END $threads$;
@@ -113,6 +135,10 @@ BEGIN
  END IF;
  SELECT * INTO prior FROM public.zasp_security_agent_chat_messages x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id,x.request_id)=(o,w,e,a,s,t,k);
  IF q->>'phase'='start' THEN
+  IF (profile#>'{definition,approval_required_tools}')?'inspect_session' THEN
+   IF q->'approved_read_tools' IS DISTINCT FROM '["inspect_session"]'::jsonb THEN RETURN '"approval_required"'::jsonb; END IF;
+   IF proof->'fresh_auth' IS DISTINCT FROM 'true'::jsonb THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='fresh session read approval required'; END IF;
+  ELSIF coalesce(jsonb_array_length(q->'approved_read_tools'),0)>0 THEN RETURN '"ineligible"'::jsonb; END IF;
   IF NOT coalesce(length(q->>'question') BETWEEN 1 AND 1000 AND public.zasp_valid_product_id(q->>'assistant_id'),false) THEN RAISE EXCEPTION USING ERRCODE='22023';END IF;
   IF prior.request_id IS NOT NULL THEN
    IF prior.question IS DISTINCT FROM q->>'question' OR prior.status<>'answered' THEN RETURN '"conflict"'::jsonb;END IF;
@@ -121,15 +147,25 @@ BEGIN
   IF EXISTS(SELECT FROM public.zasp_security_agent_chat_messages x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id,x.status)=(o,w,e,a,s,t,'pending') AND x.created_at>now()-interval '2 minutes') THEN RETURN '"conflict"'::jsonb;END IF;
   IF (SELECT count(*) FROM public.zasp_security_agent_chat_messages x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id)=(o,w,e,a,s,t))>=24 THEN RETURN '"limit"'::jsonb;END IF;
   cost:=(cfg->>'cost')::bigint;
+  IF pinned.studio_id IS NOT NULL AND EXISTS(
+   SELECT FROM public.zasp_security_agent_chat_messages x
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id)=(o,w,e,a,s,t)
+   HAVING count(*)>=(profile#>>'{definition,max_steps}')::int OR count(*)>count(x.reserved_nano_credits)
+    OR coalesce(sum(x.reserved_nano_credits),0)+cost>(profile#>>'{definition,budget_nano_credits}')::bigint
+  ) THEN RETURN '"limit"'::jsonb; END IF;
   SELECT monthly_budget_nano_credits INTO cap FROM public.zasp_environment_ai_controls WHERE (organization_id,workspace_id,environment_id)=(o,w,e) FOR SHARE;
   IF cost IS NULL OR cost<=0 OR cap IS NULL OR cost>cap THEN RETURN '"budget"'::jsonb;END IF;
   content:=zasp_authorization80.session_intent_evidence(o,w,e,s);
+  IF (profile#>>'{definition,minimum_evidence_confidence}') IS NOT NULL AND jsonb_typeof(content)='array' THEN
+   SELECT coalesce(jsonb_agg(item ORDER BY pos),'[]'::jsonb) INTO content FROM jsonb_array_elements(content) WITH ORDINALITY obs(item,pos)
+   WHERE item->>'confidence'='exact' OR (profile#>>'{definition,minimum_evidence_confidence}'='strong' AND item->>'confidence'='strong');
+  END IF;
   IF content IS NULL OR content='null'::jsonb OR jsonb_array_length(content)=0 THEN RETURN '"no_evidence"'::jsonb;END IF;
   INSERT INTO public.zasp_ai_monthly_usage AS u VALUES(o,w,e,month_key,cost) ON CONFLICT(organization_id,workspace_id,environment_id,month_start)
   DO UPDATE SET reserved_nano_credits=u.reserved_nano_credits+cost WHERE u.reserved_nano_credits<=cap-cost;
   IF NOT FOUND THEN RETURN '"budget"'::jsonb;END IF;
-  INSERT INTO public.zasp_security_agent_chat_messages(organization_id,workspace_id,environment_id,owner_id,session_id,thread_id,request_id,assistant_id,question,status)
-  VALUES(o,w,e,a,s,t,k,q->>'assistant_id',q->>'question','pending');
+  INSERT INTO public.zasp_security_agent_chat_messages(organization_id,workspace_id,environment_id,owner_id,session_id,thread_id,request_id,assistant_id,question,status,approved_session_read,reserved_nano_credits)
+  VALUES(o,w,e,a,s,t,k,q->>'assistant_id',q->>'question','pending',coalesce(q->'approved_read_tools'='["inspect_session"]'::jsonb,false),cost);
   PERFORM zasp_authorization80.product_settled(proof);
   RETURN jsonb_build_object('assistant_id',q->>'assistant_id','evidence',content);
  END IF;
@@ -140,6 +176,7 @@ BEGIN
  ELSIF q->>'phase'='fail' THEN
   UPDATE public.zasp_security_agent_chat_messages x SET status='failed',finished_at=clock_timestamp() WHERE (x.organization_id,x.workspace_id,x.environment_id,x.owner_id,x.session_id,x.thread_id,x.request_id)=(o,w,e,a,s,t,k);
  ELSE RAISE EXCEPTION USING ERRCODE='22023';END IF;
+ PERFORM zasp_authorization80.ai_observed_health(o,w,e,cfg->>'provider',cfg->>'model','security_agent_triage',cfg->>'deployment_digest',q->>'phase'='finish');
  PERFORM zasp_authorization80.product_settled(proof);
  RETURN jsonb_build_object('assistant_id',prior.assistant_id,'text',q->>'text','evidence_ids',q->'evidence_ids');
 END $turn$;

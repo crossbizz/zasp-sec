@@ -76,11 +76,11 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     const catalog = parseCatalogLink(location, session);
     if (catalog.state === "scope_mismatch") return <div className="page" role="alert">This catalog link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
     if (catalog.state === "invalid") return <div className="page" role="alert">This catalog link is invalid. Open the framework in Compliance.</div>;
-    const compliance = catalog.state === "selected" ? { state: "none" as const } : parseComplianceLink(location, session);
+    const compliance = catalog.state === "selected" ? { state: "none" as const } : parseComplianceLink(location, { ...session, principalID: session.principal.id });
     if (compliance.state === "scope_mismatch") return <div className="page" role="alert">This compliance link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
     if (compliance.state === "invalid") return <div className="page" role="alert">This compliance link is invalid. Open evidence from the authorized list.</div>;
     const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
-    return <SessionsComplianceView surface="compliance" client={client} selectedCatalog={catalog.state === "selected" ? catalog.target : undefined} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
+    return <SessionsComplianceView surface="compliance" client={client} selectedExport={compliance.state === "export" ? compliance.id : undefined} selectedCatalog={catalog.state === "selected" ? catalog.target : undefined} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
       principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID, generation: queryGeneration,
       permitted: queryScopeKey !== null && session.hasCapability("compliance.read") && ["view", "view_audit", "view_compliance"].every(permission => session.permissions.includes(permission)),
       fresh: session.isFreshAuthenticated, reauthenticate: session.reauthenticate,
@@ -96,12 +96,15 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} canRemediate={session.hasCapability("security-agents.write")} canReadRuns={session.hasCapability("security-agents.read")} onNavigate={navigate} selectedID={selected?.id} activityScope={session} />;
   if (path === "/red-team/results") return <ProductionRedTeamView selectedID={selected?.kind === "test_run" ? selected.id : undefined} scopeKey={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
   if (path === "/test/attack-lab") return <ProductionAttackLabView key={`${session.principal.id}/${queryGeneration}`} canWrite={session.hasCapability("red-team.write")} selectedID={selected?.kind === "attack_lab_run" ? selected.id : undefined} />;
-  if (path === "/policies") return <ProductionPoliciesView initialAgent={selected?.kind === "purpose" ? selected.id : undefined} canWrite={session.hasCapability("policies.write")} />;
-  if (path === "/protect/guardrails") return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
+  if (path === "/policies") return <ProductionPoliciesView key={`${queryScopeKey}/${queryGeneration}/${selected?.id ?? "all"}`} initialPolicy={selected?.kind === "policy_draft" ? selected.id : undefined} initialAgent={selected?.kind === "purpose" ? selected.id : undefined} canWrite={session.hasCapability("policies.write")} />;
+  if (path === "/protect/guardrails") {
+    const initialSection = new URL(location, "https://zasp.invalid").searchParams.get("tab") === "calibration" ? "calibration" : "rules";
+    return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}/${initialSection}`} initialSection={initialSection} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
+  }
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
-  if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" onNavigate={navigate} />;
+  if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" selectedID={selected?.kind === "approval" ? selected.id : undefined} onNavigate={navigate} />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
   if (path === "/investigate/sessions") return <ProductionSessionsView enableInvestigation={session.hasCapability("sessions.read")} key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;

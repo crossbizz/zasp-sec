@@ -4652,6 +4652,8 @@ paths:
       security: [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { $ref: '#/components/parameters/BrowserMutationCSRFToken' }
+        - { $ref: '#/components/parameters/BrowserMutationOrigin' }
       requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [grant], properties: { grant: { type: string, pattern: '^[0-9a-f]{64}$' } } } } } }
       responses:
         '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportFile' } } } }
@@ -7940,6 +7942,8 @@ components:
         mission: { type: string, maxLength: 512 }
         trigger: { type: string, enum: [manual, finding_opened] }
         read_tools: { type: array, maxItems: 4, minItems: 1, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift] } }
+        approval_required_tools: { type: array, maxItems: 4, uniqueItems: true, items: { type: string, enum: [list_agents, get_posture_summary, inspect_session, get_addon_drift] } }
+        minimum_evidence_confidence: { type: string, enum: [strong, exact] }
         proposal: { type: string, enum: [none, propose_policy, request_containment] }
         require_approval: { type: boolean, const: true }
         max_steps: { type: integer, minimum: 1, maximum: 6 }
@@ -7986,15 +7990,26 @@ components:
         text: { type: string, maxLength: 8192 }
         created_at: { type: string, format: date-time }
         evidence_ids: { type: array, maxItems: 24, items: { $ref: '#/components/schemas/ProductID' } }
+    StudioReviewHandoff:
+      type: object
+      additionalProperties: false
+      required: [studio_id, revision, proposal, message_id]
+      properties:
+        studio_id: { $ref: '#/components/schemas/ProductID' }
+        revision: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        proposal: { type: string, enum: [propose_policy, request_containment] }
+        message_id: { $ref: '#/components/schemas/ProductID' }
     AnalystThread:
       type: object
       additionalProperties: false
       required: [id, session_id, created_at, messages]
       properties:
+        requires_session_read_approval: { type: boolean }
         id: { $ref: '#/components/schemas/ProductID' }
         session_id: { $ref: '#/components/schemas/ProductID' }
         created_at: { type: string, format: date-time }
         messages: { type: array, maxItems: 48, items: { $ref: '#/components/schemas/AnalystMessage' } }
+        handoff: { $ref: '#/components/schemas/StudioReviewHandoff' }
     AnalystThreadPage:
       type: object
       additionalProperties: false
@@ -8006,7 +8021,8 @@ components:
       additionalProperties: false
       required: [message, request_id]
       properties:
-        message: { type: string, maxLength: 2048 }
+        message: { type: string, maxLength: 1000 }
+        approved_read_tools: { type: array, maxItems: 1, uniqueItems: true, items: { type: string, const: inspect_session } }
         request_id: { $ref: '#/components/schemas/ProductID' }
     DelegationHop:
       type: object
@@ -8311,6 +8327,17 @@ components:
         manifest_digest: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
         completeness: { type: string, enum: [complete, partial] }
         review_path: { type: [string, 'null'] }
+    OfflineAddonObservation:
+      type: object
+      additionalProperties: false
+      required: [scanner, profile_digest, evidence_id, indicators, observed_at, expires_at]
+      properties:
+        scanner: { type: string, enum: [gvisor_tetragon, cisco_skill_scanner, nvidia_skillspector] }
+        profile_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        indicators: { type: array, uniqueItems: true, maxItems: 4, items: { type: string, enum: [honeytoken_read, honeytoken_egress_denied, unexpected_process, filesystem_write, instruction_override, credential_reference, network_reference, broad_permissions] } }
+        observed_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
     AddonVersionDetail:
       type: object
       additionalProperties: false
@@ -8322,6 +8349,7 @@ components:
         provenance: { type: string, const: reported }
         ruleset: { type: string, enum: [zasp-static.v1, zasp-static.v2] }
         framework_evidence: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/AddonFrameworkEvidence' } }
+        offline_observations: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/OfflineAddonObservation' } }
         findings: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AddonFindingCount' } }
         review_state: { type: string, enum: [pending, approved, rejected, revoked] }
         revision: { type: integer, minimum: 0 }

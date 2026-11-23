@@ -10,8 +10,15 @@ export function InlineSessionDetail({ title, onClose, children }: { title: strin
     panel.current?.focus();
     return () => { if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
   }, []);
-  return <section role="dialog" aria-modal={false} aria-label={title} tabIndex={-1} ref={panel}
-    onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>
+  useEffect(() => {
+    const node = panel.current;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+    };
+    node?.addEventListener("keydown", escape);
+    return () => node?.removeEventListener("keydown", escape);
+  }, [onClose]);
+  return <section role="dialog" aria-modal={false} aria-label={title} tabIndex={-1} ref={panel}>
     <Card title={title} action={<Button onClick={onClose}>Close</Button>}>{children}</Card>
   </section>;
 }

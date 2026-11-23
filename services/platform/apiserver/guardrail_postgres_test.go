@@ -33,9 +33,19 @@ func TestGuardrailDecisionSectionPostgres(t *testing.T) {
 
 	t.Run("the record cannot hold the interaction text", func(t *testing.T) {
 		columns := database.text(`SELECT string_agg(column_name||':'||data_type,',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema='public' AND table_name='zasp_guardrail_decisions'`)
-		const want = "organization_id:text,workspace_id:text,environment_id:text,id:text,principal_id:text,direction:text,decision:text,rules:jsonb,input_bytes:integer,content_digest:bytea,agent_id:text,tool_name:text,policy_version:bigint,created_at:timestamp with time zone"
+		const want = "organization_id:text,workspace_id:text,environment_id:text,id:text,principal_id:text,direction:text,decision:text,rules:jsonb,input_bytes:integer,content_digest:bytea,agent_id:text,tool_name:text,policy_version:bigint,created_at:timestamp with time zone,semantic_lease:uuid,semantic_job:text,semantic_rule:text,semantic_profile:text,semantic_region:text,semantic_deployment_digest:text,semantic_state:text,semantic_deadline:timestamp with time zone"
 		if columns != want {
 			t.Fatalf("columns=%s", columns)
+		}
+		const privacyID = "pid_70000000-0000-4000-8000-000000000011"
+		if _, err := decide(record(privacyID, "[]")); err != nil {
+			t.Fatal(err)
+		}
+		for _, column := range []string{"semantic_job", "semantic_rule", "semantic_profile", "semantic_region", "semantic_deployment_digest", "semantic_state"} {
+			_, err := database.conn.Exec(database.ctx, "UPDATE public.zasp_guardrail_decisions SET "+column+"=$1 WHERE id=$2", "untrusted interaction content", privacyID)
+			if code, _ := remediationSQLState(err); code != "23514" {
+				t.Fatalf("privacy constraint for %s returned %s", column, code)
+			}
 		}
 		for name, q := range map[string]string{
 			"a text member":             strings.Replace(record("pid_70000000-0000-4000-8000-000000000001", "[]"), `"matched":[]`, `"matched":[],"text":"hello"`, 1),

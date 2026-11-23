@@ -9,12 +9,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/zasp-ai/zasp-sec/cmd/zaspctl/internal/browserlink"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/cmd/zaspctl/internal/browserlink"
 )
 
 func calibrationExport(args []string, stdin io.Reader, stdout, stderr io.Writer, transport http.RoundTripper) int {
@@ -49,7 +50,7 @@ func calibrationExport(args []string, stdin io.Reader, stdout, stderr io.Writer,
 		fmt.Fprintln(stderr, "The grant must be 64 lowercase hexadecimal characters.")
 		return 2
 	}
-	file, err := os.OpenFile(*output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	file, err := createCalibrationFile(*output)
 	if err != nil {
 		fmt.Fprintln(stderr, "Choose a new output file in a writable directory.")
 		return 2

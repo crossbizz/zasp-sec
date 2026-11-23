@@ -54,27 +54,75 @@ func (a DeploymentAttestation) ModelName() string {
 	}
 	return a.Deployment.Model
 }
-func (a DeploymentAttestation) MeasuredDriver(token string) (ProviderDriver, string, error) {
+
+// credential is a bearer value for mounted-token profiles, or the path to the
+// rotating projected JWT for a workload identity profile.
+func (a DeploymentAttestation) MeasuredDriver(credential string) (ProviderDriver, string, error) {
+	if a.Bedrock == nil && a.Vertex == nil {
+		d, err := a.Deployment.Driver()
+		return d, a.Deployment.Digest(), err
+	}
+	b, err := a.cloudBinding(credential)
+	if err != nil {
+		return nil, "", err
+	}
+	return b.Driver, b.Binding.DeploymentDigest, nil
+}
+
+func (a DeploymentAttestation) cloudBinding(credential string) (*BoundModel, error) {
+	region := ""
 	if a.Vertex != nil {
-		v := a.Vertex
+		region = a.Vertex.Location
+	} else if a.Bedrock != nil {
+		m := bedrockHost.FindStringSubmatch(a.Bedrock.VPCEHost)
+		if len(m) != 2 {
+			return nil, ErrInvalidConfiguration
+		}
+		region = m[1]
+	} else {
+		return nil, ErrInvalidConfiguration
+	}
+	var workload *privateFederation
+	var err error
+	bindingKey := credential
+	if a.WorkloadIdentity != nil {
+		workload, err = newPrivateFederation(a.ProviderMode(), region, credential, *a.WorkloadIdentity)
+		if err != nil {
+			return nil, err
+		}
+		encoded, _ := json.Marshal(a.WorkloadIdentity)
+		bindingKey = string(encoded)
+	}
+	var b BedrockBinding
+	var driver ProviderDriver
+	if v := a.Vertex; v != nil {
 		ip, err := netip.ParseAddr(v.PrivateIP)
 		if err != nil {
-			return nil, "", ErrInvalidConfiguration
+			return nil, ErrInvalidConfiguration
 		}
-		d, b, err := NewVertexForPurpose(a.Purpose, v.Location, v.Project, ip, v.Model, v.CredentialReference, token, v.MaximumNanoCredits)
-		return d, b.DeploymentDigest, err
+		d, bind, err := NewVertexForPurpose(a.Purpose, v.Location, v.Project, ip, v.Model, v.CredentialReference, bindingKey, v.MaximumNanoCredits)
+		if err != nil {
+			return nil, err
+		}
+		d.workload = workload
+		driver, b = d, bind
+	} else {
+		cfg := a.Bedrock
+		ip, err := netip.ParseAddr(cfg.PrivateIP)
+		if err != nil {
+			return nil, ErrInvalidConfiguration
+		}
+		d, bind, err := NewBedrockForPurpose(a.Purpose, cfg.VPCEHost, ip, cfg.Model, cfg.CredentialReference, bindingKey, cfg.MaximumNanoCredits)
+		if err != nil {
+			return nil, err
+		}
+		d.workload = workload
+		driver, b = d, bind
 	}
-	if a.Bedrock == nil {
-		driver, err := a.Deployment.Driver()
-		return driver, a.Deployment.Digest(), err
+	if workload != nil {
+		b.DeploymentDigest = digest(b.DeploymentDigest + "\n" + b.CredentialDigest + "\n" + b.CredentialReference)
 	}
-	b := a.Bedrock
-	ip, err := netip.ParseAddr(b.PrivateIP)
-	if err != nil {
-		return nil, "", ErrInvalidConfiguration
-	}
-	driver, binding, err := NewBedrockForPurpose(a.Purpose, b.VPCEHost, ip, b.Model, b.CredentialReference, token, b.MaximumNanoCredits)
-	return driver, binding.DeploymentDigest, err
+	return &BoundModel{Driver: driver, Binding: b}, nil
 }
 
 type deepFixture struct {

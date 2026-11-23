@@ -9,6 +9,7 @@ import { Button, Card } from "../../components/ui";
 import { Time } from "../../components/time";
 import { workflowIdempotencyKey } from "../workflows/api";
 
+const Handoff = lazy(() => import("./InvestigationHandoff"));
 const Conversation = lazy(() => import("./AnalystConversation"));
 const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 function decodeSummary(value: unknown, sessionID: string): AnalystThreadSummary {
@@ -20,6 +21,12 @@ function decodeHistory(value: unknown, sessionID: string, id: string): AnalystTh
   const summary = decodeSummary(value, sessionID);
   if (summary.id !== id || !("messages" in summary) || !Array.isArray(summary.messages) || summary.messages.length > 48 ||
     summary.messages.some(m => !m || !productID.test(m.id) || !["user", "assistant"].includes(m.role) || typeof m.text !== "string" || !Array.isArray(m.evidence_ids) || !m.evidence_ids.every((e: string) => productID.test(e)))) throw Error("Invalid thread history");
+  if ("requires_session_read_approval" in summary && typeof summary.requires_session_read_approval !== "boolean") throw Error("Invalid session read approval");
+  if ("handoff" in summary && summary.handoff !== undefined) {
+    const handoff = summary.handoff as NonNullable<AnalystThread["handoff"]>;
+    if (!handoff || !productID.test(handoff.studio_id) || !Number.isSafeInteger(handoff.revision) || handoff.revision<1 ||
+      !["propose_policy","request_containment"].includes(handoff.proposal) || !summary.messages.some(m=>m.id===handoff.message_id && m.role==="assistant" && m.evidence_ids.length>0)) throw Error("Invalid investigation handoff");
+  }
   return value as AnalystThread;
 }
 export type StudioBinding = { id: string; revision: number };
@@ -71,7 +78,7 @@ function InvestigationThreads({ sessionID, studio }: { sessionID: string; studio
         {list.data.map(t => <li key={t.id}><button type="button" className="row-title" onClick={() => setSelected(t.id)}>Investigation from <Time value={t.created_at} /></button></li>)}</ul></details>}</>
       : list.status === "loading" || list.status === "idle" ? <p role="status">Loading investigations…</p> : <p role="status">Investigations are unavailable in this scope. <Button onClick={() => void list.retry()}>Retry</Button></p>}
     {error && <p role="alert">{error}</p>}
-    {selected && (history.data ? <Suspense fallback={<p>Loading conversation…</p>}><Conversation key={selected} thread={history.data} /></Suspense>
+    {selected && (history.data ? <Suspense fallback={<p>Loading conversation…</p>}><Conversation key={selected} thread={history.data} onCommitted={() => void history.retry()} />{history.data.handoff && <Handoff thread={history.data} handoff={history.data.handoff} />}</Suspense>
       : <p role="status">{history.status === "error" || history.status === "forbidden" ? "Investigation history is unavailable." : "Loading investigation history…"}</p>)}
   </div>;
 }

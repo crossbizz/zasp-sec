@@ -19,11 +19,17 @@ END $policy$;
 
 CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_review_summary(o text,w text,e text,i text,p text) RETURNS jsonb
 LANGUAGE plpgsql STABLE SET search_path=pg_catalog,public AS $summary$
-DECLARE s jsonb; allowed jsonb; refs jsonb;
+DECLARE s jsonb; allowed jsonb; refs jsonb; observations jsonb; access_rows jsonb; access_refs jsonb;
 BEGIN
  IF p='addon_semantic_audit' THEN
   SELECT jsonb_build_object('findings',findings,'ruleset',ruleset,'evidence_refs',coalesce((SELECT jsonb_agg(f->>'rule_id' ORDER BY f->>'rule_id') FROM jsonb_array_elements(findings) f),'[]'::jsonb),'tool_ids','[]'::jsonb)
    INTO s FROM public.zasp_addon_versions WHERE (organization_id,workspace_id,environment_id,id)=(o,w,e,i);
+  observations:=zasp_authorization80.addon_observations(o,w,e,i);
+  IF jsonb_array_length(observations)>0 THEN
+   SELECT jsonb_agg(x->>'evidence_id' ORDER BY x->>'evidence_id') INTO refs FROM jsonb_array_elements(observations) x;
+   s:=s||jsonb_build_object('evidence_refs',(s->'evidence_refs')||refs,'offline_observations',
+    (SELECT jsonb_agg(jsonb_build_object('scanner',x->>'scanner','indicators',x->'indicators','evidence_id',x->>'evidence_id') ORDER BY x->>'scanner') FROM jsonb_array_elements(observations) x));
+  END IF;
   RETURN s;
  END IF;
  SELECT jsonb_build_object('signals',coalesce(a.winning_attributes#>'{discovery,signals}','[]'::jsonb),
@@ -36,6 +42,16 @@ BEGIN
   UNION SELECT a.tool_id FROM public.zasp_agent_suggestions a WHERE (a.organization_id,a.workspace_id,a.environment_id,a.agent_id)=(o,w,e,i)
   ORDER BY 1 LIMIT 64
  ) candidates;
+ IF p='agent_purpose_draft' AND coalesce(public.zasp_inventory_scope_state(o,w,e)->>'phase'='cutover',false) THEN
+  SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.category,x.target_id,x.evidence_id),'[]'::jsonb),
+   coalesce(jsonb_agg(DISTINCT x.evidence_id ORDER BY x.evidence_id),'[]'::jsonb) INTO access_rows,access_refs FROM (
+   SELECT edge.category,edge.target_kind,edge.target_id,edge.outcome,edge.evidence_ids[1] AS evidence_id,
+    CASE WHEN edge.target_kind='tool' AND allowed IS NOT NULL THEN NOT (allowed ? edge.target_id) ELSE NULL END AS outside_approved_tools
+   FROM public.zasp_inventory_agent_capability_edges(o,w,e,i) edge
+   WHERE edge.evidence_ids[1] IS NOT NULL ORDER BY edge.category,edge.target_id,edge.evidence_ids[1] LIMIT 8
+  ) x;
+  s:=s||jsonb_build_object('access_evidence',access_rows,'iam_evidence_refs',access_refs,'evidence_refs',(s->'evidence_refs')||access_refs);
+ END IF;
  RETURN s||jsonb_build_object('tool_ids',refs);
 END $summary$;
 
@@ -77,6 +93,7 @@ BEGIN
    AND zasp_authorization80.inventory_review_result_valid(p,finish->'result',evidence) THEN
     degraded:=degraded||jsonb_build_object('coverage_degraded',false,'result',finish->'result');
   END IF;
+  PERFORM zasp_authorization80.ai_observed_health(o,w,e,c->>'provider',c->>'model',p,c->>'deployment_digest',NOT (degraded->>'coverage_degraded')::boolean);
   UPDATE public.zasp_inventory_semantic_reviews r SET result=degraded WHERE (r.organization_id,r.workspace_id,r.environment_id,r.actor,r.request_key)=(o,w,e,a,k);
   RETURN degraded;
  END IF;
@@ -100,6 +117,7 @@ BEGIN
   IF NOT coalesce(r->>'kind' IN ('autonomous_agent','simple_llm_app','mcp_server','skill_addon','not_an_agent_fp'),false) THEN RETURN false; END IF;
  ELSIF p='agent_purpose_draft' THEN
   fields:=ARRAY['allowed_tool_ids','iam_mismatches']; refs:='iam_mismatches';
+  IF jsonb_typeof(r->'iam_mismatches') IS DISTINCT FROM 'array' OR NOT (coalesce(s->'iam_evidence_refs','[]'::jsonb) @> (r->'iam_mismatches')) THEN RETURN false; END IF;
   IF jsonb_typeof(r->'allowed_tool_ids') IS DISTINCT FROM 'array' OR NOT ((s->'tool_ids') @> (r->'allowed_tool_ids')) OR jsonb_array_length(r->'allowed_tool_ids')>64 THEN RETURN false; END IF;
  ELSE
   fields:=ARRAY['threat_score','risk_score','tags','citations']; refs:='citations';

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.zasp_organization_ai_controls (
  require_zero_retention boolean NOT NULL DEFAULT true,
  version bigint NOT NULL DEFAULT 1 CHECK(version > 0),
  CHECK(require_zero_retention AND allowed_residency IN ('customer_vpc_only','us_only','eu_only','us_eu')),
- CHECK(cardinality(allowed_modes) BETWEEN 1 AND 6 AND array_position(allowed_modes,NULL) IS NULL AND allowed_modes <@ ARRAY['deterministic_only','zasp_vpc_slm','privatelink_bedrock','privatelink_vertex','byoc_self_hosted','dev_openrouter'] AND 'deterministic_only'=ANY(allowed_modes))
+ CHECK(cardinality(allowed_modes)>=1 AND cardinality(allowed_modes)<=6 AND array_position(allowed_modes,NULL) IS NULL AND allowed_modes <@ ARRAY['deterministic_only','zasp_vpc_slm','privatelink_bedrock','privatelink_vertex','byoc_self_hosted','dev_openrouter'] AND 'deterministic_only'=ANY(allowed_modes))
 );
 CREATE TABLE IF NOT EXISTS public.zasp_environment_ai_controls (
  organization_id text NOT NULL, workspace_id text NOT NULL, environment_id text NOT NULL, environment_class text NOT NULL,

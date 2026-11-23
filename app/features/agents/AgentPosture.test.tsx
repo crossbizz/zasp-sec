@@ -18,3 +18,12 @@ it("rejects deployment claims without matching evidence",() => {
   expect(() => decodeAgentPosture({...posture,deployment_kind:"deployed_agent"},agent)).toThrow();
   expect(() => decodeAgentPosture({...posture,deployment_kind:"deployed_agent",deployment_evidence:"runtime_receipt"},agent)).toThrow();
 });
+it("displays only post-sync results cited to the current discovery",async () => {
+  const evidence="pid_22222222-2222-4222-8222-222222222222";
+  const review={purpose:"agent_discovery_verify",state:"reviewed",evidence_id:evidence,result:{kind:"simple_llm_app",evidence_refs:[evidence]}} as const;
+  const raw={...posture,discovery_evidence_id:evidence,sync_reviews:[review]};
+  const supported=decodeAgentPosture(raw,agent);
+  render(<APIProvider><AgentPosture agent={agent} capabilities={[]} getPosture={async () => supported}/></APIProvider>);
+  expect(await screen.findByText(/simple llm app/)).toBeVisible();
+  expect(() => decodeAgentPosture({...raw,sync_reviews:[{...review,result:{kind:"simple_llm_app",evidence_refs:[agent]}}]},agent)).toThrow();
+});

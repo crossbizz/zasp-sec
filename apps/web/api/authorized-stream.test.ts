@@ -9,7 +9,7 @@ function fixture(payload: string, limit = 4096, mime = "text/event-stream") {
     "Content-Type": mime, "Cache-Control": "no-store", "x-vercel-ai-ui-message-stream": "v1",
   } }));
   const client = createAPIClient({ fetch, maximumResponseBytes: limit, getExpectedScope: () => current, getCSRFToken: () => "z".repeat(32) });
-  const open = () => client.openAuthorizedEventStream(pid(4), pid(5), "Which attempts were prevented?", pid(6));
+  const open = (approval=false) => client.openAuthorizedEventStream(pid(4), pid(5), "Which attempts were prevented?", pid(6), undefined, approval);
   return { open, fetch, switchScope: () => { current = [pid(1),pid(2),pid(7)].join("/"); } };
 }
 describe("scoped analyst event stream", () => {
@@ -23,6 +23,13 @@ describe("scoped analyst event stream", () => {
     expect(request.redirect).toBe("error");
     expect(new URL(request.url).origin).toBe(window.location.origin);
     expect(await request.json()).toEqual({message:"Which attempts were prevented?",request_id:pid(6)});
+  });
+  it("includes the single native read grant only on an approved question", async () => {
+    const f=fixture("data: [DONE]\n\n");
+    await (await f.open(true)).text();
+    expect(await f.fetch.mock.calls[0][0].json()).toEqual({message:"Which attempts were prevented?",request_id:pid(6),approved_read_tools:["inspect_session"]});
+    await (await f.open()).text();
+    expect(await f.fetch.mock.calls[1][0].json()).not.toHaveProperty("approved_read_tools");
   });
   it("rejects a wrong media type, oversized body and a caller without scope", async () => {
     await expect(fixture("payload",4096,"text/html").open()).rejects.toThrow();

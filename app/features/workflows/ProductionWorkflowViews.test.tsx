@@ -39,6 +39,19 @@ const receiptHeaders = {
 const runtimePolicy: Policy = { id: "policy-runtime-history", name: "Runtime history", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "invoke" }], action: "block", rollout: "monitor", failure_mode: "closed" };
 
 describe("production policy evidence", () => {
+  it("opens the linked MCP draft for review without applying it", async () => {
+    const id = "policy-mcp-30000001-0000-4000-8000-000000000001";
+    const GET = vi.fn(async (path: string, opts?: {params:{path:{id:string}}}) => {
+      if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));
+      if (path === "/api/v1/policies/{id}" && opts?.params.path.id === id) return jsonResult({...runtimePolicy, id, rollout:"draft"},200,{ETag:'"1"'});
+      return jsonResult({items:[],page_info:{next_cursor:null,has_more:false}});
+    });
+    const POST = vi.fn();
+    render(<APIProvider client={{GET,POST} as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite initialPolicy={id} /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+    expect(await screen.findByText(`Policy detail · ${id}`)).toBeVisible();
+    expect(POST).not.toHaveBeenCalled();
+  });
+
   it("creates a provider tool-class draft and edits its exact condition with the acknowledged revision", async () => {
     const GET = vi.fn(async (path: string) => {
       if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));

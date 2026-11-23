@@ -27,7 +27,7 @@ func TestStatelessToolsUseOnlyAuthorizedReads(t *testing.T) {
 		r.Header.Set("Accept", "application/json, text/event-stream")
 		r.Header.Set("Mcp-Protocol-Version", "2025-11-25")
 		w := httptest.NewRecorder()
-		Serve(w, r, visible, read)
+		Serve(w, r, visible, read, nil)
 		if w.Code != 200 || !json.Valid(w.Body.Bytes()) || w.Header().Get("Mcp-Session-Id") != "" {
 			t.Fatalf("%d %s", w.Code, w.Body)
 		}
@@ -63,7 +63,7 @@ func TestToolResultHidesDeniedRecord(t *testing.T) {
 func TestBatchCannotBypassPerRequestBound(t *testing.T) {
 	r := httptest.NewRequest("POST", "https://zasp.example/mcp", strings.NewReader(`[{"jsonrpc":"2.0","id":1,"method":"tools/list"}]`))
 	w := httptest.NewRecorder()
-	Serve(w, r, nil, nil)
+	Serve(w, r, nil, nil, nil)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("batch status %d", w.Code)
 	}

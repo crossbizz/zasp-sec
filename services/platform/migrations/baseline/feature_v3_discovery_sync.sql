@@ -98,6 +98,7 @@ BEGIN
   AND zasp_authorization80.inventory_review_result_valid(j.purpose,r,j.summary)
   AND (j.purpose<>'agent_discovery_verify' OR jsonb_array_length(r->'evidence_refs')>0),false);
  UPDATE public.zasp_discovery_sync_reviews SET finished_at=now(),result=CASE WHEN accepted THEN r END WHERE lease=l;
+ PERFORM zasp_authorization80.ai_observed_health(j.organization_id,j.workspace_id,j.environment_id,j.binding->>'provider',j.binding->>'model',j.purpose,j.binding->>'deployment_digest',accepted);
  IF accepted AND j.purpose='agent_discovery_verify' AND r->>'kind'='autonomous_agent' THEN
   INSERT INTO public.zasp_discovery_sync_reviews(organization_id,workspace_id,environment_id,integration_id,snapshot_id,agent_id,evidence_id,purpose)
   VALUES(j.organization_id,j.workspace_id,j.environment_id,j.integration_id,j.snapshot_id,j.agent_id,j.evidence_id,'agent_purpose_draft') ON CONFLICT DO NOTHING;

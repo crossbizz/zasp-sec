@@ -1,8 +1,8 @@
 package aigateway
 
 import (
+	"encoding/json"
 	"io"
-	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -18,38 +18,60 @@ type BoundModel struct {
 // be ambiguous, so a worker must never try a second host after a provider error.
 func ConfiguredPrivateModel(p Purpose, bedrockPrefix string) *BoundModel {
 	vertexPrefix := strings.Replace(bedrockPrefix, "ZASP_BEDROCK_", "ZASP_VERTEX_", 1)
-	useVertex := os.Getenv(vertexPrefix+"TOKEN_FILE") != ""
-	if useVertex && os.Getenv(bedrockPrefix+"TOKEN_FILE") != "" {
+	configured := func(prefix string) bool {
+		return os.Getenv(prefix+"TOKEN_FILE") != "" || os.Getenv(prefix+"WORKLOAD_IDENTITY_FILE") != "" || os.Getenv(prefix+"SUBJECT_TOKEN_FILE") != ""
+	}
+	useVertex := configured(vertexPrefix)
+	if useVertex && configured(bedrockPrefix) {
 		return nil
 	}
-	prefix, ipField := bedrockPrefix, "VPCE_IP"
+	prefix := bedrockPrefix
 	if useVertex {
-		prefix, ipField = vertexPrefix, "PSC_IP"
+		prefix = vertexPrefix
 	}
-	token, ok := privateModelToken(os.Getenv(prefix + "TOKEN_FILE"))
-	if !ok {
-		return nil
-	}
-	ip, err := netip.ParseAddr(os.Getenv(prefix + ipField))
-	if err != nil {
-		return nil
+	var a DeploymentAttestation
+	a.Purpose = p
+	credFile := os.Getenv(prefix + "TOKEN_FILE")
+	profileFile := os.Getenv(prefix + "WORKLOAD_IDENTITY_FILE")
+	jwtFile := os.Getenv(prefix + "SUBJECT_TOKEN_FILE")
+	var credential string
+	if profileFile != "" || jwtFile != "" {
+		if credFile != "" || profileFile == "" || jwtFile == "" {
+			return nil
+		}
+		profile, ok := privateModelToken(profileFile)
+		if !ok {
+			return nil
+		}
+		var workload WorkloadIdentityProfile
+		dec := json.NewDecoder(strings.NewReader(profile))
+		dec.DisallowUnknownFields()
+		if dec.Decode(&workload) != nil || dec.Decode(new(any)) != io.EOF {
+			return nil
+		}
+		a.WorkloadIdentity, credential = &workload, jwtFile
+	} else {
+		token, ok := privateModelToken(credFile)
+		if !ok {
+			return nil
+		}
+		credential = token
 	}
 	cost, err := strconv.ParseInt(os.Getenv(prefix+"MAX_NANO_CREDITS"), 10, 64)
 	if err != nil {
 		return nil
 	}
-	model, reference := os.Getenv(prefix+"MODEL"), os.Getenv(prefix+"CREDENTIAL_REFERENCE")
-	var driver ProviderDriver
-	var b BedrockBinding
+	model, ref := os.Getenv(prefix+"MODEL"), os.Getenv(prefix+"CREDENTIAL_REFERENCE")
 	if useVertex {
-		driver, b, err = NewVertexForPurpose(p, os.Getenv(prefix+"LOCATION"), os.Getenv(prefix+"PROJECT"), ip, model, reference, token, cost)
+		a.Vertex = &VertexQualificationProfile{PrivateIP: os.Getenv(prefix + "PSC_IP"), Location: os.Getenv(prefix + "LOCATION"), Project: os.Getenv(prefix + "PROJECT"), Model: model, CredentialReference: ref, MaximumNanoCredits: cost}
 	} else {
-		driver, b, err = NewBedrockForPurpose(p, os.Getenv(prefix+"VPCE_HOST"), ip, model, reference, token, cost)
+		a.Bedrock = &BedrockQualificationProfile{PrivateIP: os.Getenv(prefix + "VPCE_IP"), VPCEHost: os.Getenv(prefix + "VPCE_HOST"), Model: model, CredentialReference: ref, MaximumNanoCredits: cost}
 	}
+	bound, err := a.cloudBinding(credential)
 	if err != nil {
 		return nil
 	}
-	return &BoundModel{Driver: driver, Binding: b}
+	return bound
 }
 
 func privateModelToken(path string) (string, bool) {

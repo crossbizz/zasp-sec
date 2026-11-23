@@ -9,6 +9,15 @@ ALTER TABLE public.zasp_guardrail_decisions
  ADD COLUMN IF NOT EXISTS semantic_deployment_digest text,
  ADD COLUMN IF NOT EXISTS semantic_state text,
  ADD COLUMN IF NOT EXISTS semantic_deadline timestamptz;
+ALTER TABLE public.zasp_guardrail_decisions DROP CONSTRAINT IF EXISTS zasp_guardrail_semantic_metadata;
+ALTER TABLE public.zasp_guardrail_decisions ADD CONSTRAINT zasp_guardrail_semantic_metadata CHECK(
+ (semantic_job IS NULL OR semantic_job IN('heuristic_fp_verify','indirect_injection_screen')) AND
+ (semantic_rule IS NULL OR semantic_rule IN('injection.instruction_override','injection.role_switch','injection.hidden_text','injection.tool_call')) AND
+ (semantic_profile IS NULL OR semantic_profile IN('mistralai/Shieldstral-1.0-3B','nvidia/Nemotron-3.5-Content-Safety','Horizon-Labs/prompt-injection-guard-base','patronus-studio/wolf-defender-prompt-injection')) AND
+ (semantic_region IS NULL OR semantic_region IN('us','eu')) AND
+ (semantic_deployment_digest IS NULL OR semantic_deployment_digest ~ '^sha256:[0-9a-f]{64}$') AND
+ (semantic_state IS NULL OR semantic_state IN('pending','coverage_degraded','suppressed_benign','shadow','confirmed','detected','screened'))
+);
 CREATE UNIQUE INDEX IF NOT EXISTS zasp_guardrail_semantic_lease ON public.zasp_guardrail_decisions(semantic_lease) WHERE semantic_lease IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION zasp_authorization80.semantic_job_cap(o text,w text,e text,p text,profile text,region text,digest text) RETURNS bigint
@@ -67,6 +76,10 @@ BEGIN
   ELSIF observed.semantic_job='indirect_injection_screen' AND outcome='screened' THEN
    result:=CASE WHEN prob>=0.95 THEN 'detected' ELSE 'screened' END;
   END IF;
+ END IF;
+ IF cap>0 THEN
+  PERFORM zasp_authorization80.ai_observed_health(o,w,e,v.mode,observed.semantic_profile,observed.semantic_job,observed.semantic_deployment_digest,result<>'coverage_degraded')
+   FROM public.zasp_environment_ai_controls v WHERE (v.organization_id,v.workspace_id,v.environment_id)=(o,w,e);
  END IF;
  UPDATE public.zasp_guardrail_decisions SET semantic_lease=NULL,semantic_state=result,
  decision=CASE result WHEN 'suppressed_benign' THEN 'allow' WHEN 'detected' THEN 'block' ELSE observed.decision END

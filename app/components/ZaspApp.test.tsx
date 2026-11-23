@@ -208,8 +208,9 @@ describe("Zasp application", () => {
   it("uses server capabilities for production navigation without the demo store", async () => {
     const id = "pid_10000005-0000-4000-8000-000000000005";
     const at = "2026-11-01T12:00:00Z";
+    const freshUntil = "2026-11-01T12:15:00Z";
     const summary = { id, name: "Production payment agent", kind: "agent", owner: "payments", team: "platform", tags: [], evidence_id: id, confidence_basis_points: 9500,
-      first_seen: at, last_seen: at, observed_at: at, fresh_until: at, freshness_state: "fresh", version: 1, provider: "kubernetes", source_kind: "kubernetes_agent",
+      first_seen: at, last_seen: at, observed_at: at, fresh_until: freshUntil, freshness_state: "fresh", version: 1, provider: "kubernetes", source_kind: "kubernetes_agent",
       discovery: { method: "declared", platform: "kubernetes_agent", signals: [] }, management_state: "managed", last_activity_at: null, activity_state: "unknown" };
     const client = createAPIClient({
       generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
@@ -233,7 +234,7 @@ describe("Zasp application", () => {
         }
         if (path === "/api/v1/agents") return apiJSON({ items: [summary], page_info: { next_cursor: null, has_more: false } });
         if (path === `/api/v1/agents/${id}`) return apiJSON({ summary,
-          sources: [{ integration_id: id, provider: "kubernetes", source: "kubernetes", source_identifier: "sha256:" + "b".repeat(64), snapshot_id: id, generation: 1, evidence_id: id, confidence_basis_points: 9500, observed_at: at, fresh_until: at, projection_version: 1, winning: true }],
+          sources: [{ integration_id: id, provider: "kubernetes", source: "kubernetes", source_identifier: "sha256:" + "b".repeat(64), snapshot_id: id, generation: 1, evidence_id: id, confidence_basis_points: 9500, observed_at: at, fresh_until: freshUntil, projection_version: 1, winning: true }],
           evidence: [{ id, checksum: "sha256:" + "a".repeat(64), media_type: "application/json", schema_version: "raw_v1", parser_version: "parser_v1", tool_version: "tool_v1", collected_at: at, size_bytes: 128 }] });
         if (["capabilities", "relationships", "sessions"].some(suffix => path === `/api/v1/agents/${id}/${suffix}`)) return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
         if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
@@ -243,6 +244,7 @@ describe("Zasp application", () => {
     render(<ZaspApp client={client} />);
     expect(await screen.findByRole("heading", { name: "Security overview" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Agents" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /High-risk paths|Critical exposures|Pending approvals/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Policies" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Red Team" })).not.toBeInTheDocument();
 	expect(screen.getByRole("combobox", { name: "Authorized scope" })).toBeVisible();

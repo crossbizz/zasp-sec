@@ -1,0 +1,5 @@
+apiVersion: v2
+name: zasp-private-model
+description: Private inference service for one qualified Zasp model deployment
+type: application
+version: 0.1.0

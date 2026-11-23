@@ -32,7 +32,7 @@ export function decodeAgentPosture(raw: unknown, agent: string): AgentPostureSum
       if (review.result && review.purpose === "agent_discovery_verify" &&
         (!review.result.evidence_refs.length || !review.result.evidence_refs.every((v:unknown) => v === review.evidence_id))) return invalid();
       if (review.result && review.purpose === "agent_purpose_draft" &&
-        (!review.result.allowed_tool_ids.every(validID) || !review.result.iam_mismatches.every((v:unknown) => v === review.evidence_id))) return invalid();
+        (!review.result.allowed_tool_ids.every(validID) || !review.result.iam_mismatches.every(validID))) return invalid();
     }
   }
   return r as AgentPostureSummary;

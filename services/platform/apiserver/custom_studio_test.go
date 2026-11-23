@@ -81,7 +81,7 @@ func TestCustomStudioValidatesBoundedToolsAndAuthority(t *testing.T) {
 		t.Fatal("valid workflow rejected")
 	}
 	for _, change := range []func(*studioDefinition){
-		func(d *studioDefinition) { d.Steps = 7 }, func(d *studioDefinition) { d.Steps = 0 }, func(d *studioDefinition) { d.Approval = false },
+		func(d *studioDefinition) { d.ApprovalTools = []string{"get_addon_drift"} }, func(d *studioDefinition) { d.MinimumConfidence = "pretend" }, func(d *studioDefinition) { d.Steps = 7 }, func(d *studioDefinition) { d.Steps = 0 }, func(d *studioDefinition) { d.Approval = false },
 		func(d *studioDefinition) { d.Tools = []string{"write_policy"} }, func(d *studioDefinition) { d.Tools = []string{"inspect_session", "inspect_session"} },
 		func(d *studioDefinition) { d.Proposal = "execute" }, func(d *studioDefinition) { d.Budget = 1000000000001 },
 	} {

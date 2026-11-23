@@ -20,15 +20,17 @@ const (
 )
 
 type studioDefinition struct {
-	Name     string   `json:"name"`
-	Mission  string   `json:"mission"`
-	Trigger  string   `json:"trigger"`
-	Tools    []string `json:"read_tools"`
-	Proposal string   `json:"proposal"`
-	Approval bool     `json:"require_approval"`
-	Steps    int      `json:"max_steps"`
-	Budget   int64    `json:"budget_nano_credits"`
-	Model    string   `json:"model_pin"`
+	ApprovalTools     []string `json:"approval_required_tools,omitempty"`
+	MinimumConfidence string   `json:"minimum_evidence_confidence,omitempty"`
+	Name              string   `json:"name"`
+	Mission           string   `json:"mission"`
+	Trigger           string   `json:"trigger"`
+	Tools             []string `json:"read_tools"`
+	Proposal          string   `json:"proposal"`
+	Approval          bool     `json:"require_approval"`
+	Steps             int      `json:"max_steps"`
+	Budget            int64    `json:"budget_nano_credits"`
+	Model             string   `json:"model_pin"`
 }
 
 func init() {
@@ -59,6 +61,15 @@ func (d studioDefinition) valid() bool {
 			return false
 		}
 		seen[tool] = true
+	}
+	if d.MinimumConfidence != "" && !stringIn(d.MinimumConfidence, "strong", "exact") {
+		return false
+	}
+	for _, tool := range d.ApprovalTools {
+		if !seen[tool] {
+			return false
+		}
+		delete(seen, tool)
 	}
 	return true
 }
@@ -119,14 +130,31 @@ func serveCustomStudio(db JSONDatabase, w http.ResponseWriter, r *http.Request, 
 		writeProductionError(w, r, ErrRepositoryNotFound)
 	}
 }
+func validStudioFields(raw json.RawMessage) bool {
+	fields := []string{"name", "mission", "trigger", "read_tools", "proposal", "require_approval", "max_steps", "budget_nano_credits", "model_pin"}
+	var entries map[string]json.RawMessage
+	if json.Unmarshal(raw, &entries) != nil {
+		return false
+	}
+	for _, key := range []string{"approval_required_tools", "minimum_evidence_confidence"} {
+		if v, ok := entries[key]; ok {
+			if string(v) == "null" || key == "minimum_evidence_confidence" && string(v) == `""` {
+				return false
+			}
+			fields = append(fields, key)
+		}
+	}
+	return exactJSONFields(raw, fields...)
+}
 func saveStudioDefinition(db JSONDatabase, w http.ResponseWriter, r *http.Request, route RoutedOperation, args []any) {
 	var raw json.RawMessage
 	var def studioDefinition
-	if decodeProductionJSON(r, &raw) != nil || !validAgentExportContentJSON(string(raw)) || !exactJSONFields(raw, "name", "mission", "trigger", "read_tools", "proposal", "require_approval", "max_steps", "budget_nano_credits", "model_pin") || json.Unmarshal(raw, &def) != nil || !def.valid() {
+	if decodeProductionJSON(r, &raw) != nil || !validAgentExportContentJSON(string(raw)) || !validStudioFields(raw) || json.Unmarshal(raw, &def) != nil || !def.valid() {
 		writeProductionError(w, r, ErrRepositoryOperation)
 		return
 	}
 	sort.Strings(def.Tools)
+	sort.Strings(def.ApprovalTools)
 	encoded, _ := json.Marshal(def)
 	var id, key, expectedID string
 	var n int64

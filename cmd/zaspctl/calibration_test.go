@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -48,7 +49,7 @@ func TestCalibrationExportDownloadsVerifiedJSONL(t *testing.T) {
 		t.Fatal("wrong artifact", err)
 	}
 	st, err := os.Stat(path)
-	if err != nil || st.Mode().Perm() != 0600 {
+	if err != nil || runtime.GOOS != "windows" && st.Mode().Perm() != 0600 {
 		t.Fatal("permissions", err)
 	}
 	if run() == 0 || requests != 1 {

@@ -28,6 +28,20 @@ function page(action: string) {
 }
 
 describe("production scoped activity navigation", () => {
+  it("opens the calibration CLI link at the export form, including when metrics are unavailable", async () => {
+    window.history.replaceState({}, "", "/protect/guardrails?tab=calibration#calibration-exports");
+    vi.stubGlobal("fetch", async (request: Request) => {
+      const path = new URL(request.url).pathname;
+      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), capabilities: ["policies.read", "compliance.read"] });
+      if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
+      return json({ code: "unavailable", message: "Temporarily unavailable", retryable: true, correlation_id: principal }, 503);
+    });
+    render(<ZaspProductionApp />);
+    expect(await screen.findByRole("heading", { name: "Export calibration labels" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Calibration" })).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toHaveAttribute("id", "calibration-exports");
+    expect(screen.getByRole("button", { name: "Verify identity to export" })).toBeVisible();
+  });
   it("routes a generic audit compliance selector to typed compliance detail, including reload", async () => {
     window.history.replaceState({}, "", `/compliance/evidence?source_kind=administration&source_id=audit:42&source_version=1&organization_id=${organization}&workspace_id=${workspace}&environment_id=${environment}`);
     const reads: string[] = [];
