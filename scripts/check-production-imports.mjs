@@ -12,6 +12,8 @@ const allowedExactSources = new Set([
 	// Production probe catalog of the red team page; reads only the API client.
 	"app/features/redteam/ProbeLibrary.tsx",
 	"app/features/redteam/redTeamMutationRecovery.ts",
+  "app/features/redteam/RedTeamRecordStatus.tsx",
+  "app/features/redteam/redTeamPendingRecord.ts",
 	"app/features/redteam/recommendations.ts",
 	"app/features/redteam/outcomes.ts",
 	"app/features/redteam/api.ts",
@@ -41,8 +43,6 @@ const allowedExactSources = new Set([
   "app/features/tools/cli-release-pin.json",
   // Public release surface IDs and labels shared by catalog review and the UI.
   "services/platform/compliancemap/surfaces.json",
-]);
-const allowedBrowserStorageSources = new Set([
 ]);
 const forbiddenExactSources = new Set([
   "app/domain/store.tsx",
@@ -124,7 +124,7 @@ export async function checkSourceGraph({ root = repositoryRoot, entries = produc
     const violation = sourceViolation(path);
     if (violation) throw new Error(`${violation} is reachable from production: ${path}`);
     const source = await readFile(file, "utf8");
-    if (browserStoragePattern.test(source) && !allowedBrowserStorageSources.has(path)) {
+    if (browserStoragePattern.test(source)) {
       throw new Error(`browser storage is reachable from production: ${path}`);
     }
     for (const specifier of importSpecifiers(source)) {

@@ -36,7 +36,7 @@ func exerciseStudioInventoryTurn(t *testing.T, b *installedBaseline, h *discover
 	}
 	t.Setenv("ZASP_STUDIO_INVENTORY_MCP_FILE", f)
 	b.seed(func() {
-		seedTypedInventoryAgent(b.exec, b.o, b.w, b.e, admin.identity.PrincipalID.String(), agent, b.id(), b.id(), b.id(), b.id())
+		seedCurrentMCPAgent(b, admin, agent)
 	})
 	calls := 0
 	h.analyst.inventoryStatus = func(_ context.Context, wanted inventorymcp.Target) (string, error) {

@@ -1,6 +1,7 @@
 """Publish only fixed scalar observations; raw evidence stays in the artifact."""
 import hashlib, json, os, re, stat, sys
 from pathlib import Path
+from query_diagnostics import CODES, PHASES
 
 def bounded(path):
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -43,6 +44,19 @@ if paths:
     summary["resultSHA256"] = digest
     failure = value.get("failureClass")
     summary["failureClass"] = failure if failure is None or isinstance(failure, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,47}", failure) else "omitted"
+    for key, allowed in (("failureCode", CODES), ("failurePhase", PHASES)):
+        diagnostic = value.get(key)
+        if isinstance(diagnostic, str) and diagnostic in allowed:
+            summary[key] = diagnostic
+    if summary.get("failureCode") == "cleanup_refused":
+        cleanups = value.get("ownedSessionCleanup")
+        if isinstance(cleanups, list) and 1 <= len(cleanups) <= 256 and isinstance(cleanups[-1], dict):
+            last = cleanups[-1]
+            for key in ("completed", "unknown", "intervened"):
+                if type(last.get(key)) is bool:
+                    summary["cleanup" + key.capitalize()] = last[key]
+            if isinstance(last.get("reason"), str) and last["reason"] in CODES:
+                summary["cleanupReason"] = last["reason"]
     records = value.get("requests")
     if not isinstance(records, list) or len(records) > 256:
         raise ValueError("request bound")

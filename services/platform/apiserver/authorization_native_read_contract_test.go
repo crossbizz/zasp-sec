@@ -39,13 +39,11 @@ func exerciseP7FoundationReadContracts(t *testing.T, ctx context.Context, owner,
 	const syncID = "pid_98000007-0000-4000-8000-000000000007"
 	const snapshot = "pid_98000008-0000-4000-8000-000000000008"
 	const evidence = "pid_98000009-0000-4000-8000-000000000009"
-	seedTypedInventoryAgent(exec, o, w, e, p, agent, integration, syncID, snapshot, evidence)
+	seedTypedInventoryAgent(exec, o, w, e, p, agent, integration, syncID, snapshot, evidence, "44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30")
 	exec(`INSERT INTO zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version) VALUES($1,$2,$3,$4,$4,$5,'createPolicy','policy',$6,1)`, o, w, e, audit, p, policies[1])
 	exec(`INSERT INTO zasp_workflow_idempotency(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,request_digest,response) VALUES($1,$2,$3,$4,'createPolicy','foreign-owner-key',digest('receipt','sha256'),'{}')`, o, w, e, other)
 	exec(`INSERT INTO zasp_workflow_receipts(organization_id,workspace_id,environment_id,principal_id,receipt_id,operation,idempotency_key,intent,result,resource_kind,resource_id,resource_version,audit_id,correlation_id) VALUES($1,$2,$3,$4,$5,'createPolicy','foreign-owner-key','{}','{}','policy',$6,1,$7,$7)`, o, w, e, other, receipt, policies[1], audit)
 	exec(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$4,$5,'exact','otlp','tool','invoke','Native purpose',$4,clock_timestamp())`, o, w, e, session, p)
-	// The unchanged typed detail reader requires a complete, last-good source
-	// snapshot, its evidence and exactly one winning observation, not just a row.
 	exec(`INSERT INTO zasp_risk_finding_factors(organization_id,workspace_id,environment_id,finding_id,position,name,evidence_id) VALUES($1,$2,$3,$4,1,'native purpose',$5)`, o, w, e, findings[1], audit)
 	exec(`INSERT INTO zasp_risk_attack_paths(organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) VALUES($1,$2,$3,$4,$5,$6,'verified')`, o, w, e, findings[1], agent, session)
 	exec(`INSERT INTO zasp_risk_attack_path_nodes(organization_id,workspace_id,environment_id,path_id,position,node_id) VALUES($1,$2,$3,$4,1,$5)`, o, w, e, findings[1], agent)
@@ -263,8 +261,9 @@ func exerciseP7FoundationReadContracts(t *testing.T, ctx context.Context, owner,
 
 // Product inventory reads require a committed snapshot and matching winning
 // evidence after the scope's typed-inventory cutover.
-func seedTypedInventoryAgent(exec func(string, ...any), o, w, e, p, agent, integration, syncID, snapshot, evidence string) {
-	exec(`INSERT INTO zasp_inventory_cutover_state(organization_id,workspace_id,environment_id,phase,rule_catalog_digest,legacy_digest,typed_digest,backfilled_at,equivalent_at,cutover_at) VALUES($1,$2,$3,'cutover','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30',decode(repeat('11',32),'hex'),decode(repeat('11',32),'hex'),transaction_timestamp(),transaction_timestamp(),transaction_timestamp())`, o, w, e)
+// seedTypedInventoryAgent records a last-good snapshot and its winning observation.
+func seedTypedInventoryAgent(exec func(string, ...any), o, w, e, p, agent, integration, syncID, snapshot, evidence, ruleCatalogDigest string) {
+	exec(`INSERT INTO zasp_inventory_cutover_state(organization_id,workspace_id,environment_id,phase,rule_catalog_digest,legacy_digest,typed_digest,backfilled_at,equivalent_at,cutover_at) VALUES($1,$2,$3,'cutover',$4,decode(repeat('11',32),'hex'),decode(repeat('11',32),'hex'),transaction_timestamp(),transaction_timestamp(),transaction_timestamp())`, o, w, e, ruleCatalogDigest)
 	exec(`INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,state) VALUES($1,$2,$3,$4,'kubernetes','1.0.0','Native purpose provenance','active')`, o, w, e, integration)
 	exec(`INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,parser_version,tool_version) VALUES($1,$2,$3,$4,$5,'native-purpose-provenance',decode(repeat('ab',32),'hex'),'manual',$6,'parser_v1','tool_v1')`, o, w, e, syncID, integration, p)
 	exec(`INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at) VALUES($1,$2,$3,$4,$5,$6,1,'kubernetes','s3://zasp-evidence/native-purpose/manifest.json',decode(repeat('ab',32),'hex'),'complete',decode(repeat('ab',32),'hex'),'{}',true,true,now(),now())`, o, w, e, snapshot, integration, syncID)

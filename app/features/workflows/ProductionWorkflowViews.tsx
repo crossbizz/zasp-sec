@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { APIProductError, APITransportError } from "../../../apps/web/api/client";
 import type { IntegrationWebhookTestStatus } from "../../../apps/web/api/generated";
@@ -16,6 +16,7 @@ import { IntegrationRemediationRole } from "./IntegrationRemediationRole";
 import { createIntegrationsAPI, createPoliciesAPI, IntegrationDiscoveryConflict, IntegrationRevocationPending, ReferenceAuthorizationConflict, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 import { Time } from "../../components/time";
+import { isSaaSCallback } from "./saasSignIn";
 import { ConnectorCatalog } from "./ConnectorCatalog";
 
 type Feedback = { tone: "status" | "alert"; message: string } | null;
@@ -32,7 +33,7 @@ type PolicyMutationResult =
 type IntegrationMutationIntent =
   | { kind: "create"; value: IntegrationInput }
   | { kind: "update"; id: string; version: string; value: IntegrationUpdateInput }
-  | { kind: "authorize-oauth"; id: string; connectorKey: string }
+  | { kind: "authorize-oauth"; id: string; connectorKey: string; version: string }
   | { kind: "authorize-reference"; id: string; version: string; connectorKey: ReferenceConnectorKey }
   | { kind: "sync"; id: string; version: string }
   | { kind: "webhook-test"; id: string; version: string }
@@ -167,10 +168,34 @@ export function ProductionPoliciesView({ canWrite, initialAgent, initialPolicy }
   </div>;
 }
 
-export function ProductionIntegrationsView({ canWrite, navigateAuthorization = defaultNavigateAuthorization, navigate = defaultNavigateProduct }: { canWrite: boolean; navigateAuthorization?: (target: string) => void; navigate?: (target: string) => void }) {
-  const { client, invalidate } = useAPI();
+type IntegrationsProps = { canWrite: boolean; navigateAuthorization?: (target: string) => void; navigate?: (target: string) => void; location?: string };
+export function ProductionIntegrationsView(props: IntegrationsProps) {
+  const session = useOptionalSession();
+  const {queryScopeKey, queryGeneration} = useAPI();
+  const principal = session?.status === "authenticated" ? session.principal.id : null;
+  const location = props.location ?? (typeof window === "undefined" ? "" : window.location.pathname + window.location.search + window.location.hash);
+  if (isSaaSCallback(location)) return <div className="page"><PageHeader title="Provider sign-in" /><Card><p>Return to the Zasp tab where you started sign-in and select <strong>Finish sign-in</strong>. You can close this tab.</p></Card></div>;
+  return <IntegrationsWorkspace key={JSON.stringify([principal,queryScopeKey,queryGeneration,props.canWrite])} {...props} />;
+}
+
+type InPageSignIn = { authorization: IntegrationAuthorization; integrationID: string; version: string; owner: string; epoch: number };
+
+function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNavigateAuthorization, navigate = defaultNavigateProduct }: IntegrationsProps) {
+  const { client, invalidate, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
   const session = useOptionalSession();
   const fresh = session !== null && session.status === "authenticated" && session.isFreshAuthenticated;
+  const scope = session?.status === "authenticated" ? `${session.organizationID}/${session.workspaceID}/${session.environmentID}` : null;
+  const owner = session?.status === "authenticated" && canWrite && session.hasCapability("integrations.write") && queryScopeKey === scope && scope
+    ? `${session.principal.id}/${scope}/${queryGeneration}` : null;
+  const activeOwner = useRef<string | null>(null);
+  const epoch = useRef(0);
+  const [pendingSignIn, setPendingSignIn] = useState<InPageSignIn | null>(null);
+  useLayoutEffect(() => {
+    activeOwner.current = owner;
+    return () => { activeOwner.current = null; epoch.current += 1; };
+  }, [owner]);
+  const ownsSignIn = (key: string, sequence: number, expiry: number, stale: number) =>
+    activeOwner.current === key && epoch.current === sequence && expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration();
   const api = useMemo(() => createIntegrationsAPI(client), [client]);
   const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>("integrations", canWrite);
   const catalog = useAPIQuery("workflow:integration-catalog", api.listCatalog);
@@ -179,6 +204,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const [configuration, setConfiguration] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<Versioned<Integration> | null>(null);
+  useLayoutEffect(() => () => { epoch.current += 1; }, [selected?.value.id, selected?.version]);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
   const [freshness, setFreshness] = useState<DiscoveryLoad<Versioned<IntegrationFreshness>>>({ status: "idle" });
@@ -272,7 +298,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
     void api.getIntegrationSchedule(id).then((value) => { if (discoveryGeneration.current === generation) { setSchedule({ status: "success", value }); if (value) setScheduleCadence(String(value.value.cadence_seconds)); } }, () => { if (discoveryGeneration.current === generation) setSchedule({ status: "error" }); });
     void api.listIntegrationSyncs(id).then((value) => { if (discoveryGeneration.current === generation) setSyncs({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setSyncs({ status: "error" }); });
   };
-  const open = (id: string) => void run(async () => { const value = await api.getIntegration(id); setSelected(value); setName(value.value.name); setConfiguration({ ...value.value.configuration }); loadDiscovery(value.value); });
+  const open = (id: string) => void run(async () => { epoch.current += 1; setPendingSignIn(null); const value = await api.getIntegration(id); setSelected(value); setName(value.value.name); setConfiguration({ ...value.value.configuration }); loadDiscovery(value.value); });
   const testWebhook = () => {
     if (!selected || selected.value.connector_key !== "generic-webhook") return;
     discoveryGeneration.current += 1;
@@ -314,47 +340,66 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
           return { kind: "authorized", receipt };
         })));
   };
+  const startOAuth = async (intent: Extract<IntegrationMutationIntent, { kind: "authorize-oauth" }>, request: () => Promise<IntegrationAuthorization>) => {
+    if (intent.connectorKey !== SAAS_CONNECTOR_KEY) { navigateAuthorization((await request()).authorization_url); return; }
+    if (!owner || !fresh) throw new Error("Sign-in requires current access");
+    const sequence = ++epoch.current;
+    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
+    setPendingSignIn(null);
+    const authorization = await request();
+    if (ownsSignIn(owner, sequence, expiry, stale)) setPendingSignIn({ authorization, integrationID: intent.id, version: intent.version, owner, epoch: sequence });
+  };
   const authorizeOAuth = () => {
     if (!selected || !isOAuthAuthorizationCandidate(selected.value, selectedManifest) || session?.status !== "authenticated") return;
-    const current = selected;
-    const connectorKey = current.value.connector_key;
-    const intent = { kind: "authorize-oauth", id: current.value.id, connectorKey } as const;
-    void run(async () => {
-      const authorization = await mutation.execute(intent, async (frozen, attempt) => {
-        if (frozen.kind !== "authorize-oauth") throw new TypeError("Invalid retained OAuth authorization intent");
-        return api.authorizeIntegration(frozen.id, attempt);
-      });
-      // A saas sign-in comes back to this page with the connection Nango
-      // created; only the tab that started it stores that connection.
-      if (connectorKey === SAAS_CONNECTOR_KEY) rememberSaaSSignIn(current.value.id);
-      navigateAuthorization(authorization.authorization_url);
-    });
+    const intent = { kind: "authorize-oauth", id: selected.value.id, connectorKey: selected.value.connector_key, version: selected.version } as const;
+    void run(() => startOAuth(intent, () => mutation.execute(intent, async (frozen, attempt) => {
+      if (frozen.kind !== "authorize-oauth") throw new TypeError("Invalid retained OAuth authorization intent");
+      return api.authorizeIntegration(frozen.id, attempt);
+    })));
   };
-  // The provider returned the browser from a saas sign-in. The connection
-  // the sign-in created is stored in the integration with an ordinary
-  // update; the integration is then authorized by reference.
-  const signInReturn = useRef(readSaaSSignInReturn());
+  const activeSignIn = pendingSignIn && pendingSignIn.owner === owner && pendingSignIn.integrationID === selected?.value.id && pendingSignIn.version === selected.version ? pendingSignIn : null;
   useEffect(() => {
-    const returned = signInReturn.current;
-    if (!returned) return;
-    signInReturn.current = null;
-    clearSaaSSignInReturn();
-    if (returned.kind === "failed") { setFeedback({ tone: "alert", message: saasSignInFailure(returned.code) }); return; }
-    if (!canWrite || !takeSaaSSignIn(returned.integrationID)) { setFeedback({ tone: "alert", message: "This sign-in was not started from this browser tab. Open the integration and sign in again." }); return; }
+    if (!activeSignIn) return;
+    const timer = window.setTimeout(() => {
+      if (epoch.current !== activeSignIn.epoch) return;
+      epoch.current += 1;
+      setPendingSignIn(null);
+      setFeedback({ tone: "alert", message: "This provider sign-in expired. Start a new sign-in." });
+    }, Math.max(0, Date.parse(activeSignIn.authorization.expires_at) - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [activeSignIn]);
+  const finishSignIn = () => {
+    const pending = activeSignIn;
+    if (!pending || busy) return;
+    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
+    const owns = () => ownsSignIn(pending.owner, pending.epoch, expiry, stale) && Date.now() < Date.parse(pending.authorization.expires_at);
+    const stop = (message: string) => { epoch.current += 1; setPendingSignIn(null); setFeedback({ tone: "alert", message }); };
     void run(async () => {
-      const current = await api.getIntegration(returned.integrationID);
-      setSelected(current); setName(current.value.name); setConfiguration({ ...current.value.configuration });
-      if (current.value.connector_key !== SAAS_CONNECTOR_KEY || current.value.configuration.connection_reference !== undefined) return;
-      const value = { name: current.value.name, configuration: { ...current.value.configuration, connection_reference: `ref:nango/connection/${returned.connectionID}` } };
-      applyMutation(await mutation.execute({ kind: "update", id: current.value.id, version: current.version, value }, async (intent, attempt) => {
-        if (intent.kind !== "update") throw new TypeError("Invalid retained integration intent");
-        return { kind: "updated", receipt: await api.updateIntegration(intent.id, intent.version, intent.value, attempt) };
-      }));
+      if (!owns()) return;
+      let status;
+      try { status = await api.getSaaSSignInStatus(pending.integrationID, pending.authorization.authorization_attempt_id); }
+      catch (error) {
+        if (!owns()) return;
+        if (error instanceof APIProductError && [401,403,404,409,410].includes(error.status)) { stop("This sign-in is no longer available in this session. Start a new sign-in."); return; }
+        setFeedback({ tone: "alert", message: "Could not verify the sign-in. Select Finish sign-in to check again." }); return;
+      }
+      if (!owns()) return;
+      if (pending.version !== `"${status.integration_version}"` || status.status === "superseded") { stop("The integration or sign-in attempt changed. Reopen the integration and start again."); return; }
+      if (status.status === "failed") { stop(saasSignInFailure(status.failure_code ?? "")); return; }
+      if (status.status !== "completed" || !status.connection_reference) { setFeedback({ tone: "status", message: "Waiting for the provider. Complete sign-in in the provider tab, then check again." }); return; }
+      const current = await api.getIntegration(pending.integrationID);
+      if (!owns()) return;
+      if (current.value.id !== pending.integrationID || current.version !== pending.version || current.value.connector_key !== SAAS_CONNECTOR_KEY || current.value.configuration.connection_reference !== undefined) { stop("The integration configuration changed. Reopen the integration before signing in again."); return; }
+      const value = { name: current.value.name, configuration: { ...current.value.configuration, connection_reference: status.connection_reference } };
+      const result = await mutation.execute({ kind: "update", id: pending.integrationID, version: pending.version, value }, async (intent, attempt) => {
+        if (intent.kind !== "update" || !owns()) throw new Error("Sign-in authority changed");
+        return { kind: "updated" as const, receipt: await api.updateIntegration(intent.id, intent.version, intent.value, attempt) };
+      });
+      if (!owns()) return;
+      epoch.current += 1; setPendingSignIn(null); applyMutation(result);
       setFeedback({ tone: "status", message: "Signed in. Authorize the integration to start collecting." });
     });
-    // Runs once, for the address the page was opened with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
   const reconcileDiscoveryConflict = async (conflict: Pick<IntegrationDiscoveryConflict, "integrationID" | "resource">) => {
     try {
       if (conflict.resource === "sync") {
@@ -443,12 +488,12 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
     void run(() => retainedReferenceAuthorization
       ? applyReferenceAuthorization(() => mutation.retry<IntegrationMutationResult>())
       : retainedOAuthAuthorization
-        ? mutation.retry<IntegrationAuthorization>().then((authorization) => { navigateAuthorization(authorization.authorization_url); })
+        ? startOAuth(mutation.retainedIntent as Extract<IntegrationMutationIntent, { kind: "authorize-oauth" }>, () => mutation.retry<IntegrationAuthorization>())
       : mutation.retry<IntegrationMutationResult>().then((result) => { applyMutation(result); }));
   };
   const retryReferenceConflictRefetch = () => pendingReferenceConflict && void run(() => reconcileReferenceConflict(pendingReferenceConflict.integrationID));
   const retryDiscoveryConflictRefetch = () => pendingDiscoveryConflict && void run(() => reconcileDiscoveryConflict(pendingDiscoveryConflict));
-  const closeSelected = () => { discoveryGeneration.current += 1; discoveryRefreshGeneration.current += 1; syncDetailGeneration.current += 1; selectedSyncID.current = null; setSelected(null); setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" }); };
+  const closeSelected = () => { epoch.current += 1; setPendingSignIn(null); discoveryGeneration.current += 1; discoveryRefreshGeneration.current += 1; syncDetailGeneration.current += 1; selectedSyncID.current = null; setSelected(null); setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" }); };
   const visibleSelected = selected ?? pendingRevocation?.receipt ?? null;
   const visibleConfiguration = selected ? configuration : pendingRevocation?.receipt.value.configuration ?? configuration;
   const revocationPending = visibleSelected?.value.status === "revoking" && mutation.isUnresolved && pendingRevocation !== null;
@@ -609,15 +654,22 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                     reference
                   </Button>
                 )}
-                {oauthAuthorizationCandidate && (
+                {oauthAuthorizationCandidate && !activeSignIn && (
                   <Button
                     variant="primary"
-                    disabled={busy || mutation.isUnresolved}
+                    disabled={busy || mutation.isUnresolved || (selected?.value.connector_key === SAAS_CONNECTOR_KEY && (!owner || !fresh))}
                     onClick={authorizeOAuth}
                   >
                     {selected?.value.connector_key === SAAS_CONNECTOR_KEY ? "Sign in to" : "Authorize"} {selectedManifest?.provider ?? selected?.value.connector_key}
                   </Button>
                 )}
+                {oauthAuthorizationCandidate && selected?.value.connector_key === SAAS_CONNECTOR_KEY && !fresh && session?.status === "authenticated" && <Button onClick={session.reauthenticate}>Reauthenticate to start sign-in</Button>}
+                {activeSignIn && <section aria-label="Provider sign-in">
+                  <a href={activeSignIn.authorization.authorization_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Continue to provider</a>
+                  <p>Complete sign-in in the provider tab, then return here.</p>
+                  <Button variant="primary" disabled={busy || mutation.isUnresolved} onClick={finishSignIn}>Finish sign-in</Button>
+                  <Button disabled={busy || mutation.isUnresolved || !fresh} onClick={authorizeOAuth}>Start a new sign-in</Button>
+                </section>}
                 <Button
                   disabled={busy || mutation.isUnresolved}
                   onClick={update}
@@ -1064,47 +1116,6 @@ function isOAuthAuthorizationCandidate(value: Integration, manifest: ConnectorMa
 function isSaaSSignInPending(value: Integration, manifest: ConnectorManifest | undefined): boolean {
   return value.connector_key === SAAS_CONNECTOR_KEY && manifest !== undefined && manifest.auth_mode === "nango_sign_in" && manifestServes(manifest, value) &&
     value.configuration.connection_reference === undefined && (value.status === "configured" || value.status === "pending_authorization");
-}
-
-const SAAS_SIGN_IN_STORAGE_KEY = "zasp.saas-sign-in";
-const SAAS_SIGN_IN_PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const SAAS_SIGN_IN_CONNECTION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const SAAS_SIGN_IN_FAILURE_CODE = /^[a-z][a-z0-9_]{1,63}$/;
-
-type SaaSSignInReturn = { readonly kind: "connected"; readonly integrationID: string; readonly connectionID: string } | { readonly kind: "failed"; readonly integrationID: string; readonly code: string };
-
-// The address the API sends the browser back to after a saas sign-in:
-// /connectors?saas_sign_in=<integration>&saas_connection=<connection id>,
-// or &saas_sign_in_error=<code>. Anything else is not a sign-in return.
-function readSaaSSignInReturn(): SaaSSignInReturn | null {
-  if (typeof window === "undefined") return null;
-  const query = new URLSearchParams(window.location.search);
-  const integrationID = query.get("saas_sign_in");
-  if (integrationID === null || !SAAS_SIGN_IN_PRODUCT_ID.test(integrationID)) return null;
-  const connectionID = query.get("saas_connection");
-  const code = query.get("saas_sign_in_error");
-  if (connectionID !== null && code === null && SAAS_SIGN_IN_CONNECTION_ID.test(connectionID)) return { kind: "connected", integrationID, connectionID };
-  if (code !== null && connectionID === null && SAAS_SIGN_IN_FAILURE_CODE.test(code)) return { kind: "failed", integrationID, code };
-  return null;
-}
-
-function clearSaaSSignInReturn(): void {
-  const target = new URL(window.location.href);
-  for (const key of ["saas_sign_in", "saas_connection", "saas_sign_in_error"]) target.searchParams.delete(key);
-  window.history.replaceState(window.history.state, "", `${target.pathname}${target.search}${target.hash}`);
-}
-
-function rememberSaaSSignIn(integrationID: string): void {
-  try { window.sessionStorage.setItem(SAAS_SIGN_IN_STORAGE_KEY, integrationID); } catch { /* Without storage the return is refused and the person signs in again. */ }
-}
-
-// Reports whether this tab started the sign-in of the integration, once.
-function takeSaaSSignIn(integrationID: string): boolean {
-  try {
-    const started = window.sessionStorage.getItem(SAAS_SIGN_IN_STORAGE_KEY);
-    window.sessionStorage.removeItem(SAAS_SIGN_IN_STORAGE_KEY);
-    return started === integrationID;
-  } catch { return false; }
 }
 
 function saasSignInFailure(code: string): string {

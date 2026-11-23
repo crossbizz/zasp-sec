@@ -3,11 +3,14 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/inventoryprojection"
 )
 
 func TestProductMCPTenantIsolatedAgentListingOnInstalledPostgres(t *testing.T) {
@@ -27,7 +30,7 @@ func TestProductMCPTenantIsolatedAgentListingOnInstalledPostgres(t *testing.T) {
 		issue("MCP policy author", `["view","manage_workflows"]`)
 		id := b.id()
 		b.seed(func() {
-			seedTypedInventoryAgent(b.exec, b.o, b.w, b.e, admin.identity.PrincipalID.String(), id, b.id(), b.id(), b.id(), b.id())
+			seedCurrentMCPAgent(b, admin, id)
 		})
 		return repo, tokens["MCP inventory reader"], tokens["MCP policy author"], id
 	}
@@ -101,4 +104,9 @@ func TestProductMCPTenantIsolatedAgentListingOnInstalledPostgres(t *testing.T) {
 			t.Fatalf("draft readback %d %s", w.Code, w.Body)
 		}
 	}
+}
+
+func seedCurrentMCPAgent(b *installedBaseline, principal installedPrincipal, id string) {
+	digest := inventoryprojection.RuleCatalogDigest()
+	seedTypedInventoryAgent(b.exec, b.o, b.w, b.e, principal.identity.PrincipalID.String(), id, b.id(), b.id(), b.id(), b.id(), hex.EncodeToString(digest[:]))
 }

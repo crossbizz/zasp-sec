@@ -12,7 +12,7 @@ const definitionID = "pid_92000001-0000-4000-8000-000000000001";
 const targetID = "pid_92000002-0000-4000-8000-000000000002";
 const runID = "pid_92000003-0000-4000-8000-000000000003";
 const scopeKey = "pid_92100001-0000-4000-8000-000000000001/pid_92100002-0000-4000-8000-000000000002/pid_92100003-0000-4000-8000-000000000003/pid_92100004-0000-4000-8000-000000000004";
-beforeEach(() => window.sessionStorage.clear());
+beforeEach(() => window.history.replaceState(null,"","/red-team/results"));
 const definition = { id: definitionID, version: 2, name: "Staging agent safety", target_id: targetID, target_kind: "agent_endpoint" as const, categories: ["prompt_injection" as const], safety: { environment: "staging" as const, credential_class: "read_only" as const, expected_side_effects: ["bounded evaluation"] }, enabled: true, created_at: "2026-08-24T10:00:00Z", updated_at: "2026-08-24T10:01:00Z" };
 const run = { id: runID, version: 1, definition_id: definitionID, definition_version: 2, status: "queued" as const, attempt: 0, cancel_requested: false, queued_at: "2026-08-24T10:02:00Z" };
 function recommendationSet(items:RedTeamRecommendations["items"],id=targetID):RedTeamRecommendations {return {targetID:id,freshUntil:"2099-01-01T00:00:00Z",items};}
@@ -194,16 +194,36 @@ describe("production red team view", () => {
     await act(async () => { finish([{...definition,version:3}]); });
     expect(screen.getByRole("button",{name:"Run Staging agent safety"})).toBeEnabled();
   });
-	it("recovers a lost run response across a full component remount without a replacement ID", async () => {
-		const runDefinition = vi.fn(api().runDefinition).mockRejectedValueOnce(new TypeError("response lost"));
-		const first = view(api({ runDefinition }));const user=userEvent.setup();
-		await user.click(await screen.findByRole("button", { name:"Run Staging agent safety" }));
-		await screen.findByRole("button", { name:"Retry retained operation" });const original=runDefinition.mock.calls[0];first.unmount();
-		view(api({runDefinition}));
-		await user.click(await screen.findByRole("button",{name:"Retry retained operation"}));
-		expect(runDefinition.mock.calls[1].slice(0,4)).toEqual(original.slice(0,4));
-		await waitFor(()=>expect(window.sessionStorage.length).toBe(0));
-	});
+ it("reconciles a submitted record after reload through GET without resubmitting",async()=>{
+  const runDefinition=vi.fn(api().runDefinition).mockRejectedValueOnce(new TypeError("response lost"));
+  const first=view(api({runDefinition}));const user=userEvent.setup();
+  await user.click(await screen.findByRole("button",{name:"Run Staging agent safety"}));
+  await screen.findByRole("button",{name:"Retry retained operation"});
+  const recordID=runDefinition.mock.calls[0][2];
+  const href=window.location.pathname+window.location.search;
+  expect(screen.getByRole("link",{name:"Check submitted record status"})).toHaveAttribute("href",href);
+  expect(href).toContain(recordID);expect(href).not.toContain(targetID);expect(href).not.toContain(definitionID);expect(href).not.toContain("redteam_");
+  first.unmount();
+  const getRun=vi.fn(api().getRun).mockImplementation(async id=>({...await api().getRun(id),id}));
+  view(api({getRun,runDefinition}));
+  await screen.findByRole("button",{name:"Return to Red Team records"});
+  expect(getRun).toHaveBeenCalledWith(recordID,expect.any(AbortSignal));
+  expect(runDefinition).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button",{name:"Retry retained operation"})).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:"Return to Red Team records"}));
+  expect(window.location.search).toBe("");
+ });
+ it("keeps a missing status ambiguous and refreshes only its read endpoint",async()=>{
+  const params=new URLSearchParams({record_status:"submitted",record_id:runID,from_version:"0",principal_id:scopeKey.split("/")[0],organization_id:scopeKey.split("/")[1],workspace_id:scopeKey.split("/")[2],environment_id:scopeKey.split("/")[3]});
+  window.history.replaceState(null,"","/red-team/results?"+params);
+  const getRun=vi.fn().mockRejectedValue(new TypeError("unavailable"));const runDefinition=vi.fn();
+  view(api({getRun,runDefinition}));const user=userEvent.setup();
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("button",{name:"Create test"})).not.toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Return to Red Team records"})).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:"Refresh record status"}));
+  await waitFor(()=>expect(getRun).toHaveBeenCalledTimes(2));expect(runDefinition).not.toHaveBeenCalled();
+ });
 	it("does not reveal a retained operation after the authenticated principal changes",async()=>{
 		const runDefinition=vi.fn(api().runDefinition).mockRejectedValueOnce(new TypeError("lost"));const first=view(api({runDefinition}));const user=userEvent.setup();
 		await user.click(await screen.findByRole("button",{name:"Run Staging agent safety"}));await screen.findByRole("button",{name:"Retry retained operation"});first.unmount();

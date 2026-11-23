@@ -19,6 +19,28 @@ const backup: RecoveryBackup = { id: backupID, version: 1, state: "queued", rete
 const restore: RecoveryRestore = { id: restoreID, version: 1, state: "queued", target_environment: "recovery-e2e-01", attempt: 0, manifest, created_at: "2026-08-25T12:00:00Z" };
 
 describe("production recovery API", () => {
+  it("saves and loads immutable restore parameters under the current scope and actor", async () => {
+    const parameters = {kind: "restore", backup_id: backupID, target_environment: "isolated-rehearsal"} as const;
+    const result = {id: restoreID, parameters};
+    const requests: Request[] = [];
+    const api = createRecoveryAPI(createAPIClient({getExpectedScope: () => scope, getCSRFToken: () => "csrf-value", fetch: async request => {
+      requests.push(request);
+      return jsonResponse(requests.length <= 2 ? result : {...result, parameters: {...parameters, target_environment: "production"}}, 200);
+    }}), scope);
+    const signal = new AbortController().signal;
+    await expect(api.putIntent(restoreID, parameters, signal)).resolves.toEqual(result);
+    await expect(api.getIntent(restoreID, signal)).resolves.toEqual(result);
+    expect(requests.map(request => request.method)).toEqual(["PUT", "GET"]);
+    for (const request of requests) {
+      expect(new URL(request.url).pathname).toBe(`/api/v1/recovery/intents/${restoreID}`);
+      expect(new URL(request.url).search).toBe("");
+      expect(request.headers.get("X-Zasp-Expected-Scope")).toBe(scope);
+    }
+    expect(requests[0].headers.get("X-CSRF-Token")).toBe("csrf-value");
+    expect(await requests[0].json()).toEqual(parameters);
+    await expect(api.getIntent(restoreID, signal)).rejects.toMatchObject({kind: "invalid_response"});
+  });
+
   it("starts a browser backup with exact fresh-auth, idempotency, version, and durable evidence authority", async () => {
     let request: Request | undefined;
     const client = createAPIClient({ getExpectedScope: () => scope, getCSRFToken: () => "csrf-value", fetch: async (value) => {

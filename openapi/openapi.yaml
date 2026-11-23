@@ -4633,6 +4633,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
       responses:
         '202': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportJob' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/calibration/exports/{id}:
     get:
@@ -4643,6 +4644,8 @@ paths:
         - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
       responses:
         '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportJob' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/calibration/exports/{id}/download-grants:
     post:
@@ -4656,6 +4659,8 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false } } } }
       responses:
         '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationDownloadGrant' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/calibration/exports/{id}/download:
     post:
@@ -4669,6 +4674,8 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [grant], properties: { grant: { type: string, pattern: '^[0-9a-f]{64}$' } } } } } }
       responses:
         '200': { description: Scoped calibration export response., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/CalibrationExportFile' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/ai/qualifications/run:
     post:
@@ -4682,6 +4689,7 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationSelection' } } } }
       responses:
         '202': { description: Qualification job accepted., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationRun' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/ai/qualifications/runs/{id}:
     get:
@@ -4692,6 +4700,8 @@ paths:
         - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
       responses:
         '200': { description: Qualification job., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ModelQualificationRun' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/ai/qualifications:
     get:
@@ -5045,6 +5055,8 @@ paths:
           BrowserExpectedScope: []
       responses:
         '200': { description: Saved request, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryIntent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     put:
       operationId: putRecoveryIntent

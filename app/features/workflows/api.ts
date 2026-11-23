@@ -1,3 +1,4 @@
+import { decodeSaaSSignInStatus } from "./saasSignIn";
 import type { APIClient } from "../../../apps/web/api/client";
 import { APIProductError, APITransportError, requireAPIData } from "../../../apps/web/api/client";
 import {
@@ -365,6 +366,14 @@ export function createIntegrationsAPI(client: APIClient) {
     },
     async updateIntegration(id: string, version: string, value: IntegrationUpdateInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.PATCH("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodeIntegration), attempt);
+    },
+    async getSaaSSignInStatus(id: string, attemptId: string, signal?: AbortSignal) {
+      const reply = await client.GET("/api/v1/integrations/{id}/sign-in-attempts/{attemptId}", { params: { path: { id, attemptId } }, signal, cache: "no-store" });
+      const status = requireAPIData(reply, decodeSaaSSignInStatus);
+      if (reply.response.status !== 200 || reply.response.headers.get("Cache-Control") !== "no-store" || status.integration_id !== id || status.attempt_id !== attemptId) {
+        throw new APITransportError("invalid_response", "Sign-in status did not match the selected attempt");
+      }
+      return status;
     },
     async authorizeIntegration(id: string, attempt?: WorkflowMutationAttempt): Promise<IntegrationAuthorization> {
       return executeWorkflowMutation(async (active) => {

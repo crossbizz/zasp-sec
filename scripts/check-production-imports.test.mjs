@@ -98,8 +98,7 @@ test("source graph permits only the exact scoped retry-recovery storage boundari
     "app/features/redteam/ProductionRedTeamView.tsx": 'export const ProductionRedTeamView = window.sessionStorage.getItem("zasp:red-team:request:v1:principal/scope"); export { recover } from "./redTeamMutationRecovery";',
     "app/features/redteam/redTeamMutationRecovery.ts": 'export const recover = 1;',
   });
-  const redTeamResult = await checkSourceGraph({ root: redTeam });
-  assert.ok(redTeamResult.files.includes("app/features/redteam/redTeamMutationRecovery.ts"));
+  await assert.rejects(() => checkSourceGraph({ root: redTeam }), /browser storage/);
 
   const auditExport = await fixture({
     "app/page.tsx": 'export { AuditExportPanel } from "./features/administration/AuditExportPanel";',

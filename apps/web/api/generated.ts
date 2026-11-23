@@ -11349,6 +11349,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ModelQualificationRun"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -11373,6 +11374,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ModelQualificationRun"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -11947,6 +11950,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["CalibrationExportJob"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -11971,6 +11975,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["CalibrationExportJob"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -12006,6 +12012,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["CalibrationExportFile"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -12039,6 +12047,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["CalibrationDownloadGrant"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -15487,6 +15497,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["RecoveryIntent"];
                 };
             };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

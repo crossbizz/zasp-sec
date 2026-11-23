@@ -103,7 +103,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     const initialSection = new URL(location, "https://zasp.invalid").searchParams.get("tab") === "calibration" ? "calibration" : "rules";
     return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}/${initialSection}`} initialSection={initialSection} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   }
-  if (path === "/connectors") return <ProductionIntegrationsView key={`${session.principal.id}/${queryScopeKey}/${queryGeneration}`} location={location} canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
+  if (path === "/connectors") return <ProductionIntegrationsView location={location} canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" selectedID={selected?.kind === "approval" ? selected.id : undefined} onNavigate={navigate} />;
