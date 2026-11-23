@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -96,12 +97,19 @@ type replay struct {
 	routes  []Route
 	earlier bool
 	now     time.Time
-	// misses collects the requests no route answered.
-	misses map[string]bool
+	// Collectors fan out requests over the same replay transport.
+	missesMu sync.Mutex
+	misses   map[string]bool
 }
 
 func newReplay(source *HTTPSource, target Target) *replay {
 	return &replay{routes: source.Routes, earlier: target.Earlier, now: target.ObservedAt, misses: map[string]bool{}}
+}
+
+func (transport *replay) unansweredRequests() []string {
+	transport.missesMu.Lock()
+	defer transport.missesMu.Unlock()
+	return sortedKeys(transport.misses)
 }
 
 func (transport *replay) match(method, host, path string, query url.Values, body []byte) (Route, bool) {
@@ -160,7 +168,9 @@ func (transport *replay) answer(method, host, path string, query url.Values, bod
 		trace(fmt.Sprintf("%s %s%s?%s answered=%t", method, host, path, query.Encode(), found))
 	}
 	if !found {
+		transport.missesMu.Lock()
 		transport.misses[method+" "+host+path] = true
+		transport.missesMu.Unlock()
 		return http.StatusNotFound, headers, []byte(`{"error":"not found","message":"not found"}`)
 	}
 	status := route.Status

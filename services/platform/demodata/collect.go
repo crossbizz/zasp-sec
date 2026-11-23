@@ -130,11 +130,15 @@ func request(integration Integration, target Target, provider collection.Provide
 
 // finish turns the collection outcome into a Snapshot.
 func finish(integration Integration, outcome collection.Outcome, err error, transport *replay) (Snapshot, error) {
+	var unanswered []string
+	if transport != nil {
+		unanswered = transport.unansweredRequests()
+	}
 	complete, isComplete := outcome.(collection.CompleteResult)
 	if err != nil || !isComplete {
 		detail := ""
-		if transport != nil && len(transport.misses) > 0 {
-			detail = fmt.Sprintf("; unanswered requests: %v", sortedKeys(transport.misses))
+		if len(unanswered) > 0 {
+			detail = fmt.Sprintf("; unanswered requests: %v", unanswered)
 		}
 		return Snapshot{}, fmt.Errorf("%w: %s: outcome %T, %v%s", ErrCollection, integration.Key, outcome, err, detail)
 	}
@@ -144,10 +148,7 @@ func finish(integration Integration, outcome collection.Outcome, err error, tran
 	}
 	manifest := complete.Manifest().Descriptor()
 	snapshot := Snapshot{Provider: integration.Provider, ManifestReference: manifest.ObjectReference(), ManifestChecksum: manifest.Checksum(), CursorValue: complete.NextCursor().Value,
-		Entities: candidate.Entities(), Relationships: candidate.Relationships(), Evidence: candidate.Evidence()}
-	if transport != nil {
-		snapshot.Unanswered = sortedKeys(transport.misses)
-	}
+		Entities: candidate.Entities(), Relationships: candidate.Relationships(), Evidence: candidate.Evidence(), Unanswered: unanswered}
 	return snapshot, nil
 }
 
