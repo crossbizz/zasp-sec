@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/infraprovider"
 	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
@@ -38,7 +39,12 @@ func main() {
 	}
 	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)
 	if err != nil {
-		reportStartupRefusal(os.Stderr, "configuration")
+		var providerErr *infraprovider.SelectionError
+		if errors.As(err, &providerErr) {
+			reportStartupRefusal(os.Stderr, providerErr.Error())
+		} else {
+			reportStartupRefusal(os.Stderr, "configuration")
+		}
 		os.Exit(1)
 	}
 	dependencies, err := buildRuntimeDependenciesStaged(ctx, config)

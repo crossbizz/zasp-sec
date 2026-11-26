@@ -21,7 +21,7 @@ func loadRuntimeConfigFromEnvironment(lookup func(string) (string, bool)) (Runti
 	}
 	config, err := loadRuntimeConfig(func(key string) string { value, _ := lookup(key); return value })
 	if err != nil {
-		return RuntimeConfig{}, errInvalidRuntimeConfig
+		return RuntimeConfig{}, err
 	}
 	config.ComplianceExports, err = loadComplianceAPIConfiguration(lookup)
 	if err != nil || !validRuntimeConfig(config) {

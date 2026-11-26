@@ -1,6 +1,11 @@
 package main
 
-import "io"
+import (
+	"errors"
+	"io"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/infraprovider"
+)
 
 const (
 	configurationCheckAccepted = "API configuration syntax accepted; runtime access and production readiness are unverified.\n"
@@ -32,6 +37,10 @@ func runConfigurationCommand(args []string, lookup func(string) (string, bool), 
 	message := configurationCheckAccepted
 	if err != nil {
 		message = configurationCheckRefused
+		var providerErr *infraprovider.SelectionError
+		if errors.As(err, &providerErr) {
+			message += providerErr.Error() + "\n"
+		}
 	}
 	if n, writeErr := io.WriteString(output, message); writeErr != nil || n != len(message) {
 		return true, errOutputUnavailable

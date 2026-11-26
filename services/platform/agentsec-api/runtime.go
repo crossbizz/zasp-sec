@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimesecret"
+	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/infraprovider"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -78,6 +81,7 @@ type RuntimeConfig struct {
 	StytchOrganizationID           string
 	WorkflowSigningKey             string
 	TokenRevealKey                 []byte
+	ConnectorSecrets openbaokv.Config
 	ConnectorAWSRegion             string
 	ConnectorRoleARN               string
 	ConnectorTokenFile             string
@@ -134,6 +138,12 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	if getenv == nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
+	if err := infraprovider.Validate(getenv); err != nil {
+		return RuntimeConfig{}, err
+	}
+	var fileErr error
+	getenv, fileErr = runtimesecret.FromFiles(getenv,"ZASP_POSTGRES_DSN","ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN")
+	if fileErr != nil { return RuntimeConfig{}, fileErr }
 	services, servicesErr := runtimeservices.Load(getenv)
 	if servicesErr != nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -190,6 +200,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		DiscoveryParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), DiscoveryToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		ApprovalMaintenancePostgresDSN: getenv("ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN"), ApprovalMaintenanceKeyFile: getenv("ZASP_APPROVAL_MAINTENANCE_KEY_FILE"), PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
+		ConnectorSecrets: openbaokv.FromEnvironment(getenv),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
 		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
 		RuntimeSessionIndex:     getenv("ZASP_RUNTIME_SESSION_INDEX"),
@@ -255,7 +266,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
 		return false
 	}
-	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !validPolicyHistoryAuthority(config.PolicyHistoryEndpoint, config.PolicyHistoryIndex, config.ConnectorAWSRegion, config.Environment) || !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
+	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !validConnectorSecretAuthority(config) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !validPolicyHistoryAuthority(config.PolicyHistoryEndpoint, config.PolicyHistoryIndex, config.ConnectorAWSRegion, config.Environment) || !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
 		return false
 	}
 	for _, value := range config.KubernetesEgressCIDRs {

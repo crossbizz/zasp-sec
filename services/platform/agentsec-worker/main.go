@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/infraprovider"
 	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
@@ -54,6 +55,10 @@ func main() {
 	defer stop()
 	if localcloud.Require() != nil {
 		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=local-cloud\n")
+		os.Exit(1)
+	}
+	if err := infraprovider.Validate(os.Getenv); err != nil {
+		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: "+err.Error()+"\n")
 		os.Exit(1)
 	}
 	mode := workerMode(os.Getenv("ZASP_WORKER_MODE"))
