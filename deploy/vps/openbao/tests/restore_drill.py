@@ -64,9 +64,29 @@ class Client:
             time.sleep(0.5)
         raise RuntimeError("OpenBao did not reach " + description + " within the deadline")
 
+    def wait_for_uninitialized(self):
+        def probe():
+            try:
+                state = self.request("sys/init", timeout=3)
+            except HTTPError as error:
+                if error.code not in (500, 502, 504):
+                    raise
+                error.close()
+                return False
+            except (URLError, ssl.SSLError) as error:
+                # The published Docker port can accept and close TLS before bao starts.
+                cause = error.reason if isinstance(error, URLError) else error
+                if isinstance(cause, (ssl.SSLEOFError, ssl.SSLZeroReturnError)):
+                    return False
+                raise
+            if state.get("initialized") is not False:
+                raise AssertionError("expected a fresh uninitialized OpenBao fixture")
+            return True
+
+        self.wait_for(probe, bool, description="the uninitialized TLS server")
+
     def initialize(self):
-        self.wait_for(lambda: self.request("sys/init"), lambda r: not r["initialized"],
-                      description="the uninitialized server")
+        self.wait_for_uninitialized()
         init = self.request("sys/init", {"secret_shares": 1, "secret_threshold": 1}, method="PUT")
         share = init["keys_base64"][0]
         self.unseal(share, init["root_token"])
@@ -180,8 +200,7 @@ def run():
             flow = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(flow)
             with server(directory) as operator_target:
-                operator_target.wait_for(lambda: operator_target.request("sys/init"), lambda result: not result["initialized"],
-                                         description="the uninitialized custodian fixture")
+                operator_target.wait_for_uninitialized()
                 flow.check_operator_flow(operator_target.url, directory / "tls.crt", operator_target.wait_for_active)
         marker = secrets.token_hex(24)
         key = str(uuid.uuid4())

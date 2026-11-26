@@ -80,7 +80,8 @@ jobs:
           if ! python3 deploy/vps/openbao/tests/restore_drill.py > "$RUNNER_TEMP/raft.log" 2>&1; then
             cat "$RUNNER_TEMP/raft.log"
             locations=$(sed -nE 's/.*File "[^"]*\/(restore_drill|vps_services_live|vps_services)\.py", line ([0-9]+),.*/\1:\2/p' "$RUNNER_TEMP/raft.log" | tail -3 | paste -sd,)
-            echo "failure=Raft ${locations:-drill}" >> "$GITHUB_OUTPUT"
+            errors=$(sed -nE 's/.*HTTP Error ([0-9]{3}):.*/HTTP-\1/p; s/.*\[SSL: ([A-Z0-9_]+)\].*/TLS-\1/p; s/^([a-z][a-z0-9_.]*\.)?([A-Za-z]+Error):.*/\2/p' "$RUNNER_TEMP/raft.log" | sort -u | paste -sd, | cut -c1-72)
+            echo "failure=Raft ${locations:-drill} $errors" >> "$GITHUB_OUTPUT"
             exit 1
           fi
           cat "$RUNNER_TEMP/raft.log"
