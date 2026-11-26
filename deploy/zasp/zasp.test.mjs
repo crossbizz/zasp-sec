@@ -33,7 +33,7 @@ const helm = process.env.ZASP_TEST_HELM || which("helm");
 // The programs the scripts themselves need. A sandbox PATH holds only these,
 // plus whatever stand-ins a test adds, so "not installed" can be tested.
 const basics = ["bash", "sh", "env", "sed", "grep", "dirname", "basename", "cat", "head", "tail", "tr", "stat", "find", "sort", "mktemp",
-  "chmod", "mkdir", "rm", "cp", "mv", "date", "tar", "gzip", "cmp", "id", "wc", "ls", "sleep", "tee", "touch", "seq", "git"];
+  "chmod", "mkdir", "ln", "rm", "cp", "mv", "date", "tar", "gzip", "cmp", "id", "wc", "ls", "sleep", "tee", "touch", "seq", "git"];
 
 function sandbox({ tools = {}, real = [], config = "", profile = "local" } = {}) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), "zasp-test-")));

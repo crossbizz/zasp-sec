@@ -1,0 +1,11 @@
+[Unit]
+Description=Capture and verify an encrypted offsite Zasp VPS backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/zasp
+ExecStart=/usr/bin/bash /opt/zasp/zasp --config /etc/zasp/vps.env --profile vps backup scheduled
+NoNewPrivileges=yes
+UMask=0077
+TimeoutStartSec=3h

@@ -1,0 +1,22 @@
+{
+  "installation": "pilot-west",
+  "sources": {
+    "postgres": {"type":"absent","reference":"Product control plane not deployed"},
+    "nango-postgres": {"type":"postgres","host":"nango-db.pilot.internal","port":5432,"database":"nango","user":"nango_backup","password_file":"/etc/zasp/backup/nango-db.password","ca_file":"/etc/zasp/backup/database-ca.crt"},
+    "openfga-postgres": {"type":"postgres","host":"openfga-db.pilot.internal","port":5432,"database":"openfga","user":"openfga_backup","password_file":"/etc/zasp/backup/openfga-db.password","ca_file":"/etc/zasp/backup/database-ca.crt"},
+    "temporal-postgres": {"type":"absent","reference":"Temporal not deployed"},
+    "temporal-visibility": {"type":"absent","reference":"Temporal visibility not deployed"},
+    "openbao-raft": {"type":"openbao","address":"https://bao.pilot.internal:8200","token_file":"/run/zasp/bao-snapshot-reader","ca_file":"/etc/zasp/backup/openbao-ca.crt"},
+    "nango-encryption-key": {"type":"file","path":"/etc/zasp/backup/nango-encryption-key"},
+    "release-config": {"type":"file","path":"/etc/zasp/backup/release-config.json"},
+    "opensearch": {"type":"absent","reference":"OpenSearch not deployed"},
+    "neo4j": {"type":"absent","reference":"Neo4j not deployed"},
+    "s3-evidence": {"type":"external","reference":"Evidence inventory and versioned bucket retention in DR inventory"},
+    "sqs-outbox": {"type":"absent","reference":"No application outbox or queues deployed"}
+  },
+  "custody": {
+    "backup-identity":"Independent recovery vault entry pilot-west/client-decryption-key",
+    "backup-reader":"Independent recovery vault entry pilot-west/offsite-read-credential",
+    "openbao-unseal":"Offline Shamir custodians pilot-west rotation 1"
+  }
+}

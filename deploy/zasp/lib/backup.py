@@ -10,7 +10,14 @@ import re
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
+
+if __package__:
+    from . import vps_backup, vps_backup_retention as retention
+else:
+    import vps_backup
+    import vps_backup_retention as retention
 
 
 class BackupError(Exception):
@@ -141,19 +148,27 @@ class Remote:
         return ["aws", *self.options, "s3api", action, "--bucket", self.bucket, "--key", key, *self.owner_flags, *args]
 
     def reference(self, kind, profile, encrypted):
-        return dict(format="zasp-backup-v1", provider=self.provider, scope=self.scope, bucket=self.bucket,
-                    kind=kind, profile=profile, size=encrypted.stat().st_size, sha256=digest(encrypted))
+        receipt = dict(format="zasp-backup-v1", provider=self.provider, scope=self.scope, bucket=self.bucket,
+                       kind=kind, profile=profile, size=encrypted.stat().st_size, sha256=digest(encrypted))
+        if profile == "vps":
+            receipt["installation"] = vps_backup.installation()
+        return receipt
 
     def key(self, receipt):
         if (not isinstance(receipt, dict) or receipt.get("format") != "zasp-backup-v1"
                 or receipt.get("provider") != self.provider or receipt.get("scope") != self.scope
                 or receipt.get("bucket") != self.bucket or receipt.get("kind") not in ("profile", "file")
-                or receipt.get("profile") not in ("local", "kubernetes", "aws")
+                or receipt.get("profile") not in ("local", "kubernetes", "aws", "vps")
                 or not isinstance(receipt.get("sha256"), str)
                 or not re.fullmatch(r"[a-f0-9]{64}", receipt["sha256"])
                 or type(receipt.get("size")) is not int or not 0 < receipt["size"] <= self.max_size):
             raise BackupError("invalid receipt or backup destination; select the original provider, account/region and bucket")
-        return f'zasp-backups/v1/{receipt["kind"]}/{receipt["profile"]}/{receipt["sha256"]}.cms'
+        scope = receipt["profile"]
+        if scope == "vps":
+            if receipt.get("installation") != vps_backup.installation():
+                raise BackupError("backup receipt belongs to a different VPS installation")
+            scope += "/" + receipt["installation"]
+        return f'zasp-backups/v1/{receipt["kind"]}/{scope}/{receipt["sha256"]}.cms'
 
     def get(self, receipt, dest):
         key = self.key(receipt)
@@ -161,6 +176,10 @@ class Remote:
             "backup read failed; check backup credentials, destination and connectivity", env=self.env)
         if dest.stat().st_size != receipt["size"] or digest(dest) != receipt["sha256"]:
             raise BackupError("backup ciphertext failed the trusted receipt's SHA-256 or length check")
+
+    def delete(self, receipt):
+        run(self.command(self.key(receipt), "delete-object"),
+            "retention delete failed; retained backup receipts are unchanged", env=self.env)
 
     def put(self, receipt, source, scratch):
         key = self.key(receipt)
@@ -172,6 +191,12 @@ class Remote:
 
 
 def profile_command(root, config, profile, command, path):
+    if profile == "vps":
+        if command == "backup":
+            vps_backup.capture(path)
+        else:
+            vps_backup.recover(path)
+        return
     env = {**os.environ, "ZASP_BACKUP_PROVIDER": "local",
            "ZASP_BACKUP_RECIPIENT_FILE": "", "ZASP_BACKUP_IDENTITY_FILE": ""}
     args = ["bash", root / "zasp", "--profile", profile, "--config", config, command, path]
@@ -207,6 +232,30 @@ def main():
     root, config, command, *args = sys.argv[1:]
     provider = os.environ.get("ZASP_BACKUP_PROVIDER", "local")
     profile = os.environ["ZASP_PROFILE"]
+    if profile == "vps" and command == "backup" and args in (["scheduled"], ["prune"]):
+        return schedule(root, config, provider, args[0])
+    return process(root, config, profile, provider, command, args)
+
+
+def schedule(root, config, provider, action):
+    if provider not in ("s3", "r2"):
+        raise BackupError("scheduled VPS retention and backups require an offsite S3 or R2 destination")
+    if action == "prune" and os.environ.get("ZASP_YES") != "1":
+        raise BackupError("prune removes offsite backup objects; pass --yes to confirm")
+    if os.environ.get("ZASP_DRY_RUN") == "1":
+        print(f"would run {action} against the configured VPS receipt inventory; no changes")
+        return
+    os.umask(0o077)
+    with retention.inventory() as directory:
+        if action == "scheduled":
+            process(root, config, "vps", provider, "backup", [str(retention.next_receipt(directory))])
+        else:
+            with tempfile.TemporaryDirectory() as d:
+                n = retention.prune(Remote(provider, Path(d)), directory, dry_run=False)
+            print(f"pruned {n} older offsite generations; retained receipts and recovery drill are protected")
+
+
+def process(root, config, profile, provider, command, args):
     operation, source, target = parse(command, args, profile, provider != "local")
     if os.environ.get("ZASP_DRY_RUN") == "1":
         print(f"would {operation} with {provider} backup storage")
@@ -260,5 +309,5 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (BackupError, OSError, ValueError) as error:
+    except (BackupError, vps_backup.RecoveryError, OSError, ValueError, tarfile.TarError) as error:
         sys.exit(f"zasp backup: {error}")

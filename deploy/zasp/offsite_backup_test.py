@@ -38,12 +38,16 @@ class BackupTests(unittest.TestCase):
         self.credentials = self.box / "credentials"
         self.credentials.write_text("[default]\naws_access_key_id = fixture\naws_secret_access_key = secret-fixture\n")
         self.credentials.chmod(0o600)
-        self.env = {"PATH": str(self.box) + ":" + os.environ["PATH"], "HOME": str(self.box),
+        self.env = {"ZASP_PROFILE": "local", "PATH": str(self.box) + ":" + os.environ["PATH"], "HOME": str(self.box),
                     "ZASP_BACKUP_PROVIDER": "r2", "ZASP_BACKUP_R2_ACCOUNT_ID": "c" * 32,
                     "ZASP_BACKUP_EXPECTED_BUCKET_OWNER": "123456789012", "ZASP_BACKUP_BUCKET": "backup-test", "ZASP_BACKUP_REGION": "us-east-1",
                     "ZASP_BACKUP_CREDENTIALS_FILE": str(self.credentials), "ZASP_BACKUP_IDENTITY_FILE": str(self.key),
                     "ZASP_BACKUP_RECIPIENT_FILE": str(self.cert), "AWS_ENDPOINT_URL": "http://bad.invalid",
                     "AWS_ACCESS_KEY_ID": "customer-key", "AWS_PROFILE": "customer", "AWS_CA_BUNDLE": "bad"}
+        if "COVERAGE_PROCESS_START" in os.environ:
+            for name in ("PYTHONPATH", "COVERAGE_FILE", "COVERAGE_PROCESS_START"):
+                if name in os.environ:
+                    self.env[name] = os.environ[name]
         aws = self.box / "aws"
         aws.write_text("""#!/usr/bin/env python3
 import json, os, sys
@@ -252,7 +256,7 @@ class LiveBackupTests(unittest.TestCase):
             env = {**destination, "PATH": os.environ["PATH"], "HOME": directory, "ZASP_BACKUP_PROVIDER": provider,
                    "ZASP_BACKUP_BUCKET": bucket, "ZASP_BACKUP_CREDENTIALS_FILE": os.environ[setting_prefix + "CREDENTIALS_FILE"],
                    "ZASP_BACKUP_RECIPIENT_FILE": str(cert), "ZASP_BACKUP_IDENTITY_FILE": str(key)}
-            cli = ["bash", ROOT / "zasp", "--config", root / "unused.env", "backup"]
+            cli = ["bash", ROOT / "zasp", "--profile", "local", "--config", root / "unused.env", "backup"]
             subprocess.run([*cli, "upload", source, receipt], check=True, env=env)
             subprocess.run([*cli, "download", receipt, output], check=True, env=env)
             self.assertEqual(source.read_bytes(), output.read_bytes())

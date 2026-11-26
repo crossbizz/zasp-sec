@@ -12,6 +12,8 @@ permissions:
 jobs:
   verify:
     name: Verify runnable UI
+    outputs:
+      failure: ${{ steps.verify.outputs.failure }}
     runs-on: ubuntu-24.04
     env:
       GOTOOLCHAIN: local
@@ -76,6 +78,7 @@ jobs:
         run: |
           go test -C services/platform -race -p 1 -count=1 -timeout=5m -json -run '^TestMaintenanceBoundary(DeliversOriginalSignedPayloadOverTLS|UnsafeDeliveryDoesNotReachHTTP|RetainsActualProviderFailure)$' ./apiserver
       - name: Verify runnable UI
+        id: verify
         run: |-
           task_verify_log=$(mktemp "${RUNNER_TEMP}/zasp-npm-verify.XXXXXX")
           set +e
@@ -83,7 +86,10 @@ jobs:
           task_verify_status=${PIPESTATUS[0]}
           set -e
           if [ "$task_verify_status" -ne 0 ]; then
-            node scripts/annotate-verify-failure.mjs "$task_verify_log" || printf '%s\n' '::error title=npm verify failed::Verification failed; phase unavailable.'
+            annotation=$(node scripts/annotate-verify-failure.mjs "$task_verify_log" || printf '%s' '::error title=npm verify failed::Verification failed; phase unavailable.')
+            printf '%s\n' "$annotation"
+            # The repository's annotator emits only its fixed list of phase and test names.
+            printf 'failure=%.220s\n' "${annotation#*failed::}" >> "$GITHUB_OUTPUT"
           fi
           rm -f -- "$task_verify_log" || true
           exit "$task_verify_status"
@@ -92,6 +98,13 @@ jobs:
         run: |
           node --test scripts/observe-current-profile-inner-diagnostics.test.mjs
           node scripts/observe-current-profile-inner-diagnostics.mjs
+  verify-diagnostics:
+    needs: verify
+    if: failure() && needs.verify.outputs.failure != ''
+    name: "${{ needs.verify.outputs.failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "See the verification log for the full test results." >> "$GITHUB_STEP_SUMMARY"
   platform-go:
     name: Platform Go packages
     runs-on: ubuntu-24.04

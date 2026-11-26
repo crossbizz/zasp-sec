@@ -143,6 +143,15 @@ def run():
             "-subj", "/CN=OpenBao fixture", "-addext", "subjectAltName=IP:127.0.0.1",
             "-keyout", str(directory / "tls.key"), "-out", str(directory / "tls.crt"),
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        if os.environ.get("ZASP_TEST_VPS_OPENBAO_CLI") == "1":
+            import importlib.util
+            fixture = CHART.parents[1] / "zasp/vps_services_live.py"
+            spec = importlib.util.spec_from_file_location("vps_services_live", fixture)
+            flow = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(flow)
+            with server(directory) as operator_target:
+                operator_target.wait_for(lambda: operator_target.request("sys/init"), lambda result: not result["initialized"])
+                flow.check_operator_flow(operator_target.url, directory / "tls.crt")
         marker = secrets.token_hex(24)
         key = str(uuid.uuid4())
         message = base64.b64encode(b"pre-backup recovery fixture").decode()

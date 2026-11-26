@@ -2,6 +2,8 @@
 
 This is the ordered procedure from an empty AWS account to a running product that an administrator can sign in to. It covers the hosted control plane (`saas` mode) on the baseline schema.
 
+For a fresh EKS installation, create its own private config with `./zasp --profile aws --config /secure/eks.env config init`. Existing EKS installations keep their config and provider settings. A fresh unqualified `./zasp config init` selects the [single-node VPS profile](vps-first-deployment.md), which operates independent services and has a separate application startup gate. Use the EKS Terraform root below only for an explicitly selected EKS deployment.
+
 **Status: nothing in this runbook has been applied to an AWS account or a cluster.** The Terraform and Helm files were checked statically only ([Static checks](#static-checks-that-were-run)). Every command, expected output and AWS behaviour below is unverified unless that section says otherwise. Expect to correct things on the first real run, and record what you correct.
 
 Related guides: [Production deployment](production-deployment.md) (chart behaviour, schema job), [Installing the product schema](baseline-schema-install.md), [Cloud launch configuration](cloud-launch-configuration.md), [First Organization bootstrap](first-organization-bootstrap.md), [Temporal and OpenFGA](temporal-openfga.md).

@@ -26,12 +26,16 @@ This is pre-release software. Read these three points before you plan around it:
 
 The administrator guide says, command by command, [what was and was not verified](docs/getting-started/administrator.md#what-was-and-was-not-verified).
 
-## Quick start
+## New installations
+
+`./zasp config init` creates a private VPS configuration for a single-node k3s host. Follow the [VPS first-deployment guide](docs/operations/vps-first-deployment.md) to install and check independent services and rehearse offsite recovery. Full application startup on this profile is gated. Use the local evaluation below for a working product demonstration, or the [AWS runbook](docs/operations/production-aws-runbook.md) for the complete production topology.
+
+## Local evaluation
 
 You need Docker, Go, Node.js 22, and a free [Stytch](https://stytch.com/) B2B test project for sign-in. Then:
 
 ```bash
-./zasp config init
+./zasp --profile local config init
 ```
 
 Fill in the three Stytch values and your first administrator in `zasp.env`, and ask what else is missing:
@@ -54,17 +58,18 @@ It ends with the address to open and how to sign in. To stop it:
 
 The whole product runs on your machine: PostgreSQL, Temporal, OpenFGA, OpenSearch, Neo4j and an AWS emulator with one sample account to connect. No Docker? The administrator guide describes a [reduced mode without containers](docs/getting-started/administrator.md#without-docker).
 
-## Three ways to run it
+## Deployment profiles
 
 | Profile | For | How |
 | --- | --- | --- |
-| `local` | Trying it on one machine | `./zasp up` |
+| `vps` | Independent services on k3s and encrypted backups | [First-deployment guide](docs/operations/vps-first-deployment.md) |
+| `local` | Trying it on one machine | `./zasp --profile local config init`, then `./zasp up` |
 | `kubernetes` | Trying it on any cluster, from one Helm chart and one values file | `./zasp --profile kubernetes up`, or `helm upgrade --install zasp deploy/kubernetes/zasp -f zasp-values.yaml` |
 | `aws` | Production on EKS | `./zasp --profile aws install`, which prints the procedure |
 
-The same commands work in every profile: `doctor`, `secrets init`, `install`, `bootstrap-admin`, `up`, `start`, `stop`, `status`, `logs`, `upgrade`, `backup`, `restore`, `uninstall`.
+The CLI exposes these operations where the selected profile supports them: `doctor`, `secrets init`, `install`, `bootstrap-admin`, `up`, `start`, `stop`, `status`, `logs`, `upgrade`, `backup`, `restore`, `uninstall`.
 
-Nothing to connect yet? Fill an environment of its own with sample data for one person, who then signs in as usual:
+Trying the local or Kubernetes evaluation? Fill an environment of its own with sample data for one person, who then signs in as usual:
 
 ```bash
 ./zasp demo seed --email person@example.com

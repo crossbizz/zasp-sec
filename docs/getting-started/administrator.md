@@ -10,19 +10,20 @@ Every command in this guide was either run while it was written, or is marked **
 
 ## One entry point
 
-Everything goes through one script in the repository root, `./zasp`, and one configuration file, `zasp.env`.
+Everything goes through one script in the repository root, `./zasp`, and one configuration file, `zasp.env`. A new `./zasp config init` selects the single-node VPS profile. See the [VPS first-deployment guide](../operations/vps-first-deployment.md) for the required operator steps and current application startup gate. Existing configurations retain their chosen profile and providers.
 
 | You want | Profile | What you get |
 | --- | --- | --- |
+| To prepare a single-node k3s installation | `vps` | Independent services, provider checks and encrypted backup operations. Full product startup is gated. |
 | To try it on your laptop | `local` | The product and every dependency on one machine. AWS is emulated. |
 | To try it on a cluster with one Helm chart | `kubernetes` | The same stack in one pod, on any cluster, from one values file. AWS is emulated. |
 | To run it for real | `aws` | The production topology on EKS, created with Terraform and the hosted chart. |
 
-The commands are the same in every profile:
+For the local, Kubernetes evaluation and AWS profiles, the command guide is below. The VPS guide lists component targets, restore staging and the operations available for that profile.
 
 | Command | What it does |
 | --- | --- |
-| `./zasp config init` | Writes `zasp.env` from the documented example. |
+| `./zasp config init` | Writes a new private `zasp.env`. Select `--profile local`, `--profile kubernetes` or `--profile aws` for those examples. |
 | `./zasp doctor` | Checks prerequisites and configuration. Prints exactly what is missing and how to fix it. Changes nothing. |
 | `./zasp secrets init` | Generates the keys that can be generated. Lists the ones a person must supply. Never prints a value. |
 | `./zasp install` | Installs dependencies and the database schema. |
@@ -33,7 +34,7 @@ The commands are the same in every profile:
 | `./zasp backup`, `restore` | Writes a backup; replaces the data with one. |
 | `./zasp uninstall --yes` | Removes the deployment and its data. |
 
-`--profile <name>` overrides `ZASP_PROFILE` from the configuration file. `--dry-run` prints the commands that change something instead of running them (profiles `kubernetes` and `aws`). Destructive commands refuse to run without `--yes`.
+Select the target with `--config` and its recorded `ZASP_PROFILE`. The CLI rejects a conflicting profile on backup, upgrade, stop, restore or uninstall. A config without a recorded profile requires an explicit choice. `--dry-run` previews supported actions in the VPS, Kubernetes and AWS profiles. Destructive operations require `--yes`.
 
 ## Architecture at a glance
 
@@ -61,6 +62,10 @@ Two requirements are worth knowing before you choose a profile:
 Deeper references: [production deployment](../operations/production-deployment.md), [Temporal and OpenFGA](../operations/temporal-openfga.md), [the local stack](../../deploy/local/real-stack/README.md).
 
 ## Prerequisites
+
+### Profile `vps`
+
+Prepare the k3s host, persistent storage, workload identities and independent recovery material using the [first-deployment guide](../operations/vps-first-deployment.md). It includes DNS, TLS, supported alternatives, backup and rollback.
 
 ### Profile `local`
 
@@ -109,7 +114,7 @@ cd zasp-sec
 3. Write the configuration file. It is created readable by you only.
 
 ```bash
-./zasp config init
+./zasp --profile local config init
 ```
 
 4. Open `zasp.env` in an editor. Fill in the three `STYTCH_` values, and the first organization: `ZASP_ORGANIZATION_NAME`, `ZASP_ORGANIZATION_DOMAIN` and `ZASP_ADMIN_EMAIL`. Everything else has a working default.
@@ -193,7 +198,7 @@ The chart is `deploy/kubernetes/zasp`. It is an evaluation chart: one StatefulSe
 
 **The chart was rendered with Helm 3.16.4 and checked as text. It was never installed on a cluster.** Expect to fix things on a first install, and please report them.
 
-1. In `zasp.env`, set `ZASP_PROFILE=kubernetes`, `ZASP_ORIGIN` (for example `https://zasp.example.test:8443`), the `STYTCH_` values, the first organization, and `ZASP_IMAGE_REGISTRY` (a registry you can push to and the cluster can pull from).
+1. On a new evaluation installation run `./zasp --profile kubernetes config init`. In its `zasp.env`, set `ZASP_ORIGIN` (for example `https://zasp.example.test:8443`), the `STYTCH_` values, the first organization, and `ZASP_IMAGE_REGISTRY` (a registry you can push to and the cluster can pull from).
 
 2. Generate the values file. This writes `zasp-values.yaml`, readable by you only, with every generated key and certificate, and `zasp-values.ca.crt`, the authority your browser must trust.
 
@@ -255,7 +260,7 @@ Two files hold your configuration. Copy them outside the repository and edit the
 | `ZASP_AWS_TFVARS` | `deploy/production/example.tfvars` | Account, region, network, sizing. Replace every `REPLACE`. |
 | `ZASP_AWS_VALUES` | `deploy/production/values-production.example.yaml` | Public origin, images, what Terraform cannot know. Replace every `REQUIRED`. |
 
-Then set `ZASP_PROFILE=aws` and the `ZASP_AWS_` settings in `zasp.env`.
+For a fresh EKS installation run `./zasp --profile aws config init`, then set the `ZASP_AWS_` settings in that installation’s `zasp.env`.
 
 ```bash
 ./zasp doctor
@@ -325,7 +330,7 @@ Roll out and look.
 
 | Name | What it is for | Required | How to obtain it |
 | --- | --- | --- | --- |
-| `STYTCH_PROJECT_ID`, `STYTCH_SECRET`, `STYTCH_PUBLIC_TOKEN` | Sign-in, organizations and invitations. Read by the API and by `bootstrap-admin`. | Yes, every profile | Create a B2B project at stytch.com. The three values are on its API keys page. A test project for evaluation, a live project for production. |
+| `STYTCH_PROJECT_ID`, `STYTCH_SECRET`, `STYTCH_PUBLIC_TOKEN` | Sign-in, organizations and invitations. Read by the API and by `bootstrap-admin`. | Required to run the complete product | Create a B2B project at stytch.com. The three values are on its API keys page. A test project for evaluation, a live project for production. |
 | Stytch webhook secret | Verifies webhooks from Stytch. | `aws` only. The evaluation profiles generate a value and receive no webhooks. | Stytch dashboard, webhooks. |
 | `ZASP_ORGANIZATION_NAME`, `ZASP_ORGANIZATION_DOMAIN`, `ZASP_ADMIN_EMAIL` | The first organization and its first administrator. | For `./zasp up` to finish in one command | Your choice. Lower case domain and address. |
 | `OPENROUTER_API_KEY` | Model provider key for the Security Agent planner. | No. Without it Security Agent runs stay `queued`. | Create a key at openrouter.ai. The model is fixed to `openai/gpt-5-mini`. |

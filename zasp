@@ -7,7 +7,7 @@
 #   ./zasp demo seed --email <address>   fill a demo environment with sample data
 #   ./zasp status | logs | stop | start | upgrade | backup | restore | uninstall
 #
-# The profile (local, kubernetes or aws) and every setting come from one
+# The profile (vps, local, kubernetes or aws) and every setting come from one
 # configuration file, zasp.env in the repository root (see
 # deploy/zasp/zasp.env.example). Guide: docs/getting-started/administrator.md.
 #
@@ -21,13 +21,14 @@ ZASP_LIB="$ZASP_ROOT/deploy/zasp/lib"
 
 usage() {
   cat <<'EOF'
-usage: zasp [--profile local|kubernetes|aws] [--config <file>] [--dry-run] <command> [arguments]
+usage: zasp [--profile vps|local|kubernetes|aws] [--config <file>] [--dry-run] <command> [arguments]
 
 Getting started
   doctor                  Check prerequisites and configuration; print exactly what is missing.
   config init             Write a configuration file (zasp.env) with safe defaults.
-  secrets init            Generate the keys that can be generated; list the ones a person must supply.
-  install                 Install dependencies and the database schema. Starts nothing a user reaches.
+  secrets init            Initialize the selected profile. On VPS, use secrets init openbao.
+  secrets unseal openbao  Resume a sealed, independently managed VPS OpenBao instance.
+  install                 Install the selected profile. On VPS, select dependencies, openbao, or nango.
   bootstrap-admin         Create the first organization and invite its first administrator.
   up                      install, bootstrap-admin (when configured) and start, in one command.
 
@@ -47,15 +48,16 @@ Operating
   backup upload <archive> <file>   Encrypt an existing file and save an archive or receipt.
   backup download <file> <output>  Verify and decrypt a backup into a new private file.
   restore <file> --yes    Restore the selected profile from an archive or receipt.
-  uninstall --yes         Remove the deployment and its data.
+  uninstall --yes         Remove the selected application deployment. VPS shared services have separate lifecycles.
 
 Options
-  --profile <name>   local (one machine), kubernetes (any cluster, one Helm chart) or aws (production).
-                     Default: ZASP_PROFILE in the configuration file, else local.
+  --profile <name>   vps (independent components), local, kubernetes (evaluation), or aws (production).
+                     New configs default to vps. Existing installs use their selected profile.
   --config <file>    Configuration file. Default: $ZASP_CONFIG, else zasp.env in the repository root.
-  --dry-run          Print the commands that change something instead of running them (kubernetes, aws).
+  --dry-run          Preview the selected VPS operation without changing the host or cluster.
   --yes              Confirm a destructive command.
 
+VPS first deployment: docs/operations/vps-first-deployment.md
 Guide: docs/getting-started/administrator.md
 EOF
 }
@@ -88,16 +90,31 @@ if [ "${#arguments[@]}" -gt 1 ]; then rest=("${arguments[@]:1}"); fi
 ZASP_CONFIG_FILE="${config_option:-${ZASP_CONFIG:-$ZASP_ROOT/zasp.env}}"
 if [ "$command_name" = help ]; then usage; exit 0; fi
 if [ "$command_name" = config ]; then
-  [ "${rest[0]:-}" = init ] || die "usage: zasp config init"
-  config_init "${profile_option:-local}"
+  [ "${#rest[@]}" -eq 1 ] && [ "${rest[0]:-}" = init ] || die "usage: zasp config init"
+  config_init "${profile_option:-${ZASP_PROFILE:-vps}}"
   exit 0
 fi
 
 load_config "$ZASP_CONFIG_FILE"
-ZASP_PROFILE="${profile_option:-${ZASP_PROFILE:-local}}"
+ZASP_PROFILE="${profile_option:-${ZASP_PROFILE:-}}"
+if [ -z "$ZASP_PROFILE" ]; then
+  if [ "$ZASP_CONFIG_PRESENT" = 1 ]; then
+    die "profile is ambiguous; set ZASP_PROFILE in this configuration or pass --profile explicitly"
+  fi
+  case "$command_name" in
+    doctor|status|logs) ZASP_PROFILE=vps ;;
+    *) die "no selected installation; run ./zasp config init or select an existing configuration and profile" ;;
+  esac
+fi
 case "$ZASP_PROFILE" in
-  local|kubernetes|aws) ;;
-  *) die "unknown profile '$ZASP_PROFILE' (local, kubernetes or aws)" ;;
+  vps|local|kubernetes|aws) ;;
+  *) die "unknown profile '$ZASP_PROFILE' (vps, local, kubernetes or aws)" ;;
+esac
+case "$command_name" in
+  stop|restore|uninstall|upgrade|backup)
+    [ -z "$ZASP_FILE_PROFILE" ] || [ "$ZASP_PROFILE" = "$ZASP_FILE_PROFILE" ] ||
+      die "selected profile conflicts with the installation in the configuration; choose the matching config file"
+    ;;
 esac
 export ZASP_PROFILE ZASP_DRY_RUN ZASP_YES
 # shellcheck source=/dev/null
@@ -118,23 +135,35 @@ case "$command_name" in
     esac
     ;;
   secrets)
-    [ "${rest[0]:-}" = init ] || die "usage: zasp secrets init"
-    command_name=secrets_init
-    rest=()
+    case "${rest[0]:-}" in
+      init) command_name=secrets_init ;;
+      unseal) [ "$ZASP_PROFILE" = vps ] || die "unseal requires the vps profile"; command_name=secrets_unseal ;;
+      *) die "usage: zasp secrets init | zasp secrets unseal openbao" ;;
+    esac
+    rest=("${rest[@]:1}")
+    if [ "$ZASP_PROFILE" != vps ] && [ "${#rest[@]}" -ne 0 ]; then die "usage: zasp secrets init"; fi
     ;;
   *) usage >&2; die "unknown command '$command_name'" ;;
 esac
+if [ "$ZASP_PROFILE" = vps ]; then
+  vps_validate_providers
+  if [ "$ZASP_DRY_RUN" = 1 ]; then export PYTHONDONTWRITEBYTECODE=1; fi
+fi
 if [ "$command_name" = backup ] || [ "$command_name" = restore ]; then
   case "${ZASP_BACKUP_PROVIDER-local}" in
     local|s3|r2) ;;
     *) die 'ZASP_BACKUP_PROVIDER must be local, s3 or r2' ;;
   esac
-  if [ "${ZASP_BACKUP_PROVIDER:-local}" != local ] || [ -n "${ZASP_BACKUP_RECIPIENT_FILE:-}${ZASP_BACKUP_IDENTITY_FILE:-}" ] ||
+  if [ "$ZASP_PROFILE" = vps ] || [ "${ZASP_BACKUP_PROVIDER:-local}" != local ] || [ -n "${ZASP_BACKUP_RECIPIENT_FILE:-}${ZASP_BACKUP_IDENTITY_FILE:-}" ] ||
      { [ "$command_name" = backup ] && { [ "${rest[0]:-}" = upload ] || [ "${rest[0]:-}" = download ]; }; }; then
     require_tool python3
     # Bash 3.2 with nounset cannot expand an empty array directly.
     exec python3 "$ZASP_LIB/backup.py" "$ZASP_ROOT" "$ZASP_CONFIG_FILE" "$command_name" ${rest[@]+"${rest[@]}"}
   fi
+fi
+if [ "$ZASP_PROFILE" = vps ]; then
+  vps_dispatch "$command_name" ${rest[@]+"${rest[@]}"}
+  exit
 fi
 if [ "${#rest[@]}" -gt 0 ]; then
   "${ZASP_PROFILE}_${command_name}" "${rest[@]}"

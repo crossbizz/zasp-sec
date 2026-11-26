@@ -11,6 +11,7 @@ die() { printf 'zasp: %s\n' "$*" >&2; exit 1; }
 load_config() {
   local file="$1" line key value number=0
   ZASP_CONFIG_PRESENT=0
+  ZASP_FILE_PROFILE=""
   [ -f "$file" ] || return 0
   ZASP_CONFIG_PRESENT=1
   while IFS= read -r line || [ -n "$line" ]; do
@@ -35,6 +36,10 @@ load_config() {
       \"*\") value="${value#\"}"; value="${value%\"}" ;;
       \'*\') value="${value#\'}"; value="${value%\'}" ;;
     esac
+    if [ "$key" = ZASP_PROFILE ]; then
+      [ -z "$ZASP_FILE_PROFILE" ] || [ "$ZASP_FILE_PROFILE" = "$value" ] || die "config declares conflicting ZASP_PROFILE values"
+      ZASP_FILE_PROFILE="$value"
+    fi
     if [ -z "${!key+set}" ]; then
       export "$key=$value"
     fi
@@ -46,17 +51,34 @@ load_config() {
 config_init() {
   local profile="$1" example="$ZASP_ROOT/deploy/zasp/zasp.env.example"
   case "$profile" in
+    vps) example="$ZASP_ROOT/deploy/zasp/zasp.vps.env.example" ;;
     local|kubernetes|aws) ;;
-    *) die "unknown profile '$profile' (local, kubernetes or aws)" ;;
+    *) die "unknown profile '$profile' (vps, local, kubernetes or aws)" ;;
   esac
-  if [ -e "$ZASP_CONFIG_FILE" ]; then
+  if [ -L "$ZASP_CONFIG_FILE" ] || [ -e "$ZASP_CONFIG_FILE" ]; then
+    [ -f "$ZASP_CONFIG_FILE" ] && [ ! -L "$ZASP_CONFIG_FILE" ] || die "configuration path must name a regular file"
     note "$ZASP_CONFIG_FILE already exists; it was not changed"
     return 0
   fi
   [ -f "$example" ] || die "$example is missing"
   [ -d "$(dirname "$ZASP_CONFIG_FILE")" ] || die "the directory of $ZASP_CONFIG_FILE does not exist"
-  (umask 077; sed "s/^ZASP_PROFILE=.*/ZASP_PROFILE=$profile/" "$example" > "$ZASP_CONFIG_FILE") || die "could not write $ZASP_CONFIG_FILE"
-  note "wrote $ZASP_CONFIG_FILE (readable by you only). Fill in the settings marked REQUIRED for profile '$profile', then run: ./zasp doctor"
+  if [ "${ZASP_DRY_RUN:-0}" = 1 ]; then
+    note "would create a private $profile configuration; no files written"
+    return
+  fi
+  (
+    umask 077
+    staged=$(mktemp "${ZASP_CONFIG_FILE}.XXXXXX") || exit 1
+    trap 'rm -f -- "$staged"' EXIT
+    sed "s/^ZASP_PROFILE=.*/ZASP_PROFILE=$profile/" "$example" > "$staged" || exit 1
+    # Link the completed private file without replacing a competing writer.
+    if ln "$staged" "$ZASP_CONFIG_FILE" 2>/dev/null; then
+      note "wrote $ZASP_CONFIG_FILE (readable by you only). Fill in the settings marked REQUIRED for profile '$profile', then run: ./zasp doctor"
+    else
+      [ -f "$ZASP_CONFIG_FILE" ] && [ ! -L "$ZASP_CONFIG_FILE" ] || exit 1
+      note "$ZASP_CONFIG_FILE already exists; it was not changed"
+    fi
+  ) || die "could not create the private configuration file"
 }
 
 # --- doctor -----------------------------------------------------------------

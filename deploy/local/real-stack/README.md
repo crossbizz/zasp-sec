@@ -103,7 +103,7 @@ The Security Agent planning worker is the eighth worker. Without it a Security A
 
 ## The `./zasp` entry point
 
-`./zasp` in the repository root (profile `local`) drives this script from one configuration file: `./zasp doctor` checks the requirements below and prints what is missing, `./zasp up` runs `up`, `bootstrap` and `start` in one command, and `./zasp backup`, `restore`, `upgrade` and `uninstall` use the commands under [Other commands](#other-commands). See [the administrator guide](../../../docs/getting-started/administrator.md).
+For a fresh local evaluation, run `./zasp --profile local config init` from the repository root. An existing local config retains its profile. The new-install default is the [single-node VPS profile](../../../docs/operations/vps-first-deployment.md). With the local configuration selected, `./zasp doctor` checks the requirements below and prints what is missing, `./zasp up` runs `up`, `bootstrap` and `start` in one command, and `./zasp backup`, `restore`, `upgrade` and `uninstall` use the commands under [Other commands](#other-commands). See [the administrator guide](../../../docs/getting-started/administrator.md).
 
 ## Other commands
 
