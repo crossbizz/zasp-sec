@@ -171,7 +171,7 @@ test("local doctor passes when the prerequisites are present, and never prints a
     const result = box.run(["doctor"]);
     assert.equal(output(result).includes(secret), false);
     // The key files live in the state directory: nothing needs root.
-    const missing = result.stdout.split("\n").filter(line => /^  MISSING  /.test(line));
+    const missing = result.stdout.split("\n").filter(line => line.startsWith("  MISSING  "));
     assert.deepEqual(missing, [], result.stdout);
     assert.match(result.stdout, /ok {7}.*\/state\/runtime is writable \(key files and analyzers; no root needed\)/);
     assert.equal(result.stdout.includes("sudo mkdir"), false, result.stdout);
@@ -179,7 +179,7 @@ test("local doctor passes when the prerequisites are present, and never prints a
     // doctor says how to create them and how to go back.
     const system = box.run(["doctor"], { ZASP_RUNTIME_DIR: "system" });
     assert.equal(system.stdout.includes("/state/runtime"), false, system.stdout);
-    const systemMissing = system.stdout.split("\n").filter(line => /^  MISSING  /.test(line));
+    const systemMissing = system.stdout.split("\n").filter(line => line.startsWith("  MISSING  "));
     for (const line of systemMissing) assert.match(line, /\/var\/run\//);
     assert.equal(system.status, systemMissing.length ? 1 : 0, system.stdout);
     if (systemMissing.length) assert.match(system.stdout, /Fix every MISSING line/);
