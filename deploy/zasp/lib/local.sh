@@ -38,6 +38,22 @@ local_directory_usable() {
 }
 local_port_in_use() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
 
+# Match the native stack's bin-directory precedence before checking its required pair.
+local_postgres_installed() {
+  local bin="${ZASP_REAL_STACK_PG_BIN:-}" executable
+  if [ -z "$bin" ]; then
+    executable="$(command -v pg_ctl || true)"
+    if [ -n "$executable" ]; then
+      bin="$(dirname "$executable")"
+    else
+      for bin in /usr/lib/postgresql/18/bin /opt/homebrew/opt/postgresql@18/bin /usr/local/opt/postgresql@18/bin /usr/pgsql-18/bin; do
+        if [ -x "$bin/pg_ctl" ]; then break; fi
+      done
+    fi
+  fi
+  [ -x "$bin/pg_ctl" ] && [ -x "$bin/initdb" ]
+}
+
 local_doctor() {
   doctor_begin
   local directory port busy=""
@@ -59,7 +75,7 @@ local_doctor() {
       fi
       ;;
     native)
-      if [ -n "${ZASP_REAL_STACK_PG_BIN:-}" ] && [ -x "$ZASP_REAL_STACK_PG_BIN/pg_ctl" ] || command -v pg_ctl >/dev/null 2>&1 || [ -x /usr/lib/postgresql/18/bin/pg_ctl ] || [ -x /opt/homebrew/opt/postgresql@18/bin/pg_ctl ]; then
+      if local_postgres_installed; then
         doctor_ok "PostgreSQL server programs (initdb, pg_ctl)"
       else
         doctor_missing "PostgreSQL 18 server programs (initdb, pg_ctl) were not found" "install PostgreSQL 18 and set ZASP_POSTGRES_BIN to the directory that holds pg_ctl"

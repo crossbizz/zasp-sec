@@ -100,7 +100,7 @@ jobs:
           # Enable coverage in the CLI's child Python processes as well as the test runner.
           coverage_dir="$(mktemp -d "$RUNNER_TEMP/zasp-coverage.XXXXXX")"
           printf '%s\n' 'import coverage' 'coverage.process_startup()' > "$coverage_dir/sitecustomize.py"
-          printf '%s\n' '[run]' 'branch = True' 'parallel = True' 'include = */deploy/zasp/lib/backup.py, */deploy/zasp/lib/vps*.py' 'omit = *_test.py' > "$coverage_dir/coveragerc"
+          printf '%s\n' '[run]' 'branch = True' 'parallel = True' 'include = */deploy/zasp/lib/backup.py, */deploy/zasp/lib/vps*.py, */deploy/vps/dependencies/prepare_inputs.py' 'omit = *_test.py' > "$coverage_dir/coveragerc"
           export COVERAGE_FILE="$coverage_dir/.coverage"
           export COVERAGE_PROCESS_START="$coverage_dir/coveragerc"
           export PYTHONPATH="$coverage_dir"
@@ -114,8 +114,9 @@ jobs:
           /usr/bin/python3 - "$coverage_dir/report.json" <<'PY'
           import json, pathlib, sys
           files = json.loads(pathlib.Path(sys.argv[1]).read_text())["files"]
-          for script in ("backup", "vps_backup", "vps_backup_retention", "vps_dependencies", "vps_doctor", "vps_services"):
-              path = "deploy/zasp/lib/" + script + ".py"
+          scripts = ("backup", "vps_backup", "vps_backup_retention", "vps_dependencies", "vps_doctor", "vps_services")
+          paths = ["deploy/zasp/lib/" + script + ".py" for script in scripts]
+          for path in paths + ["deploy/vps/dependencies/prepare_inputs.py"]:
               if not files.get(path, {}).get("executed_lines"):
                   raise SystemExit("Missing deployment coverage for " + path)
           PY

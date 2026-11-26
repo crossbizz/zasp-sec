@@ -171,7 +171,7 @@ test("local doctor passes when the prerequisites are present, and never prints a
     const result = box.run(["doctor"]);
     assert.equal(output(result).includes(secret), false);
     // The key files live in the state directory: nothing needs root.
-    const missing = result.stdout.split("\n").filter(line => line.includes("MISSING"));
+    const missing = result.stdout.split("\n").filter(line => /^  MISSING  /.test(line));
     assert.deepEqual(missing, [], result.stdout);
     assert.match(result.stdout, /ok {7}.*\/state\/runtime is writable \(key files and analyzers; no root needed\)/);
     assert.equal(result.stdout.includes("sudo mkdir"), false, result.stdout);
@@ -179,7 +179,10 @@ test("local doctor passes when the prerequisites are present, and never prints a
     // doctor says how to create them and how to go back.
     const system = box.run(["doctor"], { ZASP_RUNTIME_DIR: "system" });
     assert.equal(system.stdout.includes("/state/runtime"), false, system.stdout);
-    for (const line of system.stdout.split("\n").filter(line => line.includes("MISSING"))) assert.match(line, /\/var\/run\//);
+    const systemMissing = system.stdout.split("\n").filter(line => /^  MISSING  /.test(line));
+    for (const line of systemMissing) assert.match(line, /\/var\/run\//);
+    assert.equal(system.status, systemMissing.length ? 1 : 0, system.stdout);
+    if (systemMissing.length) assert.match(system.stdout, /Fix every MISSING line/);
     assert.match(box.run(["doctor"], { ZASP_RUNTIME_DIR: "relative" }).stdout, /MISSING.*ZASP_RUNTIME_DIR must be an absolute directory or 'system'/);
     for (const expected of [/ok {7}docker \(/, /ok {7}the Docker daemon answers/, /ok {7}docker compose/, /ok {7}zasp\.local-stack\.test resolves to this machine/,
       /ok {7}STYTCH_SECRET is set/, /ok {7}public origin https:\/\/zasp\.local-stack\.test:8443/]) assert.match(result.stdout, expected);
@@ -199,12 +202,18 @@ test("local doctor refuses an origin the product would refuse", () => {
 });
 
 test("local doctor in native mode asks for the native programs instead of Docker", () => {
-  const box = sandbox({ config: "ZASP_DEPENDENCIES=native\n" });
+  const box = sandbox({ config: "ZASP_DEPENDENCIES=native\n", tools: { pg_ctl: "", initdb: "" } });
   try {
-    const result = box.run(["doctor"]);
+    // An explicit bin directory controls native startup even on a host with PostgreSQL on PATH.
+    const result = box.run(["doctor"], { ZASP_POSTGRES_BIN: join(box.base, "missing-postgres") });
     assert.doesNotMatch(result.stdout, /docker is not installed|Docker daemon/);
     for (const expected of [/MISSING {2}PostgreSQL 18 server programs/, /MISSING {2}openfga is not installed/, /MISSING {2}temporal is not installed/,
       /MISSING {2}moto_server is not installed/, /MISSING {2}aws is not installed/, /warn {5}native dependencies are a reduced stack/]) assert.match(result.stdout, expected);
+    const installed = box.run(["doctor"], { ZASP_POSTGRES_BIN: box.bin });
+    assert.match(installed.stdout, /ok {7}PostgreSQL server programs/);
+    rmSync(join(box.bin, "initdb"));
+    const incomplete = box.run(["doctor"], { ZASP_POSTGRES_BIN: box.bin });
+    assert.match(incomplete.stdout, /MISSING {2}PostgreSQL 18 server programs/);
   } finally { box.done(); }
 });
 
@@ -350,7 +359,9 @@ test("stack.sh refuses an unknown dependency mode, and native mode names the mis
     const unknown = spawnSync(bash, [stack, "status"], { encoding: "utf8", env: { ...env, ZASP_REAL_STACK_DEPENDENCIES: "podman" } });
     assert.equal(unknown.status, 1);
     assert.match(unknown.stderr, /must be 'docker' or 'native'/);
-    const native = spawnSync(bash, [stack, "up"], { encoding: "utf8", env: { ...env, ZASP_REAL_STACK_DEPENDENCIES: "native" } });
+    const native = spawnSync(bash, [stack, "up"], { encoding: "utf8", env: {
+      ...env, ZASP_REAL_STACK_DEPENDENCIES: "native", ZASP_REAL_STACK_PG_BIN: join(box.base, "missing-postgres"),
+    } });
     assert.equal(native.status, 1);
     assert.match(native.stderr, /PostgreSQL 18 programs \(initdb, pg_ctl\) were not found; set ZASP_REAL_STACK_PG_BIN/);
   } finally { box.done(); }

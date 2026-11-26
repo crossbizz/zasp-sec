@@ -1,6 +1,6 @@
 # Infrastructure providers
 
-Use the production AWS release for the complete application. It can independently use OpenBao for connector credentials or recovery signatures and R2 for encrypted offsite archives. The local and Kubernetes evaluation profiles retain their existing emulators. New CLI configurations select the VPS profile. Its component commands install and check the independent services described below. [VPS first deployment](vps-first-deployment.md) There is no full customer-data VPS release in this version.
+Use the production AWS release for the complete application. It can independently use OpenBao for connector credentials or recovery signatures and R2 for encrypted offsite archives. The local and Kubernetes evaluation profiles retain their existing emulators. New CLI configurations select the VPS profile. Its component commands install and check the independent services described below. The complete customer-data release still requires the AWS production profile. [VPS first deployment](vps-first-deployment.md)
 
 ## Supported combinations
 
