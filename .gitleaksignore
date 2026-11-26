@@ -1919,3 +1919,15 @@ f398bb67d51db34a57ab82829ccee2d4419bdbaa:workers/security-python/tests/test_prow
 # task grant expired on 2026-08-20. SDK tests now assemble the public test
 # vector from its signed JSON claims and detached Ed25519 signature.
 160742b632740f9940bb75ccc73affa9aa3b1aa6:sdks/fixtures/task-delegation.json:jwt:11
+
+# The hybrid OpenBao values example names a Transit key by its public UUID.
+# This identifier grants no access to the key. Scope the exception to its
+# introduction in the example values file.
+80822e140ec2c1171833778ad3d087b2fca48544:deploy/examples/infrastructure-providers/hybrid-openbao.values.yaml:generic-api-key:9
+
+# These recovery tests use fixed UUIDs as public Transit key names. They test
+# the recorded signing key ID, worker configuration and mock Transit paths.
+# Each fingerprint covers only the fixture's introduction at the named line.
+fd54a5738723b3eb35bc3dfda86c286d672c62b3:services/platform/agentsec-worker/recovery_provider_roundtrip_test.go:generic-api-key:53
+fd54a5738723b3eb35bc3dfda86c286d672c62b3:services/platform/agentsec-worker/recovery_signing_provider_test.go:generic-api-key:43
+fd54a5738723b3eb35bc3dfda86c286d672c62b3:services/platform/recovery/transit/signing_test.go:generic-api-key:18
