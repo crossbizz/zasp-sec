@@ -43,8 +43,10 @@ Operating
   status                  One line per dependency and process.
   logs [name] [--follow]  Show logs; without a name, list what has logs.
   upgrade                 Rebuild or roll out the current checkout and restart.
-  backup [file]           Write a backup.
-  restore <file> --yes    Replace the data with a backup.
+  backup [file]           Write the profile archive, encrypted archive, or offsite receipt.
+  backup upload <archive> <file>   Encrypt an existing file and save an archive or receipt.
+  backup download <file> <output>  Verify and decrypt a backup into a new private file.
+  restore <file> --yes    Restore the selected profile from an archive or receipt.
   uninstall --yes         Remove the deployment and its data.
 
 Options
@@ -122,6 +124,18 @@ case "$command_name" in
     ;;
   *) usage >&2; die "unknown command '$command_name'" ;;
 esac
+if [ "$command_name" = backup ] || [ "$command_name" = restore ]; then
+  case "${ZASP_BACKUP_PROVIDER-local}" in
+    local|s3|r2) ;;
+    *) die 'ZASP_BACKUP_PROVIDER must be local, s3 or r2' ;;
+  esac
+  if [ "${ZASP_BACKUP_PROVIDER:-local}" != local ] || [ -n "${ZASP_BACKUP_RECIPIENT_FILE:-}${ZASP_BACKUP_IDENTITY_FILE:-}" ] ||
+     { [ "$command_name" = backup ] && { [ "${rest[0]:-}" = upload ] || [ "${rest[0]:-}" = download ]; }; }; then
+    require_tool python3
+    # Bash 3.2 with nounset cannot expand an empty array directly.
+    exec python3 "$ZASP_LIB/backup.py" "$ZASP_ROOT" "$ZASP_CONFIG_FILE" "$command_name" ${rest[@]+"${rest[@]}"}
+  fi
+fi
 if [ "${#rest[@]}" -gt 0 ]; then
   "${ZASP_PROFILE}_${command_name}" "${rest[@]}"
 else
