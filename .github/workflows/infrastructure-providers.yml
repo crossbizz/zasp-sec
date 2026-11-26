@@ -147,7 +147,7 @@ jobs:
 
   release-rendering:
     outputs:
-      cli-failure: ${{ steps.cli.outputs.failure }}
+      cli-failure: ${{ steps.cli.outputs.failure || steps.lint.outputs.failure }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -158,6 +158,23 @@ jobs:
           cache: npm
       - name: Install locked chart-test dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci --no-audit --no-fund
+      - name: Lint deployment changes
+        id: lint
+        run: |
+          if ! ./node_modules/.bin/eslint -f json -o "$RUNNER_TEMP/deployment-lint.json" \
+            deploy/production/{audit-export-rollout,evidence-encryption,release-contract}{,.test}.mjs \
+            deploy/staging/queue-contract.test.mjs deploy/zasp/{vps-cli,zasp}.test.mjs; then
+            python3 - "$RUNNER_TEMP/deployment-lint.json" <<'PY' >> "$GITHUB_OUTPUT"
+            import json, pathlib, sys
+            locations = []
+            for file in json.loads(pathlib.Path(sys.argv[1]).read_text()):
+                for issue in file["messages"]:
+                    if issue["severity"] == 2:
+                        locations.append(f"{pathlib.Path(file['filePath']).name}:{issue.get('line', 0)} {issue['ruleId']}")
+            print("failure=Lint " + ", ".join(locations)[:180])
+            PY
+            exit 1
+          fi
       - name: Exercise the deployment CLI through every profile
         id: cli
         run: |
