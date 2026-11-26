@@ -9,6 +9,7 @@ import ssl
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest import mock
@@ -188,35 +189,115 @@ class Runtime(unittest.TestCase):
             services.unseal(api)
         self.assertEqual(api.request.call_count, 1)
 
-    def test_tls_health_read_against_isolated_loopback_service(self):
+    @contextlib.contextmanager
+    def tls_server(self, handler):
         crt, key = self.dir / "tls.crt", self.dir / "tls.key"
         subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=fixture",
                         "-addext", "subjectAltName=DNS:fixture", "-keyout", str(key), "-out", str(crt)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(307 if self.path == "/redirect" else 200)
-                self.end_headers()
-                self.wfile.write(b'{"result":"ok"}')
-            def log_message(self, *args):
-                pass
-        with HTTPServer(("127.0.0.1", 0), Handler) as server:
+        with HTTPServer(("127.0.0.1", 0), handler) as server:
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             ctx.load_cert_chain(crt, key)
             server.socket = ctx.wrap_socket(server.socket, server_side=True)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                trusted = ssl.create_default_context(cafile=str(crt))
-                api = services.API("fixture", 443, server.server_address, trusted)
-                self.assertEqual(api.request("GET", "/ready"), (200, {"result": "ok"}))
-                with self.assertRaisesRegex(services.ServiceError, "redirect"):
-                    api.request("GET", "/redirect")
-                with self.assertRaisesRegex(services.ServiceError, "TLS"):
-                    services.API("wrong-host", 443, server.server_address, trusted).request("GET", "/ready")
+                yield server.server_address, ssl.create_default_context(cafile=str(crt))
             finally:
                 server.shutdown()
                 thread.join()
+
+    def test_tls_health_read_against_isolated_loopback_service(self):
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(307 if self.path == "/redirect" else 200)
+                self.end_headers()
+                self.wfile.write(b'{"result":"ok"}')
+
+            def log_message(self, *args):
+                pass
+
+        with self.tls_server(Handler) as (address, trusted):
+            api = services.API("fixture", 443, address, trusted)
+            self.assertEqual(api.request("GET", "/ready"), (200, {"result": "ok"}))
+            with self.assertRaisesRegex(services.ServiceError, "redirect"):
+                api.request("GET", "/redirect")
+            with self.assertRaisesRegex(services.ServiceError, "TLS"):
+                services.API("wrong-host", 443, address, trusted).request("GET", "/ready")
+
+    def test_slow_single_init_over_tls_preserves_the_encrypted_handoff(self):
+        packet = base64.b64encode(b"\xc1" + os.urandom(64)).decode()
+        path = self.dir / "handoff"
+        calls, reservations = [], []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"initialized": bool(calls)}).encode())
+
+            def do_PUT(self):
+                calls.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
+                reservations.append(path.read_bytes())
+                # Cross the ordinary socket timeout after the server has committed the write.
+                time.sleep(services.COMPONENT_IO_TIMEOUT + 0.3)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"keys_base64": [packet] * 5, "root_token": packet}).encode())
+
+            def log_message(self, *args):
+                pass
+
+        with self.tls_server(Handler) as (address, trusted), \
+                mock.patch.object(services, "pgp_recipients", return_value=["public"] * 6), \
+                mock.patch.dict(os.environ, {"ZASP_VPS_OPENBAO_HANDOFF_FILE": str(path)}), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            api = services.API("fixture", 443, address, trusted)
+            service = services.Service("openbao")
+            services.initialize(service, api)
+            handoff = path.read_bytes()
+            services.initialize(service, api)
+            self.assertEqual(path.read_bytes(), handoff)
+            self.assertEqual(json.loads(handoff)["bootstrap_packet"], packet)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn(packet, output.getvalue())
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "/v1/sys/init")
+        self.assertEqual(calls[0][1]["secret_threshold"], 3)
+        self.assertTrue(reservations[0].startswith(b"pending:"))
+
+    def test_init_acknowledgement_lost_after_commit_preserves_pending_handoff(self):
+        commits = []
+        path = self.dir / "handoff"
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"initialized": bool(commits)}).encode())
+
+            def do_PUT(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                commits.append(self.path)
+                self.close_connection = True
+
+            def log_message(self, *args):
+                pass
+
+        with self.tls_server(Handler) as (address, trusted), \
+                mock.patch.object(services, "pgp_recipients", return_value=["public"] * 6), \
+                mock.patch.dict(os.environ, {"ZASP_VPS_OPENBAO_HANDOFF_FILE": str(path)}):
+            api = services.API("fixture", 443, address, trusted)
+            service = services.Service("openbao")
+            with self.assertRaisesRegex(services.ServiceError, "preserve the pending handoff"):
+                services.initialize(service, api)
+            pending = path.read_bytes()
+            self.assertTrue(pending.startswith(b"pending:"))
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            with self.assertRaisesRegex(services.ServiceError, "server is initialized but the handoff is pending"):
+                services.initialize(service, api)
+            self.assertEqual(path.read_bytes(), pending)
+        self.assertEqual(commits, ["/v1/sys/init"])
 
 
 if __name__ == "__main__":

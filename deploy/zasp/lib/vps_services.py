@@ -21,6 +21,8 @@ ROOT = Path(__file__).resolve().parents[3]
 OWNER = "zasp.io/installation"
 LABEL = re.compile(r"[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?\Z")
 ACTIONS = {"doctor", "status", "install", "upgrade", "start", "stop", "logs", "init", "unseal"}
+COMPONENT_IO_TIMEOUT = 8
+OPENBAO_INIT_DEADLINE = 60
 
 
 class ServiceError(Exception):
@@ -219,17 +221,21 @@ class API:
 
     def request(self, method, path, data=None, headers=None):
         # Keep the verified server name independent of the loopback tunnel endpoint.
-        req = http.client.HTTPSConnection(self.name, self.port, timeout=8, context=self.context)
+        initializing = method == "PUT" and path == "/v1/sys/init"
+        req = http.client.HTTPSConnection(self.name, self.port, timeout=COMPONENT_IO_TIMEOUT, context=self.context)
         def expired(signum, frame):
             raise TimeoutError("component request timed out")
 
         original_signal = signal.signal(signal.SIGALRM, expired)
-        signal.setitimer(signal.ITIMER_REAL, 12)
+        signal.setitimer(signal.ITIMER_REAL, OPENBAO_INIT_DEADLINE if initializing else 12)
         try:
-            with socket.create_connection(self.address, timeout=8) as raw_socket:
+            with socket.create_connection(self.address, timeout=COMPONENT_IO_TIMEOUT) as raw_socket:
                 req.sock = self.context.wrap_socket(raw_socket, server_hostname=self.name)
             payload = json.dumps(data).encode() if data is not None else None
             req.request(method, path, payload, {"Accept": "application/json", "Content-Type": "application/json", **(headers or {})})
+            if initializing:
+                # OpenBao bootstraps Raft and encrypts six packets before returning this one-time response.
+                req.sock.settimeout(OPENBAO_INIT_DEADLINE)
             response = req.getresponse()
             raw = response.read(256 * 1024 + 1)
             if len(raw) > 256 * 1024 or 300 <= response.status < 400:
@@ -241,6 +247,8 @@ class API:
                 raise ServiceError("unexpected response format")
             return response.status, result
         except (OSError, http.client.HTTPException):
+            if initializing:
+                raise ServiceError("initialization response unavailable. Verify server state and preserve the pending handoff") from None
             raise ServiceError("unavailable (DNS, verified TLS or network failure)") from None
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
@@ -290,6 +298,9 @@ def initialize(service, api):
     if code != 200 or not isinstance(state.get("initialized"), bool):
         raise ServiceError("cannot establish OpenBao initialization state")
     if state["initialized"]:
+        handoff = service.config("HANDOFF_FILE")
+        if handoff and os.path.lexists(handoff) and read_file(handoff, private=True).startswith(b"pending:"):
+            raise ServiceError("server is initialized but the handoff is pending. Preserve it and follow the recovery procedure")
         print("openbao: already initialized; use the original custodian handoff")
         return
     recipients = pgp_recipients(service)
