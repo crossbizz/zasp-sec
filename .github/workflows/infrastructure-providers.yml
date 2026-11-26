@@ -78,6 +78,8 @@ jobs:
         run: node --experimental-test-coverage --test deploy/staging/queue-contract.test.mjs deploy/production/evidence-encryption.test.mjs
 
   vps-operations:
+    outputs:
+      chart-failure: ${{ steps.charts.outputs.failure }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -119,11 +121,21 @@ jobs:
           PY
           systemd-analyze verify deploy/vps/backup/zasp-backup.service deploy/vps/backup/zasp-backup.timer
       - name: Render pinned Temporal and OpenFGA charts against the VPS contract
+        id: charts
         env:
           ZASP_TEST_RUNTIME_HELM: "1"
-        run: /usr/bin/python3 -m unittest discover -s deploy/vps/dependencies -p test_helm.py -v
+        run: |
+          if ! /usr/bin/python3 -m unittest discover -s deploy/vps/dependencies -p test_helm.py -v > "$RUNNER_TEMP/chart.log" 2>&1; then
+            cat "$RUNNER_TEMP/chart.log"
+            locations=$(sed -nE 's/.*File "[^"]*\/(test_helm|vps_dependencies)\.py", line ([0-9]+),.*/\1.py:\2/p' "$RUNNER_TEMP/chart.log" | paste -sd,)
+            echo "failure=VPS chart ${locations:-render}" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/chart.log"
 
   release-rendering:
+    outputs:
+      cli-failure: ${{ steps.cli.outputs.failure }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -135,8 +147,24 @@ jobs:
       - name: Install locked chart-test dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci --no-audit --no-fund
       - name: Exercise the deployment CLI through every profile
-        run: node --test deploy/zasp/zasp.test.mjs deploy/zasp/vps-cli.test.mjs
+        id: cli
+        run: |
+          if ! node --test --test-reporter=tap deploy/zasp/zasp.test.mjs deploy/zasp/vps-cli.test.mjs > "$RUNNER_TEMP/cli.tap" 2>&1; then
+            cat "$RUNNER_TEMP/cli.tap"
+            name=$(awk -F ' - ' '/^not ok [0-9]+ - / { gsub(/[^A-Za-z0-9 ._-]/,"",$2); print substr($2,1,120); exit }' "$RUNNER_TEMP/cli.tap")
+            echo "failure=CLI ${name:-tests}" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          tail -10 "$RUNNER_TEMP/cli.tap"
       - name: Render and validate provider selections
         run: |
           helm version --short
           node --test --test-name-pattern='release projects OpenBao|release selects SSE-S3|explicit queue encryption' deploy/production/release-contract.test.mjs deploy/production/audit-export-rollout.test.mjs
+
+  deployment-diagnostics:
+    needs: [vps-operations, release-rendering]
+    if: failure() && (needs.vps-operations.outputs.chart-failure != '' || needs.release-rendering.outputs.cli-failure != '')
+    name: "Deployment check · ${{ needs.vps-operations.outputs.chart-failure }} ${{ needs.release-rendering.outputs.cli-failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "See the named deployment step for its full test output." >> "$GITHUB_STEP_SUMMARY"
