@@ -117,4 +117,14 @@ Record the installed Helm revisions, image digests, values, provider configurati
 | Local or S3 backups | Select `ZASP_BACKUP_PROVIDER=local` or `s3`; supply the recipient and independent recovery material. S3 also requires `ZASP_BACKUP_REGION` and `ZASP_BACKUP_EXPECTED_BUCKET_OWNER`. See the VPS backup runbook for its scheduling/retention limits. |
 | R2 core evidence or Cloudflare Queues | Unavailable in the application. R2 is supported for archives. The evidence and delivery contracts require versioned S3 and SQS. |
 
-A local CLI smoke test generated the private VPS config, previewed all three component installs and confirmed that full startup and administrator bootstrap were refused. It used a disposable configuration and made no cluster or cloud calls. CI exercises Helm rendering, isolated service protocols and a disposable OpenBao recovery drill. Consult the result for the commit you run, then record the checks against your actual cluster, credentials and buckets. End-to-end VPS application capacity and customer-pilot readiness remain unverified. [Infrastructure CI](../../.github/workflows/infrastructure-providers.yml)
+## Verification
+
+| Area | Exercise and result |
+| --- | --- |
+| CLI and manifests | The CLI generated a private config and preserved existing profiles. Local dry runs left the target untouched. Hosted Helm rendered the evaluation chart, private OpenBao/Nango charts and pinned Temporal/OpenFGA charts. |
+| Database recovery | Hosted CI dumped a populated PostgreSQL 16 database over verified TLS, restored it into a fresh database, and checked the recovered row. The VPS dependency installer targets PostgreSQL 18. |
+| OpenBao | Hosted CI initialized a real TLS-protected server with PGP recipients, unsealed it with three custodians, and checked scoped authentication. A separate two-server drill restored a Raft snapshot and verified retained KV data and Transit signatures. |
+| AWS and R2 | Tests exercised provider selection, identity isolation, encryption, receipts and integrity through controlled fixtures. Live bucket tests require operator-provided accounts and credentials. |
+| Customer pilot | Full application startup remains gated. A customer VPS deployment, host reboot, live Nango OAuth flow, and capacity at the proposed host size remain unverified. |
+
+The CI run records which checks executed for these deployment scripts. Repeat the cluster, bucket and recovery checks for the installation you intend to use. [Hosted infrastructure results](https://github.com/crossbizz/zasp-sec/actions/runs/45741762439)

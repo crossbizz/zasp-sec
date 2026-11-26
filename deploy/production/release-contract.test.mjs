@@ -1868,7 +1868,18 @@ test("terraform isolates red team queue evidence and target credentials behind t
     'resource "aws_iam_role_policy" "red_team"',
   ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(terraform, /"red-team-tests"\s*=\s*\{ visibility = 900, max_receive = 5, schema = "agentsec\.red-team-tests\.v1" \}/);
-  assert.equal((terraform.match(/each\.key == "red-team-tests" \? aws_kms_key\.red_team\.arn : each\.key == "attack-lab-jobs" \? aws_kms_key\.attack_lab\.arn : aws_kms_key\.staging\.arn/g) || []).length, 2);
+  const managedAuditQueue = 'each.key == "audit-exports" && var.audit_export_queue_encryption == "provider-managed"';
+  const expectedKey = [
+    'each.key == "red-team-tests" ? aws_kms_key.red_team.arn',
+    'each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn',
+    `${managedAuditQueue} ? null : aws_kms_key.staging.arn`,
+  ].join(" : ");
+  for (const name of ["work", "dead_letter"]) {
+    const block = terraform.match(new RegExp(`^resource "aws_sqs_queue" "${name}" \\{[\\s\\S]*?^\\}`, "m"))?.[0];
+    assert.ok(block, `missing queue resource: ${name}`);
+    assert.equal(block.match(/^ +kms_master_key_id\s*= (.+)$/m)?.[1], expectedKey, `${name} KMS key selection`);
+    assert.equal(block.match(/^ +sqs_managed_sse_enabled\s*= (.+)$/m)?.[1], `${managedAuditQueue} ? true : null`, `${name} SSE-SQS selection`);
+  }
   for (const [key, account, secret] of [
     ["outbox", "zasp-red-team-outbox", "postgres-red-team-outbox-dsn"],
     ["worker", "zasp-red-team-worker", "postgres-red-team-worker-dsn"],
