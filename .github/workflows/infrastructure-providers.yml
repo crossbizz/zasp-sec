@@ -8,6 +8,8 @@ jobs:
   provider-contracts:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      wiring-failure: ${{ steps.wiring.outputs.failure }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
@@ -26,10 +28,26 @@ jobs:
           go test -race -count=1 -coverprofile="$RUNNER_TEMP/providers.cover" ./openbaoclient ./openbaokv ./runtimesecret ./recovery/... ./artifactstore/s3driver
           go tool cover -func="$RUNNER_TEMP/providers.cover" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Exercise provider wiring in the API and worker
+        id: wiring
         working-directory: services/platform
         run: |
-          go test -p 2 -count=1 -coverprofile="$RUNNER_TEMP/wiring.cover" -run 'Test(InfrastructureProvider|RuntimeConnector|ConnectorAWSRollback|CheckConfigReadsExplicitStartupProjection|RuntimeNango|WorkerRuntimeConfigServesSaaSOnlyWithNango|Discovery.*OpenBao|OpenBao|AuditQueueEncryption|AuditExportQueueEncryption|EvidenceEncryption|SSES3|Recovery|ProductionDiscovery)' ./agentsec-api ./agentsec-worker
+          set +e
+          go test -json -p 2 -count=1 -coverprofile="$RUNNER_TEMP/wiring.cover" -run 'Test(InfrastructureProvider|RuntimeConnector|ConnectorAWSRollback|CheckConfigReadsExplicitStartupProjection|RuntimeNango|WorkerRuntimeConfigServesSaaSOnlyWithNango|Discovery.*OpenBao|OpenBao|AuditQueueEncryption|AuditExportQueueEncryption|EvidenceEncryption|SSES3|Recovery|ProductionDiscovery)' ./agentsec-api ./agentsec-worker 2>&1 | tee "$RUNNER_TEMP/wiring.jsonl"
+          status=${PIPESTATUS[0]}
+          set -e
+          if (( status != 0 )); then
+            python3 ../../.github/scripts/go_failure.py < "$RUNNER_TEMP/wiring.jsonl" >> "$GITHUB_OUTPUT"
+            exit "$status"
+          fi
           go tool cover -func="$RUNNER_TEMP/wiring.cover" | tail -1 >> "$GITHUB_STEP_SUMMARY"
+
+  wiring-diagnostics:
+    needs: provider-contracts
+    if: failure() && needs.provider-contracts.outputs.wiring-failure != ''
+    name: "Failed Go tests · ${{ needs.provider-contracts.outputs.wiring-failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "See the provider-contracts log for the full test output." >> "$GITHUB_STEP_SUMMARY"
 
   backup-and-recovery:
     runs-on: ubuntu-24.04
@@ -40,6 +58,8 @@ jobs:
         with:
           go-version: 1.26.8
           cache-dependency-path: services/platform/go.sum
+      - name: Test Go failure reporting
+        run: python3 -m unittest discover -s .github/scripts -v
       - name: Exercise encrypted backup and restore
         run: python3 -m unittest discover -s deploy/zasp -p offsite_backup_test.py -v
       - name: Render and validate the private OpenBao deployment
