@@ -105,8 +105,13 @@ jobs:
             annotation=$(node scripts/annotate-verify-failure.mjs "$task_verify_log" || printf '%s' '::error title=npm verify failed::Verification failed; phase unavailable.')
             printf '%s\n' "$annotation"
             # The repository's annotator emits only its fixed list of phase and test names.
-            locations=$(sed -nE 's@.*[/](release-gates|release-contract)\.mjs:([0-9]+):[0-9]+.*@\1:\2@p' "$task_verify_log" | sort -u | head -6 | paste -sd,)
-            printf 'failure=%s %.190s\n' "$locations" "${annotation#*failed::}" >> "$GITHUB_OUTPUT"
+            locations=$(python3 .github/scripts/verify_locations.py < "$task_verify_log")
+            phase="${annotation#*failed::}"
+            if [ -n "$locations" ]; then
+              printf 'failure=%.165s %.75s\n' "$locations" "$phase" >> "$GITHUB_OUTPUT"
+            else
+              printf 'failure=%.220s\n' "$phase" >> "$GITHUB_OUTPUT"
+            fi
           fi
           rm -f -- "$task_verify_log" || true
           exit "$task_verify_status"
