@@ -151,6 +151,26 @@ class Contract(unittest.TestCase):
                     self.assertIn("--wait-for-jobs", helm.call_args.args)
 
 
+    def test_network_rejects_additive_grants_and_allows_dedicated_owned_rules(self):
+        unit = make_installer()
+        policy = {"metadata": {"name": "openfga-db-ingress", "labels": {dep.LABEL: unit.owner}}, "spec": {"ingress": [{"from": [{}]}]}}
+        empty = json.dumps({"items": []})
+        with patch.object(unit, "kubectl", side_effect=[json.dumps({"items": [policy]}), empty]):
+            unit.network()
+        policy["metadata"]["name"] = "someone-else"
+        with patch.object(unit, "kubectl", return_value=json.dumps({"items": [policy]})), self.assertRaisesRegex(dep.Rejected, "additive ingress grant"):
+            unit.network()
+        policy["spec"]["ingress"] = []
+        with patch.object(unit, "kubectl", return_value=json.dumps({"items": [policy]})):
+            unit.network()
+
+    def test_release_rejects_values_drift(self):
+        unit = make_installer()
+        hits = json.dumps([{"name": "openfga", "chart": "openfga-0.3.15", "status": "deployed"}])
+        with patch.object(unit, "helm", side_effect=[hits, hits, '{"authn":{"method":"none"}}']), self.assertRaisesRegex(dep.Rejected, "configuration drift"):
+            unit.release("openfga")
+
+
 class Operations(unittest.TestCase):
     def test_doctor_does_not_write_and_install_orders_dependencies(self):
         for action in ["doctor", "install"]:

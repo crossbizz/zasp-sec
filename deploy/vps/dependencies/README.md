@@ -4,12 +4,12 @@ The `dependencies` unit installs three separate PostgreSQL 18 databases, Tempora
 
 ## Prepare the cluster
 
-Use an operator host with kubectl, Helm 3.13 or later in the 3.x series, Python 3.10+, PyYAML, OpenSSL and curl. The cluster must enforce NetworkPolicy, protect Kubernetes Secrets at rest and have sufficient persistent disk and memory. Install the verified CloudNativePG controller and CRDs before this unit. The included policy permits its controller in `cnpg-system` labeled `app.kubernetes.io/name=cloudnative-pg`. The database contract was checked against the 1.30.2 CRD. Review a CNPG-compatible PostgreSQL 18 image, pin it by digest in the VPS config as `ZASP_VPS_POSTGRES_IMAGE`, and choose `ZASP_VPS_STORAGE_CLASS` (default `local-path`). Each runtime pod needs enough disk for PostgreSQL WAL, backups and migrations in addition to the database's live data. [CloudNativePG operator installation](https://cloudnative-pg.io/docs/1.30/installation_upgrade/)
+Use an operator host with kubectl, Helm 3.16 or later in the 3.x series, Python 3.10+, PyYAML, OpenSSL and curl. The cluster must enforce NetworkPolicy, protect Kubernetes Secrets at rest and have sufficient persistent disk and memory. Install the verified CloudNativePG controller and CRDs before this unit. The included policy permits its controller in `cnpg-system` labeled `app.kubernetes.io/name=cloudnative-pg`. The database contract was checked against the 1.30.2 CRD. Review a CNPG-compatible PostgreSQL 18 image, pin it by digest in the VPS config as `ZASP_VPS_POSTGRES_IMAGE`, and choose `ZASP_VPS_STORAGE_CLASS` (default `local-path`). Reserve disk for PostgreSQL WAL and migrations beyond the live data, and place recovery backups off the VPS. [CloudNativePG operator installation](https://cloudnative-pg.io/docs/1.30/installation_upgrade/)
 
 Initialize the VPS config with `./zasp --profile vps config init`. Record the context, independently verified kube-system UID and installation ID. For these examples export `ZASP_VPS_KUBE_CONTEXT`, `ZASP_VPS_CLUSTER_UID` and `ZASP_VPS_INSTALLATION_ID` in your shell with the same values as that config. Run the following first-install commands in Bash from the repository root. They use create-only requests and require a selected cluster matching your recorded identity. Use dedicated namespaces. Grant permission to create pods, change labels, read Secrets and install network policies only to the authorized operator and service controllers.
 
 ```bash
-set -eu
+set -euo pipefail
 : "${ZASP_VPS_KUBE_CONTEXT:?}" "${ZASP_VPS_CLUSTER_UID:?}" "${ZASP_VPS_INSTALLATION_ID:?}"
 test "$(kubectl --context "$ZASP_VPS_KUBE_CONTEXT" get namespace kube-system -o jsonpath='{.metadata.uid}')" = "$ZASP_VPS_CLUSTER_UID"
 for ns in zasp-data zasp-runtime; do

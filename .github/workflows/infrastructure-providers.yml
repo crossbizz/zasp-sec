@@ -118,6 +118,10 @@ jobs:
                   raise SystemExit("Missing deployment coverage for " + path)
           PY
           systemd-analyze verify deploy/vps/backup/zasp-backup.service deploy/vps/backup/zasp-backup.timer
+      - name: Render pinned Temporal and OpenFGA charts against the VPS contract
+        env:
+          ZASP_TEST_RUNTIME_HELM: "1"
+        run: /usr/bin/python3 -m unittest discover -s deploy/vps/dependencies -p test_helm.py -v
 
   release-rendering:
     runs-on: ubuntu-24.04
