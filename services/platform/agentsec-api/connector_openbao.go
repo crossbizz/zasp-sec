@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"time"
 
@@ -26,6 +27,11 @@ func utcNowForConnector() time.Time { return time.Now().UTC() }
 
 type baoConnectorDriver struct{ store *openbaokv.Store }
 
+func (d *baoConnectorDriver) Close() error {
+	d.store.CloseIdleConnections()
+	return nil
+}
+
 func (d *baoConnectorDriver) valid() bool { return d != nil && d.store != nil }
 func (d *baoConnectorDriver) oauthStore(config RuntimeConfig) (apiserver.ConnectorOAuthSecretStore, error) {
 	return apiserver.NewKVStoreForOAuth(d, config.ConnectorSecretPrefix, config.ProviderTimeout, utcNowForConnector)
@@ -41,7 +47,7 @@ func validConnectorSecretAuthority(config RuntimeConfig) bool {
 	return connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN)
 }
 
-func newRuntimeConnectorSecrets(ctx context.Context, config RuntimeConfig) (runtimeConnectorSecrets, idleConnectionCloser, error) {
+func newRuntimeConnectorSecrets(ctx context.Context, config RuntimeConfig) (runtimeConnectorSecrets, io.Closer, error) {
 	if !validConnectorSecretAuthority(config) {
 		return nil, nil, errRuntimeUnavailable
 	}
@@ -50,7 +56,7 @@ func newRuntimeConnectorSecrets(ctx context.Context, config RuntimeConfig) (runt
 		if err != nil {
 			return nil, nil, err
 		}
-		return &connectorSecretsDriver{client: client}, tr, nil
+		return &connectorSecretsDriver{client: client}, transportCloser{tr}, nil
 	}
 	store, err := openbaokv.New(config.ConnectorSecrets, strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth"), config.ProviderTimeout)
 	if err != nil {
@@ -60,7 +66,8 @@ func newRuntimeConnectorSecrets(ctx context.Context, config RuntimeConfig) (runt
 		store.CloseIdleConnections()
 		return nil, nil, err
 	}
-	return &baoConnectorDriver{store: store}, store, nil
+	driver := &baoConnectorDriver{store: store}
+	return driver, driver, nil
 }
 
 func (d *baoConnectorDriver) Create(ctx context.Context, name, kms string, value []byte) error {

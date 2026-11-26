@@ -275,18 +275,18 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
 	}
-	secretsDriver, secretsTransport, err := newRuntimeConnectorSecrets(ctx, config)
+	secretsDriver, secretsCloser, err := newRuntimeConnectorSecrets(ctx, config)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-secrets", errRuntimeUnavailable)
 	}
 	ticketSecrets, err := newFindingTicketSecretResolver(secretsDriver, config.ConnectorSecretPrefix, config.ProviderTimeout)
 	if err != nil {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	ticketWebhook, err := apiserver.NewProductionFindingTicketWebhook(config.FindingTicketEgressCIDRs, config.ProviderTimeout)
 	if err != nil {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	ticketService, err := apiserver.NewFindingTicketService(apiserver.FindingTicketServiceConfig{
@@ -300,7 +300,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		NewLeaseToken: newFindingTicketLeaseToken,
 	})
 	if err != nil {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	webhookTestService, err := apiserver.NewIntegrationWebhookTestService(apiserver.IntegrationWebhookTestServiceConfig{
@@ -309,26 +309,26 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		NewLeaseToken: newFindingTicketLeaseToken,
 	})
 	if err != nil {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	secretStore, err := secretsDriver.oauthStore(config)
 	if err != nil {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
 	}
 	providerHTTP, err := newConnectorHTTPClient(config.ProviderTimeout)
 	if err != nil {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
 	}
 	providerTransport, ok := providerHTTP.Transport.(*http.Transport)
 	if !ok {
-		secretsTransport.CloseIdleConnections()
+		_ = secretsCloser.Close()
 		providerHTTP.CloseIdleConnections()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
 	}
-	connectorResources := []io.Closer{transportCloser{secretsTransport}, transportCloser{providerTransport}}
+	connectorResources := []io.Closer{secretsCloser, transportCloser{providerTransport}}
 	keepConnectorResources := false
 	defer func() {
 		if !keepConnectorResources {
@@ -788,12 +788,10 @@ func newConnectorWorkerOwner(hostname string, source io.Reader) (string, error) 
 	return "agentsec-api:" + hostname + ":" + hex.EncodeToString(random), nil
 }
 
-type idleConnectionCloser interface { CloseIdleConnections() }
-
-type transportCloser struct{ transport idleConnectionCloser }
+type transportCloser struct{ transport *http.Transport }
 
 func (closer transportCloser) Close() error {
-	if !invalidRuntimeValue(closer.transport) {
+	if closer.transport != nil {
 		closer.transport.CloseIdleConnections()
 	}
 	return nil

@@ -69,7 +69,7 @@ func TestRuntimeConnectorSecretsKeepAWSDefaultAndReadExpiredOAuthThroughKV(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer closer.CloseIdleConnections()
+	defer closer.Close()
 	store, err := driver.oauthStore(config)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +104,10 @@ func TestConnectorAWSRollbackUsesOnlyTheSelectedDriver(t *testing.T) {
 	if err != nil {
 		t.Fatal("AWS rollback depended on unavailable OpenBao", err)
 	}
-	defer closer.CloseIdleConnections()
+	defer closer.Close()
+	if resource, ok := closer.(transportCloser); !ok || resource.transport == nil {
+		t.Fatal("AWS transport is not owned by the runtime")
+	}
 	if _, ok := driver.(*connectorSecretsDriver); !ok {
 		t.Fatal("AWS rollback selected another provider")
 	}
