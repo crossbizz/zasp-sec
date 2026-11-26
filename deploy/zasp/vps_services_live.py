@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import vps_services as ops
 
 
-def check_operator_flow(base_url, certificate):
+def check_operator_flow(base_url, certificate, wait_for_active):
     address = urlsplit(base_url)
     if address.scheme != "https" or address.hostname != "127.0.0.1" or not address.port:
         raise AssertionError("fixture requires a disposable loopback origin")
@@ -36,6 +36,8 @@ def check_operator_flow(base_url, certificate):
                 key = subprocess.check_output(gpg + ["--export", uid], stderr=subprocess.DEVNULL)
                 (public / (name + ".gpg")).write_bytes(key)
             env = {"ZASP_VPS_OPENBAO_PGP_KEYS_DIR": str(public), "ZASP_VPS_OPENBAO_HANDOFF_FILE": str(handoff),
+                   "ZASP_VPS_OPENBAO_STATUS_TOKEN_FILE": "", "ZASP_VPS_OPENBAO_MODE": "managed",
+                   "ZASP_VPS_OPENBAO_NAMESPACE": "openbao-system", "ZASP_VPS_OPENBAO_URL": "https://openbao.openbao-system.svc:8200",
                    "ZASP_VPS_INSTALLATION_ID": "disposable", "ZASP_VPS_CLUSTER_UID": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}
             with mock.patch.dict(os.environ, env):
                 component = ops.Service("openbao")
@@ -54,9 +56,11 @@ def check_operator_flow(base_url, certificate):
                     # Supply one simulated interactive custodian per call. No cleartext is written to disk.
                     with mock.patch.object(ops, "prompt_share", return_value=decrypt(packet)):
                         ops.unseal(api)
+                root = decrypt(record["bootstrap_packet"])
+                # Submitting the third share may return before Raft elects the new leader.
+                wait_for_active(root)
                 if not component.inspect(api).startswith("unauthenticated"):
                     raise AssertionError("unsealed server must still require scoped authentication")
-                root = decrypt(record["bootstrap_packet"])
                 code, result = api.request("POST", "/v1/auth/token/create", {"policies": ["default"], "ttl": "5m"},
                                            {"X-Vault-Token": root})
                 if code != 200:

@@ -50,6 +50,8 @@ jobs:
       - run: echo "See the provider-contracts log for the full test output." >> "$GITHUB_STEP_SUMMARY"
 
   backup-and-recovery:
+    outputs:
+      drill-failure: ${{ steps.recovery.outputs.failure }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -69,11 +71,19 @@ jobs:
           /usr/bin/python3 -m unittest discover -s deploy/vps/openfga-postgres -v
           /usr/bin/python3 -m unittest discover -s deploy/vps/aws-identity -v
       - name: Restore a real TLS-protected OpenBao Raft snapshot
+        id: recovery
         env:
           ZASP_TEST_OPENBAO_TRANSIT: "1"
           ZASP_TEST_OPENBAO_KV: "1"
           ZASP_TEST_VPS_OPENBAO_CLI: "1"
-        run: python3 deploy/vps/openbao/tests/restore_drill.py
+        run: |
+          if ! python3 deploy/vps/openbao/tests/restore_drill.py > "$RUNNER_TEMP/raft.log" 2>&1; then
+            cat "$RUNNER_TEMP/raft.log"
+            locations=$(sed -nE 's/.*File "[^"]*\/(restore_drill|vps_services_live|vps_services)\.py", line ([0-9]+),.*/\1:\2/p' "$RUNNER_TEMP/raft.log" | tail -3 | paste -sd,)
+            echo "failure=Raft ${locations:-drill}" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/raft.log"
       - name: Verify audit queue encryption and IAM contracts
         run: node --experimental-test-coverage --test deploy/staging/queue-contract.test.mjs deploy/production/evidence-encryption.test.mjs
 
@@ -163,9 +173,9 @@ jobs:
           node --test --test-name-pattern='release projects OpenBao|release selects SSE-S3|explicit queue encryption' deploy/production/release-contract.test.mjs deploy/production/audit-export-rollout.test.mjs
 
   deployment-diagnostics:
-    needs: [vps-operations, release-rendering]
-    if: failure() && (needs.vps-operations.outputs.chart-failure != '' || needs.release-rendering.outputs.cli-failure != '')
-    name: "Deployment check · ${{ needs.vps-operations.outputs.chart-failure }} ${{ needs.release-rendering.outputs.cli-failure }}"
+    needs: [vps-operations, release-rendering, backup-and-recovery]
+    if: failure() && (needs.vps-operations.outputs.chart-failure != '' || needs.release-rendering.outputs.cli-failure != '' || needs.backup-and-recovery.outputs.drill-failure != '')
+    name: "Deployment check · ${{ needs.vps-operations.outputs.chart-failure }} ${{ needs.release-rendering.outputs.cli-failure }} ${{ needs.backup-and-recovery.outputs.drill-failure }}"
     runs-on: ubuntu-24.04
     steps:
       - run: echo "See the named deployment step for its full test output." >> "$GITHUB_STEP_SUMMARY"

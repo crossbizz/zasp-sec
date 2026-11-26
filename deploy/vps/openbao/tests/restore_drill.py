@@ -11,19 +11,25 @@ import tempfile
 import time
 from contextlib import contextmanager
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 import uuid
 
 CHART = Path(__file__).resolve().parents[1]
 IMAGE = os.environ.get("OPENBAO_TEST_IMAGE", "quay.io/openbao/openbao:2.7.3")
 
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class Client:
     def __init__(self, url, ca):
         self.url = url
-        self.http = build_opener(ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context(cafile=str(ca))))
+        tls = HTTPSHandler(context=ssl.create_default_context(cafile=str(ca)))
+        self.http = build_opener(ProxyHandler({}), NoRedirect(), tls)
 
-    def request(self, path, data=None, token="", method=None, binary=False):
+    def request(self, path, data=None, token="", method=None, binary=False, timeout=20):
         headers = {}
         if token:
             headers["X-Vault-Token"] = token
@@ -34,32 +40,56 @@ class Client:
                 headers["Content-Type"] = "application/json"
                 data = json.dumps(data).encode()
         req = Request(self.url + "/v1/" + path, data=data, headers=headers, method=method)
-        with self.http.open(req, timeout=20) as response:
+        with self.http.open(req, timeout=timeout) as response:
             body = response.read()
         return body if binary else (json.loads(body) if body else None)
 
-    def wait_for(self, condition, expect, timeout=60):
+    def wait_for(self, condition, expect, timeout=60, description="expected state"):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
                 value = condition()
                 if expect(value):
                     return value
-            except (URLError, ConnectionError, TimeoutError):
+            except HTTPError as error:
+                # Recheck the same local server when a standby redirects to its leader.
+                if error.code not in (307, 429, 472, 473, 501, 503):
+                    raise
+                error.close()
+            except URLError as error:
+                if isinstance(error.reason, ssl.SSLError):
+                    raise
+            except (ConnectionError, TimeoutError):
                 pass
             time.sleep(0.5)
-        raise RuntimeError("OpenBao did not reach the expected state within the deadline")
+        raise RuntimeError("OpenBao did not reach " + description + " within the deadline")
 
     def initialize(self):
-        self.wait_for(lambda: self.request("sys/init"), lambda r: not r["initialized"])
+        self.wait_for(lambda: self.request("sys/init"), lambda r: not r["initialized"],
+                      description="the uninitialized server")
         init = self.request("sys/init", {"secret_shares": 1, "secret_threshold": 1}, method="PUT")
         share = init["keys_base64"][0]
-        self.unseal(share)
+        self.unseal(share, init["root_token"])
         return init["root_token"], share
 
-    def unseal(self, share):
+    def wait_for_active(self, root_token):
+        def ready():
+            health = self.request("sys/health", timeout=3)
+            if not (health.get("initialized") is True and health.get("sealed") is False and health.get("standby") is False):
+                return False
+            leader = self.request("sys/leader", timeout=3)
+            if leader.get("ha_enabled") is not True or leader.get("is_self") is not True:
+                return False
+            identity = self.request("auth/token/lookup-self", token=root_token, timeout=3)
+            if "root" not in identity.get("data", {}).get("policies", []):
+                raise AssertionError("fixture bootstrap authority was not restored")
+            return True
+
+        self.wait_for(ready, bool, description="authenticated local Raft leadership")
+
+    def unseal(self, share, root_token):
         self.request("sys/unseal", {"key": share}, method="PUT")
-        self.wait_for(lambda: self.request("sys/health"), lambda h: not h["sealed"])
+        self.wait_for_active(root_token)
 
     def policy_token(self, root, name, filename):
         self.request("sys/policies/acl/" + name, {"policy": (CHART / "files" / filename).read_text()}, root)
@@ -150,8 +180,9 @@ def run():
             flow = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(flow)
             with server(directory) as operator_target:
-                operator_target.wait_for(lambda: operator_target.request("sys/init"), lambda result: not result["initialized"])
-                flow.check_operator_flow(operator_target.url, directory / "tls.crt")
+                operator_target.wait_for(lambda: operator_target.request("sys/init"), lambda result: not result["initialized"],
+                                         description="the uninitialized custodian fixture")
+                flow.check_operator_flow(operator_target.url, directory / "tls.crt", operator_target.wait_for_active)
         marker = secrets.token_hex(24)
         key = str(uuid.uuid4())
         message = base64.b64encode(b"pre-backup recovery fixture").decode()
@@ -179,8 +210,9 @@ def run():
             transient, _ = target.initialize()
             operator = target.policy_token(transient, "drill-restore", "restore-operator.hcl")
             target.request("sys/storage/raft/snapshot-force", snapshot, operator)
-            target.wait_for(lambda: target.request("sys/seal-status"), lambda status: status["sealed"])
-            target.unseal(share)
+            target.wait_for(lambda: target.request("sys/seal-status"), lambda status: status["sealed"],
+                            description="the sealed replacement after snapshot import")
+            target.unseal(share, original)
             value = target.request("zasp-kv/data/drill", token=original)["data"]["data"]["value"]
             if value != marker:
                 raise AssertionError("restored credential differs from the source")
