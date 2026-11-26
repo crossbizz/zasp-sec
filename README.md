@@ -81,6 +81,7 @@ Two things to know up front. The product needs AWS APIs (STS, Secrets Manager, K
 | [Administrator guide](docs/getting-started/administrator.md) | Install, configure, operate, back up or upgrade Zasp. Every key and secret is listed there. |
 | [User guide](docs/getting-started/user.md) | Use Zasp once it runs: connect an account, read findings, run a test. |
 | [API contract](openapi/openapi.yaml) | Call the API. It is an OpenAPI 3 document; `npm run openapi:lint` checks it. |
+| [Infrastructure providers](docs/operations/infrastructure-providers.md) | Choose providers, check the support matrix, and migrate or roll back a deployment. |
 | [Operations reference](docs/operations/) | Need the detail behind the administrator guide: [production deployment](docs/operations/production-deployment.md), [AWS runbook](docs/operations/production-aws-runbook.md), [schema installation](docs/operations/baseline-schema-install.md), [first organization](docs/operations/first-organization-bootstrap.md), [backup and rollback](docs/operations/backup-restore-rollback.md). |
 | [Connectors](docs/operations/saas-connectors.md), [Google Cloud](docs/operations/google-cloud-connector.md), [hosted gateway](docs/operations/hosted-gateway.md), [guardrail decision API](docs/operations/guardrail-decision-api.md) | Turn on an optional capability. |
 | [Architecture at a glance](docs/getting-started/administrator.md#architecture-at-a-glance) | Want to know which component does what. |

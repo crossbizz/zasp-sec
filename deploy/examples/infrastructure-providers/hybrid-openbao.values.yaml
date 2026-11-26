@@ -1,0 +1,21 @@
+# Overlay on a complete production release. Match the real existing credential
+# root, KMS history and recovery-canary settings. Replace the example UUID with
+# the name of the provisioned and snapshotted Transit key. See the runbook.
+openbaoClients:
+  namespace: openbao-system
+  connectorSecretsProvider: openbao
+  kvMount: zasp-kv
+  recoverySigningProvider: openbao
+  transitKey: 6e2f9871-5a1b-4fbc-b258-f5d2c935d0c2
+connectors:
+  secretPrefix: zasp/pilot/oauth
+discovery:
+  secretPrefix: zasp/pilot
+  evidenceEncryption: provider-managed
+recovery:
+  canaryEnabled: true
+  evidenceEncryption: provider-managed
+auditExports:
+  queueEncryption: provider-managed
+# To use the separate Nango chart, first follow its migration procedure, then
+# also set nango.externalNamespace and nango.storageSecretName on this release.

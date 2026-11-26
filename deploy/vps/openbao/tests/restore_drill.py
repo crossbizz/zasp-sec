@@ -149,8 +149,8 @@ def run():
         with server(directory) as source:
             original, share = source.initialize()
             source.request("sys/mounts/zasp-kv", {"type": "kv", "options": {"version": "2"}}, original)
-            source.request("zasp-kv/config", {"max_versions": 1}, original)
-            source.request("zasp-kv/data/drill", {"data": {"value": marker}}, original)
+            source.request("zasp-kv/config", {"max_versions": 1, "cas_required": True}, original)
+            source.request("zasp-kv/data/drill", {"options": {"cas": 0}, "data": {"value": marker}}, original)
             source.request("sys/mounts/transit", {"type": "transit"}, original)
             source.request("transit/keys/" + key, {"type": "ecdsa-p256"}, original)
             sign = "transit/sign/" + key + "/sha2-256"
@@ -164,7 +164,7 @@ def run():
             must_deny(lambda: source.request("sys/storage/raft/snapshot-force", snapshot, reader), 403)
             if not snapshot or signatures[0].split(":")[1] == signatures[1].split(":")[1]:
                 raise AssertionError("snapshot or version rotation failed")
-            source.request("zasp-kv/data/after-snapshot", {"data": {"value": "newer"}}, original)
+            source.request("zasp-kv/data/after-snapshot", {"options": {"cas": 0}, "data": {"value": "newer"}}, original)
         # The original server and all its storage are gone.
         with server(directory) as target:
             transient, _ = target.initialize()

@@ -36,7 +36,7 @@ Create dedicated mounts once, with a scoped provisioning identity. Generate a un
 
 ```sh
 bao secrets enable -path=zasp-kv -version=2 kv
-bao write zasp-kv/config max_versions=1
+bao write zasp-kv/config max_versions=1 cas_required=true
 bao secrets enable -path=transit transit
 bao write "transit/keys/$RECOVERY_KEY_UUID" type=ecdsa-p256 exportable=false allow_plaintext_backup=false
 bao policy write zasp-snapshot-reader deploy/vps/openbao/files/snapshot-reader.hcl
