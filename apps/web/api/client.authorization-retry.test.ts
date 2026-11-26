@@ -69,13 +69,6 @@ describe("authorization projection lag", () => {
   });
 
   it("cancels an in-flight replay and ignores its late scope-stale response", async () => {
-    // Model a replay clone whose dependent signal has lost its forwarding link.
-    // The original request must still cancel the physical fetch immediately.
-    class DetachedReplayRequest extends Request {
-      override clone() {
-        return new Request(super.clone(), { signal: new AbortController().signal });
-      }
-    }
     const controller = new AbortController();
     const reason = new DOMException("audit scope changed", "AbortError");
     let started!: (request: Request) => void;
@@ -84,7 +77,16 @@ describe("authorization projection lag", () => {
     const response = new Promise<Response>(resolve => { respond = resolve; });
     const onScopeStale = vi.fn();
     const fetch = vi.fn((request: Request) => { started(request); return response; });
-    const client = createAPIClient({ Request: DetachedReplayRequest, fetch, authorizationRetryDelaysMs: [1], onScopeStale });
+    const client = createAPIClient({ fetch, authorizationRetryDelaysMs: [1], onScopeStale });
+    client.use({ onRequest({ request }) {
+      // Disconnect only this native replay copy, as when its forwarding link is collected.
+      const clone = request.clone.bind(request);
+      request.clone = () => {
+        const replay = clone();
+        Object.defineProperty(replay, "signal", { value: new AbortController().signal });
+        return replay;
+      };
+    } });
     const pending = client.GET("/api/v1/audit-events", { signal: controller.signal });
     const request = await inFlight;
     controller.abort(reason);
