@@ -145,3 +145,44 @@ func validProductionDiscoveryDependencyConfig(now time.Time) productionDiscovery
 		QueueURL: "https://sqs.us-east-1.amazonaws.com/123456789012/agentsec-discovery-jobs", QueueOperationTimeout: time.Second, LeaseDuration: 30 * time.Second, ShutdownTimeout: 15 * time.Second,
 	}
 }
+
+func TestSSES3EvidenceReadinessRequiresVersionedAESBucket(t *testing.T) {
+	config := validProductionDiscoveryDependencyConfig(time.Now().UTC())
+	config.Artifacts.Encryption = "provider-managed"
+	config.Artifacts.KMSKeyARN = ""
+	rule := &s3types.ServerSideEncryptionByDefault{SSEAlgorithm: s3types.ServerSideEncryptionAes256}
+	stub := &discoveryArtifactReadinessStub{
+		head:       &s3.HeadBucketOutput{BucketRegion: aws.String(config.Cloud.Region)},
+		versioning: &s3.GetBucketVersioningOutput{Status: s3types.BucketVersioningStatusEnabled},
+		encryption: &s3.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: &s3types.ServerSideEncryptionConfiguration{Rules: []s3types.ServerSideEncryptionRule{{ApplyServerSideEncryptionByDefault: rule}}}},
+	}
+	ready := func() error {
+		return readyProductionDiscoveryArtifactAuthority(context.Background(), stub, nil, config.Cloud, config.Artifacts)
+	}
+	if !validProductionDiscoveryDependencyAuthority(config) || ready() != nil {
+		t.Fatal("versioned AES256 bucket with no legacy KMS key should be ready")
+	}
+	rule.SSEAlgorithm = s3types.ServerSideEncryptionAwsKms
+	if ready() == nil {
+		t.Fatal("unexpected KMS algorithm accepted")
+	}
+	rule.SSEAlgorithm = s3types.ServerSideEncryptionAes256
+	rule.KMSMasterKeyID = aws.String("unexpected")
+	if ready() == nil {
+		t.Fatal("unexpected master key accepted")
+	}
+	rule.KMSMasterKeyID = nil
+	stub.versioning.Status = s3types.BucketVersioningStatusSuspended
+	if ready() == nil {
+		t.Fatal("suspended versioning accepted")
+	}
+	stub.versioning.Status = s3types.BucketVersioningStatusEnabled
+	config.Artifacts.KMSKeyARN = validProductionDiscoveryDependencyConfig(time.Now().UTC()).Artifacts.KMSKeyARN
+	if ready() == nil {
+		t.Fatal("unavailable historical key authority accepted")
+	}
+	config.Artifacts.KMSKeyARN = "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111"
+	if validProductionDiscoveryDependencyAuthority(config) {
+		t.Fatal("foreign-region historical key accepted")
+	}
+}

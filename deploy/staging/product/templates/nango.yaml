@@ -1,4 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
+{{- if not .Values.nango.externalNamespace }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -241,4 +242,5 @@ spec:
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 5432 }]
+{{- end }}
 {{- end }}

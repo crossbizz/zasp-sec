@@ -14,8 +14,8 @@ const (
 )
 
 // runConfigurationCommand checks the same complete environment contract as
-// normal startup without constructing clients, reading credential files,
-// starting workers, or opening listeners. Acceptance is configuration evidence.
+// normal startup, including explicitly configured startup credential projections.
+// It constructs no clients, starts no workers, and opens no listeners.
 func runConfigurationCommand(args []string, lookup func(string) (string, bool), output io.Writer) (bool, error) {
 	if len(args) == 0 {
 		return false, nil

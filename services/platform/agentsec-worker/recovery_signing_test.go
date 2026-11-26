@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"strings"
 	"testing"
 	"time"
@@ -75,5 +76,38 @@ func TestRecoveryKMSSignerUsesOneExactAsymmetricAuthority(t *testing.T) {
 	}
 	if stub.input == nil || aws.ToString(stub.input.KeyId) != keyARN || stub.input.MessageType != kmstypes.MessageTypeRaw || stub.input.SigningAlgorithm != kmstypes.SigningAlgorithmSpecEcdsaSha256 || !bytes.Equal(stub.input.Message, payload) {
 		t.Fatalf("input=%#v", stub.input)
+	}
+}
+
+func TestRecoveryKMSMessageTypeAtRawMessageLimit(t *testing.T) {
+	const arn = "arn:aws:kms:us-west-2:123456789012:key/123e4567-e89b-42d3-a456-426614174000"
+	for _, size := range []int{4096, 4097, 56 << 10} {
+		stub := &recoveryKMSStub{}
+		signer, err := newRecoveryKMSSigner(stub, arn, time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		verifier, err := newRecoveryKMSVerifier(stub, arn, time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload := bytes.Repeat([]byte("x"), size)
+		ctx := context.Background()
+		_, sig, err := signer.Sign(ctx, payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := verifier.Verify(ctx, arn, payload, sig); err != nil {
+			t.Fatal(err)
+		}
+		want, kind := payload, kmstypes.MessageTypeRaw
+		if size > 4096 {
+			digest := sha256.Sum256(payload)
+			want, kind = digest[:], kmstypes.MessageTypeDigest
+		}
+		if stub.input.MessageType != kind || !bytes.Equal(stub.input.Message, want) ||
+			stub.verifyInput.MessageType != kind || !bytes.Equal(stub.verifyInput.Message, want) {
+			t.Fatalf("size %d sent the wrong KMS message or type", size)
+		}
 	}
 }

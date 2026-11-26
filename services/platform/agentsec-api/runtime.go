@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/zasp-ai/zasp-sec/services/platform/runtimesecret"
-	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimesecret"
 	"io"
 	"net"
 	"net/http"
@@ -81,7 +81,7 @@ type RuntimeConfig struct {
 	StytchOrganizationID           string
 	WorkflowSigningKey             string
 	TokenRevealKey                 []byte
-	ConnectorSecrets openbaokv.Config
+	ConnectorSecrets               openbaokv.Config
 	ConnectorAWSRegion             string
 	ConnectorRoleARN               string
 	ConnectorTokenFile             string
@@ -142,8 +142,10 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		return RuntimeConfig{}, err
 	}
 	var fileErr error
-	getenv, fileErr = runtimesecret.FromFiles(getenv,"ZASP_POSTGRES_DSN","ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN")
-	if fileErr != nil { return RuntimeConfig{}, fileErr }
+	getenv, fileErr = runtimesecret.FromFiles(getenv, "ZASP_POSTGRES_DSN", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN")
+	if fileErr != nil {
+		return RuntimeConfig{}, fileErr
+	}
 	services, servicesErr := runtimeservices.Load(getenv)
 	if servicesErr != nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -200,7 +202,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		DiscoveryParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), DiscoveryToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		ApprovalMaintenancePostgresDSN: getenv("ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN"), ApprovalMaintenanceKeyFile: getenv("ZASP_APPROVAL_MAINTENANCE_KEY_FILE"), PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
-		ConnectorSecrets: openbaokv.FromEnvironment(getenv),
+		ConnectorSecrets:   openbaokv.FromEnvironment(getenv),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
 		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
 		RuntimeSessionIndex:     getenv("ZASP_RUNTIME_SESSION_INDEX"),
@@ -404,7 +406,7 @@ func validOptionalNangoConfig(config RuntimeConfig) bool {
 		return false
 	}
 	parsed, err := url.Parse(config.NangoBaseURL)
-	return err == nil && parsed.Scheme == "http" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == "" && parsed.Path == "" && parsed.Port() != "" && strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".svc.cluster.local") && net.ParseIP(parsed.Hostname()) == nil
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == "" && parsed.Path == "" && parsed.Port() != "" && strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".svc.cluster.local") && net.ParseIP(parsed.Hostname()) == nil
 }
 
 func parseTrustedProxyCIDRs(value string) []string {

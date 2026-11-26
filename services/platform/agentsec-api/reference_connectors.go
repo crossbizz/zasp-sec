@@ -31,7 +31,7 @@ var (
 )
 
 type referenceSecretResolver struct {
-	driver *connectorSecretsDriver
+	driver runtimeConnectorSecrets
 	root   string
 }
 

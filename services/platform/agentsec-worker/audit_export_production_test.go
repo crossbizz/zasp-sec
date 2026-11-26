@@ -1003,3 +1003,79 @@ func TestAuditExportProductionConfigRejectsMissingOrMixedAuthority(t *testing.T)
 		}
 	}
 }
+
+type auditExportEncryptionQueueFixture struct {
+	*auditExportProductionQueueFixture
+	probe func(*sqs.GetQueueAttributesInput) (*sqs.GetQueueAttributesOutput, error)
+}
+
+func (q auditExportEncryptionQueueFixture) GetQueueAttributes(ctx context.Context, input *sqs.GetQueueAttributesInput, options ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error) {
+	if len(input.AttributeNames) == 2 {
+		return q.auditExportProductionQueueFixture.GetQueueAttributes(ctx, input, options...)
+	}
+	return q.probe(input)
+}
+
+func TestAuditExportQueueEncryptionReadiness(t *testing.T) {
+	const arn = "arn:aws:sqs:us-east-1:123456789012:agentsec-audit-exports"
+	for _, mode := range []string{"audit-export", "audit-export-outbox"} {
+		t.Run(mode, func(t *testing.T) {
+			config, clients, queue, _ := auditExportProductionClientsFixture(t, mode)
+			config.AuditExports.QueueEncryption = "provider-managed"
+			for _, mismatch := range []string{"neither", "work", "dlq", "unavailable"} {
+				t.Run(mismatch, func(t *testing.T) {
+					var checked []string
+					fixture := auditExportEncryptionQueueFixture{queue, func(input *sqs.GetQueueAttributesInput) (*sqs.GetQueueAttributesOutput, error) {
+						want := []types.QueueAttributeName{types.QueueAttributeNameQueueArn, types.QueueAttributeNameSqsManagedSseEnabled, types.QueueAttributeNameKmsMasterKeyId}
+						if !reflect.DeepEqual(input.AttributeNames, want) {
+							t.Fatal("missing encryption metadata request")
+						}
+						suffix := strings.TrimPrefix(aws.ToString(input.QueueUrl), config.AuditExports.QueueURL)
+						if suffix != "" && suffix != "-dlq" {
+							t.Fatal("foreign queue URL")
+						}
+						checked = append(checked, suffix)
+						if mismatch == "unavailable" {
+							return nil, errors.New("unavailable")
+						}
+						managed := "true"
+						if mismatch == "dlq" && suffix == "-dlq" || mismatch == "work" && suffix == "" {
+							managed = "false"
+						}
+						return &sqs.GetQueueAttributesOutput{Attributes: map[string]string{"QueueArn": arn + suffix, "SqsManagedSseEnabled": managed}}, nil
+					}}
+					err := readyAuditExportProductionQueue(context.Background(), config, fixture, clients.identity)
+					if (err == nil) != (mismatch == "neither") {
+						t.Fatalf("unexpected readiness: %v", err)
+					}
+					if mismatch == "neither" && !reflect.DeepEqual(checked, []string{"", "-dlq"}) {
+						t.Fatal("both work and DLQ encryption must be verified")
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestAuditExportQueueEncryptionConfiguration(t *testing.T) {
+	for _, mode := range []string{"audit-export", "audit-export-outbox"} {
+		for _, selection := range []string{"", "provider-managed", "aws-kms", "none"} {
+			env := auditExportProductionEnvironment(mode)
+			env["ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION"] = selection
+			cfg, err := loadWorkerRuntimeConfig(mapLookup(env))
+			if selection == "none" {
+				if err == nil {
+					t.Fatal("accepted unencrypted audit queue")
+				}
+				continue
+			}
+			if err != nil || cfg.AuditExports == nil || cfg.AuditExports.QueueEncryption != selection {
+				t.Fatalf("%s failed to load %q: %v", mode, selection, err)
+			}
+		}
+	}
+	env := map[string]string{"ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION": "provider-managed"}
+	if _, err := loadAuditExportWorkerConfiguration(mapLookup(env), workerModeDiscovery); err == nil {
+		t.Fatal("audit-specific configuration accepted on discovery worker")
+	}
+}

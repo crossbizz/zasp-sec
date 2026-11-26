@@ -1,0 +1,13 @@
+# Same Nango image as Zasp's AWS production chart.
+image: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed
+# Set a verified nginx-unprivileged image digest; it must include the nginx executable.
+tlsProxyImage: ""
+publicOrigin: ""
+storageSecret: nango-storage
+serverTLSSecret: nango-server-tls
+databaseCA: nango-database-ca
+databaseEgressCIDRs: []
+providerEgressCIDRs: []
+clients:
+  - namespace: zasp
+    workloads: [agentsec-api, agentsec-discovery-worker]

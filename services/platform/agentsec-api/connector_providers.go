@@ -29,7 +29,7 @@ import (
 )
 
 type connectorProviderSecrets struct {
-	driver *connectorSecretsDriver
+	driver runtimeConnectorSecrets
 	root   string
 	kmsKey string
 }
@@ -56,6 +56,8 @@ func (store *connectorProviderSecrets) put(ctx context.Context, reference string
 	}
 	if err := store.driver.Create(ctx, name, store.kmsKey, value); err == nil {
 		return nil
+	} else if errors.Is(err, apiserver.ErrOAuthSecretCreateRejected) {
+		return errRuntimeUnavailable
 	}
 	existing, err := store.driver.Read(ctx, name)
 	if err != nil || !bytes.Equal(existing, value) {
@@ -69,7 +71,11 @@ func (store *connectorProviderSecrets) delete(ctx context.Context, reference str
 	if !ok {
 		return errRuntimeUnavailable
 	}
-	return store.driver.Delete(ctx, name)
+	err := store.driver.Delete(ctx, name)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return nil
+	}
+	return err
 }
 
 func (store *connectorProviderSecrets) ready(ctx context.Context, reference string) error {

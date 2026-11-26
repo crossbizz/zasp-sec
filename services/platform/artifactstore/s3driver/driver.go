@@ -47,10 +47,11 @@ type Config struct {
 }
 
 type Driver struct {
-	client         API
-	config         Config
-	export         bool
-	privateBinding *privateLocator
+	client          API
+	config          Config
+	export          bool
+	providerManaged bool
+	privateBinding  *privateLocator
 }
 
 var _ artifactstore.Driver = (*Driver)(nil)
@@ -58,11 +59,22 @@ var _ artifactstore.DriverObjectReferencer = (*Driver)(nil)
 var _ artifactstore.DriverPlannedObjectReferencer = (*Driver)(nil)
 
 func New(client API, config Config) (*Driver, error) {
+	return newDriver(client, config, false)
+}
+
+// NewSSES3 writes evidence with SSE-S3. An optional KMSKeyARN pins the only
+// legacy key accepted when reading a previously recorded immutable version.
+func NewSSES3(client API, config Config) (*Driver, error) {
+	return newDriver(client, config, true)
+}
+
+func newDriver(client API, config Config, providerManaged bool) (*Driver, error) {
+	validKey := kmsKeyPattern.MatchString(config.KMSKeyARN) || providerManaged && config.KMSKeyARN == ""
 	if nilInterface(client) || !bucketPattern.MatchString(config.Bucket) || !ownerPattern.MatchString(config.ExpectedBucketOwner) ||
-		!kmsKeyPattern.MatchString(config.KMSKeyARN) || config.MaximumBytes <= 0 || config.MaximumBytes > maximumArtifactBytes {
+		!validKey || config.MaximumBytes <= 0 || config.MaximumBytes > maximumArtifactBytes {
 		return nil, ErrConfiguration
 	}
-	return &Driver{client: client, config: config}, nil
+	return &Driver{client: client, config: config, providerManaged: providerManaged}, nil
 }
 
 // NewExport permits only the fixed scoped export profile. New continues to
@@ -85,11 +97,15 @@ func (driver *Driver) Put(ctx context.Context, object artifactstore.DriverObject
 		return artifactstore.DriverObject{}, ErrArtifact
 	}
 	checksum := checksumText(object.SHA256)
+	encryption := driver.writeEncryption()
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(object.Key), Body: bytes.NewReader(bytes.Clone(object.Body)),
 		ContentLength: aws.Int64(object.Size), ContentType: aws.String(object.MediaType), ChecksumSHA256: aws.String(checksum),
 		ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), IfNoneMatch: aws.String("*"),
-		ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(driver.config.KMSKeyARN), Metadata: metadata(object),
+		ServerSideEncryption: encryption.algorithm, Metadata: metadata(object),
+	}
+	if encryption.keyARN != "" {
+		input.SSEKMSKeyId = aws.String(encryption.keyARN)
 	}
 	output, putErr := driver.client.PutObject(ctx, input, oneAttemptOption)
 	if ctx.Err() != nil {
@@ -97,10 +113,10 @@ func (driver *Driver) Put(ctx context.Context, object artifactstore.DriverObject
 	}
 	var stored artifactstore.DriverObject
 	var fetchErr error
-	if putErr == nil && validPutOutput(output, driver.config.KMSKeyARN, checksum) {
+	if putErr == nil && validPutOutput(output, encryption, checksum) {
 		locator := object.DriverLocator
 		locator.VersionID = aws.ToString(output.VersionId)
-		stored, fetchErr = driver.fetch(ctx, locator)
+		stored, fetchErr = driver.fetch(ctx, locator, false)
 	} else {
 		stored, fetchErr = driver.discover(ctx, object.DriverLocator)
 	}
@@ -118,7 +134,7 @@ func (driver *Driver) Get(ctx context.Context, locator artifactstore.DriverLocat
 	if !driver.validLocator(locator) || !validVersion(locator.VersionID) {
 		return artifactstore.DriverObject{}, ErrArtifact
 	}
-	return driver.fetch(ctx, locator)
+	return driver.fetch(ctx, locator, true)
 }
 
 func (driver *Driver) Delete(ctx context.Context, locator artifactstore.DriverLocator) error {
@@ -147,14 +163,18 @@ func (driver *Driver) PlannedObjectReference(locator artifactstore.DriverLocator
 	return "s3://" + driver.config.Bucket + "/" + locator.Key, nil
 }
 
-func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLocator) (artifactstore.DriverObject, error) {
+func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLocator, historicalRead bool) (artifactstore.DriverObject, error) {
 	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
 	}, oneAttemptOption)
 	if err != nil || ctx.Err() != nil {
 		return artifactstore.DriverObject{}, safeReadError(ctx, err)
 	}
-	if !validHead(head, driver.config) || aws.ToString(head.VersionId) != locator.VersionID {
+	encryption := driver.writeEncryption()
+	if historicalRead && driver.providerManaged && driver.config.KMSKeyARN != "" && head != nil && head.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms {
+		encryption = evidenceEncryption{s3types.ServerSideEncryptionAwsKms, driver.config.KMSKeyARN}
+	}
+	if !validHead(head, driver.config, encryption) || aws.ToString(head.VersionId) != locator.VersionID {
 		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
 	}
 	output, err := driver.client.GetObject(ctx, &s3.GetObjectInput{
@@ -182,7 +202,7 @@ func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLoc
 	}
 	digest := sha256.Sum256(body)
 	object := artifactstore.DriverObject{DriverLocator: locator, MediaType: aws.ToString(output.ContentType), Body: body, Size: int64(len(body)), SHA256: digest}
-	if !driver.validObject(object) || !validGet(output, head, object, driver.config) {
+	if !driver.validObject(object) || !validGet(output, head, object, encryption) {
 		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
 	}
 	return cloneObject(object), nil
@@ -218,11 +238,11 @@ func (driver *Driver) discover(ctx context.Context, locator artifactstore.Driver
 	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
 	}, oneAttemptOption)
-	if err != nil || ctx.Err() != nil || !validHead(head, driver.config) {
+	if err != nil || ctx.Err() != nil || !validHead(head, driver.config, driver.writeEncryption()) {
 		return artifactstore.DriverObject{}, ErrGet
 	}
 	locator.VersionID = aws.ToString(head.VersionId)
-	return driver.fetch(ctx, locator)
+	return driver.fetch(ctx, locator, false)
 }
 
 func (driver *Driver) ready(ctx context.Context) bool {
@@ -263,25 +283,44 @@ func validMediaType(value string) bool {
 	}
 }
 
-func validPutOutput(output *s3.PutObjectOutput, kmsKeyARN, checksum string) bool {
-	return output != nil && validVersion(aws.ToString(output.VersionId)) && aws.ToString(output.ChecksumSHA256) == checksum &&
-		output.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms && aws.ToString(output.SSEKMSKeyId) == kmsKeyARN
+type evidenceEncryption struct {
+	algorithm s3types.ServerSideEncryption
+	keyARN    string
 }
 
-func validHead(output *s3.HeadObjectOutput, config Config) bool {
+func (driver *Driver) writeEncryption() evidenceEncryption {
+	if driver.providerManaged {
+		return evidenceEncryption{algorithm: s3types.ServerSideEncryptionAes256}
+	}
+	return evidenceEncryption{s3types.ServerSideEncryptionAwsKms, driver.config.KMSKeyARN}
+}
+
+func (e evidenceEncryption) matches(algorithm s3types.ServerSideEncryption, key *string) bool {
+	if e.keyARN == "" {
+		return algorithm == e.algorithm && key == nil
+	}
+	return algorithm == e.algorithm && aws.ToString(key) == e.keyARN
+}
+
+func validPutOutput(output *s3.PutObjectOutput, encryption evidenceEncryption, checksum string) bool {
+	return output != nil && validVersion(aws.ToString(output.VersionId)) && aws.ToString(output.ChecksumSHA256) == checksum &&
+		encryption.matches(output.ServerSideEncryption, output.SSEKMSKeyId)
+}
+
+func validHead(output *s3.HeadObjectOutput, config Config, encryption evidenceEncryption) bool {
 	return output != nil && output.ContentLength != nil && *output.ContentLength > 0 && *output.ContentLength <= config.MaximumBytes &&
 		validMediaType(aws.ToString(output.ContentType)) && validVersion(aws.ToString(output.VersionId)) &&
-		output.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms && aws.ToString(output.SSEKMSKeyId) == config.KMSKeyARN &&
+		encryption.matches(output.ServerSideEncryption, output.SSEKMSKeyId) &&
 		validChecksumText(aws.ToString(output.ChecksumSHA256))
 }
 
-func validGet(output *s3.GetObjectOutput, head *s3.HeadObjectOutput, object artifactstore.DriverObject, config Config) bool {
+func validGet(output *s3.GetObjectOutput, head *s3.HeadObjectOutput, object artifactstore.DriverObject, encryption evidenceEncryption) bool {
 	wantChecksum := checksumText(object.SHA256)
 	return aws.ToString(output.VersionId) == object.VersionID && aws.ToString(output.VersionId) == aws.ToString(head.VersionId) &&
 		aws.ToInt64(output.ContentLength) == object.Size && aws.ToInt64(head.ContentLength) == object.Size &&
 		aws.ToString(output.ContentType) == object.MediaType && aws.ToString(head.ContentType) == object.MediaType &&
 		aws.ToString(output.ChecksumSHA256) == wantChecksum && aws.ToString(head.ChecksumSHA256) == wantChecksum &&
-		output.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms && aws.ToString(output.SSEKMSKeyId) == config.KMSKeyARN &&
+		encryption.matches(output.ServerSideEncryption, output.SSEKMSKeyId) &&
 		equalMap(output.Metadata, metadata(object)) && equalMap(head.Metadata, metadata(object))
 }
 
@@ -300,7 +339,7 @@ func checksumText(digest [sha256.Size]byte) string {
 	return base64.StdEncoding.EncodeToString(digest[:])
 }
 func validVersion(value string) bool {
-	return len(value) >= 1 && len(value) <= 1024 && versionPattern.MatchString(value)
+	return value != "null" && len(value) >= 1 && len(value) <= 1024 && versionPattern.MatchString(value)
 }
 func validChecksumText(value string) bool {
 	decoded, err := base64.StdEncoding.DecodeString(value)

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { watch } from "node:fs";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -2150,4 +2150,120 @@ test("API build dependency stage resolves its copied local health module", async
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("release selects SSE-S3 only on the discovery and recovery evidence workloads", async () => {
+  const values = structuredClone(release);
+  for (const profile of [values.discovery, values.recovery]) {
+    profile.evidenceEncryption = "provider-managed";
+    profile.evidenceKMSKeyArn = "";
+  }
+  const resources = await renderRelease(values);
+  const selected = resources.filter(r => r.kind === "Deployment" && r.spec.template.spec.containers[0].env?.some(e => e.name === "ZASP_EVIDENCE_ENCRYPTION" && e.value === "provider-managed"));
+  assert.deepEqual(selected.map(r => r.metadata.name).sort(), ["agentsec-discovery-worker", "agentsec-recovery-backup", "agentsec-recovery-restore"]);
+  for (const r of selected) assert.equal(envOf(r).ZASP_EVIDENCE_KMS_KEY_ARN, "");
+  values.recovery.evidenceEncryption = "aws-kms";
+  await assert.rejects(renderRelease(values), /release rejected/);
+  values.discovery.evidenceEncryption = values.recovery.evidenceEncryption = "plaintext";
+  await assert.rejects(renderRelease(values), /release rejected/);
+});
+
+test("release projects OpenBao tokens into only the four authorized workloads", async () => {
+  const values = structuredClone(release);
+  const cfg = {
+    connectorSecretsProvider: "openbao", recoverySigningProvider: "openbao",
+    namespace: "bao-system", kvMount: "connector-kv", transitKey: "1876a280-89c6-4aa4-aac0-ac263a11056a",
+  };
+  values.connectors.kmsKeyArn = "";
+  const resources = await renderRelease(values, { schemaVersion: 49, openbaoClients: cfg });
+  const clients = new Map([
+    ["agentsec-api", "api"], ["agentsec-discovery-worker", "discovery"],
+    ["agentsec-recovery-backup", "backup"], ["agentsec-recovery-restore", "restore"],
+  ]);
+  const selected = resources.filter(r => r.kind === "Deployment" && r.spec.template.metadata.labels["zasp.io/openbao-client"] === "true");
+  assert.deepEqual(selected.map(r => r.metadata.name).sort(), [...clients.keys()].sort());
+  for (const deployment of resources.filter(r => r.kind === "Deployment")) {
+    const pod = deployment.spec.template.spec;
+    const role = clients.get(deployment.metadata.name);
+    if (!role) {
+      assert.equal(pod.volumes?.some(v => v.name.startsWith("openbao-")) ?? false, false);
+      assert.equal(pod.initContainers?.some(c => c.name === "prepare-openbao-credentials") ?? false, false);
+      continue;
+    }
+    const [app] = pod.containers;
+    const prep = pod.initContainers.find(c => c.name === "prepare-openbao-credentials");
+    assert.equal(prep.image, app.image);
+    assert.equal(prep.securityContext.runAsUser, 65532);
+    assert.equal(prep.securityContext.allowPrivilegeEscalation, false);
+    assert.equal(prep.securityContext.readOnlyRootFilesystem, true);
+    assert.deepEqual(prep.securityContext.capabilities.drop, ["ALL"]);
+    assert.deepEqual(prep.volumeMounts.map(v => v.name).sort(), ["openbao-private", "openbao-source"]);
+    const source = pod.volumes.find(v => v.name === "openbao-source").projected;
+    assert.equal(source.defaultMode, 0o440);
+    assert.deepEqual(source.sources, [
+      { secret: { name: `zasp-openbao-${role}`, items: [{ key: "token", path: "token" }] } },
+      { configMap: { name: "zasp-openbao-ca", items: [{ key: "ca.crt", path: "ca.crt" }] } },
+    ]);
+    assert.equal(pod.volumes.find(v => v.name === "openbao-private").emptyDir.medium, "Memory");
+    assert.deepEqual(app.volumeMounts.filter(v => v.name.startsWith("openbao-")), [
+      { name: "openbao-private", mountPath: "/run/zasp-openbao", subPath: "private", readOnly: true },
+    ]);
+    const env = envOf(deployment);
+    assert.equal(env.ZASP_OPENBAO_ADDR, "https://openbao.bao-system.svc:8200");
+    assert.equal(env.ZASP_OPENBAO_TOKEN_FILE, "/run/zasp-openbao/token");
+    assert.equal(env.ZASP_OPENBAO_CA_FILE, "/run/zasp-openbao/ca.crt");
+    if (role === "api" || role === "discovery") {
+      assert.equal(env.ZASP_OPENBAO_KV_MOUNT, cfg.kvMount);
+      assert.equal(env.ZASP_CONNECTOR_SECRETS_PROVIDER, "openbao");
+      assert.equal(env.ZASP_CONNECTOR_KMS_KEY_ARN, undefined);
+      assert.equal(env.ZASP_OPENBAO_TRANSIT_KEY, undefined);
+    } else {
+      assert.equal(env.ZASP_OPENBAO_TRANSIT_KEY, cfg.transitKey);
+      assert.equal(env.ZASP_RECOVERY_SIGNING_PROVIDER, "openbao");
+      assert.equal(env.ZASP_RECOVERY_SIGNING_KMS_KEY_ARN, role === "restore" ? values.recovery.signingKMSKeyArn : undefined);
+      assert.equal(env.ZASP_OPENBAO_KV_MOUNT, undefined);
+    }
+  }
+  const prep = one(resources, "Deployment", "agentsec-api").spec.template.spec.initContainers.find(c => c.name === "prepare-openbao-credentials");
+  const temp = await mkdtemp(path.join(tmpdir(), "zasp-openbao-projection-"));
+  try {
+    const source = path.join(temp, "source");
+    const staging = path.join(temp, "staging");
+    await Promise.all([mkdir(source), mkdir(staging)]);
+    await writeFile(path.join(source, "ca.crt"), "fixture CA");
+    const script = prep.args[0].replaceAll("/source/", source + "/").replaceAll("/staging/", staging + "/");
+    for (const token of ["original-fixture", "rotated-fixture"]) {
+      await writeFile(path.join(source, "token"), token);
+      await exec(prep.command[0], [...prep.command.slice(1), script]);
+      assert.equal(await readFile(path.join(staging, "private/token"), "utf8"), token);
+      assert.equal((await stat(path.join(staging, "private"))).mode & 0o777, 0o700);
+      for (const file of ["token", "ca.crt"]) assert.equal((await stat(path.join(staging, "private", file))).mode & 0o777, 0o400);
+    }
+  } finally {
+    await rm(temp, { force: true, recursive: true });
+  }
+  const policy = one(resources, "NetworkPolicy", "zasp-openbao-client-egress").spec;
+  assert.deepEqual(policy.podSelector.matchLabels, { "zasp.io/openbao-client": "true" });
+  assert.deepEqual(policy.egress, [{ to: [{
+    namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "bao-system" } },
+    podSelector: { matchLabels: { "app.kubernetes.io/name": "openbao" } },
+  }], ports: [{ port: 8200, protocol: "TCP" }] }]);
+  for (const invalid of [
+    { namespace: "agentsec" }, { namespace: "x/../../etc" }, { kvMount: "secret/other" },
+    { transitKey: "alias/unpinned" }, { connectorSecretsProvider: "aws-secrets-manager" },
+    { recoverySigningProvider: "invalid" }, { token: "never-render" },
+  ]) await assert.rejects(renderRelease(values, { schemaVersion: 49, openbaoClients: { ...cfg, ...invalid } }), /release rejected/);
+});
+
+test("release projects OpenBao restore verifier after a signing rollback", async () => {
+  const resources = await renderRelease(release, { schemaVersion: 49, openbaoClients: {
+    namespace: "bao-system", transitKey: "1876a280-89c6-4aa4-aac0-ac263a11056a",
+  } });
+  const selected = resources.filter(r => r.kind === "Deployment" && r.spec.template.metadata.labels["zasp.io/openbao-client"] === "true");
+  assert.deepEqual(selected.map(r => r.metadata.name), ["agentsec-recovery-restore"]);
+  assert.equal(envOf(selected[0]).ZASP_RECOVERY_SIGNING_PROVIDER, "aws-kms");
+  assert.equal(envOf(selected[0]).ZASP_RECOVERY_SIGNING_KMS_KEY_ARN, release.recovery.signingKMSKeyArn);
+  const backup = envOf(one(resources, "Deployment", "agentsec-recovery-backup"));
+  assert.equal(backup.ZASP_OPENBAO_TOKEN_FILE, undefined);
+  assert.equal(backup.ZASP_RECOVERY_SIGNING_KMS_KEY_ARN, release.recovery.signingKMSKeyArn);
 });

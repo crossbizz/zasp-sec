@@ -12,13 +12,14 @@ type setting struct {
 	choices []string
 }
 
-// A capability belongs here only when every consumer of the global setting
-// can honor it. Narrower settings are validated by the workload that owns them.
+// These selectors name an infrastructure capability. A workload that uses
+// the capability also validates its credential, encryption and ownership rules.
 var settings = []setting{
 	{"ZASP_SECRETS_PROVIDER", []string{"aws-secrets-manager"}},
-	{"ZASP_RECOVERY_SIGNING_PROVIDER", []string{"aws-kms"}},
+	{"ZASP_CONNECTOR_SECRETS_PROVIDER", []string{"aws-secrets-manager", "openbao"}},
+	{"ZASP_RECOVERY_SIGNING_PROVIDER", []string{"aws-kms", "openbao"}},
 	{"ZASP_EVIDENCE_PROVIDER", []string{"s3"}},
-	{"ZASP_EVIDENCE_ENCRYPTION", []string{"aws-kms"}},
+	{"ZASP_EVIDENCE_ENCRYPTION", []string{"aws-kms", "provider-managed"}},
 	{"ZASP_QUEUE_PROVIDER", []string{"sqs"}},
 }
 

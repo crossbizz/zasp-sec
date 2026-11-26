@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/recovery/transit"
 )
 
 const (
@@ -122,9 +123,21 @@ type expectedCountsWire struct {
 
 type signedManifestWire struct {
 	SchemaVersion string `json:"schema_version"`
-	SigningKeyARN string `json:"signing_key_arn"`
+	SigningKeyARN string `json:"signing_key_arn,omitempty"`
+	SigningKeyRef string `json:"signing_key_ref,omitempty"`
 	Payload       string `json:"payload"`
 	Signature     string `json:"signature"`
+}
+
+// EnvelopeKey returns the one valid signer identity recorded by a recovery envelope.
+func EnvelopeKey(arn, ref string) (string, bool) {
+	if ref == "" && kmsKeyARNPattern.MatchString(arn) {
+		return arn, true
+	}
+	if _, _, ok := transit.ParseReference(ref); arn == "" && ok {
+		return ref, true
+	}
+	return "", false
 }
 
 func BuildManifest(input ManifestInput) (Manifest, []byte, error) {
@@ -147,16 +160,23 @@ func BuildSignedManifest(ctx context.Context, input ManifestInput, signer Manife
 	if err != nil {
 		return nil, err
 	}
-	keyARN, signature, err := signer.Sign(ctx, append([]byte(nil), payload...))
-	if err != nil || ctx.Err() != nil || !kmsKeyARNPattern.MatchString(keyARN) || len(signature) < sha256.Size || len(signature) > 512 {
+	key, signature, err := signer.Sign(ctx, append([]byte(nil), payload...))
+	if err != nil || ctx.Err() != nil || len(signature) < sha256.Size || len(signature) > 512 {
 		return nil, ErrSignature
 	}
-	envelope, err := json.Marshal(signedManifestWire{
+	wire := signedManifestWire{
 		SchemaVersion: signedManifestSchemaVersion,
-		SigningKeyARN: keyARN,
 		Payload:       base64.RawStdEncoding.EncodeToString(payload),
 		Signature:     base64.RawStdEncoding.EncodeToString(signature),
-	})
+	}
+	if kmsKeyARNPattern.MatchString(key) {
+		wire.SigningKeyARN = key
+	} else if _, _, ok := transit.ParseReference(key); ok {
+		wire.SigningKeyRef = key
+	} else {
+		return nil, ErrSignature
+	}
+	envelope, err := json.Marshal(wire)
 	if err != nil || len(envelope) > MaximumSignedManifestBytes {
 		return nil, ErrManifest
 	}
@@ -172,7 +192,11 @@ func DecodeSignedManifest(ctx context.Context, reader io.Reader, verifier Manife
 		return Manifest{}, ErrManifest
 	}
 	var envelope signedManifestWire
-	if err := decodeClosedJSON(encoded, &envelope); err != nil || envelope.SchemaVersion != signedManifestSchemaVersion || !kmsKeyARNPattern.MatchString(envelope.SigningKeyARN) {
+	if err := decodeClosedJSON(encoded, &envelope); err != nil || envelope.SchemaVersion != signedManifestSchemaVersion {
+		return Manifest{}, ErrManifest
+	}
+	key, ok := EnvelopeKey(envelope.SigningKeyARN, envelope.SigningKeyRef)
+	if !ok {
 		return Manifest{}, ErrManifest
 	}
 	payload, err := base64.RawStdEncoding.Strict().DecodeString(envelope.Payload)
@@ -183,7 +207,7 @@ func DecodeSignedManifest(ctx context.Context, reader io.Reader, verifier Manife
 	if err != nil || len(signature) < sha256.Size || len(signature) > 512 {
 		return Manifest{}, ErrManifest
 	}
-	if err := verifier.Verify(ctx, envelope.SigningKeyARN, append([]byte(nil), payload...), append([]byte(nil), signature...)); err != nil || ctx.Err() != nil {
+	if err := verifier.Verify(ctx, key, append([]byte(nil), payload...), append([]byte(nil), signature...)); err != nil || ctx.Err() != nil {
 		return Manifest{}, ErrSignature
 	}
 	if !utf8.Valid(payload) || !uniqueManifestJSON(payload) {

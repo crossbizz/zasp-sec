@@ -529,3 +529,13 @@ variable "attack_lab_namespace" {
     error_message = "Attack Lab identity and scheduling require the isolated zasp-attack-lab namespace."
   }
 }
+
+variable "evidence_encryption" {
+  description = "Encryption for new writes to the discovery and recovery evidence bucket. Keep the historical KMS key for pinned reads."
+  type        = string
+  default     = "aws-kms"
+  validation {
+    condition     = contains(["aws-kms", "provider-managed"], var.evidence_encryption)
+    error_message = "evidence_encryption must be aws-kms or provider-managed."
+  }
+}

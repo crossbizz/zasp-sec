@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"net"
 	"net/http"
@@ -345,6 +346,19 @@ func readyAuditExportProductionQueue(ctx context.Context, config workerRuntimeCo
 	if json.Unmarshal(raw, &redrive) != nil || redrive.Target != arn+"-dlq" || string(redrive.Count) != "20" && string(redrive.Count) != `"20"` {
 		return errRuntimeUnavailable
 	}
+	// Existing releases omitted the selector. Only an explicit encryption profile
+	// adds DLQ readiness and the corresponding read-only permission.
+	if mode := config.AuditExports.QueueEncryption; mode != "" {
+		for _, suffix := range []string{"", "-dlq"} {
+			probe, err := queue.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
+				QueueUrl:       aws.String(config.AuditExports.QueueURL + suffix),
+				AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameQueueArn, sqstypes.QueueAttributeNameSqsManagedSseEnabled, sqstypes.QueueAttributeNameKmsMasterKeyId},
+			}, func(options *sqs.Options) { options.Retryer = aws.NopRetryer{} })
+			if err != nil || probe == nil || ctx.Err() != nil || !auditQueueEncryptionMatches(mode, arn+suffix, probe.Attributes) {
+				return errRuntimeUnavailable
+			}
+		}
+	}
 	caller, err := identity.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
 	roleName := role[strings.LastIndex(role, "/")+1:]
 	if err != nil || caller == nil || ctx.Err() != nil || aws.ToString(caller.Account) != account || aws.ToString(caller.Arn) != "arn:aws:sts::"+account+":assumed-role/"+roleName+"/"+session {
@@ -368,20 +382,24 @@ const auditExportMaximumReceiveCount = 20
 
 type auditExportWorkerConfiguration struct {
 	QueueURL, WriterRoleARN, PublisherRoleARN, TokenFile string
+	QueueEncryption                                      string
 	Policies                                             []migrations.AuditExportConfiguration
 }
 
 func loadAuditExportWorkerConfiguration(getenv func(string) string, mode workerMode) (*auditExportWorkerConfiguration, error) {
-	config := &auditExportWorkerConfiguration{QueueURL: getenv("ZASP_AUDIT_EXPORT_QUEUE_URL"), WriterRoleARN: getenv("ZASP_AUDIT_EXPORT_WRITER_ROLE_ARN"), PublisherRoleARN: getenv("ZASP_AUDIT_EXPORT_PUBLISHER_ROLE_ARN"), TokenFile: getenv("ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILE")}
+	config := &auditExportWorkerConfiguration{QueueURL: getenv("ZASP_AUDIT_EXPORT_QUEUE_URL"), QueueEncryption: getenv("ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION"), WriterRoleARN: getenv("ZASP_AUDIT_EXPORT_WRITER_ROLE_ARN"), PublisherRoleARN: getenv("ZASP_AUDIT_EXPORT_PUBLISHER_ROLE_ARN"), TokenFile: getenv("ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILE")}
 	policies := getenv("ZASP_AUDIT_EXPORT_POLICIES_JSON")
 	reader, cursor := getenv("ZASP_AUDIT_EXPORT_READER_ROLE_ARN"), getenv("ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEY")
 	if mode != workerModeAuditExport && mode != workerModeAuditExportOutbox {
-		for _, value := range []string{config.QueueURL, config.WriterRoleARN, config.PublisherRoleARN, config.TokenFile, policies, reader, cursor} {
+		for _, value := range []string{config.QueueURL, config.QueueEncryption, config.WriterRoleARN, config.PublisherRoleARN, config.TokenFile, policies, reader, cursor} {
 			if value != "" {
 				return nil, errWorkerConfiguration
 			}
 		}
 		return nil, nil
+	}
+	if !validAuditQueueEncryption(config.QueueEncryption) {
+		return nil, errors.New("ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION must be aws-kms or provider-managed")
 	}
 	if reader != "" || cursor != "" {
 		return nil, errWorkerConfiguration
@@ -403,7 +421,7 @@ func validAuditExportWorkerConfiguration(config workerRuntimeConfig) bool {
 		return config.AuditExports == nil
 	}
 	exports := config.AuditExports
-	if exports == nil || config.LeaseDuration < 60*time.Second || config.LeaseDuration > 300*time.Second || config.BatchSize < 1 || config.BatchSize > 10 || config.ProviderTimeout < time.Second || config.ProviderTimeout > 30*time.Second || exports.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !workerRegionPattern.MatchString(config.AWSRegion) {
+	if exports == nil || !validAuditQueueEncryption(exports.QueueEncryption) || config.LeaseDuration < 60*time.Second || config.LeaseDuration > 300*time.Second || config.BatchSize < 1 || config.BatchSize > 10 || config.ProviderTimeout < time.Second || config.ProviderTimeout > 30*time.Second || exports.TokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !workerRegionPattern.MatchString(config.AWSRegion) {
 		return false
 	}
 	// Registered LOGIN identity is deliberately distinct from the fixed NOLOGIN

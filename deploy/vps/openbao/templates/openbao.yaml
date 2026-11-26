@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-server
+data:
+  server.hcl: |
+{{ .Files.Get "files/server.hcl" | indent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbao
+spec:
+  clusterIP: None
+  selector: { app.kubernetes.io/name: openbao }
+  ports:
+    - { name: https, port: 8200, targetPort: https }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openbao
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: openbao }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.clientNamespace | quote }}
+          podSelector:
+            matchLabels: {{ .Values.clientPodLabels | toJson }}
+      ports:
+        - { protocol: TCP, port: 8200 }
+  egress: []
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openbao
+spec:
+  replicas: 1
+  serviceName: openbao
+  selector:
+    matchLabels: { app.kubernetes.io/name: openbao }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: openbao }
+      annotations:
+        zasp.io/config-sha256: {{ .Files.Get "files/server.hcl" | sha256sum | quote }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: openbao
+          image: {{ required "set image to the verified OpenBao image digest" .Values.image | quote }}
+          command: ["/usr/bin/bao", "server", "-config=/openbao/config/server.hcl"]
+          env:
+            # Raft restore stages an uncompressed snapshot before writing it.
+            - { name: TMPDIR, value: /openbao/data }
+            - { name: BAO_ADDR, value: "https://127.0.0.1:8200" }
+            - { name: BAO_CACERT, value: /openbao/tls/ca.crt }
+            - { name: BAO_API_ADDR, value: {{ printf "https://openbao.%s.svc:8200" .Release.Namespace | quote }} }
+            - { name: BAO_CLUSTER_ADDR, value: "https://127.0.0.1:8201" }
+          ports:
+            - { name: https, containerPort: 8200 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          readinessProbe:
+            exec: { command: ["/usr/bin/bao", "status"] }
+            timeoutSeconds: 4
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: https }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - { name: config, mountPath: /openbao/config, readOnly: true }
+            - { name: tls, mountPath: /openbao/tls, readOnly: true }
+            - { name: raft, mountPath: /openbao/data }
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 1Gi }
+      volumes:
+        - name: config
+          configMap: { name: openbao-server }
+        - name: tls
+          secret: { secretName: {{ .Values.tlsSecret | quote }}, defaultMode: 0440 }
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 16Mi }
+  volumeClaimTemplates:
+    - metadata: { name: raft }
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.storageClass }}
+        storageClassName: {{ .Values.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests: { storage: {{ .Values.storageSize | quote }} }

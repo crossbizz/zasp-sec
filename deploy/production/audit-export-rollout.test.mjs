@@ -116,3 +116,22 @@ test("absent configuration rejects renamed export consumers and direct Secret se
     { kind: "Secret", metadata: { name: "unrelated" }, stringData: { ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEY: "forbidden" } },
   ]) assert.throws(() => validateAuditExportResources([resource], undefined), /release rejected/);
 });
+
+test("explicit queue encryption is pinned on both export roles", async () => {
+  for (const queueEncryption of ["aws-kms", "provider-managed"]) {
+    const expected = normalize({ ...auditExportReleaseFixture(), queueEncryption });
+    const rendered = await renderRelease(release, { schemaVersion: 52, sessionSearchPhase: "precision-intake", auditExports: expected });
+    validateAuditExportResources(rendered, expected);
+    for (const suffix of ["outbox", "worker"]) {
+      const env = container(rendered, `zasp-audit-export-${suffix}`).env;
+      const entry = env.find(e => e.name === "ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION");
+      assert.equal(entry.value, queueEncryption);
+      entry.value = "none";
+      assert.throws(() => validateAuditExportResources(rendered, expected), /release rejected/);
+      entry.value = queueEncryption;
+    }
+  }
+  for (const queueEncryption of ["", "none", "cloudflare", true, null]) {
+    assert.throws(() => normalize({ ...auditExportReleaseFixture(), queueEncryption }), /release rejected/);
+  }
+});

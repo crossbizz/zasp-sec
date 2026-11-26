@@ -51,23 +51,29 @@ func newProductionRecoveryDependencies(ctx context.Context, config workerRuntime
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	artifacts := productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: timeout, MaximumBytes: recoveryMaximumCapturedBytes}
+	artifacts := productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, Encryption: config.EvidenceEncryption, OperationTimeout: timeout, MaximumBytes: recoveryMaximumCapturedBytes}
 	store, err := newProductionDiscoveryArtifactAuthority(s3Client, artifacts)
 	if err != nil {
 		_ = queue.Close()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
+	signing, err := newRecoveryAuthorities(config, kmsClient, timeout)
+	if err != nil {
+		_ = queue.Close()
+		transport.CloseIdleConnections()
+		return nil, errRuntimeUnavailable
+	}
+	initialized := false
+	defer func() {
+		if !initialized {
+			signing.close()
+		}
+	}()
 	dependencies := &productionRecoveryDependencies{Queue: queue.Queue}
 	var kubernetesTransport *recoveryKubernetesHTTPTransport
 	if config.RecoveryOperationKind == "backup" {
-		signer, signerErr := newRecoveryKMSSigner(kmsClient, config.RecoverySigningKMSKeyARN, timeout)
-		if signerErr != nil {
-			_ = queue.Close()
-			transport.CloseIdleConnections()
-			return nil, errRuntimeUnavailable
-		}
-		publisher, publisherErr := newRecoveryArtifactPublisher(recoveryArtifactPublisherConfig{Store: store, Signer: signer, NeonProjectID: config.RecoveryNeonProjectID, NeonBranchID: config.RecoveryNeonBranchID, PostgresLSN: postgresLSN, Now: func() time.Time { return time.Now().UTC().Truncate(time.Second) }})
+		publisher, publisherErr := newRecoveryArtifactPublisher(recoveryArtifactPublisherConfig{Store: store, Signer: signing.signer, NeonProjectID: config.RecoveryNeonProjectID, NeonBranchID: config.RecoveryNeonBranchID, PostgresLSN: postgresLSN, Now: func() time.Time { return time.Now().UTC().Truncate(time.Second) }})
 		if publisherErr != nil {
 			_ = queue.Close()
 			transport.CloseIdleConnections()
@@ -75,11 +81,10 @@ func newProductionRecoveryDependencies(ctx context.Context, config workerRuntime
 		}
 		dependencies.Publisher = publisher
 	} else {
-		verifier, verifierErr := newRecoveryKMSVerifier(kmsClient, config.RecoverySigningKMSKeyARN, timeout)
 		secretsReader, secretsErr := newDiscoverySecretsManagerReader(secretsmanager.NewFromConfig(base), "zasp-recovery", timeout)
 		neon, neonErr := newRotatingRecoveryNeonClient(secretsReader, config.RecoveryNeonSecretReference, config.RecoveryNeonProjectID, config.RecoveryNeonBranchID, timeout)
 		kubernetesTransport, err = newProductionRecoveryKubernetesHTTPTransport(config.RecoveryKubernetesURL, config.RecoveryKubernetesToken, config.RecoveryKubernetesCA, timeout)
-		if verifierErr != nil || secretsErr != nil || neonErr != nil || err != nil {
+		if secretsErr != nil || neonErr != nil || err != nil {
 			_ = queue.Close()
 			transport.CloseIdleConnections()
 			if kubernetesTransport != nil {
@@ -90,7 +95,7 @@ func newProductionRecoveryDependencies(ctx context.Context, config workerRuntime
 		kubernetes, kubernetesErr := newRecoveryKubernetesAPI(recoveryKubernetesAPIConfig{Transport: kubernetesTransport, Store: store, RunnerImage: config.RecoveryRunnerImage, ServiceAccount: config.RecoveryRunnerServiceAccount, SourcePostgresDSN: config.PostgresDSN, NeonCIDRs: config.RecoveryNeonEgressCIDRs, PollInterval: 250 * time.Millisecond, Resolve: func(resolveCtx context.Context, host string) ([]net.IP, error) {
 			return net.DefaultResolver.LookupIP(resolveCtx, "ip", host)
 		}})
-		loader, loaderErr := newRecoveryArtifactManifestLoader(recoveryManifestLoaderConfig{Store: store, Verifier: verifier, Now: func() time.Time { return time.Now().UTC().Truncate(time.Second) }})
+		loader, loaderErr := newRecoveryArtifactManifestLoader(recoveryManifestLoaderConfig{Store: store, Verifier: signing.verifier, Now: func() time.Time { return time.Now().UTC().Truncate(time.Second) }})
 		infrastructure, infrastructureErr := newProductionRecoveryRestoreInfrastructure(productionRecoveryRestoreInfrastructureConfig{Neon: neon, Kubernetes: kubernetes, ProjectID: config.RecoveryNeonProjectID, ParentBranchID: config.RecoveryNeonBranchID})
 		if kubernetesErr != nil || loaderErr != nil || infrastructureErr != nil {
 			_ = queue.Close()
@@ -111,13 +116,14 @@ func newProductionRecoveryDependencies(ctx context.Context, config workerRuntime
 		defer cancel()
 		credential, credentialErr := credentials.Retrieve(bounded)
 		clearAWSCredentials(&credential)
-		if credentialErr != nil || readyProductionDiscoveryRole(bounded, roleAPI, cloud, artifacts) != nil || queue.Ready(bounded) != nil || readyProductionDiscoveryArtifactAuthority(bounded, s3Client, kmsClient, cloud, artifacts) != nil || readyProductionRecoverySigningKey(bounded, kmsClient, config.RecoverySigningKMSKeyARN, config.EvidenceOwner) != nil || config.RecoveryOperationKind == "restore" && dependencies.Infrastructure.Ready(bounded) != nil {
+		if credentialErr != nil || readyProductionDiscoveryRole(bounded, roleAPI, cloud, artifacts) != nil || queue.Ready(bounded) != nil || readyProductionDiscoveryArtifactAuthority(bounded, s3Client, kmsClient, cloud, artifacts) != nil || signing.ready(bounded) != nil || config.RecoveryOperationKind == "restore" && dependencies.Infrastructure.Ready(bounded) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
 	}
 	dependencies.ready = ready
 	dependencies.close = func() error {
+		signing.close()
 		queueErr := queue.Close()
 		transport.CloseIdleConnections()
 		if kubernetesTransport != nil {
@@ -127,6 +133,7 @@ func newProductionRecoveryDependencies(ctx context.Context, config workerRuntime
 		}
 		return queueErr
 	}
+	initialized = true
 	return dependencies, nil
 }
 

@@ -486,6 +486,7 @@ output "helm_values" {
       evidenceBucket             = aws_s3_bucket.evidence.bucket
       evidenceBucketOwner        = var.account_id
       evidenceKMSKeyArn          = aws_kms_key.staging.arn
+      evidenceEncryption         = var.evidence_encryption
       githubAppID                = var.github_app_id
       githubPrivateKeyReference  = "ref:github/app-private-key"
       oktaClientID               = var.connector_client_ids.okta
@@ -538,6 +539,7 @@ output "helm_values" {
       evidenceBucket       = aws_s3_bucket.evidence.bucket
       evidenceBucketOwner  = var.account_id
       evidenceKMSKeyArn    = aws_kms_key.staging.arn
+      evidenceEncryption   = var.evidence_encryption
       signingKMSKeyArn     = aws_kms_key.recovery_signing.arn
       backupOutboxRoleArn  = aws_iam_role.recovery["recovery_backup_outbox"].arn
       restoreOutboxRoleArn = aws_iam_role.recovery["recovery_restore_outbox"].arn

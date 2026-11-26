@@ -25,7 +25,8 @@ type recoveryArtifactManifestLoader struct{ config recoveryManifestLoaderConfig 
 
 type recoverySignedEnvelopeAuthority struct {
 	SchemaVersion string `json:"schema_version"`
-	SigningKeyARN string `json:"signing_key_arn"`
+	SigningKeyARN string `json:"signing_key_arn,omitempty"`
+	SigningKeyRef string `json:"signing_key_ref,omitempty"`
 	Payload       string `json:"payload"`
 	Signature     string `json:"signature"`
 }
@@ -59,7 +60,11 @@ func (loader *recoveryArtifactManifestLoader) Load(ctx context.Context, claim re
 		return recoveryLoadedManifest{}, errRecoveryManifestInvalid
 	}
 	var envelope recoverySignedEnvelopeAuthority
-	if err := decodeStrictWorkerJSON(artifact.Body, &envelope); err != nil || envelope.SchemaVersion != "recovery_signed_manifest_v1" || !strings.HasSuffix(envelope.SigningKeyARN, "/"+claim.Manifest.SigningKeyID) || envelope.Signature != claim.Manifest.Signature {
+	if err := decodeStrictWorkerJSON(artifact.Body, &envelope); err != nil || envelope.SchemaVersion != "recovery_signed_manifest_v1" || envelope.Signature != claim.Manifest.Signature {
+		return recoveryLoadedManifest{}, errRecoveryManifestInvalid
+	}
+	key, ok := recovery.EnvelopeKey(envelope.SigningKeyARN, envelope.SigningKeyRef)
+	if !ok || key[strings.LastIndexByte(key, '/')+1:] != claim.Manifest.SigningKeyID {
 		return recoveryLoadedManifest{}, errRecoveryManifestInvalid
 	}
 	publicSignature, err := base64.RawStdEncoding.Strict().DecodeString(claim.Manifest.Signature)

@@ -866,3 +866,33 @@ func cloneStringMap(values map[string]string) map[string]string {
 	}
 	return clone
 }
+
+func TestEvidenceEncryptionSelectionAtDiscoveryStartup(t *testing.T) {
+	for _, tc := range []struct {
+		mode string
+		pin  bool
+		ok   bool
+	}{
+		{"", true, true},
+		{"", false, false},
+		{"aws-kms", false, false},
+		{"provider-managed", true, true},
+		{"provider-managed", false, true},
+		{"plaintext", true, false},
+	} {
+		env := validDiscoveryRuntimeEnvironment()
+		env["ZASP_EVIDENCE_ENCRYPTION"] = tc.mode
+		if !tc.pin {
+			delete(env, "ZASP_EVIDENCE_KMS_KEY_ARN")
+		}
+		got, err := loadWorkerRuntimeConfig(mapLookup(env))
+		if (err == nil) != tc.ok || err == nil && got.EvidenceEncryption != tc.mode {
+			t.Fatalf("encryption %q pin=%v: %v", tc.mode, tc.pin, err)
+		}
+	}
+	unrelated := validSchedulerRuntimeConfig()
+	unrelated.EvidenceEncryption = "provider-managed"
+	if validWorkerRuntimeConfig(unrelated) {
+		t.Fatal("unrelated worker accepted evidence mode override")
+	}
+}

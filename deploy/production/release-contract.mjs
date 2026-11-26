@@ -1,3 +1,4 @@
+import { validEvidenceReleaseKeys } from "./evidence-encryption.mjs";
 import { execFile } from "node:child_process";
 import { createHash, X509Certificate } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -77,7 +78,9 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal"].includes(key))) throw new Error("release rejected");
+  if (!validRelease(value, options?.openbaoClients) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "openbaoClients"].includes(key))) throw new Error("release rejected");
+  if (options.openbaoClients !== undefined && (!options.openbaoClients || typeof options.openbaoClients !== "object" || Array.isArray(options.openbaoClients) ||
+    Object.entries(options.openbaoClients).some(([key, val]) => !["namespace", "connectorSecretsProvider", "recoverySigningProvider", "kvMount", "transitKey"].includes(key) || typeof val !== "string" || !/^[a-zA-Z0-9._-]{0,127}$/.test(val)))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
   const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
@@ -98,6 +101,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   validateAttackLabReconcilerCollisions(value, attackLabReconciler, auditExports, testReconciler, complianceExports);
   const set = [
     ["schema.expectedVersion", String(schemaVersion)],
+    ...Object.entries(options.openbaoClients ?? {}).map(([name, setting]) => [`openbaoClients.${name}`, setting]),
     // The named current profile is installed from the baseline schema. Every
     // earlier release is a historical migration-chain rollout.
     ["schema.install", authorizationTemporal ? "baseline" : "chain"],
@@ -230,6 +234,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     ["discovery.evidenceBucket", value.discovery.evidenceBucket],
     ["discovery.evidenceBucketOwner", value.discovery.evidenceBucketOwner],
     ["discovery.evidenceKMSKeyArn", value.discovery.evidenceKMSKeyArn],
+    ["discovery.evidenceEncryption", value.discovery.evidenceEncryption ?? "aws-kms"],
     ["discovery.githubAppID", value.discovery.githubAppID],
     ["discovery.githubPrivateKeyReference", value.discovery.githubPrivateKeyReference],
     ["discovery.oktaClientID", value.discovery.oktaClientID],
@@ -265,6 +270,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     ["recovery.evidenceBucket", value.recovery.evidenceBucket],
     ["recovery.evidenceBucketOwner", value.recovery.evidenceBucketOwner],
     ["recovery.evidenceKMSKeyArn", value.recovery.evidenceKMSKeyArn],
+    ["recovery.evidenceEncryption", value.recovery.evidenceEncryption ?? "aws-kms"],
     ["recovery.signingKMSKeyArn", value.recovery.signingKMSKeyArn],
     ["recovery.backupOutboxRoleArn", value.recovery.backupOutboxRoleArn],
     ["recovery.restoreOutboxRoleArn", value.recovery.restoreOutboxRoleArn],
@@ -479,20 +485,20 @@ function validCustomerEdgeRelease(value) {
   return secretNames.every((name) => namePattern.test(name)) && new Set(secretNames).size === secretNames.length && namePattern.test(value.storageClassName) && value.stateHostPath === "/var/lib/zasp-sensor-lineage" && validCIDRList(value.controlPlaneCIDRs) && validGatewayProxyCIDRList(value.proxyAllowedCIDRs) && validCIDRList(value.kubernetesAPICIDRs) && validCIDRList(value.nodeCIDRs);
 }
 
-function validRelease(value) {
+function validRelease(value, openbaoClients) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["attackLab", "awsS3CIDRs", "connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "securityAgentPlanner", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "recovery", "redTeam", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!validS3CIDRList(value.awsS3CIDRs)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
-  if (!value.discovery || typeof value.discovery !== "object" || Array.isArray(value.discovery) || Object.keys(value.discovery).sort().join("\0") !== [...discoveryKeys].sort().join("\0")) return false;
+  if (!validEvidenceReleaseKeys(value.discovery, discoveryKeys)) return false;
   for (const name of ["parserVersion", "toolVersion", "awsCollectorVersion", "kubernetesCollectorVersion", "githubCollectorVersion", "oktaCollectorVersion"]) {
     if (!/^[a-z][a-z0-9_.-]{1,63}$/.test(value.discovery[name]) || value.discovery[name] === "parser-v1" || value.discovery[name] === "tool-v1") return false;
   }
   const discoveryRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-discovery-worker$/.exec(value.discovery.roleArn);
   const discoveryQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.discovery.queueURL);
-  const discoveryKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.discovery.evidenceKMSKeyArn);
-  if (!discoveryRole || !discoveryQueue || !discoveryKMS || value.discovery.awsRegion !== discoveryQueue[1] || value.discovery.awsRegion !== discoveryKMS[1] || discoveryRole[1] !== discoveryQueue[2] || discoveryRole[1] !== discoveryKMS[2] || discoveryRole[1] !== value.discovery.evidenceBucketOwner) return false;
+
+  if (!discoveryRole || !discoveryQueue || value.discovery.awsRegion !== discoveryQueue[1] || discoveryRole[1] !== discoveryQueue[2] || discoveryRole[1] !== value.discovery.evidenceBucketOwner) return false;
   if (!namePattern.test(value.discovery.evidenceBucket) || value.discovery.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.discovery.secretPrefix !== "zasp-production/connectors" || value.discovery.providerTimeout !== "5s" || value.discovery.readinessTimeout !== "5s") return false;
   if (!value.projectionSearch || typeof value.projectionSearch !== "object" || Array.isArray(value.projectionSearch) || Object.keys(value.projectionSearch).sort().join("\0") !== [...projectionSearchKeys].sort().join("\0")) return false;
   const searchRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-search$/.exec(value.projectionSearch.roleArn);
@@ -512,16 +518,18 @@ function validRelease(value) {
   const outboxRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-outbox$/.exec(value.outbox.roleArn);
   const outboxQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.outbox.queueURL);
   if (!outboxRole || !outboxQueue || value.outbox.awsRegion !== outboxQueue[1] || outboxRole[1] !== outboxQueue[2] || outboxRole[1] !== discoveryRole[1] || value.outbox.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.outbox.egressCIDRs)) return false;
-  if (!value.recovery || typeof value.recovery !== "object" || Array.isArray(value.recovery) || Object.keys(value.recovery).sort().join("\0") !== [...recoveryKeys].sort().join("\0") || value.recovery.canaryEnabled !== true) return false;
+  if (!validEvidenceReleaseKeys(value.recovery, recoveryKeys) || value.recovery.canaryEnabled !== true) return false;
   const recoveryBackupQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-recovery-backup-jobs$/.exec(value.recovery.backupQueueURL);
   const recoveryRestoreQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-recovery-restore-jobs$/.exec(value.recovery.restoreQueueURL);
-  const recoveryEncryption = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f-]{36}$/.exec(value.recovery.evidenceKMSKeyArn);
+
   const recoverySigning = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f-]{36}$/.exec(value.recovery.signingKMSKeyArn);
   const recoveryRoles = ["backupOutbox", "restoreOutbox", "backup", "restore"].map((name) => new RegExp(`^arn:aws:iam::([0-9]{12}):role/zasp-production-recovery-${name.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`)}$`).exec(value.recovery[`${name}RoleArn`]));
   const recoveryRunner = /^([0-9]{12})\.dkr\.ecr\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/zasp\/agentsec-worker@sha256:[0-9a-f]{64}$/.exec(value.recovery.runnerImage);
-  if (!recoveryBackupQueue || !recoveryRestoreQueue || !recoveryEncryption || !recoverySigning || !recoveryRunner || recoveryRoles.some((role) => !role) || recoveryRoles.some((role) => role[1] !== discoveryRole[1])) return false;
-  if (value.recovery.awsRegion !== recoveryBackupQueue[1] || value.recovery.awsRegion !== recoveryRestoreQueue[1] || value.recovery.awsRegion !== recoveryEncryption[1] || value.recovery.awsRegion !== recoverySigning[1] || value.recovery.awsRegion !== recoveryRunner[2] || recoveryBackupQueue[2] !== discoveryRole[1] || recoveryRestoreQueue[2] !== discoveryRole[1] || recoveryEncryption[2] !== discoveryRole[1] || recoverySigning[2] !== discoveryRole[1] || recoveryRunner[1] !== discoveryRole[1] || value.recovery.evidenceBucketOwner !== discoveryRole[1]) return false;
-  if (value.recovery.evidenceBucket !== value.discovery.evidenceBucket || value.recovery.evidenceKMSKeyArn !== value.discovery.evidenceKMSKeyArn || value.recovery.signingKMSKeyArn === value.recovery.evidenceKMSKeyArn || value.recovery.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.recovery.neonSecretReference !== "ref:neon/project-api-key" || value.recovery.kubernetesEndpoint !== "https://kubernetes.default.svc" || value.recovery.runnerServiceAccount !== "agentsec-recovery-runner") return false;
+  const hasTransitOnly = openbaoClients?.recoverySigningProvider === "openbao" && value.recovery.signingKMSKeyArn === "";
+  if (!hasTransitOnly && (!recoverySigning || recoverySigning[1] !== value.recovery.awsRegion || recoverySigning[2] !== discoveryRole[1])) return false;
+  if (!recoveryBackupQueue || !recoveryRestoreQueue || !recoveryRunner || recoveryRoles.some((role) => !role) || recoveryRoles.some((role) => role[1] !== discoveryRole[1])) return false;
+  if (value.recovery.awsRegion !== recoveryBackupQueue[1] || value.recovery.awsRegion !== recoveryRestoreQueue[1] || value.recovery.awsRegion !== recoveryRunner[2] || recoveryBackupQueue[2] !== discoveryRole[1] || recoveryRestoreQueue[2] !== discoveryRole[1] || recoveryRunner[1] !== discoveryRole[1] || value.recovery.evidenceBucketOwner !== discoveryRole[1]) return false;
+  if ((value.recovery.evidenceEncryption ?? "aws-kms") !== (value.discovery.evidenceEncryption ?? "aws-kms") || value.recovery.evidenceBucket !== value.discovery.evidenceBucket || value.recovery.evidenceKMSKeyArn !== value.discovery.evidenceKMSKeyArn || (!hasTransitOnly && value.recovery.signingKMSKeyArn === value.recovery.evidenceKMSKeyArn) || value.recovery.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.recovery.neonSecretReference !== "ref:neon/project-api-key" || value.recovery.kubernetesEndpoint !== "https://kubernetes.default.svc" || value.recovery.runnerServiceAccount !== "agentsec-recovery-runner") return false;
   if (!/^[a-z][a-z0-9-]{2,62}$/.test(value.recovery.neonProjectID) || !/^br-[a-z0-9][a-z0-9-]{1,62}$/.test(value.recovery.neonBranchID) || !validPrivateCIDRList(value.recovery.egressCIDRs) || !validProviderCIDRList(value.recovery.neonEgressCIDRs) || !validPrivateCIDRList(value.recovery.kubernetesAPICIDRs) || hasCIDROverlap([...value.recovery.egressCIDRs, ...value.recovery.neonEgressCIDRs, ...value.recovery.kubernetesAPICIDRs])) return false;
   if (!value.redTeam || typeof value.redTeam !== "object" || Array.isArray(value.redTeam) || Object.keys(value.redTeam).sort().join("\0") !== [...redTeamKeys].sort().join("\0")) return false;
   const redTeamQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-red-team-tests$/.exec(value.redTeam.queueURL);
@@ -552,7 +560,9 @@ function validRelease(value) {
   if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
   const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
-  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1] || role[1] !== discoveryRole[1]) return false;
+  const connectorKVOnly = openbaoClients?.connectorSecretsProvider === "openbao" && value.connectors.kmsKeyArn === "";
+  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || role[1] !== discoveryRole[1]) return false;
+  if (!connectorKVOnly && (!kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1])) return false;
   if (!Array.isArray(value.connectors.awsCustomerRolePrefixes) || value.connectors.awsCustomerRolePrefixes.length < 1 || value.connectors.awsCustomerRolePrefixes.length > 64 || new Set(value.connectors.awsCustomerRolePrefixes).size !== value.connectors.awsCustomerRolePrefixes.length || !value.connectors.awsCustomerRolePrefixes.every((prefix) => /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,120}\/$/.test(prefix))) return false;
   if (!Array.isArray(value.connectors.awsCustomerRoleARNs) || value.connectors.awsCustomerRoleARNs.length < 1 || value.connectors.awsCustomerRoleARNs.length > 64 || new Set(value.connectors.awsCustomerRoleARNs).size !== value.connectors.awsCustomerRoleARNs.length || !value.connectors.awsCustomerRoleARNs.every((roleARN) => /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/.test(roleARN) && value.connectors.awsCustomerRolePrefixes.some((prefix) => roleARN.startsWith(prefix) && roleARN !== prefix))) return false;
   if (value.connectors.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.connectors.secretPrefix !== "zasp-production/connectors/oauth") return false;

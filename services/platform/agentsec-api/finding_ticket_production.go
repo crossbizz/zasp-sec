@@ -12,13 +12,13 @@ import (
 var findingTicketSecretReferencePattern = regexp.MustCompile(`^secret_ref_([A-Za-z0-9][A-Za-z0-9._/-]{0,115})$`)
 
 type findingTicketSecretResolver struct {
-	driver  *connectorSecretsDriver
+	driver  runtimeConnectorSecrets
 	root    string
 	timeout time.Duration
 }
 
-func newFindingTicketSecretResolver(driver *connectorSecretsDriver, connectorSecretPrefix string, timeout time.Duration) (*findingTicketSecretResolver, error) {
-	if driver == nil || driver.client == nil || !connectorPrefixPattern.MatchString(connectorSecretPrefix) || !strings.HasSuffix(connectorSecretPrefix, "/oauth") || timeout < 100*time.Millisecond || timeout > 10*time.Second {
+func newFindingTicketSecretResolver(driver runtimeConnectorSecrets, connectorSecretPrefix string, timeout time.Duration) (*findingTicketSecretResolver, error) {
+	if driver == nil || !driver.valid() || !connectorPrefixPattern.MatchString(connectorSecretPrefix) || !strings.HasSuffix(connectorSecretPrefix, "/oauth") || timeout < 100*time.Millisecond || timeout > 10*time.Second {
 		return nil, errRuntimeUnavailable
 	}
 	return &findingTicketSecretResolver{driver: driver, root: strings.TrimSuffix(connectorSecretPrefix, "/oauth") + "/webhook", timeout: timeout}, nil

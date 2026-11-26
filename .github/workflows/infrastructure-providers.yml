@@ -7,7 +7,7 @@ permissions:
 jobs:
   provider-contracts:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
@@ -20,6 +20,56 @@ jobs:
           go test -race -count=1 -coverprofile="$RUNNER_TEMP/selection.cover" ./infraprovider
           go tool cover -func="$RUNNER_TEMP/selection.cover" | tee -a "$GITHUB_STEP_SUMMARY"
           awk 'NR > 1 && $NF == 0 { missing = 1 } END { exit (NR < 2 || missing) }' "$RUNNER_TEMP/selection.cover"
-      - name: Check API preflight and worker startup refusals
+      - name: Test provider clients, crypto, configuration and storage contracts with coverage
         working-directory: services/platform
-        run: go test -p 2 -count=1 -run '^TestInfrastructureProvider' ./agentsec-api ./agentsec-worker
+        run: |
+          go test -race -count=1 -coverprofile="$RUNNER_TEMP/providers.cover" ./openbaoclient ./openbaokv ./runtimesecret ./recovery/... ./artifactstore/s3driver
+          go tool cover -func="$RUNNER_TEMP/providers.cover" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Exercise provider wiring in the API and worker
+        working-directory: services/platform
+        run: |
+          go test -p 2 -count=1 -coverprofile="$RUNNER_TEMP/wiring.cover" -run 'Test(InfrastructureProvider|RuntimeConnector|ConnectorAWSRollback|CheckConfigReadsExplicitStartupProjection|RuntimeNango|WorkerRuntimeConfigServesSaaSOnlyWithNango|Discovery.*OpenBao|OpenBao|AuditQueueEncryption|AuditExportQueueEncryption|EvidenceEncryption|SSES3|Recovery|ProductionDiscovery)' ./agentsec-api ./agentsec-worker
+          go tool cover -func="$RUNNER_TEMP/wiring.cover" | tail -1 >> "$GITHUB_STEP_SUMMARY"
+
+  backup-and-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache-dependency-path: services/platform/go.sum
+      - name: Exercise encrypted backup and restore
+        run: python3 -m unittest discover -s deploy/zasp -p offsite_backup_test.py -v
+      - name: Render and validate the private OpenBao deployment
+        run: |
+          helm version --short
+          /usr/bin/python3 -c 'import yaml'
+          /usr/bin/python3 -m unittest discover -s deploy/vps/openbao/tests -v
+          /usr/bin/python3 -m unittest discover -s deploy/vps/nango/tests -v
+          /usr/bin/python3 -m unittest discover -s deploy/vps/openfga-postgres -v
+          /usr/bin/python3 -m unittest discover -s deploy/vps/aws-identity -v
+      - name: Restore a real TLS-protected OpenBao Raft snapshot
+        env:
+          ZASP_TEST_OPENBAO_TRANSIT: "1"
+          ZASP_TEST_OPENBAO_KV: "1"
+        run: python3 deploy/vps/openbao/tests/restore_drill.py
+      - name: Verify audit queue encryption and IAM contracts
+        run: node --experimental-test-coverage --test deploy/staging/queue-contract.test.mjs deploy/production/evidence-encryption.test.mjs
+
+  release-rendering:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Install locked chart-test dependencies
+        run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci --no-audit --no-fund
+      - name: Render and validate provider selections
+        run: |
+          helm version --short
+          node --test --test-name-pattern='release projects OpenBao|release selects SSE-S3|explicit queue encryption' deploy/production/release-contract.test.mjs deploy/production/audit-export-rollout.test.mjs

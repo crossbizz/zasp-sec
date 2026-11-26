@@ -88,7 +88,8 @@ function assertSharedResources(source, outputSource) {
   const allow = block(source, 'resource "aws_sqs_queue_redrive_allow_policy" "dead_letter"');
   for (const resource of [work, deadLetter, allow]) assert.match(resource, /for_each\s*=\s*local\.queue_contract/);
   for (const resource of [work, deadLetter]) {
-    assert.match(resource, /kms_master_key_id\s*=\s*each\.key == "red-team-tests" \? aws_kms_key\.red_team\.arn : each\.key == "attack-lab-jobs" \? aws_kms_key\.attack_lab\.arn : aws_kms_key\.staging\.arn/);
+    assert.match(resource, /kms_master_key_id\s*=\s*each\.key == "red-team-tests" \? aws_kms_key\.red_team\.arn : each\.key == "attack-lab-jobs" \? aws_kms_key\.attack_lab\.arn : each\.key == "audit-exports" && var\.audit_export_queue_encryption == "provider-managed" \? null : aws_kms_key\.staging\.arn/);
+    assert.match(resource, /sqs_managed_sse_enabled\s*=\s*each\.key == "audit-exports" && var\.audit_export_queue_encryption == "provider-managed" \? true : null/);
     assert.match(resource, /tags\s*=\s*\{ Schema = each\.value\.schema \}/);
   }
   assert.match(work, /name\s*=\s*"agentsec-\$\{each\.key\}"/);
@@ -158,4 +159,19 @@ test("shared-resource guard rejects crossed DLQs, redrive widening and missing o
     [main.replace('redrivePermission = "byQueue"', 'redrivePermission = "allowAll"'), outputs],
     [main, outputs.replace("for key, queue in aws_sqs_queue.work : key => queue.id", 'for key, queue in aws_sqs_queue.work : key => queue.id if key != "tests"')],
   ]) assert.throws(() => assertSharedResources(changedMain, changedOutputs), assert.AssertionError);
+});
+
+test("audit export encryption stays enabled on both queues and retains old-key reads", async () => {
+  const config = await readFile(new URL("./audit_exports.tf", import.meta.url), "utf8");
+  const variable = block(config, 'variable "audit_export_queue_encryption"');
+  assert.match(variable, /default\s*=\s*"aws-kms"/);
+  assert.match(variable, /contains\(\["aws-kms", "provider-managed"\], var\.audit_export_queue_encryption\)/);
+  const roles = block(config, 'resource "aws_iam_role_policy" "audit_exports"');
+  assert.match(roles, /Sid\s*=\s*"InspectExportDLQEncryption", Effect = "Allow", Action = \["sqs:GetQueueAttributes"\]\s+Resource = aws_sqs_queue\.dead_letter\["audit-exports"\]\.arn/);
+  assert.match(roles, /concat\(\["kms:Decrypt"\], each\.key == "publisher" && var\.audit_export_queue_encryption == "aws-kms" \? \["kms:GenerateDataKey"\] : \[\]\)/);
+  for (const name of ["work", "dead_letter"]) {
+    const queue = block(main, `resource "aws_sqs_queue" "${name}"`);
+    const changed = queue.replace('each.key == "audit-exports" &&', 'each.key != "audit-exports" &&');
+    assert.throws(() => assertSharedResources(main.replace(queue, changed), outputs), assert.AssertionError);
+  }
 });

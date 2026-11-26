@@ -1,0 +1,28 @@
+{{- if and (ne .Values.profile "customer_edge") .Values.nango.externalNamespace }}
+{{- if or (eq .Values.nango.externalNamespace .Release.Namespace) (gt (len .Values.nango.externalNamespace) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" .Values.nango.externalNamespace)) }}
+{{- fail "nango.externalNamespace must name a separate Kubernetes namespace" }}
+{{- end }}
+# The provider broker is owned by another Helm release, in its own namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nango-external-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - agentsec-api
+          {{- if .Values.discovery.saasCollectorVersion }}
+          - agentsec-discovery-worker
+          {{- end }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.nango.externalNamespace | quote }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: nango }
+      ports: [{ protocol: TCP, port: 8443 }]
+{{- end }}

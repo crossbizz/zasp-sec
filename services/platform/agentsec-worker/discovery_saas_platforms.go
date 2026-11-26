@@ -42,7 +42,7 @@ func validDiscoveryNangoConfig(saasCollectorVersion, baseURL, serviceSecretRefer
 		return baseURL == "" && serviceSecretReference == "" && environment == ""
 	}
 	parsed, err := url.Parse(baseURL)
-	return err == nil && parsed.Scheme == "http" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == "" && parsed.Path == "" && parsed.Port() != "" &&
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == "" && parsed.Path == "" && parsed.Port() != "" &&
 		strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".svc.cluster.local") && net.ParseIP(parsed.Hostname()) == nil &&
 		discoveryNangoReferencePattern.MatchString(serviceSecretReference) && discoveryNangoEnvironmentPattern.MatchString(environment)
 }

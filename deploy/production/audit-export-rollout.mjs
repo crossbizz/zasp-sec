@@ -32,7 +32,9 @@ function matches(value, pattern) { return typeof value === "string" && pattern.t
 
 export function normalizeAuditExports(value, account, schemaVersion, phase) {
   if (value === undefined) return undefined;
-  closed(value, configKeys);
+  const hasEncryption = value != null && Object.hasOwn(value, "queueEncryption");
+  closed(value, hasEncryption ? [...configKeys, "queueEncryption"] : configKeys);
+  if (hasEncryption) requireValue(["aws-kms", "provider-managed"].includes(value.queueEncryption));
   for (const key of ["stsCIDRs", "sqsCIDRs", "s3CIDRs"]) requireValue(validAuditExportCIDRs(value[key]));
   requireValue(value.enabled === true && [52, 53, 54, 55, 56, 57, 58].includes(schemaVersion) && ["precision-consumers", "precision-intake"].includes(phase));
   requireValue(matches(account, /^[0-9]{12}$/) && account !== "000000000000" && matches(value.awsRegion, /^[a-z]{2}(-[a-z0-9]+)+-[0-9]+$/));
@@ -153,6 +155,7 @@ export function validateAuditExportResources(resources, expected, schemaVersion 
       ZASP_WORKER_ID: { fieldRef: { fieldPath: "metadata.name" } }, ZASP_AWS_REGION: expected.awsRegion,
       ZASP_POLL_INTERVAL: "1s", ZASP_LEASE_DURATION: "300s", ZASP_BATCH_SIZE: "1", ZASP_SHUTDOWN_TIMEOUT: "20s", ZASP_PROVIDER_TIMEOUT: "5s",
       ZASP_AUDIT_EXPORT_QUEUE_URL: expected.queueURL, ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILE: `${tokenPath}/token`,
+      ...(expected.queueEncryption ? { ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION: expected.queueEncryption } : {}),
       ...(index === 0 ? { ZASP_AUDIT_EXPORT_WRITER_ROLE_ARN: role, ZASP_AUDIT_EXPORT_POLICIES_JSON: expected.policies } : { ZASP_AUDIT_EXPORT_PUBLISHER_ROLE_ARN: role }),
     }, true);
     equal(c.volumeMounts, [mount("database", "/var/run/secrets/zasp-export"), mount("identity", tokenPath)]);

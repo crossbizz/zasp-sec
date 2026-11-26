@@ -1,0 +1,54 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: openfga-db
+  namespace: zasp-data
+spec:
+  instances: 1
+  # Inherit the PostgreSQL 18 image digest reviewed by the cluster operator.
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ImageCatalog
+    name: pilot-database-images
+    major: 18
+  enableSuperuserAccess: false
+  certificates:
+    serverTLSSecret: openfga-db-tls
+    serverCASecret: openfga-db-public-ca
+  bootstrap:
+    initdb:
+      database: openfga
+      owner: openfga
+      dataChecksums: true
+      secret:
+        name: openfga-db-owner
+  postgresql:
+    parameters:
+      password_encryption: scram-sha-256
+    pg_hba:
+      - hostssl openfga openfga all scram-sha-256
+      - host all all all reject
+  storage:
+    size: 10Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openfga-db-ingress
+  namespace: zasp-data
+spec:
+  podSelector:
+    matchLabels: { cnpg.io/cluster: openfga-db }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-runtime } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: openfga, app.kubernetes.io/instance: openfga } }
+      ports: [{ protocol: TCP, port: 5432 }]
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: cnpg-system } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: cloudnative-pg } }
+      ports: [{ protocol: TCP, port: 8000 }]

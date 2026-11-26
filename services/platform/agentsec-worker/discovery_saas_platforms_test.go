@@ -209,7 +209,8 @@ func TestWorkerRuntimeConfigServesSaaSOnlyWithNango(t *testing.T) {
 		"credentials in the Nango URL":  {"collector_v1", "http://user:pass@nango.zasp.svc.cluster.local:3003", "ref:nango/service-key-0001", "prod", false},
 		"a Nango URL without its port":  {"collector_v1", "http://nango.zasp.svc.cluster.local", "ref:nango/service-key-0001", "prod", false},
 		"a Nango URL with a query":      {"collector_v1", "http://nango.zasp.svc.cluster.local:3003?x=1", "ref:nango/service-key-0001", "prod", false},
-		"an HTTPS Nango URL":            {"collector_v1", "https://nango.zasp.svc.cluster.local:3003", "ref:nango/service-key-0001", "prod", false},
+		"a private HTTPS Nango URL":     {"collector_v1", "https://nango.connectors.svc.cluster.local:8443", "ref:nango/service-key-0001", "prod", true},
+		"an external HTTPS Nango URL":   {"collector_v1", "https://nango.example.com:8443", "ref:nango/service-key-0001", "prod", false},
 		"a reference of another system": {"collector_v1", "http://nango.zasp.svc.cluster.local:3003", "ref:okta/client-secret-0001", "prod", false},
 	} {
 		if got := validDiscoveryNangoConfig(test.version, test.baseURL, test.reference, test.environment); got != test.want {

@@ -655,9 +655,17 @@ func fixtureObject(t *testing.T) artifactstore.DriverObject {
 }
 
 type storedObject struct {
+	algorithm                              s3types.ServerSideEncryption
 	body                                   []byte
 	contentType, checksum, version, kmsKey string
 	metadata                               map[string]string
+}
+
+func (value *storedObject) keyID() *string {
+	if value.kmsKey == "" {
+		return nil
+	}
+	return aws.String(value.kmsKey)
 }
 
 type observedPut struct {
@@ -703,7 +711,7 @@ func (client *fakeS3) PutObject(ctx context.Context, input *s3.PutObjectInput, o
 		return nil, errors.New("precondition failed")
 	}
 	client.created++
-	client.stored = &storedObject{body: bytes.Clone(body), contentType: aws.ToString(input.ContentType), checksum: aws.ToString(input.ChecksumSHA256), version: "version-1", kmsKey: aws.ToString(input.SSEKMSKeyId), metadata: cloneMap(input.Metadata)}
+	client.stored = &storedObject{algorithm: input.ServerSideEncryption, body: bytes.Clone(body), contentType: aws.ToString(input.ContentType), checksum: aws.ToString(input.ChecksumSHA256), version: "version-1", kmsKey: aws.ToString(input.SSEKMSKeyId), metadata: cloneMap(input.Metadata)}
 	if client.versions == nil {
 		client.versions = map[string]*storedObject{}
 	}
@@ -712,7 +720,7 @@ func (client *fakeS3) PutObject(ctx context.Context, input *s3.PutObjectInput, o
 		client.loseFirstPutResponse = false
 		return nil, errors.New("lost acknowledgement")
 	}
-	return &s3.PutObjectOutput{VersionId: aws.String(client.stored.version), ChecksumSHA256: aws.String(client.stored.checksum), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(client.stored.kmsKey)}, nil
+	return &s3.PutObjectOutput{VersionId: aws.String(client.stored.version), ChecksumSHA256: aws.String(client.stored.checksum), ServerSideEncryption: client.stored.algorithm, SSEKMSKeyId: client.stored.keyID()}, nil
 }
 
 func (client *fakeS3) HeadObject(ctx context.Context, input *s3.HeadObjectInput, options ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
@@ -728,7 +736,7 @@ func (client *fakeS3) HeadObject(ctx context.Context, input *s3.HeadObjectInput,
 	if ctx.Err() != nil || value == nil || requestedVersion == "" && client.currentUnavailable {
 		return nil, errors.New("unavailable")
 	}
-	return &s3.HeadObjectOutput{ContentLength: aws.Int64(int64(len(value.body))), ContentType: aws.String(value.contentType), ChecksumSHA256: aws.String(value.checksum), VersionId: aws.String(value.version), Metadata: cloneMap(value.metadata), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(value.kmsKey)}, nil
+	return &s3.HeadObjectOutput{ContentLength: aws.Int64(int64(len(value.body))), ContentType: aws.String(value.contentType), ChecksumSHA256: aws.String(value.checksum), VersionId: aws.String(value.version), Metadata: cloneMap(value.metadata), ServerSideEncryption: value.algorithm, SSEKMSKeyId: value.keyID()}, nil
 }
 
 func (client *fakeS3) GetObject(ctx context.Context, input *s3.GetObjectInput, options ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
@@ -744,7 +752,7 @@ func (client *fakeS3) GetObject(ctx context.Context, input *s3.GetObjectInput, o
 	if ctx.Err() != nil || value == nil {
 		return nil, errors.New("unavailable")
 	}
-	return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(value.body)), ContentLength: aws.Int64(int64(len(value.body))), ContentType: aws.String(value.contentType), ChecksumSHA256: aws.String(value.checksum), VersionId: aws.String(value.version), Metadata: cloneMap(value.metadata), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(value.kmsKey)}, nil
+	return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(value.body)), ContentLength: aws.Int64(int64(len(value.body))), ContentType: aws.String(value.contentType), ChecksumSHA256: aws.String(value.checksum), VersionId: aws.String(value.version), Metadata: cloneMap(value.metadata), ServerSideEncryption: value.algorithm, SSEKMSKeyId: value.keyID()}, nil
 }
 
 func oneAttempt(options []func(*s3.Options)) bool {
@@ -794,7 +802,7 @@ func (client *fakeS3) mutateStored(mutate func(*storedObject)) {
 func (client *fakeS3) restore(object artifactstore.DriverObject) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
-	client.stored = &storedObject{body: bytes.Clone(object.Body), contentType: object.MediaType, checksum: base64.StdEncoding.EncodeToString(object.SHA256[:]), version: "version-1", kmsKey: validConfig().KMSKeyARN, metadata: metadata(object)}
+	client.stored = &storedObject{algorithm: s3types.ServerSideEncryptionAwsKms, body: bytes.Clone(object.Body), contentType: object.MediaType, checksum: base64.StdEncoding.EncodeToString(object.SHA256[:]), version: "version-1", kmsKey: validConfig().KMSKeyARN, metadata: metadata(object)}
 	if client.versions == nil {
 		client.versions = map[string]*storedObject{}
 	}
@@ -803,7 +811,7 @@ func (client *fakeS3) restore(object artifactstore.DriverObject) {
 func (client *fakeS3) installLatest(object artifactstore.DriverObject, version string) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
-	value := &storedObject{body: bytes.Clone(object.Body), contentType: object.MediaType, checksum: base64.StdEncoding.EncodeToString(object.SHA256[:]), version: version, kmsKey: validConfig().KMSKeyARN, metadata: metadata(object)}
+	value := &storedObject{algorithm: s3types.ServerSideEncryptionAwsKms, body: bytes.Clone(object.Body), contentType: object.MediaType, checksum: base64.StdEncoding.EncodeToString(object.SHA256[:]), version: version, kmsKey: validConfig().KMSKeyARN, metadata: metadata(object)}
 	if client.versions == nil {
 		client.versions = map[string]*storedObject{}
 	}

@@ -11,6 +11,17 @@ locals {
   }
 }
 
+variable "audit_export_queue_encryption" {
+  description = "Server-side encryption for the audit export queue and its dead-letter queue."
+  type        = string
+  default     = "aws-kms"
+  nullable    = false
+  validation {
+    condition     = contains(["aws-kms", "provider-managed"], var.audit_export_queue_encryption)
+    error_message = "Audit export queues require aws-kms or provider-managed encryption."
+  }
+}
+
 variable "audit_export_database_principals" {
   description = "Dedicated export PostgreSQL LOGIN identities; credentials are provisioned outside Terraform."
   type        = object({ worker = string, outbox = string })
@@ -33,6 +44,7 @@ output "audit_export_deployment_metadata" {
     secret_arns             = { for name, secret in aws_secretsmanager_secret.audit_exports : name => secret.arn }
     database_principals     = var.audit_export_database_principals
     queue_url               = aws_sqs_queue.work["audit-exports"].id
+    queue_encryption        = var.audit_export_queue_encryption
     bucket                  = aws_s3_bucket.evidence.bucket
     expected_bucket_owner   = var.account_id
     kms_key_arn             = aws_kms_key.staging.arn
@@ -109,8 +121,12 @@ resource "aws_iam_role_policy" "audit_exports" {
       Resource = aws_sqs_queue.work["audit-exports"].arn
     }) : null,
     each.key != "reader" ? jsonencode({
+      Sid      = "InspectExportDLQEncryption", Effect = "Allow", Action = ["sqs:GetQueueAttributes"]
+      Resource = aws_sqs_queue.dead_letter["audit-exports"].arn
+    }) : null,
+    each.key != "reader" ? jsonencode({
       Sid      = "ExportQueueKey", Effect = "Allow"
-      Action   = concat(["kms:Decrypt"], each.key == "publisher" ? ["kms:GenerateDataKey"] : [])
+      Action   = concat(["kms:Decrypt"], each.key == "publisher" && var.audit_export_queue_encryption == "aws-kms" ? ["kms:GenerateDataKey"] : [])
       Resource = aws_kms_key.staging.arn
       Condition = { StringEquals = {
         "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"

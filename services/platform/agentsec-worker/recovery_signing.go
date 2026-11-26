@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -43,6 +44,16 @@ func newRecoveryKMSVerifier(client recoveryKMSVerifyAPI, keyARN string, timeout 
 	return &recoveryKMSVerifier{client: client, keyARN: keyARN, timeout: timeout}, nil
 }
 
+// KMS hashes a RAW ECDSA_SHA_256 message internally. For larger messages,
+// send exactly the same SHA-256 digest and ask KMS to skip the second hash.
+func recoveryKMSMessage(payload []byte) ([]byte, kmstypes.MessageType) {
+	if len(payload) <= 4096 {
+		return append([]byte(nil), payload...), kmstypes.MessageTypeRaw
+	}
+	digest := sha256.Sum256(payload)
+	return digest[:], kmstypes.MessageTypeDigest
+}
+
 func (signer *recoveryKMSSigner) Sign(ctx context.Context, payload []byte) (keyARN string, signature []byte, resultErr error) {
 	if signer == nil || nilDiscoveryCloudDependency(signer.client) || ctx == nil || ctx.Err() != nil || len(payload) == 0 || len(payload) > 56<<10 {
 		return "", nil, errRuntimeUnavailable
@@ -54,8 +65,9 @@ func (signer *recoveryKMSSigner) Sign(ctx context.Context, payload []byte) (keyA
 	}()
 	bounded, cancel := context.WithTimeout(ctx, signer.timeout)
 	defer cancel()
+	message, messageType := recoveryKMSMessage(payload)
 	output, err := signer.client.Sign(bounded, &kms.SignInput{
-		KeyId: aws.String(signer.keyARN), Message: append([]byte(nil), payload...), MessageType: kmstypes.MessageTypeRaw, SigningAlgorithm: kmstypes.SigningAlgorithmSpecEcdsaSha256,
+		KeyId: aws.String(signer.keyARN), Message: message, MessageType: messageType, SigningAlgorithm: kmstypes.SigningAlgorithmSpecEcdsaSha256,
 	}, func(options *kms.Options) { options.Retryer = aws.NopRetryer{} })
 	if err != nil || bounded.Err() != nil || output == nil || aws.ToString(output.KeyId) != signer.keyARN || output.SigningAlgorithm != kmstypes.SigningAlgorithmSpecEcdsaSha256 || len(output.Signature) < 32 || len(output.Signature) > 512 {
 		return "", nil, errRuntimeUnavailable
@@ -74,7 +86,8 @@ func (verifier *recoveryKMSVerifier) Verify(ctx context.Context, keyARN string, 
 	}()
 	bounded, cancel := context.WithTimeout(ctx, verifier.timeout)
 	defer cancel()
-	output, err := verifier.client.Verify(bounded, &kms.VerifyInput{KeyId: aws.String(verifier.keyARN), Message: append([]byte(nil), payload...), MessageType: kmstypes.MessageTypeRaw, Signature: append([]byte(nil), signature...), SigningAlgorithm: kmstypes.SigningAlgorithmSpecEcdsaSha256}, func(options *kms.Options) { options.Retryer = aws.NopRetryer{} })
+	message, messageType := recoveryKMSMessage(payload)
+	output, err := verifier.client.Verify(bounded, &kms.VerifyInput{KeyId: aws.String(verifier.keyARN), Message: message, MessageType: messageType, Signature: append([]byte(nil), signature...), SigningAlgorithm: kmstypes.SigningAlgorithmSpecEcdsaSha256}, func(options *kms.Options) { options.Retryer = aws.NopRetryer{} })
 	if err != nil || bounded.Err() != nil || output == nil || aws.ToString(output.KeyId) != verifier.keyARN || output.SigningAlgorithm != kmstypes.SigningAlgorithmSpecEcdsaSha256 || !output.SignatureValid {
 		return errRuntimeUnavailable
 	}

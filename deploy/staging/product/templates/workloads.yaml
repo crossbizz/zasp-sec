@@ -1,10 +1,13 @@
 {{- if ne .Values.profile "customer_edge" }}
 {{- $root := . -}}
+{{- $bao := .Values.openbaoClients | default dict -}}
+{{- $connectorBao := eq $bao.connectorSecretsProvider "openbao" -}}
 {{- $workloads := list
   (dict "name" "web" "imageKey" "web" "port" 3000 "healthPort" 3000 "readyPath" "/" "livePath" "/" "replicas" .Values.replicas.web "serviceAccount" .Values.serviceAccounts.web)
   (dict "name" "agentsec-api" "imageKey" "agentsecApi" "port" 8080 "healthPort" 8081 "readyPath" "/readyz" "livePath" "/healthz" "replicas" .Values.replicas.agentsecApi "serviceAccount" .Values.serviceAccounts.api.name)
 -}}
 {{- range $workloads }}
+{{- $apiBao := and (eq .name "agentsec-api") $connectorBao }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,7 +24,7 @@ spec:
   selector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp }
+      labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp{{ if $apiBao }}, zasp.io/openbao-client: "true"{{ end }} }
       annotations: { zasp.io/schema-version: {{ $root.Values.schema.expectedVersion | quote }} }
     spec:
       serviceAccountName: {{ .serviceAccount }}
@@ -34,9 +37,14 @@ spec:
         runAsGroup: 65532
         fsGroup: 65532
         seccompProfile: { type: RuntimeDefault }
-      {{- if and (eq .name "agentsec-api") (include "zasp.schema.baseline" $root) }}
+      {{- if and (eq .name "agentsec-api") (or $apiBao (include "zasp.schema.baseline" $root)) }}
       initContainers:
+        {{- if $apiBao }}
+        {{- include "zasp.openbao.init" (dict "image" $root.Values.global.productImages.agentsecApi) | nindent 8 }}
+        {{- end }}
+        {{- if include "zasp.schema.baseline" $root }}
         {{- include "zasp.approvalMaintenance.keyInit" (dict "image" $root.Values.global.productImages.agentsecApi "uid" 65532) | nindent 8 }}
+        {{- end }}
       {{- end }}
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } } }
@@ -116,7 +124,11 @@ spec:
             - { name: ZASP_CONNECTOR_AWS_REGION, value: {{ required "connectors.awsRegion is required" $root.Values.connectors.awsRegion | quote }} }
             - { name: ZASP_CONNECTOR_ROLE_ARN, value: {{ required "connectors.roleArn is required" $root.Values.connectors.roleArn | quote }} }
             - { name: ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE, value: {{ required "connectors.webIdentityTokenFile is required" $root.Values.connectors.webIdentityTokenFile | quote }} }
+            {{- if $apiBao }}
+            {{- include "zasp.openbao.env" (dict "root" $root "role" "api") | nindent 12 }}
+            {{- else }}
             - { name: ZASP_CONNECTOR_KMS_KEY_ARN, value: {{ required "connectors.kmsKeyArn is required" $root.Values.connectors.kmsKeyArn | quote }} }
+            {{- end }}
             {{- if $root.Values.complianceExports.enabled }}
             {{- include "zasp.complianceExports.apiEnv" $root | nindent 12 }}
             {{- end }}
@@ -153,7 +165,11 @@ spec:
             {{- with $root.Values.discovery.gcpCollectorVersion }}
             - { name: ZASP_DISCOVERY_GCP_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
+            {{- if $root.Values.nango.externalNamespace }}
+            - { name: ZASP_NANGO_BASE_URL, value: {{ printf "https://nango.%s.svc.cluster.local:8443" $root.Values.nango.externalNamespace | quote }} }
+            {{- else }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $root.Release.Namespace }}.svc.cluster.local:3003" }
+            {{- end }}
             - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
             - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
             {{- end }}
@@ -178,6 +194,9 @@ spec:
               {{- end }}
               exec /app/agentsec-api
           volumeMounts:
+            {{- if $apiBao }}
+            {{- include "zasp.openbao.mount" . | nindent 12 }}
+            {{- end }}
             {{- include "zasp.runtimeServices.mount" $root | nindent 12 }}
             {{- if include "zasp.schema.baseline" $root }}
             {{- include "zasp.approvalMaintenance.keyMount" $root | nindent 12 }}
@@ -188,6 +207,9 @@ spec:
           {{- end }}
       {{- if eq .name "agentsec-api" }}
       volumes:
+        {{- if $apiBao }}
+        {{- include "zasp.openbao.volumes" (dict "role" "api") | nindent 8 }}
+        {{- end }}
         {{- include "zasp.runtimeServices.volume" $root | nindent 8 }}
         {{- if include "zasp.schema.baseline" $root }}
         {{- include "zasp.approvalMaintenance.keyVolumes" $root | nindent 8 }}
@@ -547,7 +569,7 @@ spec:
   selector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
+      labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp{{ if $connectorBao }}, zasp.io/openbao-client: "true"{{ end }} }
       annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
     spec:
       serviceAccountName: {{ .Values.serviceAccounts.worker.name }}
@@ -558,6 +580,10 @@ spec:
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } } }
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } } }
+      {{- if $connectorBao }}
+      initContainers:
+        {{- include "zasp.openbao.init" (dict "image" .Values.global.productImages.agentsecWorker) | nindent 8 }}
+      {{- end }}
       containers:
         - name: discovery-worker
           image: {{ required "global.productImages.agentsecWorker must be an immutable digest" .Values.global.productImages.agentsecWorker | quote }}
@@ -573,6 +599,9 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "discovery" }
+            {{- if $connectorBao }}
+            {{- include "zasp.openbao.env" (dict "root" . "role" "discovery") | nindent 12 }}
+            {{- end }}
             {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
@@ -589,7 +618,14 @@ spec:
             - { name: ZASP_AWS_REGION, value: {{ required "discovery.awsRegion is required" .Values.discovery.awsRegion | quote }} }
             - { name: ZASP_EVIDENCE_BUCKET, value: {{ required "discovery.evidenceBucket is required" .Values.discovery.evidenceBucket | quote }} }
             - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ required "discovery.evidenceBucketOwner is required" .Values.discovery.evidenceBucketOwner | quote }} }
+          {{- if eq (.Values.discovery.evidenceEncryption | default "aws-kms") "provider-managed" }}
+            - { name: ZASP_EVIDENCE_ENCRYPTION, value: "provider-managed" }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ .Values.discovery.evidenceKMSKeyArn | quote }} }
+          {{- else if eq (.Values.discovery.evidenceEncryption | default "aws-kms") "aws-kms" }}
             - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ required "discovery.evidenceKMSKeyArn is required" .Values.discovery.evidenceKMSKeyArn | quote }} }
+          {{- else }}
+            {{- fail "discovery.evidenceEncryption must be aws-kms or provider-managed" }}
+          {{- end }}
             - { name: ZASP_DISCOVERY_ROLE_ARN, value: {{ required "discovery.roleArn is required" .Values.discovery.roleArn | quote }} }
             - { name: ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE, value: {{ required "discovery.webIdentityTokenFile is required" .Values.discovery.webIdentityTokenFile | quote }} }
             - { name: ZASP_DISCOVERY_SECRET_PREFIX, value: {{ required "discovery.secretPrefix is required" .Values.discovery.secretPrefix | quote }} }
@@ -616,7 +652,11 @@ spec:
             {{- /* The saas collector reads every platform through the Nango proxy, so it alone gives the worker the Nango settings. */}}
             {{- with .Values.discovery.saasCollectorVersion }}
             - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- if $.Values.nango.externalNamespace }}
+            - { name: ZASP_NANGO_BASE_URL, value: {{ printf "https://nango.%s.svc.cluster.local:8443" $.Values.nango.externalNamespace | quote }} }
+            {{- else }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $.Release.Namespace }}.svc.cluster.local:3003" }
+            {{- end }}
             - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
             - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
             {{- end }}
@@ -630,6 +670,9 @@ spec:
             - { name: ZASP_PROVIDER_TIMEOUT, value: {{ required "discovery.providerTimeout is required" .Values.discovery.providerTimeout | quote }} }
             - { name: ZASP_DISCOVERY_READINESS_TIMEOUT, value: {{ required "discovery.readinessTimeout is required" .Values.discovery.readinessTimeout | quote }} }
           volumeMounts:
+            {{- if $connectorBao }}
+            {{- include "zasp.openbao.mount" . | nindent 12 }}
+            {{- end }}
             - { name: discovery-worker-secrets, mountPath: /var/run/secrets/zasp-discovery-worker, readOnly: true }
             {{- if .Values.authorizationTemporal.profile }}
             {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
@@ -639,6 +682,9 @@ spec:
             - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
             {{- end }}
       volumes:
+        {{- if $connectorBao }}
+        {{- include "zasp.openbao.volumes" (dict "role" "discovery") | nindent 8 }}
+        {{- end }}
         {{- if .Values.discovery.saasCollectorVersion }}
         - name: nango-service-key
           secret:
@@ -912,6 +958,8 @@ spec:
   (dict "name" "agentsec-recovery-restore" "serviceAccount" .Values.serviceAccounts.recoveryRestore.name "replicas" .Values.replicas.recoveryRestore "provider" .Values.secrets.recoveryRestoreProviderClassName "mount" "zasp-recovery-restore" "mode" "recovery" "topic" "" "queue" .Values.recovery.restoreQueueURL "role" .Values.recovery.restoreRoleArn "operation" "restore")
 }}
 {{- range $workload := $recoveryWorkloads }}
+{{- $signBao := eq $bao.recoverySigningProvider "openbao" }}
+{{- $recoveryBao := and (eq $workload.mode "recovery") $bao.transitKey (or $signBao (eq $workload.operation "restore")) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -926,7 +974,7 @@ spec:
   selector: { matchLabels: { app.kubernetes.io/name: {{ $workload.name }} } }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: {{ $workload.name }}, app.kubernetes.io/part-of: zasp }
+      labels: { app.kubernetes.io/name: {{ $workload.name }}, app.kubernetes.io/part-of: zasp{{ if $recoveryBao }}, zasp.io/openbao-client: "true"{{ end }} }
       annotations: { zasp.io/schema-version: {{ $.Values.schema.expectedVersion | quote }}, zasp.io/recovery-canary: "promoted" }
     spec:
       serviceAccountName: {{ $workload.serviceAccount }}
@@ -937,6 +985,10 @@ spec:
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $workload.name }} } } }
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $workload.name }} } } }
+      {{- if $recoveryBao }}
+      initContainers:
+        {{- include "zasp.openbao.init" (dict "image" $.Values.global.productImages.agentsecWorker) | nindent 8 }}
+      {{- end }}
       containers:
         - name: worker
           image: {{ required "global.productImages.agentsecWorker must be an immutable digest" $.Values.global.productImages.agentsecWorker | quote }}
@@ -970,8 +1022,18 @@ spec:
             - { name: ZASP_RECOVERY_OPERATION_KIND, value: {{ $workload.operation | quote }} }
             - { name: ZASP_EVIDENCE_BUCKET, value: {{ $.Values.recovery.evidenceBucket | quote }} }
             - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ $.Values.recovery.evidenceBucketOwner | quote }} }
+          {{- if eq ($.Values.recovery.evidenceEncryption | default "aws-kms") "provider-managed" }}
+            - { name: ZASP_EVIDENCE_ENCRYPTION, value: "provider-managed" }
+          {{- else if ne ($.Values.recovery.evidenceEncryption | default "aws-kms") "aws-kms" }}
+            {{- fail "recovery.evidenceEncryption must be aws-kms or provider-managed" }}
+          {{- end }}
             - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ $.Values.recovery.evidenceKMSKeyArn | quote }} }
+          {{- if $recoveryBao }}
+            {{- include "zasp.openbao.env" (dict "root" $ "role" $workload.operation) | nindent 12 }}
+          {{- end }}
+          {{- if or (not $signBao) (and (eq $workload.operation "restore") $.Values.recovery.signingKMSKeyArn) }}
             - { name: ZASP_RECOVERY_SIGNING_KMS_KEY_ARN, value: {{ $.Values.recovery.signingKMSKeyArn | quote }} }
+          {{- end }}
             - { name: ZASP_RECOVERY_NEON_PROJECT_ID, value: {{ $.Values.recovery.neonProjectID | quote }} }
             - { name: ZASP_RECOVERY_NEON_BRANCH_ID, value: {{ $.Values.recovery.neonBranchID | quote }} }
           {{- if eq $workload.operation "restore" }}
@@ -985,12 +1047,18 @@ spec:
           {{- end }}
           {{- end }}
           volumeMounts:
+            {{- if $recoveryBao }}
+            {{- include "zasp.openbao.mount" . | nindent 12 }}
+            {{- end }}
             - { name: database, mountPath: /var/run/secrets/{{ $workload.mount }}, readOnly: true }
             - { name: aws-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
           {{- if eq $workload.operation "restore" }}
             - { name: kubernetes-api, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true }
           {{- end }}
       volumes:
+        {{- if $recoveryBao }}
+        {{- include "zasp.openbao.volumes" (dict "role" $workload.operation) | nindent 8 }}
+        {{- end }}
         - name: database
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ $workload.provider | quote }} } }
         - name: aws-web-identity

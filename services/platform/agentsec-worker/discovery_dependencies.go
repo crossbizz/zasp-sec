@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
 	"net/url"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 )
 
 type productionDiscoveryDependencyConfig struct {
+	ConnectorSecrets           openbaokv.Config
 	Cloud                      productionDiscoveryCloudConfig
 	Artifacts                  productionDiscoveryArtifactConfig
 	GitHubAppID                string
@@ -68,7 +70,7 @@ func readyProductionDiscoveryArtifactAuthority(ctx context.Context, s3API discov
 			resultErr = errRuntimeUnavailable
 		}
 	}()
-	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(s3API) || nilWorkerDependency(kmsAPI) || !validProductionDiscoveryCloudConfig(cloud) {
+	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(s3API) || !validEvidenceEncryptionAuthority(artifacts.Encryption, artifacts.KMSKeyARN, cloud.Region, artifacts.ExpectedBucketOwner) || !validProductionDiscoveryCloudConfig(cloud) {
 		return errRuntimeUnavailable
 	}
 	head, err := s3API.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(artifacts.Bucket), ExpectedBucketOwner: aws.String(artifacts.ExpectedBucketOwner)}, func(options *s3.Options) { options.Retryer = aws.NopRetryer{} })
@@ -84,7 +86,21 @@ func readyProductionDiscoveryArtifactAuthority(ctx context.Context, s3API discov
 		return errRuntimeUnavailable
 	}
 	rule := encryption.ServerSideEncryptionConfiguration.Rules[0]
-	if rule.ApplyServerSideEncryptionByDefault == nil || rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm != s3types.ServerSideEncryptionAwsKms || aws.ToString(rule.ApplyServerSideEncryptionByDefault.KMSMasterKeyID) != artifacts.KMSKeyARN || !aws.ToBool(rule.BucketKeyEnabled) {
+	defaults := rule.ApplyServerSideEncryptionByDefault
+	if defaults == nil {
+		return errRuntimeUnavailable
+	}
+	if artifacts.Encryption == "provider-managed" {
+		if defaults.SSEAlgorithm != s3types.ServerSideEncryptionAes256 || defaults.KMSMasterKeyID != nil || aws.ToBool(rule.BucketKeyEnabled) {
+			return errRuntimeUnavailable
+		}
+		if artifacts.KMSKeyARN == "" {
+			return nil
+		}
+	} else if defaults.SSEAlgorithm != s3types.ServerSideEncryptionAwsKms || aws.ToString(defaults.KMSMasterKeyID) != artifacts.KMSKeyARN || !aws.ToBool(rule.BucketKeyEnabled) {
+		return errRuntimeUnavailable
+	}
+	if nilWorkerDependency(kmsAPI) {
 		return errRuntimeUnavailable
 	}
 	key, err := kmsAPI.DescribeKey(ctx, &kms.DescribeKeyInput{KeyId: aws.String(artifacts.KMSKeyARN)}, func(options *kms.Options) { options.Retryer = aws.NopRetryer{} })
@@ -143,9 +159,13 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 	if cloud.Close == nil {
 		return nil, errRuntimeUnavailable
 	}
+	var closeSecrets func()
 	var queue productionDiscoveryQueue
 	var artifactCache *discoveryArtifactCache
 	fail := func() (*productionDiscoveryDependencies, error) {
+		if closeSecrets != nil {
+			closeSecrets()
+		}
 		_ = queue.Close()
 		if artifactCache != nil {
 			_ = artifactCache.Close()
@@ -154,7 +174,8 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		return nil, errRuntimeUnavailable
 	}
 	enterStartupStage("discovery-secrets")
-	secrets, err := newDiscoverySecretsManagerReader(cloud.Secrets, config.Cloud.SecretRoot, config.Cloud.Timeout)
+	var secrets discoverySecretReader
+	secrets, closeSecrets, err = newDiscoveryConnectorSecrets(cloud.Secrets, config)
 	if err != nil {
 		return fail()
 	}
@@ -284,6 +305,9 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		return nil
 	}
 	dependencies.close = func() error {
+		if closeSecrets != nil {
+			closeSecrets()
+		}
 		queueErr := queue.Close()
 		_ = artifactCache.Close()
 		providerTransport.CloseIdleConnections()
@@ -315,8 +339,8 @@ func (dependencies *productionDiscoveryDependencies) Close() error {
 	return dependencies.closeErr
 }
 
-func readyProductionDiscoveryDependencies(ctx context.Context, cloud discoveryDependencyIO, secrets *discoverySecretsManagerReader, config productionDiscoveryDependencyConfig) error {
-	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(cloud.Credentials) || nilWorkerDependency(cloud.S3) || secrets == nil {
+func readyProductionDiscoveryDependencies(ctx context.Context, cloud discoveryDependencyIO, secrets discoverySecretReader, config productionDiscoveryDependencyConfig) error {
+	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(cloud.Credentials) || nilWorkerDependency(cloud.S3) || nilWorkerDependency(secrets) {
 		return errRuntimeUnavailable
 	}
 	bounded, cancel := context.WithTimeout(ctx, config.ReadinessTimeout)
@@ -341,9 +365,8 @@ func readyProductionDiscoveryDependencies(ctx context.Context, cloud discoveryDe
 
 func validProductionDiscoveryDependencyAuthority(config productionDiscoveryDependencyConfig) bool {
 	role := discoveryAWSRolePattern.FindStringSubmatch(config.Cloud.RoleARN)
-	kms := strings.Split(config.Artifacts.KMSKeyARN, ":")
 	queue, queueErr := url.Parse(config.QueueURL)
-	if len(role) != 2 || len(kms) != 6 || queueErr != nil || queue == nil || kms[0] != "arn" || kms[1] != "aws" || kms[2] != "kms" || kms[3] != config.Cloud.Region || kms[4] != config.Artifacts.ExpectedBucketOwner || role[1] != config.Artifacts.ExpectedBucketOwner || !strings.HasPrefix(kms[5], "key/") {
+	if len(role) != 2 || !validEvidenceEncryptionAuthority(config.Artifacts.Encryption, config.Artifacts.KMSKeyARN, config.Cloud.Region, config.Artifacts.ExpectedBucketOwner) || queueErr != nil || queue == nil || role[1] != config.Artifacts.ExpectedBucketOwner {
 		return false
 	}
 	queueParts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")

@@ -663,8 +663,9 @@ func runtimeStageBinding(mode workerMode) (runtimeevent.RuntimeStage, runtimeeve
 
 func productionDiscoveryDependenciesConfig(config workerRuntimeConfig) productionDiscoveryDependencyConfig {
 	return productionDiscoveryDependencyConfig{
+		ConnectorSecrets: config.ConnectorSecrets,
 		Cloud:       productionDiscoveryCloudConfig{Region: config.AWSRegion, RoleARN: config.DiscoveryRoleARN, TokenFile: config.DiscoveryTokenFile, SecretRoot: config.DiscoverySecretPrefix, Timeout: config.ProviderTimeout, Clock: func() time.Time { return time.Now().UTC() }},
-		Artifacts:   productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaximumBytes: 64 << 20},
+		Artifacts:   productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, Encryption: config.EvidenceEncryption, OperationTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaximumBytes: 64 << 20},
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference, OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference,
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion, GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
 		MicrosoftCollectorVersion: config.MicrosoftCollectorVersion, SalesforceCollectorVersion: config.SalesforceCollectorVersion, MicrosoftAzure: config.MicrosoftAzure,

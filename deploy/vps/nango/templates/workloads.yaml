@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: nango-tls-proxy }
+data:
+  nginx.conf: |
+{{ .Files.Get "files/nginx.conf" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nango-migrate
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-1"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata: { labels: { app.kubernetes.io/name: nango-migrate } }
+    spec:
+      {{- include "nango.podSecurity" . | nindent 6 }}
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: {{ .Values.image | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              {{- include "nango.loadStorage" . | nindent 14 }}
+              {{ include "nango.dbCheck" . }}
+              exec node packages/server/dist/migrate.js
+          env:
+            {{- include "nango.databaseEnv" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: db-ca, mountPath: /run/database-ca, readOnly: true }
+            - { name: storage, mountPath: /run/nango-storage, readOnly: true }
+          {{- include "nango.containerSecurity" . | nindent 10 }}
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+        - { name: db-ca, configMap: { name: {{ .Values.databaseCA | quote }} } }
+        - name: storage
+          secret:
+            secretName: {{ .Values.storageSecret | quote }}
+            defaultMode: 0440
+            items:
+              - { key: database-url, path: database-url }
+              - { key: encryption-key, path: encryption-key }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: nango }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: nango } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: nango }
+      annotations:
+        zasp.io/config-sha256: {{ .Files.Get "files/nginx.conf" | sha256sum | quote }}
+    spec:
+      {{- include "nango.podSecurity" . | nindent 6 }}
+      containers:
+        - name: nango
+          image: {{ .Values.image | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              {{- include "nango.loadStorage" . | nindent 14 }}
+              {{ include "nango.dbCheck" . }}
+              test -s /run/nango-storage/service-key || exit 64
+              NANGO_SECRET_KEY_PROD="$(cat /run/nango-storage/service-key)"
+              export NANGO_SECRET_KEY_PROD
+              exec node packages/server/dist/server.js
+          env:
+            {{- include "nango.databaseEnv" . | nindent 12 }}
+            - { name: FLAG_SERVE_CONNECT_UI, value: "false" }
+            - { name: FLAG_AUTH_ROLES_ENABLED, value: "false" }
+            - { name: CSP_REPORT_ONLY, value: "true" }
+            - { name: NANGO_MIGRATE_AT_START, value: "false" }
+            - { name: NANGO_PUBLIC_CONNECT_URL, value: {{ printf "https://nango.%s.svc.cluster.local:8443/connect" .Release.Namespace | quote }} }
+            - { name: NANGO_PUBLIC_SERVER_URL, value: {{ printf "%s/api/v1/integrations" .Values.publicOrigin | quote }} }
+            - { name: NANGO_SERVER_URL, value: {{ printf "%s/api/v1/integrations" .Values.publicOrigin | quote }} }
+            - { name: SERVER_PORT, value: "3003" }
+          readinessProbe: { httpGet: { path: /ready, port: 3003 }, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /health, port: 3003 }, initialDelaySeconds: 45, periodSeconds: 15 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }
+          volumeMounts:
+            - { name: nango-tmp, mountPath: /tmp }
+            - { name: db-ca, mountPath: /run/database-ca, readOnly: true }
+            - { name: storage, mountPath: /run/nango-storage, readOnly: true }
+          {{- include "nango.containerSecurity" . | nindent 10 }}
+        - name: tls
+          image: {{ .Values.tlsProxyImage | quote }}
+          command: ["nginx", "-c", "/run/nango-proxy/nginx.conf", "-g", "daemon off;"]
+          ports: [{ name: https, containerPort: 8443 }]
+          readinessProbe: { tcpSocket: { port: https }, periodSeconds: 5 }
+          resources: { requests: { cpu: 25m, memory: 32Mi }, limits: { cpu: 250m, memory: 128Mi } }
+          volumeMounts:
+            - { name: tls-tmp, mountPath: /tmp }
+            - { name: proxy-config, mountPath: /run/nango-proxy, readOnly: true }
+            - { name: server-tls, mountPath: /run/nango-tls, readOnly: true }
+          {{- include "nango.containerSecurity" . | nindent 10 }}
+      volumes:
+        - { name: nango-tmp, emptyDir: { sizeLimit: 64Mi } }
+        - { name: tls-tmp, emptyDir: { sizeLimit: 64Mi } }
+        - { name: db-ca, configMap: { name: {{ .Values.databaseCA | quote }} } }
+        - name: storage
+          secret:
+            secretName: {{ .Values.storageSecret | quote }}
+            defaultMode: 0440
+            items:
+              - { key: database-url, path: database-url }
+              - { key: encryption-key, path: encryption-key }
+              - { key: service-key, path: service-key }
+        - { name: proxy-config, configMap: { name: nango-tls-proxy } }
+        - { name: server-tls, secret: { secretName: {{ .Values.serverTLSSecret | quote }}, defaultMode: 0440 } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: nango }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: nango }
+  ports: [{ name: https, port: 8443, targetPort: https }]

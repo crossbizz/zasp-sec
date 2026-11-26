@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// ErrOAuthSecretCreateRejected indicates a definitive provider failure for which replay is unsafe.
+var ErrOAuthSecretCreateRejected = errors.New("OAuth secret creation refused")
+
 var ErrOAuthSecretNotFound = errors.New("OAuth secret not found")
 
 var oauthSecretReferencePattern = regexp.MustCompile(`^ref:oauth/pkce/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$`)
@@ -38,7 +41,19 @@ type storedOAuthSecret struct {
 }
 
 func NewDurableOAuthSecretStore(driver OAuthSecretDriver, prefix, kmsKey string, timeout time.Duration, now func() time.Time) (ConnectorOAuthSecretStore, error) {
-	if nilInterface(driver) || !oauthSecretPrefixPattern.MatchString(prefix) || strings.HasSuffix(prefix, "/") || !kmsKeyPattern.MatchString(kmsKey) || timeout < 100*time.Millisecond || timeout > 10*time.Second || now == nil || now().IsZero() {
+	if !kmsKeyPattern.MatchString(kmsKey) {
+		return nil, ErrRepositoryConfiguration
+	}
+	return newDurableOAuthSecretStore(driver, prefix, kmsKey, timeout, now)
+}
+
+// NewKVStoreForOAuth uses a KV provider that owns encryption at rest.
+func NewKVStoreForOAuth(driver OAuthSecretDriver, prefix string, timeout time.Duration, now func() time.Time) (ConnectorOAuthSecretStore, error) {
+	return newDurableOAuthSecretStore(driver, prefix, "", timeout, now)
+}
+
+func newDurableOAuthSecretStore(driver OAuthSecretDriver, prefix, kmsKey string, timeout time.Duration, now func() time.Time) (ConnectorOAuthSecretStore, error) {
+	if nilInterface(driver) || !oauthSecretPrefixPattern.MatchString(prefix) || strings.HasSuffix(prefix, "/") || timeout < 100*time.Millisecond || timeout > 10*time.Second || now == nil || now().IsZero() {
 		return nil, ErrRepositoryConfiguration
 	}
 	return &durableOAuthSecretStore{driver: driver, prefix: prefix, kmsKey: kmsKey, timeout: timeout, now: now}, nil
@@ -57,6 +72,8 @@ func (store *durableOAuthSecretStore) Acquire(ctx context.Context, reference str
 	defer cancel()
 	if err := store.driver.Create(bounded, name, store.kmsKey, payload); err == nil {
 		return cloneOAuthSecretMaterial(candidate), nil
+	} else if errors.Is(err, ErrOAuthSecretCreateRejected) {
+		return OAuthSecretMaterial{}, ErrRepositoryUnavailable
 	}
 	stored, err := store.read(bounded, name)
 	if err != nil {

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: zasp-openbao
+description: Independent single-node OpenBao service with TLS and persistent Raft storage.
+version: 0.1.0
+appVersion: "2.7.3"
+type: application

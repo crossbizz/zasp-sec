@@ -461,12 +461,53 @@ resource "aws_s3_bucket_versioning" "evidence" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "evidence" {
   bucket = aws_s3_bucket.evidence.id
   rule {
-    bucket_key_enabled = true
+    bucket_key_enabled = var.evidence_encryption == "aws-kms"
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.staging.arn
-      sse_algorithm     = "aws:kms"
+      kms_master_key_id = var.evidence_encryption == "aws-kms" ? aws_kms_key.staging.arn : null
+      sse_algorithm     = var.evidence_encryption == "aws-kms" ? "aws:kms" : "AES256"
     }
   }
+}
+
+# Apply the opt-in write policy to the two writers of this bucket. Other
+# narrowly scoped workloads with their own encryption policy keep their pins.
+resource "aws_s3_bucket_policy" "evidence_sse_s3" {
+  count  = var.evidence_encryption == "provider-managed" ? 1 : 0
+  bucket = aws_s3_bucket.evidence.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Sid       = "DenyIncorrectEvidenceWriteEncryption"
+    Effect    = "Deny"
+    Principal = "*"
+    Action    = "s3:PutObject"
+    Resource  = "${aws_s3_bucket.evidence.arn}/organizations/*"
+    Condition = {
+      ArnEquals       = { "aws:PrincipalArn" = [aws_iam_role.worker.arn, aws_iam_role.recovery["recovery_backup"].arn] }
+      StringNotEquals = { "s3:x-amz-server-side-encryption" = "AES256" }
+    }
+  }] })
+}
+
+# Previously written KMS versions remain readable during an SSE-S3 rollout.
+# Bucket keys use the bucket ARN as the encryption context.
+resource "aws_iam_role_policy" "evidence_historical_reads" {
+  for_each = var.evidence_encryption == "provider-managed" ? {
+    discovery = aws_iam_role.worker.id
+    backup    = aws_iam_role.recovery["recovery_backup"].id
+    restore   = aws_iam_role.recovery["recovery_restore"].id
+  } : {}
+  name = "${var.cluster_name}-evidence-historical-reads"
+  role = each.value
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = "s3:GetObjectVersion", Resource = "${aws_s3_bucket.evidence.arn}/organizations/*" },
+    { Effect = "Allow", Action = "kms:DescribeKey", Resource = aws_kms_key.staging.arn },
+    {
+      Effect = "Allow", Action = "kms:Decrypt", Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                    = "s3.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:aws:s3:arn" = aws_s3_bucket.evidence.arn
+      } }
+    },
+  ] })
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "evidence" {
@@ -775,7 +816,8 @@ resource "aws_sqs_queue" "dead_letter" {
   receive_wait_time_seconds  = contains(["background", "runtime-events", "tests"], each.key) ? 20 : null
   max_message_size           = contains(["background", "runtime-events", "tests"], each.key) ? 262144 : null
   delay_seconds              = contains(["background", "runtime-events", "tests"], each.key) ? 0 : null
-  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
+  sqs_managed_sse_enabled    = each.key == "audit-exports" && var.audit_export_queue_encryption == "provider-managed" ? true : null
+  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : each.key == "audit-exports" && var.audit_export_queue_encryption == "provider-managed" ? null : aws_kms_key.staging.arn
   tags                       = { Schema = each.value.schema }
 }
 
@@ -788,7 +830,8 @@ resource "aws_sqs_queue" "work" {
   receive_wait_time_seconds  = 20
   max_message_size           = 262144
   delay_seconds              = contains(["background", "runtime-events", "tests"], each.key) ? 0 : null
-  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
+  sqs_managed_sse_enabled    = each.key == "audit-exports" && var.audit_export_queue_encryption == "provider-managed" ? true : null
+  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : each.key == "audit-exports" && var.audit_export_queue_encryption == "provider-managed" ? null : aws_kms_key.staging.arn
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn
     maxReceiveCount     = each.value.max_receive

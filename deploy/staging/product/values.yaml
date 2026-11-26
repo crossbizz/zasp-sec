@@ -190,6 +190,8 @@ connectors:
   oktaClientID: ""
   oktaClientSecretReference: ""
 nango:
+  # Set to use an independently installed, TLS-protected Nango service.
+  externalNamespace: ""
   replicas: 2
   storageSecretName: ""
   databaseEgressCIDRs: []
@@ -296,6 +298,7 @@ discovery:
   secretPrefix: ""
   evidenceBucket: ""
   evidenceBucketOwner: ""
+  evidenceEncryption: aws-kms
   evidenceKMSKeyArn: ""
   githubAppID: ""
   githubPrivateKeyReference: ""
@@ -337,6 +340,7 @@ recovery:
   restoreQueueURL: ""
   evidenceBucket: ""
   evidenceBucketOwner: ""
+  evidenceEncryption: aws-kms
   evidenceKMSKeyArn: ""
   signingKMSKeyArn: ""
   backupOutboxRoleArn: ""
@@ -648,3 +652,11 @@ authorizationTemporal:
   compensationPrincipal: zasp_svc_temporal_compensation
   projectorPrincipal: zasp_svc_outbox
   adapterPrincipal: zasp_svc_red_team_adapter
+
+# Workload tokens are pre-existing Kubernetes Secrets; see openbao-workload-projection.md.
+openbaoClients:
+  connectorSecretsProvider: aws-secrets-manager
+  recoverySigningProvider: aws-kms
+  namespace: ""
+  kvMount: ""
+  transitKey: ""

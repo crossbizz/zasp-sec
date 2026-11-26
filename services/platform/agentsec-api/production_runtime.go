@@ -275,11 +275,10 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
 	}
-	secretsClient, secretsTransport, err := newConnectorSecretsClient(config)
+	secretsDriver, secretsTransport, err := newRuntimeConnectorSecrets(ctx, config)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-secrets", errRuntimeUnavailable)
 	}
-	secretsDriver := &connectorSecretsDriver{client: secretsClient}
 	ticketSecrets, err := newFindingTicketSecretResolver(secretsDriver, config.ConnectorSecretPrefix, config.ProviderTimeout)
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
@@ -313,7 +312,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		secretsTransport.CloseIdleConnections()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
-	secretStore, err := apiserver.NewDurableOAuthSecretStore(secretsDriver, config.ConnectorSecretPrefix, config.ConnectorKMSKeyARN, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
+	secretStore, err := secretsDriver.oauthStore(config)
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
@@ -789,10 +788,12 @@ func newConnectorWorkerOwner(hostname string, source io.Reader) (string, error) 
 	return "agentsec-api:" + hostname + ":" + hex.EncodeToString(random), nil
 }
 
-type transportCloser struct{ transport *http.Transport }
+type idleConnectionCloser interface { CloseIdleConnections() }
+
+type transportCloser struct{ transport idleConnectionCloser }
 
 func (closer transportCloser) Close() error {
-	if closer.transport != nil {
+	if !invalidRuntimeValue(closer.transport) {
 		closer.transport.CloseIdleConnections()
 	}
 	return nil

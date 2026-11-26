@@ -120,7 +120,11 @@ func TestRuntimeNangoConfigurationIsOptionalAllOrNothingAndPrivate(t *testing.T)
 	if !validRuntimeConfig(config) {
 		t.Fatal("private complete Nango configuration rejected")
 	}
-	config.NangoBaseURL = "https://nango.example.com"
+	config.NangoBaseURL = "https://nango.connectors.svc.cluster.local:8443"
+	if !validRuntimeConfig(config) {
+		t.Fatal("private TLS Nango endpoint rejected")
+	}
+	config.NangoBaseURL = "https://nango.example.com:8443"
 	if validRuntimeConfig(config) {
 		t.Fatal("public Nango endpoint accepted")
 	}

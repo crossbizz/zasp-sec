@@ -17,6 +17,7 @@ func TestLegacyAndExplicitProviderSelections(t *testing.T) {
 			"ZASP_QUEUE_PROVIDER":            "sqs",
 		},
 		{"ZASP_BACKUP_PROVIDER": "r2", "ZASP_QUEUE_PROVIDER": "sqs"},
+		{"ZASP_CONNECTOR_SECRETS_PROVIDER": "openbao", "ZASP_RECOVERY_SIGNING_PROVIDER": "openbao", "ZASP_EVIDENCE_ENCRYPTION": "provider-managed"},
 	} {
 		if err := Validate(func(key string) string { return env[key] }); err != nil {
 			t.Fatal(err)

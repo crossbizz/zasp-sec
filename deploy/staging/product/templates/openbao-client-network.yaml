@@ -1,0 +1,18 @@
+{{- include "zasp.openbao.validateClients" . -}}
+{{- $c := .Values.openbaoClients -}}
+{{- if or (eq $c.connectorSecretsProvider "openbao") $c.transitKey }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: zasp-openbao-client-egress }
+spec:
+  podSelector:
+    matchLabels: { zasp.io/openbao-client: "true" }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $c.namespace | quote }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: openbao }
+      ports: [{ port: 8200, protocol: TCP }]
+{{- end }}

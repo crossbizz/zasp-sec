@@ -1,0 +1,5 @@
+apiVersion: v2
+name: zasp-nango
+description: Standalone private Nango service for a dedicated TLS PostgreSQL database.
+version: 0.1.0
+type: application

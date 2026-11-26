@@ -1,0 +1,9 @@
+# Set the reviewed OpenBao 2.7.3 image by registry manifest digest.
+image: ""
+tlsSecret: openbao-server-tls
+storageClass: ""
+storageSize: 8Gi
+# Both selectors must match. Only administrators should grant these labels.
+clientNamespace: zasp
+clientPodLabels:
+  zasp.io/openbao-client: "true"

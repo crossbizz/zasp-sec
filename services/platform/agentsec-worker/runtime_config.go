@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimesecret"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 	"net"
 	"net/url"
@@ -57,6 +59,7 @@ var (
 )
 
 type workerRuntimeConfig struct {
+	RecoverySigning                  recoverySigningSettings
 	RuntimeServices                  runtimeservices.Config
 	RuntimeDatabaseProfile           string
 	TemporalExecutorDSN              string
@@ -103,11 +106,13 @@ type workerRuntimeConfig struct {
 	AWSRegion                        string
 	EvidenceBucket                   string
 	EvidenceOwner                    string
+	EvidenceEncryption               string
 	EvidenceKMSKeyARN                string
 	ParserVersion                    string
 	ToolVersion                      string
 	DiscoveryRoleARN                 string
 	DiscoveryTokenFile               string
+	ConnectorSecrets                 openbaokv.Config
 	DiscoverySecretPrefix            string
 	// Provider remediations of the Security Agent action worker. All three
 	// are set, or none: without them the worker performs no remediation.
@@ -234,6 +239,13 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	if getenv == nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
+	if workerMode(getenv("ZASP_WORKER_MODE")) == workerModeDiscovery {
+		var fileErr error
+		getenv, fileErr = runtimesecret.FromFiles(getenv, "ZASP_POSTGRES_DSN", "ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN")
+		if fileErr != nil {
+			return workerRuntimeConfig{}, fileErr
+		}
+	}
 	services, servicesErr := runtimeservices.Load(getenv)
 	if servicesErr != nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
@@ -260,9 +272,10 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		DatabaseAuthority:     getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
 		PollInterval: poll, LeaseDuration: lease, BatchSize: batch, ShutdownTimeout: shutdown,
 		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), RedTeamQueueURL: getenv("ZASP_RED_TEAM_QUEUE_URL"), AttackLabQueueURL: getenv("ZASP_ATTACK_LAB_QUEUE_URL"), RecoveryQueueURL: getenv("ZASP_RECOVERY_QUEUE_URL"), RecoveryOutboxTopic: getenv("ZASP_RECOVERY_OUTBOX_TOPIC"), RecoveryOperationKind: getenv("ZASP_RECOVERY_OPERATION_KIND"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
-		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
+		EvidenceEncryption: getenv("ZASP_EVIDENCE_ENCRYPTION"), EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		RecoveryRoleARN: getenv("ZASP_RECOVERY_ROLE_ARN"), RecoveryTokenFile: getenv("ZASP_RECOVERY_WEB_IDENTITY_TOKEN_FILE"), RecoverySigningKMSKeyARN: getenv("ZASP_RECOVERY_SIGNING_KMS_KEY_ARN"), RecoveryNeonProjectID: getenv("ZASP_RECOVERY_NEON_PROJECT_ID"), RecoveryNeonBranchID: getenv("ZASP_RECOVERY_NEON_BRANCH_ID"),
 		RecoveryNeonSecretReference: getenv("ZASP_RECOVERY_NEON_SECRET_REFERENCE"), RecoveryKubernetesURL: getenv("ZASP_RECOVERY_KUBERNETES_ENDPOINT"), RecoveryKubernetesToken: getenv("ZASP_RECOVERY_KUBERNETES_TOKEN_FILE"), RecoveryKubernetesCA: getenv("ZASP_RECOVERY_KUBERNETES_CA_FILE"), RecoveryRunnerImage: getenv("ZASP_RECOVERY_RUNNER_IMAGE"), RecoveryRunnerServiceAccount: getenv("ZASP_RECOVERY_RUNNER_SERVICE_ACCOUNT"), RecoveryNeonEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_RECOVERY_NEON_EGRESS_CIDRS")),
+		ConnectorSecrets: openbaokv.FromEnvironment(getenv),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
 		RemediationRoleARN: getenv("ZASP_SECURITY_AGENT_REMEDIATION_ROLE_ARN"), RemediationTokenFile: getenv("ZASP_SECURITY_AGENT_REMEDIATION_WEB_IDENTITY_TOKEN_FILE"), RemediationSecretPrefix: getenv("ZASP_SECURITY_AGENT_REMEDIATION_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
@@ -286,6 +299,9 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		SecurityAgentPlannerEndpoint: getenv("ZASP_SECURITY_AGENT_PLANNER_ENDPOINT"), SecurityAgentPlannerModel: getenv("ZASP_SECURITY_AGENT_PLANNER_MODEL"), SecurityAgentPlannerToken: getenv("ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE"), SecurityAgentPlannerTimeout: plannerTimeout, SecurityAgentPlannerTokens: plannerTokens, SecurityAgentPlannerPolicy: getenv("ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
+	}
+	if config.Mode == workerModeRecovery {
+		config.RecoverySigning = readRecoverySigningSettings(getenv)
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
 	// Only the scheduler keeps the gateway's records; the dedicated worker
@@ -326,6 +342,12 @@ func parseWorkerCIDRs(value string) []string {
 }
 
 func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
+	if !config.ConnectorSecrets.Valid() || config.ConnectorSecrets.Provider == openbaokv.Provider && config.Mode != workerModeDiscovery {
+		return false
+	}
+	if config.EvidenceEncryption != "" && config.EvidenceEncryption != "aws-kms" && (config.EvidenceEncryption != "provider-managed" || config.Mode != workerModeDiscovery && config.Mode != workerModeRecovery) {
+		return false
+	}
 	if !validWorkerRuntimeDatabaseProfile(config) {
 		return false
 	}
@@ -511,15 +533,14 @@ func validRuntimeCoordinatorAWSAuthority(config workerRuntimeConfig) bool {
 func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 	queue, queueErr := url.Parse(config.DiscoveryQueueURL)
 	role := discoveryAWSRolePattern.FindStringSubmatch(config.DiscoveryRoleARN)
-	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	if queueErr != nil || queue == nil || !validSQSURL(config.DiscoveryQueueURL) || len(role) != 2 || len(kms) != 3 {
+	if queueErr != nil || queue == nil || !validSQSURL(config.DiscoveryQueueURL) || len(role) != 2 || !validEvidenceEncryptionAuthority(config.EvidenceEncryption, config.EvidenceKMSKeyARN, config.AWSRegion, config.EvidenceOwner) {
 		return false
 	}
 	queueParts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
 	if len(queueParts) != 2 || queueParts[1] != "agentsec-discovery-jobs" {
 		return false
 	}
-	if queue.Hostname() != "sqs."+config.AWSRegion+".amazonaws.com" || queueParts[0] != role[1] || role[1] != config.EvidenceOwner || kms[1] != config.AWSRegion || kms[2] != config.EvidenceOwner {
+	if queue.Hostname() != "sqs."+config.AWSRegion+".amazonaws.com" || queueParts[0] != role[1] || role[1] != config.EvidenceOwner {
 		return false
 	}
 	for _, version := range []string{config.AWSCollectorVersion, config.KubernetesCollectorVersion, config.GitHubCollectorVersion, config.OktaCollectorVersion, config.ParserVersion, config.ToolVersion} {
@@ -591,15 +612,13 @@ func outboxQueueAuthority(config workerRuntimeConfig) (string, string, bool) {
 
 func validRecoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RecoveryRoleARN)
-	encryption := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	signing := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.RecoverySigningKMSKeyARN)
 	queue, queueErr := url.Parse(config.RecoveryQueueURL)
 	queueParts := []string(nil)
 	if queueErr == nil && queue != nil {
 		queueParts = strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
 	}
 	expectedQueue := "agentsec-recovery-" + config.RecoveryOperationKind + "-jobs"
-	if !stringInWorker(config.RecoveryOperationKind, "backup", "restore") || len(role) != 2 || len(encryption) != 3 || len(signing) != 3 || config.EvidenceKMSKeyARN == config.RecoverySigningKMSKeyARN || !workerRegionPattern.MatchString(config.AWSRegion) || !workerBucketPattern.MatchString(config.EvidenceBucket) || !workerAccountPattern.MatchString(config.EvidenceOwner) || role[1] != config.EvidenceOwner || encryption[1] != config.AWSRegion || encryption[2] != config.EvidenceOwner || signing[1] != config.AWSRegion || signing[2] != config.EvidenceOwner || config.RecoveryTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !recoveryNeonProjectPattern.MatchString(config.RecoveryNeonProjectID) || !recoveryNeonBranchPattern.MatchString(config.RecoveryNeonBranchID) || queueErr != nil || queue == nil || !validSQSURL(config.RecoveryQueueURL) || queue.Hostname() != "sqs."+config.AWSRegion+".amazonaws.com" || len(queueParts) != 2 || queueParts[0] != role[1] || queueParts[1] != expectedQueue || config.RecoveryOutboxTopic != "" || config.DiscoveryQueueURL != "" || config.RuntimeQueueURL != "" || config.RedTeamQueueURL != "" || config.AttackLabQueueURL != "" || config.OutboxRoleARN != "" || config.OutboxTokenFile != "" || config.DiscoveryRoleARN != "" || config.DiscoveryTokenFile != "" || config.ProjectionRoleARN != "" || config.ProjectionTokenFile != "" || config.RuntimeRoleARN != "" || config.RuntimeTokenFile != "" || config.RuntimeStageRoleARN != "" || config.RuntimeStageTokenFile != "" || config.RedTeamRoleARN != "" || config.RedTeamTokenFile != "" || config.AttackLabRoleARN != "" || config.AttackLabTokenFile != "" {
+	if !stringInWorker(config.RecoveryOperationKind, "backup", "restore") || len(role) != 2 || !validEvidenceEncryptionAuthority(config.EvidenceEncryption, config.EvidenceKMSKeyARN, config.AWSRegion, config.EvidenceOwner) || !validRecoverySigningSettings(config) || !workerRegionPattern.MatchString(config.AWSRegion) || !workerBucketPattern.MatchString(config.EvidenceBucket) || !workerAccountPattern.MatchString(config.EvidenceOwner) || role[1] != config.EvidenceOwner || config.RecoveryTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !recoveryNeonProjectPattern.MatchString(config.RecoveryNeonProjectID) || !recoveryNeonBranchPattern.MatchString(config.RecoveryNeonBranchID) || queueErr != nil || queue == nil || !validSQSURL(config.RecoveryQueueURL) || queue.Hostname() != "sqs."+config.AWSRegion+".amazonaws.com" || len(queueParts) != 2 || queueParts[0] != role[1] || queueParts[1] != expectedQueue || config.RecoveryOutboxTopic != "" || config.DiscoveryQueueURL != "" || config.RuntimeQueueURL != "" || config.RedTeamQueueURL != "" || config.AttackLabQueueURL != "" || config.OutboxRoleARN != "" || config.OutboxTokenFile != "" || config.DiscoveryRoleARN != "" || config.DiscoveryTokenFile != "" || config.ProjectionRoleARN != "" || config.ProjectionTokenFile != "" || config.RuntimeRoleARN != "" || config.RuntimeTokenFile != "" || config.RuntimeStageRoleARN != "" || config.RuntimeStageTokenFile != "" || config.RedTeamRoleARN != "" || config.RedTeamTokenFile != "" || config.AttackLabRoleARN != "" || config.AttackLabTokenFile != "" {
 		return false
 	}
 	if config.RecoveryOperationKind == "backup" {

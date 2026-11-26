@@ -7,6 +7,7 @@
 {{- fail "audit exports require schema52 through56 and a precision deployment phase" -}}
 {{- end -}}
 {{- if le (int .Values.global.terminationGracePeriodSeconds) 20 -}}{{ fail "audit exports require termination grace greater than shutdown20s" }}{{- end -}}
+{{- if and (hasKey $exports "queueEncryption") (not (has $exports.queueEncryption (list "aws-kms" "provider-managed"))) -}}{{ fail "auditExports.queueEncryption must be aws-kms or provider-managed" }}{{- end -}}
 {{- $region := required "auditExports.awsRegion is required" $exports.awsRegion -}}
 {{- if not (regexMatch "^[a-z]{2}(-[a-z0-9]+)+-[0-9]+$" $region) -}}{{ fail "audit exports require a canonical AWS region" }}{{- end -}}
 {{- $writer := required "auditExports.writerRoleArn is required" $exports.writerRoleArn -}}
@@ -89,6 +90,9 @@ spec:
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
             - { name: ZASP_PROVIDER_TIMEOUT, value: "5s" }
             - { name: ZASP_AUDIT_EXPORT_QUEUE_URL, value: {{ $exports.queueURL | quote }} }
+            {{- if hasKey $exports "queueEncryption" }}
+            - { name: ZASP_AUDIT_EXPORT_QUEUE_ENCRYPTION, value: {{ $exports.queueEncryption | quote }} }
+            {{- end }}
             - { name: ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILE, value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" }
             {{- if eq $worker.suffix "worker" }}
             - { name: ZASP_AUDIT_EXPORT_WRITER_ROLE_ARN, value: {{ $writer | quote }} }
