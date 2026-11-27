@@ -115,7 +115,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
   // prevents server rendering from performing I/O while browser instances bind
   // to the actual same-origin location below.
   const origin = globalThis.location?.origin && globalThis.location.origin !== "null" ? globalThis.location.origin : "http://same-origin.invalid";
-  const send = async (request: Request): Promise<Response> => {
+  const send = async (request: Request, callerSignal = request.signal): Promise<Response> => {
     const correlationID = generateCorrelationID();
     if (!PRODUCT_ID.test(correlationID)) {
       throw new APITransportError("invalid_configuration", "Invalid correlation ID");
@@ -135,7 +135,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
     const privateEvidenceReview = request.method === "POST" && /\/api\/v1\/(?:agents\/[^/]+\/(?:purpose\/draft|discovery\/verify)|addon-versions\/[^/]+\/deep-scan)$/.test(new URL(request.url).pathname);
     const timeoutBudget = options.timeoutMs ?? (privateEvidenceReview ? 35_000 : timeoutMs);
     const timer = globalThis.setTimeout(() => timeout.abort(), timeoutBudget);
-    const signal = AbortSignal.any([request.signal, timeout.signal]);
+    const signal = AbortSignal.any([callerSignal, timeout.signal]);
     const securedRequest = new Request(request, {
       credentials: "same-origin",
       redirect: "error",
@@ -146,15 +146,15 @@ export function createAPIClient(options: APIClientOptions = {}) {
       // Ordinary requests retain immediate dispatch; only downloads read a body first.
       const pendingDownload = complianceDownloadExpectation(securedRequest);
       const download = pendingDownload ? await pendingDownload : undefined;
-      throwIfRequestStopped(request.signal, timeout.signal);
+      throwIfRequestStopped(callerSignal, timeout.signal);
       const response = await configuredFetch(securedRequest);
-	  throwIfRequestStopped(request.signal, timeout.signal);
+	  throwIfRequestStopped(callerSignal, timeout.signal);
 	  const orderedRunResponse = /\/api\/v1\/security-agent-runs\/[^/]+(?:\/cancel)?$/.test(new URL(request.url).pathname);
 	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes, orderedRunResponse);
-	  throwIfRequestStopped(request.signal, timeout.signal);
+	  throwIfRequestStopped(callerSignal, timeout.signal);
       return response;
     } catch (error) {
-      if (request.signal.aborted) throw request.signal.reason;
+      if (callerSignal.aborted) throw callerSignal.reason;
       if (timeout.signal.aborted) throw new APITransportError("timeout", "API request timed out");
       throw error;
     } finally {
@@ -168,7 +168,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
       for (let attempt = 0; ; attempt++) {
         const delay = authorizationRetryDelaysMs[attempt];
         // The last attempt consumes the request itself; earlier ones a copy.
-        const response = await send(delay === undefined ? request : request.clone() as Request);
+        // A clone replays the body. Keep the original signal authoritative for
+        // cancellation even if the native clone's dependent signal is collected.
+        const response = await send(delay === undefined ? request : request.clone() as Request, request.signal);
         if (delay === undefined || !(await authorizationSettlingResponse(response)) && !(await readConflictResponse(request, response))) return response;
         if (!settling) { settling = true; onAuthorizationSettling(true); }
         await abortableDelay(delay, request.signal);

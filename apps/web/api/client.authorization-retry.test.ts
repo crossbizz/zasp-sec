@@ -68,6 +68,36 @@ describe("authorization projection lag", () => {
     expect(change).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels an in-flight replay and ignores its late scope-stale response", async () => {
+    const controller = new AbortController();
+    const reason = new DOMException("audit scope changed", "AbortError");
+    let started!: (request: Request) => void;
+    const inFlight = new Promise<Request>(resolve => { started = resolve; });
+    let respond!: (value: Response) => void;
+    const response = new Promise<Response>(resolve => { respond = resolve; });
+    const onScopeStale = vi.fn();
+    const fetch = vi.fn((request: Request) => { started(request); return response; });
+    const client = createAPIClient({ fetch, authorizationRetryDelaysMs: [1], onScopeStale });
+    client.use({ onRequest({ request }) {
+      // Disconnect only this native replay copy, as when its forwarding link is collected.
+      const clone = request.clone.bind(request);
+      vi.spyOn(request, "clone").mockImplementation(() => {
+        const replay = clone();
+        Object.defineProperty(replay, "signal", { value: new AbortController().signal });
+        return replay;
+      });
+    } });
+    const pending = client.GET("/api/v1/audit-events", { signal: controller.signal });
+    const request = await inFlight;
+    controller.abort(reason);
+    const abortedBeforeResponse = request.signal.aborted;
+    respond(json({ code: "scope_stale", message: "Session scope changed; rebootstrap required", correlation_id: correlation, retryable: true }, 409));
+    await expect(pending).rejects.toBe(reason);
+    expect(abortedBeforeResponse).toBe(true);
+    expect(onScopeStale).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("stops waiting when the request is aborted", async () => {
     const controller = new AbortController();
     const fetch = vi.fn(async () => { queueMicrotask(() => controller.abort(new DOMException("stopped", "AbortError"))); return settling("authorization_unavailable", 503); });
