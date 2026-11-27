@@ -81,11 +81,11 @@ describe("authorization projection lag", () => {
     client.use({ onRequest({ request }) {
       // Disconnect only this native replay copy, as when its forwarding link is collected.
       const clone = request.clone.bind(request);
-      request.clone = () => {
+      vi.spyOn(request, "clone").mockImplementation(() => {
         const replay = clone();
         Object.defineProperty(replay, "signal", { value: new AbortController().signal });
         return replay;
-      };
+      });
     } });
     const pending = client.GET("/api/v1/audit-events", { signal: controller.signal });
     const request = await inFlight;
