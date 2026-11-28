@@ -43,22 +43,61 @@ export async function startOwnedRuntimeLifetime(config,adapters=defaults){
  }catch(error){controller.abort();try{await loading;}catch{/* Preserve the original failure after joining the losing startup operation. */}await close();throw error;}
 }
 
-export async function observeRetainedAllocation(roots){
+function sameDirectory(first, last) {
+ return first.dev === last.dev && first.ino === last.ino && first.uid === last.uid && first.mode === last.mode;
+}
+
+export async function observeRetainedAllocation(roots) {
  try {
- const identities=new Set();let allocated=0n,free,device,entries=0;
- for(const root of roots){const before=await lstat(root,{bigint:true});if(!before.isDirectory()||before.isSymbolicLink()||(before.mode&0o077n)!==0n||before.uid!==BigInt(process.getuid())||await realpath(root)!==root||device!==undefined&&before.dev!==device)allocationFail('allocation-root');device=before.dev;const pending=[root];
-  while(pending.length){const current=pending.pop(),info=await lstat(current,{bigint:true});const identity=info.dev+':'+info.ino;
-   if(++entries>100000)allocationFail('allocation-limit');
-   if(info.dev!==device||info.uid!==BigInt(process.getuid())||identities.has(identity))allocationFail('allocation-identity');
-   if(info.isSymbolicLink()||info.isFile()&&info.nlink!==1n)allocationFail('allocation-link');
-   if(info.isSocket())allocationFail('allocation-socket');
-   if(!info.isDirectory()&&!info.isFile())allocationFail('allocation-node');
-   identities.add(identity);allocated+=info.blocks*512n;if(info.isDirectory()){const names=await readdir(current);if(names.length+entries>100000)allocationFail('allocation-limit');for(const name of names)pending.push(path.join(current,name));}}
-  const after=await lstat(root,{bigint:true});if(before.dev!==after.dev||before.ino!==after.ino||before.uid!==after.uid||before.mode!==after.mode||await realpath(root)!==root)allocationFail('allocation-root');const disk=await statfs(root,{bigint:true}),observed=disk.bavail*disk.bsize;free=free===undefined?observed:free<observed?free:observed;
- }
- return {allocated,free};
- } catch(error) {
-  if(error instanceof Error&&!allocationReasons.has(error))allocationReasons.set(error,error.code==='ENOENT'?'allocation-missing':'allocation-io');
+  let stateIdentity;
+  let entries = 0;
+  // A state file can disappear between readdir and lstat while the fixture is running.
+  // Require an entire successful scan. Never omit entries from the reported allocation.
+  scan: for (let attempt = 0; ; attempt++) {
+   const identities = new Set();
+   let allocated = 0n, free, device;
+   for (const root of roots) {
+    const before = await lstat(root, {bigint: true});
+    if (!before.isDirectory() || before.isSymbolicLink() || (before.mode & 0o077n) !== 0n
+        || before.uid !== BigInt(process.getuid()) || await realpath(root) !== root
+        || (device !== undefined && before.dev !== device)) allocationFail('allocation-root');
+    if (root === roots[0]) {
+     if (stateIdentity && !sameDirectory(stateIdentity, before)) allocationFail('allocation-root');
+     stateIdentity = before;
+    }
+    device = before.dev;
+    const pending = [root];
+    while (pending.length) {
+     const current = pending.pop();
+     if (++entries > 100000) allocationFail('allocation-limit');
+     try {
+      const info = await lstat(current, {bigint: true});
+      const identity = info.dev + ':' + info.ino;
+      if (info.dev !== device || info.uid !== BigInt(process.getuid()) || identities.has(identity)) allocationFail('allocation-identity');
+      if (info.isSymbolicLink() || (info.isFile() && info.nlink !== 1n)) allocationFail('allocation-link');
+      if (info.isSocket()) allocationFail('allocation-socket');
+      if (!info.isDirectory() && !info.isFile()) allocationFail('allocation-node');
+      identities.add(identity);
+      allocated += info.blocks * 512n;
+      if (info.isDirectory()) {
+       const names = await readdir(current);
+       if (names.length + entries > 100000) allocationFail('allocation-limit');
+       for (const name of names) pending.push(path.join(current, name));
+      }
+     } catch (error) {
+      if (error.code === 'ENOENT' && root === roots[0] && current !== root && attempt < 2) continue scan;
+      throw error;
+     }
+    }
+    const after = await lstat(root, {bigint: true});
+    if (!sameDirectory(before, after) || await realpath(root) !== root) allocationFail('allocation-root');
+    const disk = await statfs(root, {bigint: true}), observed = disk.bavail * disk.bsize;
+    free = free === undefined || observed < free ? observed : free;
+   }
+   return {allocated, free};
+  }
+ } catch (error) {
+  if (error instanceof Error && !allocationReasons.has(error)) allocationReasons.set(error, error.code === 'ENOENT' ? 'allocation-missing' : 'allocation-io');
   throw error;
  }
 }

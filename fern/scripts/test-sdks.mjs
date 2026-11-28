@@ -20,6 +20,7 @@ const failures = [];
 function step(name, command, args, cwd) {
   console.log(`\n== ${name}`);
   const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+  if (result.error) console.error(`Unable to start ${command}: ${result.error.code}`);
   if (result.error || result.status !== 0) failures.push(name);
 }
 
@@ -39,7 +40,14 @@ if (flags.has("--python")) {
 }
 
 if (flags.has("--java")) {
-  step("java: compile and test", "mvn", ["-q", "-B", "test"], join(root, "sdks", "java"));
+  // Maven Resolver retries individual repository requests. Compile and run JUnit once.
+  step("java: compile and test", "mvn", [
+    "-q", "-B", "-Dstyle.color=never",
+    "-Daether.transport.http.retryHandler.serviceUnavailable=429,502,503,504",
+    "-Daether.transport.http.retryHandler.count=5",
+    "-Daether.transport.http.retryHandler.intervalMax=60000",
+    "test",
+  ], join(root, "sdks", "java"));
 }
 
 if (failures.length > 0) {

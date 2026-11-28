@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,rm,symlink,writeFile,link} from 'node:fs/promises';
+import fs, {mkdtemp,mkdir,rm,symlink,writeFile,link,rename,lstat} from 'node:fs/promises';
+import {syncBuiltinESMExports} from 'node:module';
 import {createServer} from 'node:net';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -36,3 +37,52 @@ for(const reason of ['reserve','budget','value'])test(`sampled ${reason} refusal
  assert.deepEqual(describeOwnedRuntimeStartupFailure(failure),{phase:'retained-sampled-resource',kind:`resource-${reason}`});
  await owner.close();
 });
+
+for (const scenario of ['state-file', 'archive-file', 'raw-file', 'state-root-replaced', 'persistent-churn', 'unsafe-replacement']) {
+ test('retained allocation handles directory churn: '+scenario, async t => {
+  const parent = await mkdtemp(path.join(tmpdir(), 'zasp-retained-churn-'));
+  const roots = ['state','archive','raw'].map(name => path.join(parent, name));
+  const affected = roots[scenario === 'archive-file' ? 1 : scenario === 'raw-file' ? 2 : 0];
+  const temporary = path.join(affected, 'temporary');
+  const stable = path.join(affected, 'stable');
+  let observed = 0;
+  const original = fs.readdir;
+  let reader;
+  try {
+   for (const root of roots) await mkdir(root, {mode:0o700});
+   await writeFile(stable, Buffer.alloc(128 * 1024));
+   await writeFile(temporary, 'temporary');
+   reader = t.mock.method(fs, 'readdir', async function(directory, ...args) {
+    if (directory !== affected) return original(directory, ...args);
+    if (scenario === 'persistent-churn' && observed > 0) await writeFile(temporary, 'new');
+    const names = await original(directory, ...args);
+    observed++;
+    if (observed === 1 || scenario === 'persistent-churn') {
+     if (scenario === 'state-root-replaced') {
+      await rename(affected, path.join(parent, 'old-root'));
+      await mkdir(affected, {mode:0o700});
+     } else {
+      await rm(temporary);
+      if (scenario === 'unsafe-replacement') await symlink(parent, path.join(affected, 'link'));
+     }
+    }
+    return names;
+   });
+   syncBuiltinESMExports();
+   if (scenario === 'state-file') {
+    const value = await observeRetainedAllocation(roots);
+    const kept = [...roots, stable];
+    const allocation = await Promise.all(kept.map(file => lstat(file, {bigint:true})));
+    assert.equal(value.allocated, allocation.reduce((sum, stat) => sum + stat.blocks * 512n, 0n));
+    assert.equal(observed, 2);
+   } else {
+    await assert.rejects(observeRetainedAllocation(roots));
+    assert.equal(observed, scenario === 'persistent-churn' ? 3 : scenario === 'unsafe-replacement' ? 2 : 1);
+   }
+  } finally {
+   reader?.mock.restore();
+   syncBuiltinESMExports();
+   await rm(parent, {recursive:true,force:true});
+  }
+ });
+}
