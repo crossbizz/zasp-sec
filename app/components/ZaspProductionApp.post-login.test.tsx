@@ -250,3 +250,38 @@ it.each([
   await waitFor(() => expect(window.location.pathname + window.location.search + window.location.hash).toBe(route));
   expect(reads.some(path => path === "/api/v1/agents" || path.startsWith("/api/v1/agents/") || path === "/api/v1/home/summary")).toBe(false);
 });
+
+it.each([true, false])("rechecks a pending scope projection without resubmitting the switch (applied %s)", async applied => {
+  let scopeWrites = 0;
+  let switchedBootstrapReads = 0;
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === "/api/v1/session/scope") {
+      expect(request.method).toBe("PUT");
+      expect(await request.json()).toEqual({ workspace_id: workspace, environment_id: second });
+      scopeWrites++;
+      return new Response(null, { status: 204 });
+    }
+    if (pathname === "/api/v1/session/bootstrap") {
+      if (scopeWrites && ++switchedBootstrapReads === 1) {
+        return json({ code: "authorization_pending", message: "Projection pending", correlation_id: principal, retryable: true }, 409);
+      }
+      return json(bootstrap(["scope.switch"], scopeWrites && applied ? second : environment));
+    }
+    if (pathname === "/api/v1/session/scopes") return json({ items: [
+      { organization_id: org, workspace_id: workspace, environment_id: environment, label: "Production" },
+      { organization_id: org, workspace_id: workspace, environment_id: second, label: "Staging" },
+    ] });
+    throw Error("Unexpected endpoint in scope reconciliation");
+  });
+  render(<ZaspProductionApp />);
+  await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Authorized scope" }), `${workspace}/${second}`);
+  expect(await screen.findByRole("heading", { name: "Authorization pending" })).toBeVisible();
+  expect(screen.queryByRole("combobox", { name: "Authorized scope" })).not.toBeInTheDocument();
+  const selected = await screen.findByRole("combobox", { name: "Authorized scope" }, { timeout: 5_000 });
+  expect(selected).toHaveValue(`${workspace}/${applied ? second : environment}`);
+  if (!applied) expect(screen.getByRole("alert")).toHaveTextContent("Scope switch failed");
+  expect(selected).toBeEnabled();
+  expect(scopeWrites).toBe(1);
+  expect(switchedBootstrapReads).toBe(2);
+});

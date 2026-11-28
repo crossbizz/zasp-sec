@@ -234,11 +234,12 @@ function ProductionAppContent() {
     window.addEventListener("popstate", onPopState);
     return () => { mounted = false; window.removeEventListener("popstate", onPopState); };
   }, [routes, session]);
-  // Right after sign-in or a role change the authorization projection can lag
-  // for a few seconds. Reload the session a bounded number of times instead of
-  // leaving the person on a manual retry screen.
-  const authorizationPending = session.status === "error" && session.authorizationStatus === "pending" && session.scopeSwitch.status !== "error";
-  const retrySession = session.retry;
+  // A scope switch can advance the authorization revision. Retry the active
+  // scope reconciliation only while its authorization projection is pending.
+  const reconcileScope = session.scopeSwitch.status === "error" && session.scopeSwitch.error?.code === "scope_reconciliation_failed";
+  const authorizationPending = session.status === "error" && session.authorizationStatus === "pending" &&
+    (session.scopeSwitch.status === "idle" || reconcileScope);
+  const retrySession = reconcileScope ? session.scopeSwitch.retry : session.retry;
   const pendingRetries = useRef(0);
   const [pendingAttempt, setPendingAttempt] = useState(0);
   useEffect(() => {
