@@ -163,7 +163,8 @@ jobs:
         run: |
           if ! ./node_modules/.bin/eslint -f json -o "$RUNNER_TEMP/deployment-lint.json" \
             deploy/production/{audit-export-rollout,evidence-encryption,release-contract}{,.test}.mjs \
-            deploy/staging/queue-contract.test.mjs deploy/zasp/{vps-cli,zasp}.test.mjs; then
+            deploy/staging/queue-contract.test.mjs deploy/zasp/{kubernetes-nango,vps-cli,zasp}.test.mjs \
+            deploy/zasp/testing/kubernetes-nango{,-smoke}.mjs; then
             python3 - "$RUNNER_TEMP/deployment-lint.json" <<'PY' >> "$GITHUB_OUTPUT"
           import json, pathlib, sys
           locations = []
@@ -188,7 +189,21 @@ jobs:
       - name: Render and validate provider selections
         run: |
           helm version --short
+          node --test deploy/zasp/kubernetes-nango.test.mjs
           node --test --test-name-pattern='release projects OpenBao|release selects SSE-S3|explicit queue encryption' deploy/production/release-contract.test.mjs deploy/production/audit-export-rollout.test.mjs
+
+  nango-kubernetes-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Boot the chart's Nango database and dashboard in a disposable kind cluster
+        run: node deploy/zasp/testing/kubernetes-nango-smoke.mjs
 
   deployment-diagnostics:
     needs: [vps-operations, release-rendering, backup-and-recovery]

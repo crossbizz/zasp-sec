@@ -2,6 +2,7 @@ package identity
 
 import (
 	"errors"
+	"net/mail"
 	"sort"
 	"strings"
 	"time"
@@ -327,6 +328,19 @@ func validDomain(value string) bool {
 		}
 	}
 	return true
+}
+
+// CanonicalMemberEmail returns the bare, lower-case mailbox used by the identity provider.
+func CanonicalMemberEmail(value string) (string, bool) {
+	email := strings.ToLower(strings.TrimSpace(value))
+	if !validEmail(email) {
+		return "", false
+	}
+	address, err := mail.ParseAddress(email)
+	if err != nil || address.Address != email || address.Name != "" {
+		return "", false
+	}
+	return email, true
 }
 
 func validEmail(value string) bool {

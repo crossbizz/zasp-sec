@@ -109,7 +109,8 @@ kubernetes_secrets_init() {
     note "$KUBE_VALUES already exists; its keys were kept"
   else
     [ -n "$KUBE_ORIGIN" ] || die "set ZASP_ORIGIN in $ZASP_CONFIG_FILE first (for example https://zasp.example.test:8443)"
-    local host staging planner=false
+    local host staging planner=false nango_enabled="${ZASP_KUBE_NANGO_ENABLED:-true}"
+    case "$nango_enabled" in true|false) ;; *) die "ZASP_KUBE_NANGO_ENABLED must be true or false" ;; esac
     host="${KUBE_ORIGIN#https://}"
     host="${host%%:*}"
     staging="$(mktemp -d)" || die "could not create a temporary directory"
@@ -142,7 +143,11 @@ kubernetes_secrets_init() {
         printf 'identity:\n  stytchBaseUrl: "%s"\n  oauthProvider: "%s"\n' "${ZASP_STYTCH_BASE_URL:-https://test.stytch.com}" "${ZASP_OAUTH_PROVIDER:-google}"
         printf 'bootstrap:\n  organizationName: "%s"\n  organizationDomain: "%s"\n  adminEmail: "%s"\n' "${ZASP_ORGANIZATION_NAME:-}" "${ZASP_ORGANIZATION_DOMAIN:-}" "${ZASP_ADMIN_EMAIL:-}"
         printf 'securityAgent:\n  planner: %s\n' "$planner"
+        printf 'nango:\n  enabled: %s\n' "$nango_enabled"
         printf 'secrets:\n'
+        printf '  nangoServiceKey: "%s"\n' "$(random_hex 32)"
+        printf '  nangoAdminKey: "%s"\n' "$(random_hex 32)"
+        printf '  nangoEncryptionKey: "%s"\n' "$(random_base64 32)"
         printf '  stytchProjectId: "%s"\n  stytchSecret: "%s"\n  stytchPublicToken: "%s"\n' "${STYTCH_PROJECT_ID:-}" "${STYTCH_SECRET:-}" "${STYTCH_PUBLIC_TOKEN:-}"
         printf '  plannerApiKey: "%s"\n' "${OPENROUTER_API_KEY:-}"
         printf '  workflowSigningKey: "%s"\n' "$(random_hex 32)"
@@ -173,7 +178,7 @@ kubernetes_secrets_init() {
   fi
   say "Generated, in $KUBE_VALUES under 'secrets':"
   for key in workflowSigningKey tokenRevealKey stytchWebhookSecret forwardSeedBase64 compensationSeedBase64 approvalDeliveryKeyBase64 openfgaToken \
-    neo4jAdminPassword neo4jWorkerPassword awsExternalId redTeamAdapterToken gatewaySigningKey gatewayPolicyKeysJson; do
+    neo4jAdminPassword neo4jWorkerPassword awsExternalId redTeamAdapterToken gatewaySigningKey gatewayPolicyKeysJson nangoServiceKey nangoAdminKey nangoEncryptionKey; do
     if kube_value_set "$key"; then state=present; else state=MISSING; fi
     case "$key" in
       workflowSigningKey) secret_row "$state" "$key" "signs workflow attestations and sessions (API)" ;;
@@ -186,6 +191,9 @@ kubernetes_secrets_init() {
       awsExternalId) secret_row "$state" "$key" "external ID of the emulated AWS account" ;;
       redTeamAdapterToken) secret_row "$state" "$key" "placeholder the Security Agent worker requires" ;;
       gatewaySigningKey|gatewayPolicyKeysJson) secret_row "$state" "$key" "gateway policy signing key and its verifier (Security Agent action worker)" ;;
+      nangoServiceKey) secret_row "$state" "$key" "authenticates Zasp to the in-cluster Nango environment" ;;
+      nangoAdminKey) secret_row "$state" "$key" "protects Nango dashboard sessions" ;;
+      nangoEncryptionKey) secret_row "$state" "$key" "encrypts credentials in the Nango database" ;;
     esac
   done
   secret_row "$(if grep -q '^  frontTlsCertificate: |' "$KUBE_VALUES"; then echo present; else echo MISSING; fi)" "frontTls*, neo4jTls*" "TLS for the front and for the in-pod graph database"
@@ -202,7 +210,14 @@ kubernetes_secrets_init() {
   if kube_value_set plannerApiKey; then state=present; else state=optional; fi
   secret_row "$state" "secrets.plannerApiKey" "model provider key for the Security Agent planner (OpenRouter)"
   say ""
-  say "Not used by this chart: GitHub App, Okta and Nango credentials and AWS role ARNs. AWS is emulated in the pod."
+  say "Configure provider credentials in the Nango dashboard after installing: ./zasp --profile kubernetes nango dashboard"
+}
+
+kubernetes_nango() {
+  [ "$#" -eq 1 ] && [ "$1" = dashboard ] || die "usage: zasp --profile kubernetes nango dashboard"
+  require_tool kubectl
+  note "Open http://127.0.0.1:3003 while this tunnel is running. Press Ctrl-C to close it."
+  run "${KUBECTL[@]}" port-forward --address 127.0.0.1 "service/$KUBE_RELEASE-nango" 3003:3003
 }
 
 # Builds the three product images and pushes them to ZASP_IMAGE_REGISTRY, then

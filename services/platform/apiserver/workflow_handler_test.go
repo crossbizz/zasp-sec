@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	platformintegration "github.com/zasp-ai/zasp-sec/services/platform/integration"
 )
 
 type workflowRepositoryStub struct {
@@ -590,33 +591,8 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	var catalog struct {
-		Items []struct {
-			Key           string   `json:"key"`
-			Description   string   `json:"description"`
-			Actions       []string `json:"actions"`
-			AuthMode      string   `json:"auth_mode"`
-			TestSemantics string   `json:"test_semantics"`
-		} `json:"items"`
-	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 3 {
-		t.Fatalf("local catalog = %d %s", response.Code, response.Body.String())
-	}
-	for _, unavailable := range []string{"aws", "kubernetes"} {
-		if strings.Contains(response.Body.String(), `"key":"`+unavailable+`"`) {
-			t.Fatalf("catalog exposes unavailable %s authorization: %s", unavailable, response.Body.String())
-		}
-	}
-	for _, item := range catalog.Items {
-		if item.Key == "generic-webhook" {
-			if !slices.Equal(item.Actions, []string{"store_configuration"}) || item.AuthMode != "secret_reference" || !strings.Contains(item.Description, "future delivery adapter") || !strings.Contains(item.TestSemantics, "without contacting") {
-				t.Fatalf("local webhook catalog = %#v", item)
-			}
-			continue
-		}
-		if !slices.Equal(item.Actions, []string{"inventory_read"}) || !slices.Contains([]string{"github", "okta"}, item.Key) || strings.Contains(item.Description, "Collection remains unavailable") {
-			t.Fatalf("launch catalog omitted composed collection = %#v", item)
-		}
+	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != `{"items":[]}` {
+		t.Fatalf("deployment without Nango returned catalog entries: %d %s", response.Code, response.Body.String())
 	}
 
 	request = workflowRequest(t, identity, testCorrelationID, "listSecurityAgentTemplates", nil, http.MethodGet, "/api/v1/security-agent-templates", "")
@@ -728,8 +704,50 @@ func TestWorkflowHandlerIsolatesProviderCapabilityDegradation(t *testing.T) {
 	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"key":"github"`) || !strings.Contains(response.Body.String(), `"key":"slack"`) || strings.Contains(response.Body.String(), `"key":"okta"`) || strings.Contains(response.Body.String(), `"key":"aws"`) || strings.Contains(response.Body.String(), `"key":"kubernetes"`) || strings.Contains(strings.ToLower(response.Body.String()), "nango") {
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `"key":"github"`) || !strings.Contains(response.Body.String(), `"key":"slack"`) || strings.Contains(response.Body.String(), `"key":"okta"`) || strings.Contains(response.Body.String(), `"key":"aws"`) || strings.Contains(response.Body.String(), `"key":"kubernetes"`) || strings.Contains(strings.ToLower(response.Body.String()), "nango") {
 		t.Fatalf("provider-isolated catalog = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestWorkflowCatalogFollowsLiveNangoAvailability(t *testing.T) {
+	configured := map[string]string{"openai-admin": "openai-admin", "gitlab": "other", "unsupported": "unsupported"}
+	var upstreamErr error
+	capabilities := CombinedConnectorCapabilities{
+		OAuth:                 fixedConnectorCapabilities{"github": {}},
+		Reference:             fixedConnectorCapabilities{"saas": {}, "aws": {}},
+		ListNangoIntegrations: func(context.Context) (map[string]string, error) { return configured, upstreamErr },
+	}
+	handler, err := newWorkflowHTTPHandler(&workflowRepositoryStub{}, []byte("0123456789abcdef0123456789abcdef"), time.Now, capabilities)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	readKeys := func() []string {
+		request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		var page struct {
+			Items []platformintegration.PublicManifest `json:"items"`
+		}
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Items == nil {
+			t.Fatalf("catalog: %d %s", response.Code, response.Body.String())
+		}
+		var keys []string
+		for _, item := range page.Items {
+			keys = append(keys, item.Key)
+		}
+		return keys
+	}
+	if got := readKeys(); !slices.Equal(got, []string{"saas-openai"}) {
+		t.Fatalf("configured catalog = %v", got)
+	}
+	configured = map[string]string{"gitlab": "gitlab"}
+	if got := readKeys(); !slices.Equal(got, []string{"saas-gitlab"}) {
+		t.Fatalf("updated catalog = %v", got)
+	}
+	upstreamErr = errors.New("Nango unavailable")
+	if got := readKeys(); len(got) != 0 {
+		t.Fatalf("unavailable Nango returned %v", got)
 	}
 }
 
@@ -743,49 +761,24 @@ func TestWorkflowHandlerPublishesReferenceConnectorsOnlyWhenTheirLiveCapabilityI
 	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	var catalog struct {
-		Items []struct {
-			Key         string   `json:"key"`
-			Actions     []string `json:"actions"`
-			AuthMode    string   `json:"auth_mode"`
-			DataTypes   []string `json:"data_types"`
-			SetupSchema []struct {
-				Key string `json:"key"`
-			} `json:"setup_schema"`
-		} `json:"items"`
+	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != `{"items":[]}` {
+		t.Fatalf("native adapters appeared in Nango catalog: %d %s", response.Code, response.Body.String())
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 3 {
-		t.Fatalf("reference catalog = %d %s", response.Code, response.Body.String())
+	// Native records and direct API operations keep their setup validation.
+	internal, err := handler.currentCatalog(request.Context())
+	if err != nil {
+		t.Fatal(err)
 	}
-	expected := map[string]struct {
-		authMode string
-		actions  []string
-		fields   []string
-	}{
-		"aws":        {authMode: "aws_assume_role", actions: []string{"inventory_read", "posture_read"}, fields: []string{"role_arn", "external_id_reference", "region"}},
-		"kubernetes": {authMode: "credential_reference", actions: []string{"inventory_read"}, fields: []string{"connection_reference"}},
+	manifests, err := internal.Search(platformintegration.CatalogFilter{})
+	if err != nil {
+		t.Fatal(err)
 	}
-	for key, want := range expected {
-		var found bool
-		for _, item := range catalog.Items {
-			if item.Key != key {
-				continue
-			}
-			found = true
-			fields := make([]string, 0, len(item.SetupSchema))
-			for _, field := range item.SetupSchema {
-				fields = append(fields, field.Key)
-			}
-			if item.AuthMode != want.authMode || !slices.Equal(item.Actions, want.actions) || !slices.Equal(fields, want.fields) || !slices.Contains(item.DataTypes, "identity") {
-				t.Fatalf("%s manifest = %#v", key, item)
-			}
-		}
-		if !found {
-			t.Fatalf("ready reference connector %s missing: %s", key, response.Body.String())
-		}
+	seen := map[string]bool{}
+	for _, manifest := range manifests {
+		seen[manifest.Key] = true
 	}
-	if strings.Contains(response.Body.String(), `"key":"github"`) || strings.Contains(response.Body.String(), `"key":"okta"`) {
-		t.Fatalf("unready OAuth connector exposed: %s", response.Body.String())
+	if !seen["aws"] || !seen["kubernetes"] || seen["github"] {
+		t.Fatal("native capabilities changed outside the picker")
 	}
 }
 

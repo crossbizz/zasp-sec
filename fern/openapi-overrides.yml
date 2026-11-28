@@ -153,6 +153,12 @@ paths:
       x-fern-sdk-group-name: organization
       x-fern-sdk-method-name: get
       description: 'Authentication: a browser session only. An API token is refused.'
+    patch:
+      tags:
+        - Organization
+      x-fern-sdk-group-name: organization
+      x-fern-sdk-method-name: update
+      description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/workspaces:
     get:
       tags:
@@ -238,6 +244,43 @@ paths:
         - Members and roles
       x-fern-sdk-group-name: members
       x-fern-sdk-method-name: updateRole
+      description: 'Authentication: a browser session only. An API token is refused.'
+    delete:
+      tags:
+        - Members and roles
+      x-fern-sdk-group-name: members
+      x-fern-sdk-method-name: remove
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/admin/members/{id}/profile:
+    patch:
+      tags:
+        - Members and roles
+      x-fern-sdk-group-name: members
+      x-fern-sdk-method-name: updateProfile
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/admin/members/{id}/access:
+    get:
+      tags:
+        - Members and roles
+      x-fern-sdk-group-name: members
+      x-fern-sdk-method-name: getAccess
+      description: 'Authentication: a browser session only. An API token is refused.'
+  /api/v1/admin/member-invitations:
+    get:
+      tags:
+        - Members and roles
+      x-fern-sdk-group-name: members
+      x-fern-sdk-method-name: listInvitations
+      description: 'Authentication: a browser session only. An API token is refused.'
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.page_info.next_cursor
+        results: $response.items
+    post:
+      tags:
+        - Members and roles
+      x-fern-sdk-group-name: members
+      x-fern-sdk-method-name: invite
       description: 'Authentication: a browser session only. An API token is refused.'
   /api/v1/admin/group-mappings:
     get:

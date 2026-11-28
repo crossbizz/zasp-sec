@@ -52,7 +52,7 @@ import (
 func Databricks() saasdiscovery.Platform {
 	hosts := regexp.MustCompile(`^([a-z0-9][a-z0-9-]{1,61}\.cloud\.databricks\.com|adb-[0-9]{6,20}\.[0-9]{1,2}\.azuredatabricks\.net|[0-9]{6,20}\.[0-9]{1,2}\.gcp\.databricks\.com)$`)
 	return saasdiscovery.Platform{
-		Token: "databricks", DisplayName: "Databricks",
+		Token: "databricks", DisplayName: "Databricks", NangoProvider: "databricks-workspace",
 		Description: "Inventory the model serving endpoints and served agents of one Databricks workspace through a Nango connection.",
 		Nango: nango.Entry{Key: "databricks", AuthMode: "oauth", HostPattern: hosts, HostSuffixes: []string{".cloud.databricks.com", ".azuredatabricks.net", ".gcp.databricks.com"}, Rules: []nango.Rule{
 			{Method: http.MethodGet, PathPrefix: "/api/2.1/unity-catalog/current-metastore-assignment"},

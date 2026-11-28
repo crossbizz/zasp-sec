@@ -95,7 +95,7 @@ describe("Zasp application", () => {
     ["Findings", "Identity violations"],
     ["Policies", "Identity policies"],
     ["Red Team", "Red team results"],
-    ["Connections", "Connectors"],
+    ["Connections", "Connections"],
   ])("navigates from %s to its workspace", async (link, heading) => {
     render(<ZaspDemoApp />);
     await userEvent.click(screen.getByRole("link", { name: link }));
@@ -116,58 +116,13 @@ describe("Zasp application", () => {
     expect(screen.getByText("Fixed")).toBeVisible();
   });
 
-  it("connects a cloud inventory source", async () => {
+  it("shows an empty source picker in the demo without a configured Nango environment", async () => {
     render(<ZaspDemoApp />);
     await userEvent.click(screen.getByRole("link", { name: "Connections" }));
-    await userEvent.click(screen.getByRole("button", { name: "Connect Amazon Web Services" }));
-    await userEvent.type(screen.getByLabelText("Role ARN"), "arn:aws:iam::123456789012:role/ZaspReadOnly");
-    await userEvent.type(screen.getByLabelText("External ID"), "northstar-prod");
-    await userEvent.click(screen.getByRole("button", { name: "Connect now" }));
-    expect(screen.getByRole("status", { hidden: true })).toHaveTextContent("Amazon Web Services connected");
-  });
-
-  it("renders connection catalog, freshness list, bounded detail history, and supported actions", async () => {
-    render(<ZaspDemoApp />);
-    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
-    expect(screen.getByRole("heading", { name: "Connected integrations" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "View Microsoft Azure connection" })).toBeVisible();
-    expect(screen.queryByText(/cartography|prowler|nango/i)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "View Kubernetes connection" }));
-    const dialog = screen.getByRole("dialog", { name: "Kubernetes" });
-    expect(dialog).toHaveTextContent("Production / us-west");
-    expect(dialog).toHaveTextContent("Runtime signals");
-    expect(dialog).toHaveTextContent("3h ago");
-    expect(dialog).toHaveTextContent("failed");
-    expect(screen.getByRole("button", { name: "Sync now" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Delete connection" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Review access" })).toBeVisible();
-  });
-
-  it("renders provider-specific connection setup and remediation flows", async () => {
-    render(<ZaspDemoApp />);
-    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
-    await userEvent.click(screen.getByRole("button", { name: "Connect Amazon Web Services" }));
-    const aws = screen.getByRole("dialog", { name: "Connect Amazon Web Services" });
-    for (const label of ["Review access", "Role and external ID", "Test connection", "Initial sync", "Coverage"]) expect(aws).toHaveTextContent(label);
-    expect(aws).toHaveTextContent("Missing iam:GetRole permission");
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
-
-    await userEvent.click(screen.getByRole("button", { name: "View GitHub connection" }));
-    await userEvent.click(screen.getByRole("button", { name: "Review access" }));
-    expect(screen.getByRole("dialog", { name: "Review GitHub access" })).toHaveTextContent("Repository and Organization scope");
-    expect(screen.getByRole("dialog", { name: "Review GitHub access" })).toHaveTextContent("Scope validation");
-  });
-
-  it("keeps directory security and signed webhooks separate and bounded", async () => {
-    render(<ZaspDemoApp />);
-    await userEvent.click(screen.getByRole("link", { name: "Connections" }));
-    await userEvent.click(screen.getByRole("button", { name: "Connect Workforce Directory" }));
-    expect(screen.getByRole("dialog", { name: "Connect Workforce Directory" })).toHaveTextContent("Directory security integration");
-    expect(screen.getByRole("dialog", { name: "Connect Workforce Directory" })).toHaveTextContent("separate from product sign-in");
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    await userEvent.click(screen.getByRole("button", { name: "Connect Generic Webhook" }));
-    expect(screen.getByRole("dialog", { name: "Connect Generic Webhook" })).toHaveTextContent("Signature status");
-    expect(screen.queryByLabelText(/action url/i)).not.toBeInTheDocument();
+    expect(screen.getByText("No Nango integrations configured")).toBeVisible();
+    expect(screen.getByText("Sign in to a configured environment to connect a source.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^(connect|view).*connection/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Amazon Web Services|Generic Webhook|Microsoft Azure|Workforce Directory|Kubernetes/)).not.toBeInTheDocument();
   });
 
   it("renders sensor list, coverage, enrollment, rotation, and deletion controls", async () => {
@@ -407,13 +362,10 @@ describe("Zasp application", () => {
 	it("locks every integration control except exact retained retry after an ambiguous save", async () => {
 		window.history.replaceState({}, "", "/connectors");
 		const manifest = {
-			key: "generic-webhook", provider: "Generic Webhook", category: "notification",
-			description: "Store one scoped HTTPS webhook configuration for a future delivery adapter.", data_types: ["configuration"], actions: ["store_configuration"], auth_mode: "secret_reference",
-			setup_schema: [
-				{ key: "destination_url", label: "HTTPS destination", type: "uri", required: true, description: "One allowlisted HTTPS endpoint for all actions." },
-				{ key: "signing_secret_reference", label: "Signing secret", type: "secret_reference", required: true, description: "Product secret reference used to sign each delivery." },
-			],
-			access_guidance: "Save only an HTTPS destination and an opaque product secret reference.", test_semantics: "Validate and durably persist the local configuration without contacting the destination.",
+			key: "slack", provider: "Slack", category: "collaboration", description: "Read an approved Slack workspace.",
+			data_types: ["workspace"], actions: ["inventory_read"], auth_mode: "managed_oauth",
+			setup_schema: [{ key: "workspace_label", label: "Workspace label", type: "string", required: true, description: "Approved workspace label." }],
+			access_guidance: "Authorize one workspace.", test_semantics: "Verify the workspace.",
 		};
 		const client = createAPIClient({
 			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
@@ -432,14 +384,12 @@ describe("Zasp application", () => {
 			},
 		});
 		render(<ZaspApp client={client} />);
-		await userEvent.click(await screen.findByRole("button", { name: "Configure Generic Webhook" }));
-		await userEvent.type(screen.getByRole("textbox", { name: /HTTPS destination/ }), "https://hooks.customer.invalid/zasp");
-		await userEvent.type(screen.getByLabelText(/Signing secret/), "secret-reference");
+		await userEvent.click(await screen.findByRole("button", { name: "Configure Slack" }));
+		await userEvent.type(screen.getByRole("textbox", { name: /Workspace label/ }), "Support");
 		await userEvent.click(screen.getByRole("button", { name: "Save integration" }));
 		expect(await screen.findByRole("button", { name: "Retry retained integration operation" })).toBeEnabled();
-		for (const label of ["Integration name", "HTTPS destination"]) expect(screen.getByRole("textbox", { name: new RegExp(label) })).toBeDisabled();
-		expect(screen.getByLabelText(/Signing secret/)).toBeDisabled();
-		expect(screen.getByRole("button", { name: "Configure Generic Webhook", hidden: true })).toBeDisabled();
+		for (const label of ["Integration name", "Workspace label"]) expect(screen.getByRole("textbox", { name: new RegExp(label) })).toBeDisabled();
+		expect(screen.getByRole("button", { name: "Configure Slack", hidden: true })).toBeDisabled();
 		for (const label of ["Close modal", "Close", "Cancel", "Save integration"]) expect(screen.getByRole("button", { name: label })).toBeDisabled();
 	});
 

@@ -51,6 +51,7 @@ const expectedMap: MapDocument = {
       label: "Identity Foundation",
       actions: [
         { id: "view_current_organization", operation_id: "getOrganization", availability: "available" },
+        { id: "update_organization", operation_id: "updateOrganization", availability: "available" },
         { id: "view_workspaces", operation_id: "listWorkspaces", availability: "available" },
         { id: "create_workspace", operation_id: "createWorkspace", availability: "available" },
         { id: "view_workspace", operation_id: "getWorkspace", availability: "api_available" },
@@ -62,6 +63,11 @@ const expectedMap: MapDocument = {
         { id: "view_current_principal", operation_id: "getCurrentPrincipal", availability: "api_available" },
         { id: "view_members", operation_id: "listMembers", availability: "available" },
         { id: "update_member_role", operation_id: "updateMemberRole", availability: "available" },
+        { id: "list_member_invitations", operation_id: "listMemberInvitations", availability: "available" },
+        { id: "invite_member", operation_id: "inviteMember", availability: "available" },
+        { id: "update_member_profile", operation_id: "updateMemberProfile", availability: "available" },
+        { id: "remove_member", operation_id: "removeMember", availability: "available" },
+        { id: "view_member_access", operation_id: "getMemberAccess", availability: "available" },
         { id: "view_builtin_roles", operation_id: "listBuiltInRoles", availability: "available" },
         { id: "view_sso_connections", operation_id: "listSSOConnections", availability: "available" },
         { id: "create_sso_connection", operation_id: "createSSOConnection", availability: "available" },
@@ -449,7 +455,7 @@ function validateMap(value: unknown) {
 }
 
 function parseStrictMap(source: string) {
-  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(32 * 1024);
+  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(64 * 1024);
   expect(source).not.toMatch(/[&*][A-Za-z0-9_-]+/);
   expect(source).not.toMatch(/^\s*<<\s*:/m);
   const parsed = load(source, { schema: JSON_SCHEMA, json: false });
@@ -582,6 +588,7 @@ describe("M1-25 UI API map seed", () => {
       "startRecoveryRestore",
       "getRecoveryRestore",
       "getOrganization",
+      "updateOrganization",
       "listWorkspaces",
       "createWorkspace",
       "getWorkspace",
@@ -593,6 +600,11 @@ describe("M1-25 UI API map seed", () => {
       "getCurrentPrincipal",
       "listMembers",
       "updateMemberRole",
+      "listMemberInvitations",
+      "inviteMember",
+      "updateMemberProfile",
+      "removeMember",
+      "getMemberAccess",
       "listBuiltInRoles",
       "listSSOConnections",
       "createSSOConnection",

@@ -57,7 +57,8 @@ describe("M1A and M3 foundation batch", () => {
       "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
     const section = openapi.match(/ {2}\/api\/v1\/integration-catalog:[\s\S]*?(?=security:)/)?.[0] ?? "";
-    expect(section).not.toMatch(/nango|cartography|prowler|adapter_key/i);
+    expect(section).toContain("supported Nango integrations available to this deployment");
+    expect(section).not.toMatch(/cartography|prowler|adapter_key/i);
   });
 
   it("records historical task accounting and current provider gates", async () => {

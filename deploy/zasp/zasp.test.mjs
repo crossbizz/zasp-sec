@@ -227,6 +227,7 @@ case "$1" in
   up) mkdir -p "${state}" && : > "${state}/up.done" ;;
   bootstrap) echo 'ZASP_STYTCH_ORGANIZATION_ID=organization-test-1' > "${state}/organization.env"; echo '{"organization_reference":"organization-test-1"}' ;;
   verify) [ ! -f "${state}/stale" ] || exit 1; echo '{"sealed":true,"intact":true,"artifact":"x","current":true}' ;;
+  upgrade-schema) [ ! -f "${state}/unsupported" ] || exit 1 ;;
   dump) echo '-- dump' > "$2/postgres.sql" ;;
 esac`;
 
@@ -288,7 +289,7 @@ test("stop, status and bootstrap-admin map to the stack script; destructive comm
   } finally { box.done(); }
 });
 
-test("upgrade rebuilds and restarts, and explains a schema that cannot be upgraded in place", () => {
+test("upgrade migrates a supported baseline and stops before restart when a schema transition fails", () => {
   const box = localBox();
   try {
     const early = box.run(["upgrade"]);
@@ -298,15 +299,15 @@ test("upgrade rebuilds and restarts, and explains a schema that cannot be upgrad
     writeFileSync(join(box.state, "up.done"), "");
     const result = box.run(["upgrade"]);
     assert.equal(result.status, 0, output(result));
-    assert.deepEqual(box.stackCalls(), ["stack stop", "stack build", "stack verify", "stack start"]);
+    assert.deepEqual(box.stackCalls(), ["stack stop", "stack build", "stack upgrade-schema", "stack start"]);
     assert.equal(existsSync(join(box.state, "up.done")), false, "'start' must repeat the installation steps");
     writeFileSync(join(box.state, "up.done"), "");
-    writeFileSync(join(box.state, "stale"), "");
+    writeFileSync(join(box.state, "unsupported"), "");
     const stale = box.run(["upgrade"]);
     assert.equal(stale.status, 1);
-    assert.match(stale.stderr, /no in-place schema upgrade/);
-    assert.match(stale.stderr, /\.\/zasp uninstall --yes/);
-    assert.equal(box.stackCalls().at(-1), "stack verify");
+    assert.match(stale.stderr, /intact supported baseline/);
+    assert.equal(existsSync(join(box.state, "up.done")), true);
+    assert.equal(box.stackCalls().at(-1), "stack upgrade-schema");
   } finally { box.done(); }
 });
 
@@ -406,6 +407,7 @@ test("kubernetes secrets init writes a private values file, prints no value, and
     for (const [key, pattern] of Object.entries({
       workflowSigningKey: /^[0-9a-f]{64}$/, tokenRevealKey: /^[A-Za-z0-9_-]{43}$/, stytchWebhookSecret: /^whsec_[A-Za-z0-9+/]{43}=$/,
       openfgaToken: /^[0-9a-f]{64}$/, awsExternalId: /^[0-9a-f]{48}$/, gatewaySigningKey: /^[A-Za-z0-9_-]{86}$/,
+      nangoServiceKey: /^[0-9a-f]{64}$/, nangoAdminKey: /^[0-9a-f]{64}$/, nangoEncryptionKey: /^[A-Za-z0-9+/]{43}=$/,
       neo4jAdminPassword: /^[0-9a-f]{48}$/, frontTlsCertificate: /BEGIN CERTIFICATE/, frontTlsKey: /BEGIN (RSA )?PRIVATE KEY/, neo4jTlsCa: /BEGIN CERTIFICATE/,
     })) {
       assert.match(document.secrets[key], pattern, key);
@@ -419,6 +421,7 @@ test("kubernetes secrets init writes a private values file, prints no value, and
     assert.deepEqual(verifier, { keys: [{ key_id: "zasp-gateway", public_key: signing.subarray(32).toString("base64url") }] });
     assert.equal(document.secrets.stytchSecret, "secret-test-do-not-print-abcdef");
     assert.equal(document.bootstrap.adminEmail, "admin@example.test");
+    assert.equal(document.nango.enabled, true);
     assert.ok(existsSync(box.values.replace(/\.yaml$/, ".ca.crt")));
     const second = box.run(["secrets", "init"]);
     assert.equal(second.status, 0);
@@ -435,6 +438,20 @@ test("kubernetes doctor names a missing values file and missing programs", () =>
     for (const expected of [/MISSING {2}helm is not installed/, /MISSING {2}kubectl is not installed/, /MISSING {2}no values file at/, /run: \.\/zasp --profile kubernetes secrets init/]) {
       assert.match(result.stdout, expected);
     }
+  } finally { box.done(); }
+});
+
+test("Nango dashboard targets the selected Kubernetes release and binds only to loopback", () => {
+  const box = kubeBox({ kubectl: "" });
+  try {
+    const env = { ZASP_KUBE_RELEASE: "green", ZASP_KUBE_NAMESPACE: "team", ZASP_KUBE_CONTEXT: "evaluation" };
+    const args = ["nango", "dashboard"];
+    const dry = box.run(["--dry-run", ...args], env);
+    assert.equal(dry.status, 0, output(dry));
+    assert.equal(box.calls().length, 0);
+    const open = box.run(args, env);
+    assert.equal(open.status, 0, output(open));
+    assert.deepEqual(box.calls(), ["kubectl --context evaluation -n team port-forward --address 127.0.0.1 service/green-nango 3003:3003"]);
   } finally { box.done(); }
 });
 
@@ -500,11 +517,11 @@ function render(box, extra = []) {
 }
 const pod = documents => documents.find(document => document.kind === "StatefulSet").spec.template.spec;
 
-test("the chart renders one pod with every dependency ordered before the product", needsHelm, () => {
+test("the chart renders the previous standalone profile when Nango is disabled", needsHelm, () => {
   const box = kubeBox();
   try {
     assert.equal(box.run(["secrets", "init"]).status, 0);
-    const rendered = render(box);
+    const rendered = render(box, ["--set", "nango.enabled=false"]);
     assert.equal(rendered.status, 0, rendered.stderr);
     assert.deepEqual(rendered.documents.map(document => document.kind).sort(), ["ConfigMap", "ConfigMap", "NetworkPolicy", "Secret", "Service", "StatefulSet"]);
     const spec = pod(rendered.documents);
@@ -521,7 +538,7 @@ test("the chart renders one pod with every dependency ordered before the product
     const database = spec.initContainers.find(container => container.name === "postgres");
     assert.equal(database.securityContext.runAsNonRoot, true);
     assert.equal(database.securityContext.runAsUser, 999);
-    const rooted = pod(render(box, ["--set", "volumePermissions.enabled=true"]).documents);
+    const rooted = pod(render(box, ["--set", "nango.enabled=false", "--set", "volumePermissions.enabled=true"]).documents);
     assert.equal(rooted.initContainers[0].name, "volume-permissions");
     assert.deepEqual(everyContainer(rooted).filter(container => container.securityContext?.runAsUser === 0).map(container => container.name), ["volume-permissions"]);
     assert.equal(spec.automountServiceAccountToken, false);
@@ -778,7 +795,7 @@ test("the API image carries the demo seeder next to the bootstrap command", () =
 
 test("the guides name only commands the entry point has", () => {
   const usage = spawnSync(bash, [zasp, "--help"], { encoding: "utf8" }).stdout;
-  const known = new Set(["doctor", "config", "secrets", "install", "bootstrap-admin", "up", "demo", "start", "stop", "status", "logs", "upgrade", "backup", "restore", "uninstall"]);
+  const known = new Set(["doctor", "config", "secrets", "install", "bootstrap-admin", "up", "demo", "start", "stop", "status", "logs", "upgrade", "backup", "restore", "uninstall", "nango"]);
   for (const command of known) assert.match(usage, new RegExp(`^  ${command}\\b`, "m"), command);
   for (const page of [join(root, "README.md"), join(root, "docs", "getting-started", "administrator.md")]) {
     for (const match of readFileSync(page, "utf8").matchAll(/\.\/zasp(?: --[a-z-]+(?: (?:local|kubernetes|aws))?)* ([a-z-]+)/g)) {

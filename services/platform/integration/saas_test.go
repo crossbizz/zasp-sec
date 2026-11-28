@@ -161,3 +161,44 @@ func TestCatalogRefusesAHandWrittenSaaSEntry(t *testing.T) {
 		t.Fatal("catalog accepted the bare saas connector key as an entry")
 	}
 }
+
+func TestConfiguredSaaSCatalogMatchesIntegrationKeyAndProviderTemplate(t *testing.T) {
+	registry, err := platforms.Registry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	configured := map[string]string{"databricks": "databricks-workspace", "slack": "slack", "openai-admin": "openai", "unknown": "gitlab"}
+	entries := ConfiguredSaaSManifests(registry, configured, true)
+	if len(entries) != 2 || entries[0].Platform != "databricks" || entries[1].Platform != "slack" || entries[1].AuthMode != SaaSAuthModeSignIn {
+		t.Fatalf("unexpected configured entries: %+v", entries)
+	}
+	delete(configured, "databricks")
+	entries = ConfiguredSaaSManifests(registry, configured, false)
+	if len(entries) != 1 || entries[0].Platform != "slack" || entries[0].AuthMode != SaaSAuthModeConnection {
+		t.Fatal("missing provider remained available or sign-in advertised without a deployment adapter")
+	}
+	catalog, err := NewCatalog(append(BuiltinManifests(), entries...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.ValidateSetup("saas", map[string]string{"platform": "openai", "tenant_id": "a", "connection_reference": testConnectionReference}); err == nil {
+		t.Fatal("configuration accepted for a provider absent from the live catalog")
+	}
+	if len(ConfiguredSaaSManifests(registry, nil, true)) != 0 {
+		t.Fatal("offline Nango exposed connectors")
+	}
+}
+
+func TestConfiguredEmptyCatalogIsSearchable(t *testing.T) {
+	catalog, err := NewCatalog([]ConnectorManifest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := catalog.Search(CatalogFilter{})
+	if err != nil || items == nil || len(items) != 0 {
+		t.Fatalf("empty configured catalog: %#v, %v", items, err)
+	}
+	if _, err := NewCatalog(nil); err == nil {
+		t.Fatal("uninitialized catalog accepted")
+	}
+}

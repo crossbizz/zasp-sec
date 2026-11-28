@@ -102,7 +102,7 @@ class Runtime(unittest.TestCase):
                 services.Service("openbao").inspect(api)
             api.request.side_effect = [(200, {"result": "ok"}), (200, {"data": []})]
             self.assertIn("no provider integrations", services.Service("nango").inspect(api))
-            self.assertEqual(api.request.call_args.kwargs["headers"]["Authorization"], "Bearer fixture-secret")
+            api.request.assert_called_with("GET", "/integrations", headers={"Authorization": "Bearer fixture-secret"})
             token.chmod(0o644)
             with self.assertRaises(services.ServiceError):
                 services.read_file(str(token), private=True)

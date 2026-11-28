@@ -32,7 +32,7 @@ describe("M3 gate and M4 reconciliation accelerated batch", () => {
     expect(source).toContain("validFingerprint(value.CredentialFingerprint)");
   });
 
-  it("exposes provider-specific connection and generated-schema sensor flows", async () => {
+  it("keeps example integration inventory out of the source picker and exposes generated-schema sensor flows", async () => {
     const [connectors, sensors, seed, demoApp, productionApp] = await Promise.all([
       readFile(resolve(root, "app/features/connectors/ConnectorViews.tsx"), "utf8"),
       readFile(resolve(root, "app/features/sensors/SensorView.tsx"), "utf8"),
@@ -40,8 +40,7 @@ describe("M3 gate and M4 reconciliation accelerated batch", () => {
       readFile(resolve(root, "app/components/ZaspDemoApp.tsx"), "utf8"),
       readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
     ]);
-    expect(connectors).toMatch(/setupSteps[\s\S]*Setup boundary/);
-    expect(connectors).toContain('key={selected?.id ?? "none"}');
+    expect(connectors).not.toContain("state.connectors");
     for (const value of ["AWS", "Kubernetes", "GitHub", "Generic Webhook", "Workforce Directory", "Missing iam:GetRole"]) expect(seed).toContain(value);
     expect(sensors).toContain('from "../../../apps/web/api/generated"');
     for (const value of ["Enroll sensor", "Rotate enrollment token", "Delete sensor", "Unsupported kernel", "Copy this token now"]) expect(sensors).toContain(value);

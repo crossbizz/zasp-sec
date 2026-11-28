@@ -1,3 +1,4 @@
+import { LegacyIntegrationWorkflow } from "./test/LegacyIntegrationWorkflow";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +7,7 @@ import type { APIClient } from "../../../apps/web/api/client";
 import type { Integration, Policy } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { SessionProvider } from "../../auth/SessionProvider";
-import { ProductionIntegrationsView, ProductionPoliciesView } from "./ProductionWorkflowViews";
+import { ProductionPoliciesView } from "./ProductionWorkflowViews";
 import { WorkflowMutationProvider } from "./useRetainedWorkflowMutation";
 
 const integration: Integration = {
@@ -174,7 +175,7 @@ describe("production policy evidence", () => {
 	});
 });
 
-describe("production integration deletion", () => {
+describe("retained integration operations for existing records", () => {
 	it("starts GitHub OAuth from the capability-gated product UI and retries the exact retained attempt", async () => {
 		const user = userEvent.setup();
 		const target = "https://github.com/login/oauth/authorize?state=opaque-state";
@@ -242,7 +243,7 @@ describe("production integration deletion", () => {
 			throw new Error(`unexpected GET ${path}`);
 		});
 		const POST = vi.fn();
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><LegacyIntegrationWorkflow canWrite /></WorkflowMutationProvider></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
 		expect(screen.getByRole("button", { name: "Authorize AWS reference" })).toBeDisabled();
@@ -423,7 +424,7 @@ describe("production integration deletion", () => {
 			if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
 			throw new Error(`unexpected GET ${path}`);
 		});
-		render(<APIProvider client={{ GET } as unknown as APIClient}><SessionProvider><ProductionIntegrationsView canWrite /></SessionProvider></APIProvider>);
+		render(<APIProvider client={{ GET } as unknown as APIClient}><SessionProvider><LegacyIntegrationWorkflow canWrite /></SessionProvider></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
 		expect(screen.getByRole("button", { name: "Authorize AWS reference" })).toBeDisabled();
@@ -493,7 +494,7 @@ describe("production integration deletion", () => {
 		});
 		const created: Integration = { ...awsPending, connector_key: "microsoft", name: "Contoso tenant", configuration };
 		const POST = vi.fn(async () => jsonResult(created, 201, { ...receiptHeaders, ETag: '"1"' }));
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><LegacyIntegrationWorkflow canWrite /></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Configure Microsoft Entra and Copilot Studio" }));
 		const dialog = screen.getByRole("dialog", { name: "Configure Microsoft Entra and Copilot Studio" });
@@ -543,7 +544,7 @@ describe("production integration deletion", () => {
 		});
 		const created = { ...awsPending, name: "Production AWS", status: "configured" as const };
 		const POST = vi.fn(async () => jsonResult(created, 201, { ...receiptHeaders, ETag: '"1"' }));
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><LegacyIntegrationWorkflow canWrite /></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Configure Amazon Web Services" }));
 		const dialog = screen.getByRole("dialog", { name: "Configure Amazon Web Services" });
@@ -587,7 +588,7 @@ describe("production integration deletion", () => {
       .mockResolvedValueOnce({ response: new Response(null, { status: 204, headers: receiptHeaders }) });
     const client = { GET, DELETE } as unknown as APIClient;
 
-    const surface = (canWrite: boolean, route: "integrations" | "other" = "integrations") => <APIProvider client={client}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a">{route === "integrations" ? <ProductionIntegrationsView canWrite={canWrite} /> : <p>Other route</p>}</WorkflowMutationProvider></APIProvider>;
+    const surface = (canWrite: boolean, route: "integrations" | "other" = "integrations") => <APIProvider client={client}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a">{route === "integrations" ? <LegacyIntegrationWorkflow canWrite={canWrite} /> : <p>Other route</p>}</WorkflowMutationProvider></APIProvider>;
     const view = render(surface(true));
     await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
 		expect(screen.queryByRole("button", { name: /Authorize .* reference/ })).not.toBeInTheDocument();
@@ -647,7 +648,7 @@ describe("production integration deletion", () => {
     });
     const DELETE = vi.fn(async () => jsonResult(revoking, 202, { ...receiptHeaders, "Retry-After": "2" }));
     try {
-      render(<APIProvider client={{ GET, DELETE } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+      render(<APIProvider client={{ GET, DELETE } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><LegacyIntegrationWorkflow canWrite /></WorkflowMutationProvider></APIProvider>);
       fireEvent.click(await screen.findByRole("button", { name: "Open GitHub" }));
       fireEvent.click(await screen.findByRole("button", { name: "Delete integration" }));
       const retry = await screen.findByRole("button", { name: "Retry pending integration deletion" });
@@ -695,7 +696,7 @@ describe("production integration deletion", () => {
 			if (path === "/api/v1/integrations/{id}") return jsonResult(aws, 200, { ETag: '"1"' });
 			throw new Error(`unexpected GET ${path}`);
 		});
-		render(<APIProvider client={{ GET } as unknown as APIClient}><ProductionIntegrationsView canWrite={false} /></APIProvider>);
+		render(<APIProvider client={{ GET } as unknown as APIClient}><LegacyIntegrationWorkflow canWrite={false} /></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
 		const reference = screen.getByLabelText("external id reference");
@@ -726,7 +727,7 @@ function renderFreshIntegrations(client: APIClient, expiresAt = new Date(Date.no
 			? Promise.resolve(jsonResult(sessionBootstrap(expiresAt)))
 			: GET(path as never, options as never),
 	} as APIClient;
-	return render(<APIProvider client={sessionClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite navigateAuthorization={navigateAuthorization} /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+	return render(<APIProvider client={sessionClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><LegacyIntegrationWorkflow canWrite navigateAuthorization={navigateAuthorization} /></WorkflowMutationProvider></SessionProvider></APIProvider>);
 }
 
 function sessionBootstrap(freshAuthExpiresAt: string) {

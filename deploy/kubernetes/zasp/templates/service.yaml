@@ -11,6 +11,19 @@ spec:
   selector: {{- include "zasp.selector" . | nindent 4 }}
   ports:
     - { name: https, port: {{ .Values.service.port }}, targetPort: https }
+{{- if and .Values.product.enabled .Values.nango.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zasp.nangoName" . }}
+  labels: {{- include "zasp.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  selector: {{- include "zasp.selector" . | nindent 4 }}
+  ports: [{ name: nango, port: 3003, targetPort: nango }]
+{{- end }}
 {{- if .Values.networkPolicy.enabled }}
 ---
 # Everything in the pod except the TLS front is for the pod itself.
@@ -26,6 +39,12 @@ spec:
   ingress:
     - ports:
         - { protocol: TCP, port: 8443 }
+    {{- if and .Values.product.enabled .Values.nango.enabled }}
+    - from:
+        - podSelector:
+            matchLabels: {{- include "zasp.selector" . | nindent 14 }}
+      ports: [{ protocol: TCP, port: 3003 }]
+    {{- end }}
 {{- end }}
 {{- if .Values.ingress.enabled }}
 ---

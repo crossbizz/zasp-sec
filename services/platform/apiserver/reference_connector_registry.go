@@ -179,8 +179,21 @@ func validSaaSReferenceConfiguration(platform, tenantID, connectionReference str
 }
 
 type CombinedConnectorCapabilities struct {
-	OAuth     ConnectorCapabilities
-	Reference ConnectorCapabilities
+	OAuth                 ConnectorCapabilities
+	Reference             ConnectorCapabilities
+	ListNangoIntegrations func(context.Context) (map[string]string, error)
+	SaaSSignInEnabled     bool
+}
+
+func (capabilities CombinedConnectorCapabilities) ConfiguredNangoIntegrations(ctx context.Context) (map[string]string, bool) {
+	if capabilities.ListNangoIntegrations == nil {
+		return nil, false
+	}
+	values, err := capabilities.ListNangoIntegrations(ctx)
+	if err != nil {
+		return nil, false
+	}
+	return values, capabilities.SaaSSignInEnabled
 }
 
 func (capabilities CombinedConnectorCapabilities) ConnectorAvailable(ctx context.Context, key string) bool {

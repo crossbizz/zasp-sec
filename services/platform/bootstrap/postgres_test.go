@@ -213,6 +213,7 @@ func TestPostgresStoreNeverRecreatesDefaultsACustomerRenamed(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, statement := range []string{
+		`UPDATE zasp_organizations SET name='Research' WHERE id=$1`,
 		`UPDATE zasp_workspaces SET name='Platform' WHERE organization_id=$1`,
 		`UPDATE zasp_environments SET name='Prod EU' WHERE organization_id=$1 AND name='Production'`,
 	} {
@@ -228,6 +229,9 @@ func TestPostgresStoreNeverRecreatesDefaultsACustomerRenamed(t *testing.T) {
 	}
 	if workspaces, environments := count(t, pool, `SELECT count(*) FROM zasp_workspaces WHERE organization_id=$1`, first.OrganizationID), count(t, pool, `SELECT count(*) FROM zasp_environments WHERE organization_id=$1`, first.OrganizationID); workspaces != 1 || environments != 3 {
 		t.Fatalf("workspaces = %d, environments = %d", workspaces, environments)
+	}
+	if got := count(t, pool, `SELECT count(*) FROM zasp_organizations WHERE id=$1 AND name='Research'`, first.OrganizationID); got != 1 {
+		t.Fatal("bootstrap changed the customer's organization display name")
 	}
 	// The renamed production Environment is still the new administrator's default scope.
 	if got := count(t, pool, `SELECT count(*) FROM zasp_authorized_scopes WHERE principal_id=$1 AND environment_id=$2 AND is_default`, second.PrincipalID, first.Environments[0].ID); got != 1 {

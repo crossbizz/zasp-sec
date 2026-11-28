@@ -35,6 +35,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- .Values.secrets.existingSecret | default (printf "%s-secrets" (include "zasp.name" .)) -}}
 {{- end -}}
 
+{{- define "zasp.nangoName" -}}{{ printf "%s-nango" (include "zasp.name" .) }}{{- end -}}
+{{- define "zasp.nangoSecret" -}}{{ .Values.nango.existingSecret | default (include "zasp.nangoName" .) }}{{- end -}}
+{{- define "zasp.nangoURL" -}}{{ printf "http://%s.%s.svc.cluster.local:3003" (include "zasp.nangoName" .) .Release.Namespace }}{{- end -}}
+
 {{/*
 One container that runs a process of files/entrypoint.sh.
 Arguments: root, name, image, args (list).
@@ -47,6 +51,14 @@ Arguments: root, name, image, args (list).
   args: {{ toJson .args }}
   envFrom:
     - configMapRef: { name: {{ include "zasp.name" .root }}-settings }
+  {{- $nangoClient := and .root.Values.nango.enabled (has .name (list "api" "worker-discovery")) }}
+  {{- if $nangoClient }}
+  env:
+    - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: "collector_v1" }
+    - { name: ZASP_NANGO_BASE_URL, value: {{ include "zasp.nangoURL" .root | quote }} }
+    - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
+    - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
+  {{- end }}
   securityContext:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
@@ -54,6 +66,9 @@ Arguments: root, name, image, args (list).
   resources: {{ toJson . }}
   {{- end }}
   volumeMounts:
+    {{- if $nangoClient }}
+    - { name: nango-client, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
+    {{- end }}
     - { name: config, mountPath: /zasp/config, readOnly: true }
     - { name: run, mountPath: /run/zasp }
     - { name: data, mountPath: /var/lib/zasp, subPath: state }

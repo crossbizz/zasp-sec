@@ -27,6 +27,39 @@ function sensorAPI(overrides: Partial<SensorsAPI> = {}): SensorsAPI {
 }
 
 describe("production sensor management", () => {
+  it("guides a first-time operator into the selected collector enrollment", async () => {
+    const user = userEvent.setup();
+    const createSensor = vi.fn(sensorAPI().createSensor);
+    render(<ProductionSensorView api={sensorAPI({ listSensors: async () => [], createSensor })} canWrite fresh onReauthenticate={() => undefined} />);
+    expect(await screen.findByRole("heading", { name: "Set up your first runtime sensor" })).toBeVisible();
+    expect(screen.getByText(/customer-edge Helm chart/)).toBeVisible();
+    await user.selectOptions(screen.getByLabelText("Collector to set up"), "otlp");
+    expect(screen.getByText(/Zasp-compatible semantic collector/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Enroll sensor" }));
+    expect(within(screen.getByRole("dialog")).getByLabelText("Sensor kind")).toHaveValue("otlp");
+    expect(createSensor).not.toHaveBeenCalled();
+  });
+
+  it("guides read-only and expired sessions without issuing an enrollment", async () => {
+    const api = sensorAPI({ listSensors: async () => [] });
+    const reauthenticate = vi.fn();
+    const view = render(<ProductionSensorView api={api} canWrite={false} fresh onReauthenticate={reauthenticate} />);
+    expect(await screen.findByText(/Ask your environment administrator/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: /enroll/i })).not.toBeInTheDocument();
+    view.rerender(<ProductionSensorView api={api} canWrite fresh={false} onReauthenticate={reauthenticate} />);
+    await userEvent.click(screen.getByRole("button", { name: "Reauthenticate to enroll" }));
+    expect(reauthenticate).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("offers a retry when the sensor directory failed to load", async () => {
+    const listSensors = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce([]);
+    render(<ProductionSensorView api={sensorAPI({ listSensors })} canWrite fresh onReauthenticate={() => undefined} />);
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Set up your first runtime sensor" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("heading", { name: "Set up your first runtime sensor" })).toBeVisible();
+  });
   it("provides one visible page heading when switching between sensors and devices", async () => {
     const client = createAPIClient({
       fetch: async (request) => {

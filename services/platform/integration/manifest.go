@@ -155,7 +155,8 @@ func BuiltinManifests() []ConnectorManifest {
 }
 
 func NewCatalog(values []ConnectorManifest) (*Catalog, error) {
-	if len(values) == 0 || len(values) > 256 {
+	// A configured deployment can have zero available Nango integrations.
+	if values == nil || len(values) > 256 {
 		return nil, ErrConfiguration
 	}
 	catalog := &Catalog{values: make(map[string]ConnectorManifest, len(values))}

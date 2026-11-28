@@ -45,7 +45,6 @@ type workflowHTTPHandler struct {
 	repository   workflowRepository
 	signingKey   []byte
 	now          func() time.Time
-	catalog      *platformintegration.Catalog
 	capabilities ConnectorCapabilities
 	webhookTests IntegrationWebhookTester
 }
@@ -68,11 +67,7 @@ func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, no
 		}
 		capabilities = configuredCapabilities[0]
 	}
-	catalog, err := platformintegration.NewCatalog(locallyCompleteWorkflowManifests(context.Background(), capabilities, false))
-	if err != nil {
-		return nil, ErrRepositoryConfiguration
-	}
-	return &workflowHTTPHandler{repository: repository, signingKey: append([]byte(nil), signingKey...), now: now, catalog: catalog, capabilities: capabilities}, nil
+	return &workflowHTTPHandler{repository: repository, signingKey: append([]byte(nil), signingKey...), now: now, capabilities: capabilities}, nil
 }
 
 func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -127,7 +122,7 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
-		catalog, catalogErr := handler.currentCatalog(request.Context())
+		catalog, catalogErr := platformintegration.NewCatalog(nangoWorkflowManifests(request.Context(), handler.capabilities))
 		if catalogErr != nil {
 			writeProductionError(writer, request, ErrRepositoryUnavailable)
 			return
@@ -1039,15 +1034,37 @@ func locallyCompleteWorkflowManifests(ctx context.Context, capabilities Connecto
 			result = append(result, value)
 		}
 	}
-	// The generic saas connector contributes one entry per registered
-	// platform where the deployment serves it. The entries come from the
-	// platform registry, so a new platform definition needs no change here.
-	if capabilities.ConnectorAvailable(ctx, platformintegration.SaaSConnectorKey) {
-		if registry, err := saasplatforms.Registry(); err == nil {
-			result = append(result, platformintegration.SaaSManifests(registry)...)
+	return append(result, configuredSaaSWorkflowManifests(ctx, capabilities)...)
+}
+
+// Only the two Nango paths participate in the public catalog. Unrelated
+// native-provider readiness checks can require network calls of their own.
+func nangoWorkflowManifests(ctx context.Context, capabilities ConnectorCapabilities) []platformintegration.ConnectorManifest {
+	result := make([]platformintegration.ConnectorManifest, 0)
+	if capabilities.ConnectorAvailable(ctx, "slack") {
+		for _, manifest := range platformintegration.BuiltinManifests() {
+			if manifest.Key == "slack" {
+				result = append(result, manifest)
+				break
+			}
 		}
 	}
-	return result
+	return append(result, configuredSaaSWorkflowManifests(ctx, capabilities)...)
+}
+
+func configuredSaaSWorkflowManifests(ctx context.Context, capabilities ConnectorCapabilities) []platformintegration.ConnectorManifest {
+	catalog, supported := capabilities.(interface {
+		ConfiguredNangoIntegrations(context.Context) (map[string]string, bool)
+	})
+	if !supported || !capabilities.ConnectorAvailable(ctx, platformintegration.SaaSConnectorKey) {
+		return nil
+	}
+	registry, err := saasplatforms.Registry()
+	if err != nil {
+		return nil
+	}
+	configured, canSignIn := catalog.ConfiguredNangoIntegrations(ctx)
+	return platformintegration.ConfiguredSaaSManifests(registry, configured, canSignIn)
 }
 
 func exactWorkflowEnvironment(values []string, environmentID string) bool {

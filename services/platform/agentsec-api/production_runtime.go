@@ -557,7 +557,13 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 		lifecycleWorkers = append(lifecycleWorkers, approvalNotificationReconciler.Run)
 	}
-	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
+	capabilities := apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry, SaaSSignInEnabled: saasSignIn != nil}
+	if nangoCloser != nil && saasProbe != nil {
+		capabilities.ListNangoIntegrations = func(ctx context.Context) (map[string]string, error) {
+			return nangoCloser.connection.ConfiguredIntegrations(ctx, config.NangoBaseURL, config.NangoServiceSecretReference)
+		}
+	}
+	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: capabilities, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
 	if config.DelegationAuthorityFile != "" {
 		authority, loadErr := issuer.Load(config.DelegationAuthorityFile)
 		if loadErr != nil {
@@ -987,6 +993,30 @@ func (provider *tracedCallbackProvider) Start(ctx context.Context, returnTo stri
 	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.start", "client", map[string]string{"server.address": "stytch", "rpc.method": "start"})
 	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
 	return starter.Start(ctx, returnTo)
+}
+
+// Keep the directory available through the same decorated provider used by the
+// production handlers. Traces intentionally carry no member IDs or addresses.
+var _ apiserver.MemberDirectory = (*tracedCallbackProvider)(nil)
+
+func (provider *tracedCallbackProvider) MemberProfiles(ctx context.Context, org string, refs []string) (members []apiserver.DirectoryMember, err error) {
+	directory, ok := provider.next.(apiserver.MemberDirectory)
+	if !ok {
+		return nil, errRuntimeUnavailable
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.members.profiles", "client", map[string]string{"server.address": "stytch", "rpc.method": "member_search"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return directory.MemberProfiles(ctx, org, refs)
+}
+
+func (provider *tracedCallbackProvider) DeliverMemberInvitation(ctx context.Context, org, email string, resuming bool, prepareDelivery func(string, bool) error) (ref string, err error) {
+	directory, ok := provider.next.(apiserver.MemberDirectory)
+	if !ok {
+		return "", errRuntimeUnavailable
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.members.invite", "client", map[string]string{"server.address": "stytch", "rpc.method": "member_invite"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return directory.DeliverMemberInvitation(ctx, org, email, resuming, prepareDelivery)
 }
 
 func (provider *tracedCallbackProvider) identityConnections() (apiserver.IdentityConnectionProvider, error) {

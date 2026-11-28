@@ -66,6 +66,9 @@ screens:
       - id: view_current_organization
         operation_id: getOrganization
         availability: available
+      - id: update_organization
+        operation_id: updateOrganization
+        availability: available
       - id: view_workspaces
         operation_id: listWorkspaces
         availability: available
@@ -98,6 +101,21 @@ screens:
         availability: available
       - id: update_member_role
         operation_id: updateMemberRole
+        availability: available
+      - id: list_member_invitations
+        operation_id: listMemberInvitations
+        availability: available
+      - id: invite_member
+        operation_id: inviteMember
+        availability: available
+      - id: update_member_profile
+        operation_id: updateMemberProfile
+        availability: available
+      - id: remove_member
+        operation_id: removeMember
+        availability: available
+      - id: view_member_access
+        operation_id: getMemberAccess
         availability: available
       - id: view_builtin_roles
         operation_id: listBuiltInRoles

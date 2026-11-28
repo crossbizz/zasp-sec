@@ -4,18 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"io"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations/baseline"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 )
 
 // baselineCommand reports whether the arguments select a baseline command.
 func baselineCommand(arguments []string) bool {
-	return len(arguments) == 1 && (arguments[0] == "upgrade-feature-v3" || arguments[0] == "upgrade-feature-v2" || arguments[0] == "install-baseline" || arguments[0] == "verify-baseline" || arguments[0] == "baseline-script")
+	if len(arguments) != 1 {
+		return false
+	}
+	switch arguments[0] {
+	case "ensure-baseline", "upgrade-feature-v5", "upgrade-feature-v3", "upgrade-feature-v2", "install-baseline", "verify-baseline", "baseline-script":
+		return true
+	}
+	return false
 }
 
 // writeBaselineScript prints the installation as a JSON array of single SQL
@@ -78,8 +85,11 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 	}
 	apply := baseline.Install
 	resultKey := "installed"
-	if arguments[0] == "upgrade-feature-v2" || arguments[0] == "upgrade-feature-v3" {
-		apply = baseline.UpgradeToV3
+	if arguments[0] == "ensure-baseline" {
+		apply = baseline.Ensure
+		resultKey = "ready"
+	} else if strings.HasPrefix(arguments[0], "upgrade-feature-") {
+		apply = baseline.UpgradeToV5
 		resultKey = "upgraded"
 	}
 	err = apply(ctx, conn, baseline.Check{

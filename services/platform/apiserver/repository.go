@@ -94,6 +94,7 @@ type JSONDatabase interface {
 }
 
 type PostgresRepository struct {
+	memberDirectory        MemberDirectory
 	currentAuthorization   bool
 	database               JSONDatabase
 	schema                 string

@@ -4,6 +4,8 @@ import { parseAuditExportLink } from "../features/administration/audit-export-re
 import { scopedAddonFromSearch } from "./addon-links";
 
 export const calibrationLocation = "/protect/guardrails?tab=calibration";
+export const addSourceLocation = "/connectors#add-source";
+export const enrollSensorLocation = "/integrations/sensors?enroll=1";
 export const calibrationExportLocation = `${calibrationLocation}#calibration-exports`;
 
 export type ActivityScope = Readonly<{ organizationID: string; workspaceID: string; environmentID: string }>;
@@ -56,6 +58,7 @@ export function parseActivityLink(location: string, scope: ActivityScope & { pri
   if (auditExport.state === "selected") return { state: "none" };
   if (auditExport.state !== "none") return auditExport;
   if (location === calibrationLocation || location === calibrationExportLocation) return { state: "none" };
+  if (location === addSourceLocation || location === enrollSensorLocation) return { state: "none" };
   if (identitySectionLocations.has(location)) return { state: "none" };
   if (!/^\/(?:[a-z0-9/-]*)(?:\?[^?#]*)?$(?![\s\S])/.test(location) || location.startsWith("//") || location.includes("//")) return invalid;
   const separator = location.indexOf("?");

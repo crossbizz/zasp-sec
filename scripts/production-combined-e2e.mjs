@@ -811,34 +811,32 @@ try {
   await waitForBrowserText(browser.cdp, /Policy is enforced\. Audit pid_/);
 
   const connectorUIRequestStart = productAPIRequests.length;
+  const connectorPageStart = workflowPageRequests.integrations.length;
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
   await waitForBrowserText(browser.cdp, /Durable connector configuration, provider authorization, and automatic inventory discovery/);
   await waitForBrowserText(browser.cdp, /Paged integration 1001/);
-  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1004, "integration UI did not traverse exactly 1001 paged, two revocation, and one Task4 discovery fixture IDs");
-  assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
-  for (const [configure, steps] of [
-    ["Configure Amazon Web Services", ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"]],
-    ["Configure Kubernetes", ["Choose coverage", "Authorize cluster", "Enroll Runtime sensor", "Verify heartbeat", "Initial sync", "Review coverage"]],
-  ]) {
-    const provider = configure.slice("Configure ".length);
-    assert.equal(await browserHasInteractiveText(browser.cdp, new RegExp(`^${configure}$`)), true, `${provider} was absent from the live production catalog`);
-    await clickBrowserText(browser.cdp, configure);
-    await waitForBrowserText(browser.cdp, /Setup progress/);
-    const setup = await browserBodyText(browser.cdp);
-    for (const step of steps) assert.match(setup, new RegExp(step));
-    assert.doesNotMatch(setup, /ref:(?:aws|kubernetes|microsoft|salesforce)\//);
-    await clickBrowserText(browser.cdp, "Cancel");
-    await waitForBrowserActive(browser.cdp, configure);
+  assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1003, "integration UI did not show exactly 1001 paged and two revocation Nango integrations");
+  assert.equal(workflowPageRequests.integrations.length - connectorPageStart, 11, "integration UI pagination requested an extra or missing page");
+  await waitForBrowserText(browser.cdp, /No Nango integrations are available/);
+  for (const label of ["Configure Amazon Web Services", "Configure Kubernetes", "Configure Generic Webhook", "Open Harness AWS discovery"]) {
+    assert.equal(await browserHasAriaLabel(browser.cdp, label), false, `Native source appeared in the Nango-only directory: ${label}`);
   }
-  console.log("combined E2E: browser launch connector setup catalog proven");
+  console.log("combined E2E: browser Nango-only source directory and unconfigured catalog proven");
   await clickBrowserAria(browser.cdp, "Open Harness terminal revocation");
   await waitForBrowserText(browser.cdp, /Provider authorization controls are unavailable for this connector/);
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^Authorize GitHub$/), false, "unavailable managed provider exposed an authorization side effect");
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^Authorize Slack$/), false, "unavailable managed provider exposed an authorization side effect");
   assert.equal(connectorAuthorizationRequests.length, 0, "fail-closed provider unexpectedly reached the authorization boundary");
   assert.equal(productAPIRequests.slice(connectorUIRequestStart).some((request) => request.path === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize`), false, "fail-closed provider invoked connector authorization");
   assert.doesNotMatch(await browserBodyText(browser.cdp), /authorization_(?:url|attempt_id)|code_verifier|opaque-e2e-state/i);
-  await clickBrowserText(browser.cdp, "Close");
-  await waitForBrowserText(browser.cdp, /Harness terminal revocation/);
+  await waitForBrowserActive(browser.cdp, "Close");
+  assert.equal(await browserDialogIsolation(browser.cdp), true, "active production modal did not isolate its background");
+  await dispatchBrowserKey(browser.cdp, "Tab", { shift: true });
+  await waitForBrowserActive(browser.cdp, "Delete integration");
+  await dispatchBrowserKey(browser.cdp, "Tab");
+  await waitForBrowserActive(browser.cdp, "Close");
+  await dispatchBrowserKey(browser.cdp, "Escape");
+  await waitForBrowserActive(browser.cdp, "Open Harness terminal revocation");
+  console.log("combined E2E: keyboard focus trap and restoration proven");
   console.log("combined E2E: unavailable managed OAuth authority remained fail-closed with zero provider calls");
 
   const expectedProductionScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
@@ -895,7 +893,7 @@ try {
   assert.doesNotMatch(reloadRecovery, /Integration deleted/);
   await waitForBrowserAction(browser.cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Harness reload revocation"]')})?.disabled === true`);
   assert.equal(await browserHasAriaLabel(browser.cdp, "Open Harness reload revocation"), true, "reload hid a still-revoking integration");
-  assert.equal(await browserTextControlDisabled(browser.cdp, "Configure Generic Webhook"), true, "reload enabled a competing integration mutation");
+  await waitForBrowserAction(browser.cdp, `document.querySelector('[aria-label="Open Paged integration 1001"]')?.disabled === true`);
   console.log("combined E2E: reload revocation receipt remained locked and pending without a deleted claim");
 
   await completeHarnessConnectorRevocation(dsn, reloadRevocationIntegrationID);
@@ -915,38 +913,41 @@ try {
   assert.doesNotMatch(await browserBodyText(browser.cdp), /Integration deleted/);
   console.log("combined E2E: public 202-to-204 integration deletion and harness direct-public-API replay after reload proven; this is not frontend persistence");
 
-  await clickBrowserText(browser.cdp, "Configure Generic Webhook");
-  await waitForBrowserActive(browser.cdp, "Close");
-  assert.equal(await browserDialogIsolation(browser.cdp), true, "active production modal did not isolate its background");
-  await dispatchBrowserKey(browser.cdp, "Tab", { shift: true });
-  await waitForBrowserActive(browser.cdp, "Cancel");
-  await dispatchBrowserKey(browser.cdp, "Tab");
-  await waitForBrowserActive(browser.cdp, "Close");
-  await dispatchBrowserKey(browser.cdp, "Escape");
-  await waitForBrowserActive(browser.cdp, "Configure Generic Webhook");
-  await clickBrowserText(browser.cdp, "Configure Generic Webhook");
-  await waitForBrowserActive(browser.cdp, "Close");
-  console.log("combined E2E: keyboard focus trap and restoration proven");
-  await fillBrowserLabel(browser.cdp, "HTTPS destination", "https://hooks.customer.invalid/zasp");
-  await fillBrowserLabel(browser.cdp, "Signing secret", "secret_ref_combined_e2e");
-  await clickBrowserText(browser.cdp, "Save integration");
-  await waitForBrowserText(browser.cdp, /Integration created\. Audit pid_/);
-  await waitForBrowserText(browser.cdp, /No delivery test for the current configuration/);
-  await clickBrowserText(browser.cdp, "Test signed delivery");
-  await waitForBrowserText(browser.cdp, /Webhook test failed\. Audit pid_/);
-  await waitForBrowserText(browser.cdp, /Signature and acceptance are unconfirmed/);
+  // Existing native webhooks remain readable and testable through the public API.
+  // Its signed delivery protocol is independent of the Nango-only source picker.
+  const webhookCookie = (await getBrowserSessionCookie(browser.cdp, publicOrigin)).value;
+  const webhookRequest = await automaticLifecycleRequest(publicOrigin, webhookCookie, expectedProductionScope);
+  const webhookCreated = await webhookRequest("/api/v1/integrations", "POST", {
+    connector_key: "generic-webhook", name: "Generic Webhook",
+    configuration: { destination_url: "https://hooks.customer.invalid/zasp", signing_secret_reference: "secret_ref_combined_e2e" },
+  });
+  assert.equal(webhookCreated.status, 201);
+  const webhookPath = `/api/v1/integrations/${webhookCreated.body.id}`;
+  const createdReadback = await webhookRequest(webhookPath);
+  assert.deepEqual(createdReadback.body, webhookCreated.body);
+  await webhookRequest(`/api/v1/workflow-mutation-receipts/${webhookCreated.headers["x-mutation-receipt-id"]}/acknowledge`, "POST", {});
+  assert.equal((await webhookRequest(`${webhookPath}/delivery-status`)).status, 404);
+  const webhookBootstrap = await webhookRequest("/api/v1/session/bootstrap");
+  const deliveryHeaders = { cookie: `__Host-zasp_session=${webhookCookie}`, origin: publicOrigin, "content-type": "application/json",
+    "Idempotency-Key": `webhook-${randomBytes(16).toString("hex")}`, "If-Match": createdReadback.headers.etag,
+    "X-Zasp-Expected-Scope": expectedProductionScope, "X-CSRF-Token": webhookBootstrap.body.csrf_token, "X-Zasp-Fresh-Auth": "confirmed" };
+  const testDelivery = () => requestHTTPSJSON(`${publicOrigin}${webhookPath}/test-delivery`, { method: "POST", headers: deliveryHeaders }, "{}");
+  assert.equal((await testDelivery()).status, 503, "proxy did not drop the first delivery result");
+  const replayedDelivery = await testDelivery();
+  assert.equal(replayedDelivery.status, 200);
+  assert.equal(replayedDelivery.body.signature_status, "unconfirmed");
+  assert.equal(replayedDelivery.body.delivery_status, "failed");
   assert.equal(integrationWebhookTestRequests.length, 2, "webhook lost-response replay was not exercised");
   assert.equal(new Set(integrationWebhookTestRequests.map((item) => item.idempotencyKey)).size, 1, "webhook retry changed its idempotency key");
   assert.equal(new Set(integrationWebhookTestRequests.map((item) => item.auditID)).size, 1, "webhook retry changed its audit record");
   assert.equal(integrationWebhookTestRequests.every((item) => item.body === "{}" && item.ifMatch === '"1"' && item.csrf.length >= 16 && item.status === 200), true, "webhook test lost saved-configuration authority");
   const webhookDurability = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT count(*) || '|' || min(state) FROM zasp_integration_webhook_tests;"]);
   assert.equal(webhookDurability.stdout.trim(), "1|failed", "webhook failure was not durably retained once");
-  await clickBrowserAria(browser.cdp, "Close");
   await reloadBrowserPage(browser.cdp);
-  await clickBrowserAria(browser.cdp, "Open Generic Webhook");
-  await waitForBrowserText(browser.cdp, /Delivery status: failed/);
+  await waitForBrowserText(browser.cdp, /Paged integration 1001/);
+  assert.equal(await browserHasAriaLabel(browser.cdp, "Open Generic Webhook"), false);
+  assert.deepEqual((await browserFetchJSON(browser.cdp, `${webhookPath}/delivery-status`, { "X-Zasp-Expected-Scope": expectedProductionScope })).body, replayedDelivery.body);
   assert.equal(integrationWebhookTestRequests.length, 2, "webhook status reload emitted another delivery");
-  await clickBrowserAria(browser.cdp, "Close");
   console.log("combined E2E: webhook delivery failure remained truthful and durable across lost response and reload");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
@@ -964,8 +965,11 @@ try {
   }
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
-  const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
-  assert.match(identityAccess, /E2E Organization/);
+  const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local/);
+  await waitForBrowserAction(browser.cdp, `(() => {
+    const label = [...document.querySelectorAll("label")].find(node => node.textContent.trim() === "Organization display name");
+    return label?.querySelector("input")?.value === "E2E Organization";
+  })()`);
   assert.match(identityAccess, /Enterprise identity[\s\S]*Configured/);
   assert.match(identityAccess, /Corporate SAML[\s\S]*active/);
   assert.match(identityAccess, /No SCIM connections/);
@@ -1004,7 +1008,10 @@ try {
   await reloadBrowser(browser.cdp);
   const expiredFreshAuth = await waitForBrowserText(browser.cdp, /Fresh authentication expired/);
   assert.match(expiredFreshAuth, /Reauthenticate/);
+  await clickBrowserAria(browser.cdp, "Manage member-target-local");
+  assert.equal(await browserLabeledControlDisabled(browser.cdp, "Organization role"), true, "expired sign-in permitted a role change");
   assert.equal(await browserTextControlDisabled(browser.cdp, "Update role"), true, "fresh-auth-expired role mutation remained enabled");
+  await clickBrowserAria(browser.cdp, "Close");
   await clickBrowserText(browser.cdp, "Reauthenticate");
   await waitForBrowserText(browser.cdp, /Continue through the configured identity provider/);
   await clickBrowserText(browser.cdp, "Continue to sign in");
@@ -1012,10 +1019,10 @@ try {
   assert.doesNotMatch(reauthenticatedIdentity, /Fresh authentication expired/);
 	assert.equal(identityOAuthStarts, identityAccessReauthenticationStarts + 1, "fresh reauthentication did not use the provider-faithful start/callback path exactly once");
   assert.match(await browserCurrentURL(browser.cdp), /\/administration\/identity-access$/);
-  await selectBrowserOption(browser.cdp, "Role for member-target-local", "read only viewer");
-  const reauthenticatedRoleControl = await browserRoleControlState(browser.cdp, "Role for member-target-local", "Update role");
-  assert.deepEqual(reauthenticatedRoleControl, { selected: "read_only_viewer", disabled: false }, `fresh reauthentication left sensitive role control unavailable: ${JSON.stringify(reauthenticatedRoleControl)}`);
-  await selectBrowserOptionAndClickSibling(browser.cdp, "Role for member-target-local", "read only viewer", "Update role");
+  await clickBrowserAria(browser.cdp, "Manage member-target-local");
+  await selectBrowserOption(browser.cdp, "Organization role", "Read only viewer");
+  await waitForBrowserControlDisabled(browser.cdp, "Update role", false);
+  await clickBrowserText(browser.cdp, "Update role");
   await waitForBrowserText(browser.cdp, /Member role updated; active sessions revoked/);
   const roleResult = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT role || '|' || (SELECT count(*) FROM zasp_product_sessions WHERE session_id='session-role-change-e2e' AND revoked_at IS NOT NULL) FROM zasp_identity_memberships WHERE principal_id='pid_10000005-0000-4000-8000-000000000005';`]);
   assert.equal(roleResult.stdout.trim(), "read_only_viewer|1", "member role and session revocation were not atomic");
@@ -1247,7 +1254,8 @@ try {
   await clickBrowserAria(browser.cdp, "Open Production runtime policy");
   assert.match(await waitForBrowserText(browser.cdp, /Policy detail · policy-production/), /enforced/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
-  assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook[\s\S]*configured/), /configured/);
+  await waitForBrowserText(browser.cdp, /Paged integration 1001/);
+  assert.equal(await browserHasAriaLabel(browser.cdp, "Open Generic Webhook"), false);
 	const reloadedSecurityAgentID = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT definition_id FROM zasp_security_agent_definitions WHERE body->>'name'='Bounded response definition' AND deleted_at IS NULL;`])).stdout.trim();
 	assert.match(reloadedSecurityAgentID, /^pid_[0-9a-f-]{36}$/);
 	const reloadedSecurityAgentCookie = await getBrowserSessionCookie(browser.cdp, publicOrigin);
@@ -3530,17 +3538,17 @@ FROM generate_series(1, 1000) AS ordinal;
 INSERT INTO zasp_workflow_records (organization_id, workspace_id, environment_id, kind, id, body)
 SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration',
   'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'),
-  jsonb_build_object('id', 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'), 'connector_key', 'generic-webhook', 'name', 'Paged integration ' || lpad(ordinal::text, 4, '0'), 'configuration', jsonb_build_object('destination_url', 'https://paged.invalid/' || ordinal, 'signing_secret_reference', 'secret_ref_paged_' || ordinal), 'status', 'configured', 'created_at', '2026-08-18T10:00:00Z', 'updated_at', '2026-08-18T10:00:00Z')
+  jsonb_build_object('id', 'pid_' || lpad(ordinal::text, 8, '0') || '-0000-4000-8000-' || lpad(ordinal::text, 12, '0'), 'connector_key', 'slack', 'name', 'Paged integration ' || lpad(ordinal::text, 4, '0'), 'configuration', jsonb_build_object('workspace_label', 'Paged workspace ' || ordinal), 'status', 'configured', 'created_at', '2026-08-18T10:00:00Z', 'updated_at', '2026-08-18T10:00:00Z')
 FROM generate_series(1, 1001) AS ordinal;
 INSERT INTO zasp_workflow_records (organization_id,workspace_id,environment_id,kind,id,body) VALUES
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${terminalRevocationIntegrationID}',jsonb_build_object('id','${terminalRevocationIntegrationID}','connector_key','github','name','Harness terminal revocation','configuration',jsonb_build_object('authorization_mode','github_app'),'status','configured','created_at','2026-08-18T10:00:00Z','updated_at','2026-08-18T10:00:00Z')),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${reloadRevocationIntegrationID}',jsonb_build_object('id','${reloadRevocationIntegrationID}','connector_key','github','name','Harness reload revocation','configuration',jsonb_build_object('authorization_mode','github_app'),'status','configured','created_at','2026-08-18T10:00:00Z','updated_at','2026-08-18T10:00:00Z'));
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${terminalRevocationIntegrationID}',jsonb_build_object('id','${terminalRevocationIntegrationID}','connector_key','slack','name','Harness terminal revocation','configuration',jsonb_build_object('workspace_label','Harness workspace'),'status','configured','created_at','2026-08-18T10:00:00Z','updated_at','2026-08-18T10:00:00Z')),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${reloadRevocationIntegrationID}',jsonb_build_object('id','${reloadRevocationIntegrationID}','connector_key','slack','name','Harness reload revocation','configuration',jsonb_build_object('workspace_label','Harness workspace'),'status','configured','created_at','2026-08-18T10:00:00Z','updated_at','2026-08-18T10:00:00Z'));
 INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state) VALUES
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${terminalRevocationIntegrationID}','github','1.0.0','Harness terminal revocation','{"authorization_mode":"github_app"}'::jsonb,'active'),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${reloadRevocationIntegrationID}','github','1.0.0','Harness reload revocation','{"authorization_mode":"github_app"}'::jsonb,'active');
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${terminalRevocationIntegrationID}','slack','1.0.0','Harness terminal revocation','{"workspace_label":"Harness workspace"}'::jsonb,'active'),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${reloadRevocationIntegrationID}','slack','1.0.0','Harness reload revocation','{"workspace_label":"Harness workspace"}'::jsonb,'active');
 INSERT INTO zasp_integration_connections(organization_id,workspace_id,environment_id,integration_id,id,provider,connection_reference,state,verified_at) VALUES
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${terminalRevocationIntegrationID}','pid_72000011-0000-4000-8000-000000000011','github','ref:github/harness-terminal-revocation','verified',transaction_timestamp()),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${reloadRevocationIntegrationID}','pid_72000012-0000-4000-8000-000000000012','github','ref:github/harness-reload-revocation','verified',transaction_timestamp());
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${terminalRevocationIntegrationID}','pid_72000011-0000-4000-8000-000000000011','nango:slack','ref:nango/connection/72000011-0000-4000-8000-000000000011','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${reloadRevocationIntegrationID}','pid_72000012-0000-4000-8000-000000000012','nango:slack','ref:nango/connection/72000012-0000-4000-8000-000000000012','verified',transaction_timestamp());
 INSERT INTO zasp_workflow_records (organization_id,workspace_id,environment_id,kind,id,body) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','integration','${task4DiscoveryIntegrationID}','{"id":"${task4DiscoveryIntegrationID}","connector_key":"aws","name":"Harness AWS discovery","configuration":{"external_id_reference":"ref:aws/external-id/production-e2e","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}'::jsonb);
 INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state) VALUES
@@ -5926,8 +5934,14 @@ async function startIdentityServer(port, publicOrigin) {
     if (target.pathname.startsWith("/v1/b2b/")) {
       assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
       const requestBody = request.method === "GET" ? undefined : JSON.parse(await readBody(request));
-      stytchProviderRequests.push({ method: request.method, path: target.pathname, body: requestBody });
       response.setHeader("content-type", "application/json");
+      if (request.method === "POST" && target.pathname === "/v1/b2b/organizations/members/search") {
+        assert.equal(requestBody.organization_ids.length, 1);
+        assert.ok(requestBody.limit > 0 && requestBody.limit <= 20);
+        response.end(JSON.stringify({ status_code: 200, members: [] }));
+        return;
+      }
+      stytchProviderRequests.push({ method: request.method, path: target.pathname, body: requestBody });
       if (request.method === "GET" && target.pathname === "/v1/b2b/sso/organization-test-local") {
         response.end(JSON.stringify({ status_code: 200, request_id: "request-list-sso-e2e", saml_connections: stytchSSOConnections, oidc_connections: [] }));
         return;
@@ -6501,32 +6515,26 @@ async function browserCurrentURL(cdp) {
 
 async function assertTask4BrowserPublicState(cdp, publicOrigin, syncID) {
   await navigateBrowser(cdp, `${publicOrigin}/connectors`);
-  await waitForBrowserText(cdp, /Harness AWS discovery/);
-  await clickBrowserAria(cdp, "Open Harness AWS discovery");
-  await waitForBrowserText(cdp, /Automatic discovery/);
-  await waitForBrowserText(cdp, /Risk projection: pending/);
-  await waitForBrowserText(cdp, /No automatic sync schedule/);
-  let discovery = await waitForBrowserText(cdp, /succeeded/);
-  assert.match(discovery, /Risk projection: pending/);
-  assert.match(discovery, /Graph projection: pending/);
-  assert.match(discovery, /Search projection: pending/);
-  assert.match(discovery, /No automatic sync schedule/);
-  assert.match(discovery, /succeeded/);
-  await clickBrowserAria(cdp, "Open succeeded sync");
-  discovery = await waitForBrowserText(cdp, /Sync detail: succeeded/);
-  assert.match(discovery, /1 discovered/);
-  assert.match(syncID, /^pid_[0-9a-f-]{36}$/);
-
+  const scope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const read = suffix => browserFetchJSON(cdp, `/api/v1/integrations/${task4DiscoveryIntegrationID}/${suffix}`, { "X-Zasp-Expected-Scope": scope });
+  const confirmNativeHistory = async () => {
+    await waitForBrowserText(cdp, /Paged integration 1001/);
+    assert.equal(await browserHasAriaLabel(cdp, "Open Harness AWS discovery"), false);
+    const [freshness, schedule, history, sync] = await Promise.all([read("freshness"), read("schedule"), read("syncs?limit=100"), read(`syncs/${syncID}`)]);
+    assert.equal(freshness.status, 200);
+    for (const kind of ["risk", "graph", "search"]) assert.equal(freshness.body.projections[kind].state, "pending");
+    assert.equal(schedule.status, 404);
+    assert.equal(schedule.body.code, "not_found");
+    assert.equal(history.status, 200);
+    assert.ok(history.body.items.some(item => item.id === syncID && item.status === "succeeded"));
+    assert.equal(sync.status, 200);
+    assert.equal(sync.body.discovered_count, 1);
+    assert.equal(sync.body.status, "succeeded");
+  };
+  await confirmNativeHistory();
   await reloadBrowser(cdp);
-  await waitForBrowserText(cdp, /Harness AWS discovery/);
-  await clickBrowserAria(cdp, "Open Harness AWS discovery");
-  await waitForBrowserText(cdp, /Automatic discovery/);
-  await waitForBrowserText(cdp, /Risk projection: pending/);
-  await waitForBrowserText(cdp, /No automatic sync schedule/);
-  const reloaded = await waitForBrowserText(cdp, /succeeded/);
-  assert.match(reloaded, /Risk projection: pending/);
-  assert.match(reloaded, /No automatic sync schedule/);
-  assert.match(reloaded, /succeeded/);
+  await confirmNativeHistory();
+  const reloaded = await browserBodyText(cdp);
   console.log("combined E2E: Task4 reload preserved authoritative discovery state");
 
   const forensics = await browserConnectorForensics(cdp);
@@ -6844,12 +6852,6 @@ async function browserLabeledControlDisabled(cdp, label) {
   return evaluated.result?.value;
 }
 
-async function browserRoleControlState(cdp, label, buttonText) {
-  await cdp.send("Runtime.evaluate", { expression: "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))", awaitPromise: true, returnByValue: true });
-  const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = field?.querySelector('select'); const row = select?.closest('li'); const button = row && [...row.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(buttonText)}); return { selected: select?.value ?? null, disabled: button instanceof HTMLButtonElement ? button.disabled : null }; })()`, returnByValue: true });
-  return evaluated.result?.value;
-}
-
 async function waitForBrowserControlDisabled(cdp, text, expected) {
   await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,input,select,textarea')].find((candidate) => candidate.textContent?.trim() === value || candidate.getAttribute('aria-label') === value); return Boolean(element) && element.disabled === ${JSON.stringify(expected)}; })()`);
   return expected;
@@ -6857,11 +6859,6 @@ async function waitForBrowserControlDisabled(cdp, text, expected) {
 
 async function selectBrowserOption(cdp, label, text) {
   await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); const option = select && [...select.options].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)}); if (!select || !option || select.disabled) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, option.value); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-}
-
-async function selectBrowserOptionAndClickSibling(cdp, label, text, buttonText) {
-  await selectBrowserOption(cdp, label, text);
-  await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); const row = select?.closest('li'); const button = row && [...row.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(buttonText)}); if (!button || button.disabled) return false; button.click(); return true; })()`);
 }
 
 async function waitForBrowserSelectedOption(cdp, label, text) {

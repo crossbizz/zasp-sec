@@ -23,6 +23,9 @@ spec:
       annotations:
         # A changed setting, script or secret restarts the pod.
         zasp.io/config-checksum: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        {{- if and .Values.nango.enabled (not .Values.nango.existingSecret) }}
+        zasp.io/nango-checksum: {{ include (print $.Template.BasePath "/nango-secret.yaml") . | sha256sum }}
+        {{- end }}
         {{- if not .Values.secrets.existingSecret }}
         zasp.io/secret-checksum: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
@@ -113,11 +116,53 @@ spec:
               run="psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d postgres"
               one() { [ "$($run -Atc "$1")" = "1" ]; }
               one "select count(*) from pg_database where datname='openfga'" || $run -c "CREATE DATABASE openfga"
+              {{- if and $product .Values.nango.enabled }}
+              one "select count(*) from pg_roles where rolname='nango'" || $run -c "CREATE ROLE nango LOGIN"
+              one "select count(*) from pg_database where datname='nango'" || $run -c "CREATE DATABASE nango OWNER nango"
+              {{- end }}
               {{- if not $external }}
               one "select count(*) from pg_roles where rolname='zasp_operator'" || $run -c "CREATE ROLE zasp_operator LOGIN CREATEROLE BYPASSRLS"
               one "select count(*) from pg_database where datname='zasp'" || $run -c "CREATE DATABASE zasp OWNER zasp_operator TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'"
               {{- end }}
         {{- if $product }}
+        {{- if .Values.nango.enabled }}
+        - name: nango-migrate
+          image: {{ required "images.nango is required when nango.enabled" $images.nango | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          command: ["node", "packages/server/dist/migrate.js"]
+          env: {{- include "zasp.nangoDatabaseEnv" . | nindent 12 }}
+          {{- include "zasp.nangoContainerSecurity" . | nindent 10 }}
+        - name: nango
+          image: {{ $images.nango | quote }}
+          imagePullPolicy: {{ $images.pullPolicy }}
+          restartPolicy: Always
+          command: ["node", "packages/server/dist/server.js"]
+          ports: [{ name: nango, containerPort: 3003 }]
+          env:
+            {{- include "zasp.nangoDatabaseEnv" . | nindent 12 }}
+            - { name: NANGO_MIGRATE_AT_START, value: "false" }
+            - { name: FLAG_SERVE_CONNECT_UI, value: "false" }
+            - { name: FLAG_AUTH_ROLES_ENABLED, value: "false" }
+            - { name: CSP_REPORT_ONLY, value: "true" }
+            - { name: SERVER_PORT, value: "3003" }
+            - { name: NANGO_PUBLIC_CONNECT_URL, value: {{ printf "%s/connect" (include "zasp.nangoURL" .) | quote }} }
+            # The private dashboard uses this origin for API requests, sessions
+            # and account verification. Configure the public OAuth redirect in
+            # the prod environment's Auth callback setting.
+            - { name: NANGO_SERVER_URL, value: "http://127.0.0.1:3003" }
+            - { name: NANGO_PUBLIC_SERVER_URL, value: "http://127.0.0.1:3003" }
+            - name: NANGO_ADMIN_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "zasp.nangoSecret" . }}, key: admin-key } }
+            - name: NANGO_SECRET_KEY_PROD
+              valueFrom: { secretKeyRef: { name: {{ include "zasp.nangoSecret" . }}, key: service-key } }
+          startupProbe:
+            httpGet: { path: /ready, port: nango }
+            periodSeconds: 3
+            failureThreshold: 60
+          readinessProbe: { httpGet: { path: /ready, port: nango } }
+          livenessProbe: { httpGet: { path: /health, port: nango } }
+          {{- include "zasp.nangoContainerSecurity" . | nindent 10 }}
+        {{- end }}
         # 4. Secrets and fixed paths, laid out for the product user.
         - name: prepare
           image: {{ $api | quote }}
@@ -357,6 +402,15 @@ spec:
         # ./zasp bootstrap-admin, status and backup run here.
         {{- include "zasp.process" (dict "root" $root "name" "toolbox" "image" $api "args" (list "toolbox")) | nindent 8 }}
       volumes:
+        {{- if and $product .Values.nango.enabled }}
+        - name: nango-client
+          secret:
+            secretName: {{ include "zasp.nangoSecret" . }}
+            defaultMode: 0440
+            items: [{ key: service-key, path: service-key }]
+        - name: nango-tmp
+          emptyDir: { sizeLimit: 64Mi }
+        {{- end }}
         - name: config
           configMap: { name: {{ $name }}-files, defaultMode: 0555 }
         - name: secret

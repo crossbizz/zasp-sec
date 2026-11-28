@@ -177,6 +177,35 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+    patch:
+      operationId: updateOrganization
+      summary: Rename the authenticated organization
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NameInput' }
+      responses:
+        '200':
+          description: Updated organization.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/workspaces:
     get:
       operationId: listWorkspaces
@@ -444,6 +473,132 @@ paths:
       responses:
         '200': { description: Updated member., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Principal' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: removeMember
+      summary: Remove the member's access to the organization and revoke active sessions
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/ResourceVersion'
+      responses:
+        '200':
+          description: Deactivated organization membership.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Principal' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/members/{id}/profile:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    patch:
+      operationId: updateMemberProfile
+      summary: Update the member's display name in this organization
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberProfileInput' }
+      responses:
+        '200':
+          description: Updated member.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Principal' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/members/{id}/access:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getMemberAccess
+      summary: View this member's workspace and environment access
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200':
+          description: Member scope assignments and permissions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberAccess' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/member-invitations:
+    get:
+      operationId: listMemberInvitations
+      summary: List pending invitations for the authenticated organization
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Pending invitations.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberInvitationPage' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: inviteMember
+      summary: Invite a member to this organization with an initial role in the active scope
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberInvitationInput' }
+      responses:
+        '201':
+          description: Organization member invitation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberInvitation' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/admin/group-mappings:
     get:
@@ -950,7 +1105,8 @@ paths:
   /api/v1/integration-catalog:
     get:
       operationId: listIntegrationCatalog
-      summary: Search the product connector catalog
+      summary: Search the configured Nango connector catalog
+      description: Lists supported Nango integrations available to this deployment. An unconfigured deployment returns an empty list.
       parameters:
         - name: q
           in: query
@@ -8714,6 +8870,8 @@ components:
           type: string
           minLength: 2
           maxLength: 128
+        email: { $ref: '#/components/schemas/MemberEmail' }
+        display_name: { $ref: '#/components/schemas/MemberDisplayName' }
         role:
           $ref: '#/components/schemas/BuiltInRoleName'
         active:
@@ -8736,6 +8894,66 @@ components:
       required: [role]
       properties:
         role: { $ref: '#/components/schemas/BuiltInRoleName' }
+    MemberDisplayName:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
+    MemberEmail:
+      type: string
+      format: email
+      maxLength: 254
+    MemberProfileInput:
+      type: object
+      additionalProperties: false
+      required: [display_name]
+      properties:
+        display_name: { $ref: '#/components/schemas/MemberDisplayName' }
+    MemberInvitationInput:
+      type: object
+      additionalProperties: false
+      required: [email, display_name, role]
+      properties:
+        email: { $ref: '#/components/schemas/MemberEmail' }
+        display_name: { $ref: '#/components/schemas/MemberDisplayName' }
+        role: { $ref: '#/components/schemas/BuiltInRoleName' }
+    MemberInvitation:
+      type: object
+      additionalProperties: false
+      required: [id, email, display_name, role, status, workspace_id, environment_id]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        email: { $ref: '#/components/schemas/MemberEmail' }
+        display_name: { $ref: '#/components/schemas/MemberDisplayName' }
+        role: { $ref: '#/components/schemas/BuiltInRoleName' }
+        status: { type: string, enum: [pending, accepted] }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+    MemberInvitationPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/MemberInvitation' } }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
+    MemberAccessScope:
+      type: object
+      additionalProperties: false
+      required: [workspace_id, environment_id, workspace_name, environment_name, role, permissions]
+      properties:
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_name: { type: string, minLength: 1, maxLength: 128 }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        environment_name: { type: string, minLength: 1, maxLength: 128 }
+        role: { $ref: '#/components/schemas/BuiltInRoleName' }
+        permissions: { type: array, uniqueItems: true, items: { $ref: '#/components/schemas/Permission' } }
+    MemberAccess:
+      type: object
+      additionalProperties: false
+      required: [member_id, items]
+      properties:
+        member_id: { $ref: '#/components/schemas/ProductID' }
+        items: { type: array, items: { $ref: '#/components/schemas/MemberAccessScope' } }
     Permission:
       type: string
       enum:

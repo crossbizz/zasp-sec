@@ -1,9 +1,23 @@
-Zasp is starting in namespace {{ .Release.Namespace }}. The first start pulls six
-dependency images and installs the database schema; allow several minutes.
+Zasp is starting in namespace {{ .Release.Namespace }}. Allow several minutes
+for the dependency images and database setup.
 
   kubectl -n {{ .Release.Namespace }} get pod {{ include "zasp.name" . }}-0 --watch
 {{ if .Values.product.enabled }}
 Open it at {{ include "zasp.origin" . }}/
+{{ if .Values.nango.enabled }}
+Open the private Nango dashboard from your workstation:
+
+  kubectl -n {{ .Release.Namespace }} port-forward --address=127.0.0.1 service/{{ include "zasp.nangoName" . }} 3003:3003
+
+  http://127.0.0.1:3003/
+
+Create the operator account. For account verification, open the private link in
+kubectl -n {{ .Release.Namespace }} logs {{ include "zasp.name" . }}-0 -c nango.
+Select prod. In Environment settings, set Auth callback to
+{{ include "zasp.origin" . }}/api/v1/integrations/oauth/callback.
+Register that exact redirect URL with the OAuth provider and configure its integration.
+The Zasp API and discovery worker use this same Nango instance.
+{{- end }}
 {{- if not .Values.ingress.enabled }}
 The service is not exposed outside the cluster. To reach it from this machine:
 

@@ -77,7 +77,10 @@ export function fixture(url, fallback) {
   if (path === 'integration-catalog') return { items: catalog };
   if (path === 'integrations') return pageOf([{ id: id(400), connector_key: 'github', name: 'Engineering repositories', configuration: { authorization_mode: 'github_app' }, status: 'active', created_at: at, updated_at: at }]);
   if (path === 'admin/roles') return pageOf([{ role: 'security_admin', permissions: ['view','view_audit','manage_workflows'] }, { role: 'read_only_viewer', permissions: ['view'] }]);
-  if (path === 'admin/members') return pageOf([{ ...bootstrap.principal, version: 1 }]);
+  if (path === 'admin/members') return pageOf([{ ...bootstrap.principal, display_name: 'Morgan Ellis', email: 'morgan@example.test', version: 1 }]);
+  if (path === 'admin/member-invitations') return pageOf([]);
+  if (path === 'admin/roles') return { items: [{ role: 'security_admin', permissions: ['view'] }, { role: 'read_only_viewer', permissions: ['view'] }] };
+  if (path === 'admin/members/' + id(4) + '/access') return { member_id: id(4), items: [{ workspace_id: id(2), workspace_name: 'Security', environment_id: id(3), environment_name: 'Production', role: 'security_admin', permissions: ['view'] }] };
   if (path === 'admin/api-token-policy') return { environment_id: id(3), max_lifetime_days: 90, version: 1, updated_at: at, default_lifetime_days: 1, decision_token_max_lifetime_days: 90, token_max_lifetime_days: 90 };
   if (path === 'admin/api-tokens') return pageOf([workloadToken, supervisedToken]);
   if (path === `runtime/workload-bindings/${supervisedToken.id}`) return supervisedSession;
@@ -112,7 +115,7 @@ export function fixture(url, fallback) {
   if (path === 'devices') return { items: [reviewDevice], next_after_id: null, counts: { expected: 1, enrolled: 1, online: 0, acknowledged: 1 } };
   if (path === `devices/${reviewDevice.id}`) return { ...reviewDevice, reported_adapter: 'macos_claude_ticket', inventory_partitions: 0, observation_count: 0, partition_summaries: [], recent_observations: [] };
   if (path === 'sensors') return pageOf([{ id: id(700), name: 'production-runtime', kind: 'tetragon', mode: 'metadata_only', state: 'active', version: 1, token_expires_at: '2099-01-01T00:00:00Z', last_heartbeat_at: at, created_at: at, updated_at: at }]);
-  if (['security-agent-runs', 'security-agent-approvals', 'tests', 'test-runs', 'attack-lab/runs', 'admin/roles'].includes(path)) return { items: [] };
+  if (['security-agent-runs', 'security-agent-approvals', 'tests', 'test-runs', 'attack-lab/runs'].includes(path)) return { items: [] };
   if (path === 'sessions' && url.searchParams.get('kind') === 'runtime') return { ...pageOf([]), search: { state: 'empty', pending_batches: 0, pending_batches_capped: false, quarantined_batches: 0, quarantined_batches_capped: false, last_indexed_at: null, oldest_pending_at: null, checked_at: at, selector_coverage: 'observed_only' } };
   if (path === 'sessions') return pageOf([{id:'session-review',agent_id:'product-console',principal_id:id(4),
     workspace_id:id(2),environment_id:id(3),state:'active',authenticated_at:at,expires_at:'2099-01-01T00:00:00Z',version:1,events:[]}]);

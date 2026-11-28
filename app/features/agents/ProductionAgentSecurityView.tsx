@@ -1,5 +1,6 @@
 "use client";
 
+import { GettingStarted } from "../onboarding/GettingStarted";
 import { ProviderLogo } from "../../components/ProviderLogo";
 
 import { workforceAPI } from "../../../apps/web/api/workforce-inventory";
@@ -132,16 +133,16 @@ export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI
   if (query.status === "forbidden") return <State title="Forbidden" alert="Authorization rejected" />;
   if (query.status === "error") return <State title="Unavailable" alert="Product API unavailable" retry={() => void query.retry()} />;
   if (!query.data) return <State title="Empty" status="No records in this scope." />;
-  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data.</div>}<ConnectedDataView data={query.data} api={api} mcpAPI={mcpAPI} gatewayAPI={gatewayAPI} initialDetailID={initialDetailID} onNavigate={onNavigate} canWrite={canWrite} /></>;
+  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data.</div>}<ConnectedDataView current={query.status === "success"} data={query.data} api={api} mcpAPI={mcpAPI} gatewayAPI={gatewayAPI} initialDetailID={initialDetailID} onNavigate={onNavigate} canWrite={canWrite} /></>;
 }
 
 const connectedPaths = new Set(["/", "/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"]);
 
-function ConnectedDataView({ data, api, mcpAPI, gatewayAPI, initialDetailID, onNavigate, canWrite }: { data: ConnectedData; api: ProductionAgentSecurityAPI; mcpAPI: MCPInventoryAPI | null; gatewayAPI: GatewayAPI | null; initialDetailID: string; onNavigate(path: string): void; canWrite: boolean }) {
-  return data.kind === "home" ? <ConnectedHome value={data.value} onNavigate={onNavigate} /> : <ConnectedInventory key={data.category} title={data.title} category={data.category} values={data.values} api={api} mcpAPI={mcpAPI} gatewayAPI={gatewayAPI} initialDetailID={initialDetailID} canWrite={canWrite} onNavigate={onNavigate} />;
+function ConnectedDataView({ current, data, api, mcpAPI, gatewayAPI, initialDetailID, onNavigate, canWrite }: { current: boolean; data: ConnectedData; api: ProductionAgentSecurityAPI; mcpAPI: MCPInventoryAPI | null; gatewayAPI: GatewayAPI | null; initialDetailID: string; onNavigate(path: string): void; canWrite: boolean }) {
+  return data.kind === "home" ? <ConnectedHome current={current} value={data.value} onNavigate={onNavigate} /> : <ConnectedInventory key={data.category} title={data.title} category={data.category} values={data.values} api={api} mcpAPI={mcpAPI} gatewayAPI={gatewayAPI} initialDetailID={initialDetailID} canWrite={canWrite} onNavigate={onNavigate} />;
 }
 
-function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(path: string): void }) {
+function ConnectedHome({ current, value, onNavigate }: { current: boolean; value: HomeSummary; onNavigate(path: string): void }) {
   const session = useOptionalSession();
   const canReadPaths = !session || session.hasCapability("attack-paths.read");
   const canReadWorkflows = !session || session.hasCapability("security-agents.read");
@@ -150,7 +151,15 @@ function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(p
   const operational = (canReadPaths && value.high_risk_paths > 0)
     || (canReadWorkflows && value.pending_approvals + value.needs_human_runs + value.failed_runs + value.inconclusive_runs > 0)
     || (canReadSensors && value.healthy === false);
-  return <div className="page"><PageHeader title="Security overview" description={environmentHealthUnavailable ? "Authorized resources only" : "Authoritative posture for the selected scope."} /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: value.high_risk_paths > 0 ? "danger" : undefined, onClick: canReadPaths ? () => onNavigate("/exposure/attack-paths") : undefined }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />
+  const noActivity = current && [value.agent_count, value.high_risk_paths, value.verified_changes, value.blocked_changes,
+      value.pending_approvals, value.needs_human_runs, value.failed_runs, value.inconclusive_runs,
+      value.recent_contained, value.recent_remediated].every(count => count === 0);
+  return <div className="page"><PageHeader title="Security overview" description={environmentHealthUnavailable ? "Authorized resources only" : "Authoritative posture for the selected scope."} />
+    {noActivity && <GettingStarted environmentVisible={!environmentHealthUnavailable}
+      integrations={{ read: session?.hasCapability("integrations.read") === true, write: session?.hasCapability("integrations.write") === true }}
+      sensors={{ read: session?.hasCapability("sensors.read") === true, write: session?.hasCapability("sensors.write") === true }}
+      onNavigate={onNavigate} />}
+    <MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: value.high_risk_paths > 0 ? "danger" : undefined, onClick: canReadPaths ? () => onNavigate("/exposure/attack-paths") : undefined }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />
     <LocalScanHelp />
     {environmentHealthUnavailable && <p role="status">Environment health unavailable</p>}
     {value.healthy === false && <div role="alert" className="form-error">Coverage is degraded</div>}

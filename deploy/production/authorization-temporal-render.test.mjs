@@ -87,7 +87,7 @@ test('current profile renders the real pollers, registered authorities and bound
   const migration = one(rows, 'Job', 'agentsec-schema-v61');
   assert.equal(env(migration).ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, 'zasp_svc_red_team_adapter');
   assert.equal(env(migration).ZASP_OUTBOX_WORKER_DB_PRINCIPAL, 'zasp_svc_outbox');
-  assert.match(pod(migration).containers[0].args[0], /if ! \/app\/agentsec-migrate verify-baseline; then \/app\/agentsec-migrate install-baseline; \/app\/agentsec-migrate verify-baseline; fi; .*register-authorization-verifier.*register-worker-authorization-verifier.*register-compensation-authorization-verifier.*register-approval-maintenance-verifier$/);
+  assert.match(pod(migration).containers[0].args[0], /\/app\/agentsec-migrate ensure-baseline; .*register-authorization-verifier.*register-worker-authorization-verifier.*register-compensation-authorization-verifier.*register-approval-maintenance-verifier$/);
   assert.doesNotMatch(pod(migration).containers[0].args[0], /up-authorization-runtime-profile|register-temporal-executor-principals|register-identity/);
   assert.equal(env(migration).ZASP_MIGRATION_DB_PRINCIPAL, 'zasp_operator');
   assert.equal(env(migration).ZASP_APPROVAL_MAINTENANCE_KEY_FILE, '/var/run/zasp-approval-maintenance/delivery.key');

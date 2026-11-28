@@ -1,3 +1,4 @@
+import { LegacyIntegrationWorkflow } from "./test/LegacyIntegrationWorkflow";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +7,6 @@ import type { APIClient } from "../../../apps/web/api/client";
 import type { Integration } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { SessionProvider } from "../../auth/SessionProvider";
-import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
 import { WorkflowMutationProvider } from "./useRetainedWorkflowMutation";
 
 const manifest = {
@@ -55,12 +55,12 @@ function catalogClient(integrations: readonly Integration[], extra: Record<strin
 	});
 }
 
-describe("Google Cloud connector", () => {
+describe("legacy Google Cloud connector workflow", () => {
 	it("saves a key-based integration without the audience and shows the setup steps", async () => {
 		const user = userEvent.setup();
 		const GET = catalogClient([]);
 		const POST = vi.fn(async () => jsonResult(pending, 201, receiptHeaders));
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><LegacyIntegrationWorkflow canWrite /></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Configure Google Cloud" }));
 		const dialog = screen.getByRole("dialog", { name: "Configure Google Cloud" });
@@ -90,7 +90,7 @@ describe("Google Cloud connector", () => {
 		const federated: Integration = { ...pending, configuration: { audience, identity_reference: federation, scope: "folders/42" } };
 		const GET = catalogClient([]);
 		const POST = vi.fn(async () => jsonResult(federated, 201, receiptHeaders));
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><LegacyIntegrationWorkflow canWrite /></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Configure Google Cloud" }));
 		const dialog = screen.getByRole("dialog", { name: "Configure Google Cloud" });
@@ -110,7 +110,7 @@ describe("Google Cloud connector", () => {
 
 	it("offers reference authorization without showing the reference", async () => {
 		const user = userEvent.setup();
-		render(<APIProvider client={{ GET: catalogClient([pending]) } as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+		render(<APIProvider client={{ GET: catalogClient([pending]) } as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><LegacyIntegrationWorkflow canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
 
 		await user.click(await screen.findByRole("button", { name: "Open Acme Google Cloud" }));
 		expect(screen.getByRole("button", { name: "Authorize Google Cloud reference" })).toBeEnabled();

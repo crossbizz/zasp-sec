@@ -34,7 +34,30 @@ const (
 // connection_reference}, which names a connection made in Nango; a platform
 // without a sign-in accepts only that and its setup form asks for it.
 func SaaSManifests(registry *saasdiscovery.Registry) []ConnectorManifest {
-	platforms := registry.Platforms()
+	return saasManifests(registry.Platforms())
+}
+
+// ConfiguredSaaSManifests intersects Zasp's adapters with the integration key
+// and provider template actually present in the deployment's Nango environment.
+func ConfiguredSaaSManifests(registry *saasdiscovery.Registry, configured map[string]string, canSignIn bool) []ConnectorManifest {
+	var candidates []saasdiscovery.Platform
+	for _, platform := range registry.Platforms() {
+		provider := platform.NangoProvider
+		if provider == "" {
+			provider = platform.Nango.Key
+		}
+		if configured[platform.Nango.Key] != provider {
+			continue
+		}
+		if !canSignIn {
+			platform.SignIn = nil
+		}
+		candidates = append(candidates, platform)
+	}
+	return saasManifests(candidates)
+}
+
+func saasManifests(platforms []saasdiscovery.Platform) []ConnectorManifest {
 	manifests := make([]ConnectorManifest, 0, len(platforms))
 	for _, platform := range platforms {
 		platform := platform

@@ -37,6 +37,7 @@ API states), `saas_mcp_server` (tool). Every entity carries `platform` and
   of a GraphQL query (see "GraphQL lists"). A request that no rule allows is
   never sent. A rule also lists the provider headers a request may carry
   (`HeaderKeys`).
+- `NangoProvider` names the Nango provider template if its identifier differs from the integration key.
 - `HostTemplate`, with `Nango.HostPattern` and `Nango.HostSuffixes`: only for
   a platform whose API host differs per tenant. See "Per-tenant hosts".
 - `SignIn`: only for a platform a person can sign in to from the product.
@@ -146,6 +147,25 @@ The public-address check is made by the product before it calls Nango; Nango
 makes the connection. Keep Nango's own egress limited to the providers
 (`nango.providerEgressCIDRs`); a per-tenant platform needs the provider's
 address ranges there.
+
+## Configure an existing provider
+
+For the standard Kubernetes deployment, run `./zasp --profile kubernetes nango dashboard` from your workstation. In the private dashboard, select the linked environment (normally **prod**) and create the integration using the key below. Enter provider credentials in Nango. [Kubernetes setup](../getting-started/administrator.md#set-up-nango-in-this-cluster)
+
+| Zasp source | Nango integration key | Nango provider template |
+| --- | --- | --- |
+| Anthropic | `anthropic-admin` | `anthropic-admin` |
+| Atlassian | `jira-basic` | `jira-basic` |
+| Atlassian organization | `atlassian-admin` | `atlassian-admin` |
+| Databricks | `databricks` | `databricks-workspace` |
+| GitLab | `gitlab` | `gitlab` |
+| Google Workspace | `google-workspace-admin` | `google-workspace-admin` |
+| OpenAI organization | `openai-admin` | `openai-admin` |
+| OpenAI project | `openai` | `openai` |
+| ServiceNow | `servicenow` | `servicenow` |
+| Slack AI apps | `slack` | `slack` |
+
+Open **Integrations** in Zasp to check the catalog. The API reads the configured integrations using the Nango environment service key. It lists a source when its integration key, provider template and enabled Zasp adapter match. The separate Slack workspace authorization remains available in deployments that only enable that adapter.
 
 ## Add a platform
 
@@ -460,11 +480,4 @@ the value of one query parameter (`"action": "{parent}"`).
 
 The two Nango proxy headers the product relies on are taken from Nango's own
 SDK (`@nangohq/node`): `Base-Url-Override`, which pins a per-tenant host, and
-`Nango-Proxy-<name>`, which forwards a provider header. Two things about
-Nango are still written from memory and have not been run against a Nango
-server: the `params[<name>]` form in which a sign-in passes
-connection parameters (ServiceNow's `subdomain`), and the integration key of
-each platform (`Nango.Key` in its definition, which must be the key of the
-integration created in Nango). The provider's callback address of every
-Nango integration is the product's own:
-`<public origin>/api/v1/integrations/oauth/callback`.
+`Nango-Proxy-<name>`, which forwards a provider header. The pinned Nango OAuth endpoint receives per-tenant connection parameters in `params[<name>]`, including the ServiceNow subdomain. Register the Zasp callback address for provider sign-in at `<public origin>/api/v1/integrations/oauth/callback`. [Nango OAuth controller](https://github.com/NangoHQ/nango/blob/7faf2c303bbb0322333f526e9ca31c0fe95ef58e/packages/server/lib/controllers/oauth.controller.ts)

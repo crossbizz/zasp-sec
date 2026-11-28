@@ -445,6 +445,8 @@ type Platform struct {
 	// rules. The rules are an allow-list; a request no rule matches is
 	// never sent.
 	Nango nango.Entry
+	// NangoProvider is the provider template when the required integration key is an alias.
+	NangoProvider string
 	// RequiredScopes are the provider scopes or permissions the connection
 	// needs, for the catalog and the launch registry.
 	RequiredScopes []string

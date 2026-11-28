@@ -189,7 +189,7 @@ class Service:
             code, data = api.request("GET", "/ready")
             if code != 200 or data.get("result") != "ok":
                 return "unavailable"
-            file, path, header = self.config("SERVICE_KEY_FILE"), "/api/v1/integrations", "Authorization"
+            file, path, header = self.config("SERVICE_KEY_FILE"), "/integrations", "Authorization"
         if not file:
             return "unauthenticated (a scoped status credential is required)"
         try:

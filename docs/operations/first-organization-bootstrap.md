@@ -1,6 +1,6 @@
 # First Organization bootstrap
 
-A new deployment has no Organization and no member, and sign-in only admits a member who already has a product membership. `zasp-bootstrap` is the operator command that creates the first Organization and invites its first Organization Admin. Nothing else creates a membership: there is no self-signup and no API route for it.
+A new deployment has no Organization and no member. `zasp-bootstrap` creates the first Organization and invites its first Organization Admin. That administrator can then invite colleagues from **Settings → Identity & Access → Invite member**. Each invitation binds a role and initial environment to the invited provider identity.
 
 The command ships in the API image at `/app/zasp-bootstrap`, next to `agentsec-migrate`.
 
@@ -79,8 +79,7 @@ Returning members use sign-in start, which redirects to the configured OAuth pro
 ## Known limits
 
 - Product-started sign-in is bound to the one Stytch Organization in `ZASP_STYTCH_ORGANIZATION_ID`. In `saas` mode, members of any other Organization can enter through their invitation but have no sign-in start of their own yet.
-- Members other than the bootstrapped administrators have no product membership path. Sign-in does not create a membership for a Stytch member who lacks one.
-- The stateless invitation exchange is not limited to members with a pending product invitation. Recording and consuming one needs a schema change.
+- The bootstrap invitation creates the administrator’s membership before first sign-in. Additional members receive their initial grant when their verified identity matches a pending product invitation.
 - Corporate SSO sign-in is not accepted by the callback. SSO connections can be configured, but only OAuth and invitation tokens are exchanged.
 
 These are open launch requirements, tracked in `docs/internal/implementation_status_v1.5.md`.

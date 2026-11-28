@@ -85,6 +85,7 @@ const OPERATIONS = {
   switchSessionScope: ["browserSession", "switchScope"],
 
   getOrganization: ["organization", "get"],
+  updateOrganization: ["organization", "update"],
   getCurrentPrincipal: ["organization", "getCurrentPrincipal"],
   listWorkspaces: ["workspaces", "list"],
   createWorkspace: ["workspaces", "create"],
@@ -97,6 +98,11 @@ const OPERATIONS = {
 
   listMembers: ["members", "list"],
   updateMemberRole: ["members", "updateRole"],
+  listMemberInvitations: ["members", "listInvitations"],
+  inviteMember: ["members", "invite"],
+  updateMemberProfile: ["members", "updateProfile"],
+  removeMember: ["members", "remove"],
+  getMemberAccess: ["members", "getAccess"],
   listBuiltInRoles: ["members", "listBuiltInRoles"],
   listGroupMappings: ["groupMappings", "list"],
   updateGroupMappings: ["groupMappings", "update"],

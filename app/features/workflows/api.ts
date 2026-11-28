@@ -287,6 +287,24 @@ export function createPoliciesAPI(client: APIClient) {
 
 export type PoliciesAPI = ReturnType<typeof createPoliciesAPI>;
 
+export function isNangoIntegration(integration: Pick<Integration, "connector_key">): boolean {
+  return integration.connector_key === "saas" || integration.connector_key === "slack";
+}
+
+export function isNangoManifest(manifest: ConnectorManifest): boolean {
+  return (manifest.platform !== undefined && (manifest.auth_mode === "nango_connection" || manifest.auth_mode === "nango_sign_in"))
+    || (manifest.key === "slack" && manifest.auth_mode === "managed_oauth");
+}
+
+export function createNangoIntegrationsAPI(client: APIClient): IntegrationsAPI {
+  const api = createIntegrationsAPI(client);
+  return {
+    ...api,
+    async listCatalog(signal) { return (await api.listCatalog(signal)).filter(isNangoManifest); },
+    async listIntegrations(signal) { return (await api.listIntegrations(signal)).filter(isNangoIntegration); },
+  };
+}
+
 export function createIntegrationsAPI(client: APIClient) {
   return {
     async listCatalog(signal?: AbortSignal): Promise<readonly ConnectorManifest[]> {

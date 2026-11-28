@@ -92,6 +92,7 @@ async function auditExportValidator(name) {
   assert.ok(document.components.schemas[name], `${name} contract is missing`);
   const ajv = new Ajv2020({ strict: false, allErrors: true });
   ajv.addFormat("date-time", formats.get("date-time"));
+  ajv.addFormat("email", formats.get("email"));
   return ajv.compile({ $ref: `#/components/schemas/${name}`, components: document.components });
 }
 
@@ -227,6 +228,12 @@ const expectedOperations = new Map([
   ["getCurrentPrincipal", ["/api/v1/me", "get"]],
   ["listMembers", ["/api/v1/admin/members", "get"]],
   ["updateMemberRole", ["/api/v1/admin/members/{id}", "patch"]],
+  ["updateOrganization", ["/api/v1/organization", "patch"]],
+  ["listMemberInvitations", ["/api/v1/admin/member-invitations", "get"]],
+  ["inviteMember", ["/api/v1/admin/member-invitations", "post"]],
+  ["updateMemberProfile", ["/api/v1/admin/members/{id}/profile", "patch"]],
+  ["removeMember", ["/api/v1/admin/members/{id}", "delete"]],
+  ["getMemberAccess", ["/api/v1/admin/members/{id}/access", "get"]],
   ["listBuiltInRoles", ["/api/v1/admin/roles", "get"]],
   ["listGroupMappings", ["/api/v1/admin/group-mappings", "get"]],
   ["updateGroupMappings", ["/api/v1/admin/group-mappings", "patch"]],
@@ -253,6 +260,7 @@ expectedOperations.set("getAuditExport", ["/api/v1/audit-exports/{id}", "get"]);
 const identityUIOperations = new Set([
   "getOrganization", "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
   "listMembers", "updateMemberRole", "listBuiltInRoles",
+  "updateOrganization", "listMemberInvitations", "inviteMember", "updateMemberProfile", "removeMember", "getMemberAccess",
   "listGroupMappings", "updateGroupMappings",
   "listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
   "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
@@ -318,4 +326,48 @@ test("uses strict product schemas and the shared stable error response", async (
   assert.deepEqual(environmentList.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
   assert.equal(environmentList.parameters.find((parameter) => parameter.name === "workspace_id")?.required, true);
   assert.match(environmentList.summary, /authorized/i);
+});
+
+test("organization and member mutations require a scoped fresh browser session and concurrency or replay protection", async () => {
+  const source = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
+  const { paths } = load(source, { schema: JSON_SCHEMA });
+  const operations = [
+    ["updateOrganization", "NameInput", "Organization"],
+    ["inviteMember", "MemberInvitationInput", "MemberInvitation"],
+    ["updateMemberProfile", "MemberProfileInput", "Principal"],
+    ["removeMember", null, "Principal"],
+  ];
+  for (const [name, input, response] of operations) {
+    const [path, method] = expectedOperations.get(name);
+    const operation = paths[path][method];
+    assert.deepEqual(operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }], name);
+    const headers = operation.parameters.map(parameter => parameter.$ref.split("/").at(-1));
+    assert.deepEqual(headers.sort(), ["CSRFToken", "FreshAuth", name === "inviteMember" ? "IdempotencyKey" : "ResourceVersion"], name);
+    assert.equal(operation.requestBody?.content["application/json"].schema.$ref, input ? `#/components/schemas/${input}` : undefined, name);
+    assert.equal(operation.responses[name === "inviteMember" ? 201 : 200].content["application/json"].schema.$ref, `#/components/schemas/${response}`);
+  }
+});
+
+test("member invitations only accept a supported role and profile, scoped access identifies each assignment", async () => {
+  const [invite, profile, principal, access] = await Promise.all(
+    ["MemberInvitationInput", "MemberProfileInput", "Principal", "MemberAccess"].map(auditExportValidator),
+  );
+  const input = { email: "sam@example.test", display_name: "Sam Reed", role: "read_only_viewer" };
+  assert.ok(invite(input), JSON.stringify(invite.errors));
+  for (const patch of [
+    { email: "unknown" }, { role: "superuser" }, { display_name: " " },
+    { display_name: "line\nbreak" }, { organization_id: auditExportID(2) }, { permissions: ["manage_identity"] },
+  ]) assert.equal(invite({ ...input, ...patch }), false, JSON.stringify(patch));
+  assert.ok(profile({ display_name: "Sam Reed" }));
+  assert.equal(profile({ display_name: "Sam Reed", email: "another@example.test" }), false);
+  const legacy = { id: auditExportID(1), organization_id: auditExportID(2), organization_reference: "org-1",
+    member_reference: "member-1", role: input.role, active: true, version: 1 };
+  assert.ok(principal(legacy));
+  assert.ok(principal({ ...legacy, email: input.email, display_name: input.display_name }));
+  const scope = { workspace_id: auditExportID(3), environment_id: auditExportID(4),
+    workspace_name: "Research", environment_name: "Development", role: input.role, permissions: ["view"] };
+  assert.ok(access({ member_id: legacy.id, items: [scope] }));
+  assert.ok(access({ member_id: legacy.id, items: [] }));
+  assert.equal(access({ member_id: legacy.id, items: [{ ...scope, environment_id: undefined }] }), false);
+  assert.equal(access({ member_id: legacy.id, items: [{ ...scope, permissions: ["arbitrary"] }] }), false);
 });

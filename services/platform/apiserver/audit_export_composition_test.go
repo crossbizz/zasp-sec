@@ -110,8 +110,23 @@ func TestAuditExportCompositionRegistersExactBrowserOperations(t *testing.T) {
 	}
 	baseRoutes := base.(*operationRouter).operations
 	extended := router.(*operationRouter).operations
-	if len(baseRoutes) != 150 || len(extended) != 152 || !reflect.DeepEqual(baseRoutes, extended[:150]) {
+	if len(extended) != len(baseRoutes)+2 {
 		t.Fatal("export extension changed the existing route surface")
+	}
+	for index, baseRoute := range baseRoutes {
+		exportRoute := extended[index]
+		// A HandlerFunc (the MCP endpoint) compares unequal under DeepEqual
+		// even when both compositions register the same function.
+		if fn, ok := baseRoute.handler.(http.HandlerFunc); ok {
+			other, ok := exportRoute.handler.(http.HandlerFunc)
+			if !ok || reflect.ValueOf(fn).Pointer() != reflect.ValueOf(other).Pointer() {
+				t.Fatalf("export composition changed handler for %s", baseRoute.operationID)
+			}
+			baseRoute.handler, exportRoute.handler = nil, nil
+		}
+		if !reflect.DeepEqual(baseRoute, exportRoute) {
+			t.Fatalf("export composition changed core route %s", baseRoute.operationID)
+		}
 	}
 	seenIDs, seenPaths := map[string]bool{}, map[string]bool{}
 	for _, operation := range extended {

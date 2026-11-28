@@ -800,11 +800,6 @@ button.metric:hover { background: var(--hover); }
 .connector-auth { color: var(--muted); font-size: 13px; }
 .connector-group .connector-card > p { flex: 1; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .connector-group .connector-card > .button { align-self: flex-start; min-height: 34px; padding: 6px 14px; }
-.connector-card--off { background: var(--surface2); box-shadow: none; }
-.connector-card--off:hover { border-color: var(--border); box-shadow: none; transform: none; }
-.connector-card--off .connector-mark { background: var(--surface2); color: var(--muted); }
-.connector-card--off h4 { color: var(--muted); }
-.connector-card__note { color: var(--muted-2); font-size: 13px; line-height: 1.45; }
 .production-app .card > .connector-catalog { margin: 0; }
 
 /* Configured integrations and other row lists: name, detail, status. */

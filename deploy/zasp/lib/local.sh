@@ -344,22 +344,14 @@ local_logs() {
   docker logs --tail 100 "$container"
 }
 
-# Rebuilds the programs from this checkout and restarts. The database schema
-# is not migrated: a checkout whose schema differs needs a reinstall.
+# Rebuild, apply the sealed schema transition, then restart the product.
 local_upgrade() {
   [ "$#" -eq 0 ] || die "usage: zasp upgrade"
   [ -f "$LOCAL_STATE/up.done" ] || die "nothing is installed yet; run ./zasp up"
   run "$LOCAL_STACK" stop
   note "rebuilding the API and worker programs"
   run "$LOCAL_STACK" build || die "the programs were not built"
-  if [ "${ZASP_DRY_RUN:-0}" = "0" ] && ! local_stack verify >/dev/null 2>&1; then
-    die "the installed database schema is not the one this checkout expects (./zasp status; deploy/local/real-stack/stack.sh verify).
-  There is no in-place schema upgrade between releases. To move to this checkout:
-    ./zasp backup            # keeps the old data for reference; it cannot be restored into the new schema
-    ./zasp uninstall --yes
-    ./zasp up
-  See docs/operations/baseline-schema-install.md, 'Reinstalling over an earlier artifact'."
-  fi
+  run "$LOCAL_STACK" upgrade-schema || die "schema upgrade refused; the database must have an intact supported baseline. Inspect ./zasp status and docs/operations/baseline-schema-install.md."
   local_web_dependencies
   # 'start' repeats the installation steps (all idempotent) when this marker
   # is absent, and rebuilds the web application when its sources are newer.
