@@ -27,7 +27,7 @@ function harness({kind='mounted',fail,mode=true,emitterFails=false,historicalAct
  const call=(name,args)=>{calls.push({name,args});if(name===fail)throw owned;};
  const cleanupController={run:async()=>{call('cleanup',[]);},dispose:()=>{call('dispose',[]);}};
  const configuration={dsn:'CANARY_DSN',apiBinary:'/owned/api',workerE2EBinary:'/owned/worker',postgresPort:10,identityPort:11,policyHistoryPort:12,apiPort:13,healthPort:14,webPort:15,proxyPort:16,chromePort:17};
- const deps={assert,path,configuration,complianceBrowserMode:mode,cleanupController,emitComplianceBrowserPhaseFailure,emitComplianceAPIChildFailure,
+ const deps={assert,path,configuration,complianceBrowserMode:mode,complianceResponseTrace:[],cleanupController,emitComplianceBrowserPhaseFailure,emitComplianceAPIChildFailure,
  prepareOwnedCurrentComplianceRuntime:async value=>{assert.equal(value,configuration);call('current-runtime',[]);return {configuration:{...value,currentRuntimeEnvironment:{}},projection:{refresh:async()=>{}}};},closedOwnedAmbientEnvironment:()=>({}),
  console:{log:()=>{},error:x=>{if(emitterFails)throw Error('CANARY_EMITTER');annotations.push(x);}},process:{env:{ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC:'1'}},postgresBin:'/owned/pg',postgresPort:10,dsn:'CANARY_DSN',temporaryRoot:'/owned/tmp',root:'/repo',platform:'/repo/services/platform',productHostname:'CANARY_HOST',
  startPostgres:async(...args)=>{call('postgres',args);return {owned:true};},provisionPostgresPrincipals:async(...args)=>{call('principals',args);},

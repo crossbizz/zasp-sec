@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"strings"
+	"sync"
 )
 
 //go:embed sql/0058_production_security_agent_exports.up.sql
@@ -38,7 +39,9 @@ func SecurityAgentExportsFingerprint() string {
 	return "8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f"
 }
 
-func ProductionSecurityAgentExports() Metadata {
+func ProductionSecurityAgentExports() Metadata { return securityAgentExportsMetadata() }
+
+var securityAgentExportsMetadata = sync.OnceValue(func() Metadata {
 	sql := strings.NewReplacer(
 		"-- export sources fragment", securityAgentExportSourcesSQL,
 		"-- export jobs fragment", securityAgentExportJobsSQL,
@@ -54,4 +57,4 @@ func ProductionSecurityAgentExports() Metadata {
 	checksum := hex.EncodeToString(digest[:])
 	sql = strings.NewReplacer("-- compiled export checksum", checksum, "-- compiled export fingerprint", SecurityAgentExportsFingerprint()).Replace(sql)
 	return Metadata{version: 58, name: "production_security_agent_exports", checksum: checksum, up: sql, down: securityAgentExportsDownSQL}
-}
+})

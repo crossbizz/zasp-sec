@@ -144,7 +144,21 @@ func (s *temporalDiscoveryScheduleSource) releaseAbandoned(ctx context.Context, 
 			Examined *int `json:"examined"`
 			Released *int `json:"released"`
 		}
-		if c.QueryRow(ctx, `SELECT zasp_temporal72.release_abandoned_due($1)`, limit).Scan(&raw) != nil || json.Unmarshal(raw, &wire) != nil || wire.Examined == nil || wire.Released == nil || *wire.Released < 0 || *wire.Examined < 0 {
+		if err := c.QueryRow(ctx, `SELECT zasp_temporal72.release_abandoned_due($1)`, limit).Scan(&raw); err != nil {
+			var failure *pgconn.PgError
+			if errors.As(err, &failure) && failure.Code == "42883" {
+				// The registered historical discovery profile predates the baseline sweep.
+				// A broken installed sweep, or a missing sweep on a baseline, is an error.
+				var historical bool
+				if c.QueryRow(ctx, `SELECT to_regnamespace('zasp_baseline') IS NULL
+ AND to_regprocedure('zasp_temporal72.release_abandoned_due(integer)') IS NULL
+ AND zasp_temporal72.principal_ready('zasp_discovery_scheduler')`).Scan(&historical) == nil && historical {
+					return nil
+				}
+			}
+			return errWorkerExecution
+		}
+		if json.Unmarshal(raw, &wire) != nil || wire.Examined == nil || wire.Released == nil || *wire.Released < 0 || *wire.Examined < 0 {
 			return errWorkerExecution
 		}
 		released = *wire.Released

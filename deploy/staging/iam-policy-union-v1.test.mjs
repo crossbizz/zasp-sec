@@ -43,6 +43,11 @@ test('unsupported variable expansion and malformed action/resources refuse', () 
  for (const policy of [doc(allow('s3:GetObject', 'arn:aws:s3:::owned/${aws:username}/*')), doc(allow('missingcolon', '*')), doc(allow('*', 'not-an-arn'))]) assert.throws(() => evaluateUnion([policy], request), /unsupported|policy/);
 });
 import fs from 'node:fs';
+test('the verbose IAM capture has one default profile and the separate policy suite exercises provider-managed evidence', () => {
+ const runs = file => [...fs.readFileSync(new URL(`tests/${file}.tftest.hcl`, import.meta.url), 'utf8').matchAll(/^run "([^"]+)"/gm)].map(match => match[1]);
+ assert.deepEqual(runs('iam_policy_union'), ['closed_default_workload_policy_union']);
+ assert.ok(runs('session_search_iam').includes('discovery_recovery_evidence_encryption'));
+});
 test('existing CI IAM predecessor filters and pinned readonly initialization remain, and actual mock-plan feeds the verifier', () => {
  const workflow = fs.readFileSync(new URL('../../.github/workflows/runnable-ui-acceptance.yml', import.meta.url), 'utf8');
  assert.match(workflow, /init -backend=false -input=false -lockfile=readonly/);
@@ -71,7 +76,7 @@ function refuse(name, mutate, reason) {
  });
 }
 test('captured mock plan: complete distinct workload unions pass independently specified requests', () => {
- assert.equal(verifyMockPlan(parseMockPlan(input)).decisionCases, 2685);
+ assert.equal(verifyMockPlan(parseMockPlan(input)).decisionCases, 2747);
 });
 refuse('unlisted inline policy with unrelated-write Allow refuses', e => {
  const rows = e.find(x => x.type === 'test_plan').test_plan.resource_changes;
@@ -83,6 +88,10 @@ refuse('unlisted inline policy with unrelated-write Allow refuses', e => {
 const secondary = 'aws_iam_role_policy.audit_export_secrets["postgres-audit-export-worker-dsn"]';
 refuse('SECOND existing inline policy unrelated-write Allow participates in union', e => policy(e, secondary, v => v.Statement.push({ Effect: 'Allow', Action: 's3:DeleteObject', Resource: '*' })), /decision matrix/);
 refuse('audit writer SSE condition removal permits missing-context write', e => policy(e, 'aws_iam_role_policy.audit_exports["writer"]', v => { delete v.Statement.find(s => s.Action.includes('s3:PutObject')).Condition; }), /decision matrix/);
+refuse('audit writer requires the audit DLQ readiness read', e => policy(e, 'aws_iam_role_policy.audit_exports["writer"]', v => { v.Statement = v.Statement.filter(s => s.Sid !== 'InspectExportDLQEncryption'); }), /decision matrix.*dlq-encryption-inspection/);
+refuse('publisher readiness cannot inspect other dead-letter queues', e => policy(e, 'aws_iam_role_policy.audit_exports["publisher"]', v => { v.Statement.find(s => s.Sid === 'InspectExportDLQEncryption').Resource = '*'; }), /decision matrix.*no-other-dlq-inspection/);
+refuse('audit DLQ readiness cannot consume a message', e => policy(e, 'aws_iam_role_policy.audit_exports["writer"]', v => { v.Statement.find(s => s.Sid === 'InspectExportDLQEncryption').Action.push('sqs:ReceiveMessage'); }), /decision matrix.*no-dlq-mutation/);
+refuse('an unrelated workload cannot inspect the audit DLQ', e => policy(e, 'aws_iam_role_policy.api', v => v.Statement.push(allow('sqs:GetQueueAttributes', row(e, 'aws_sqs_queue.dead_letter["audit-exports"]').change.after.arn))), /decision matrix.*dlq-encryption-inspection/);
 refuse('SECOND secret KMS context removal permits foreign context', e => policy(e, secondary, v => { delete v.Statement.find(s => s.Action.includes('kms:Decrypt')).Condition; }), /decision matrix/);
 refuse('unsupported condition in nonmatching SECOND inline row', e => policy(e, secondary, v => v.Statement.push({ Effect: 'Allow', Action: 's3:ListBucket', Resource: '*', Condition: { StringEqualsIfExists: { 'kms:ViaService': 'x' } } })), /unsupported/);
 refuse('unresolved managed attachment to workload cannot be assumed denied', e => { const r = row(e, 'aws_iam_role_policy_attachment.eks_cluster'); r.change.after.role = row(e, 'aws_iam_role.audit_exports["writer"]').change.after.id; }, /managed attachment/);

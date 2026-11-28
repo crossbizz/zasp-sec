@@ -8,8 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	fga "github.com/openfga/go-sdk/client"
 	"github.com/openfga/go-sdk/credentials"
+	"github.com/zasp-ai/zasp-sec/services/platform/internal/testopenfga"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
@@ -50,7 +49,7 @@ func TestP7Discovery72DirectNativeAuthorityExpiry(t *testing.T) {
 		Digest       string    `json:"input_digest"`
 		Deadline     time.Time `json:"deadline"`
 	}
-	if json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_FGA_CONFIG")), &pins) != nil || pins.FGAURL != "http://127.0.0.1:8088" || json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_REQUEST")), &input) != nil {
+	if json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_FGA_CONFIG")), &pins) != nil || json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_REQUEST")), &input) != nil {
 		t.Fatal("owned inputs required")
 	}
 	var login string
@@ -72,27 +71,14 @@ func TestP7Discovery72DirectNativeAuthorityExpiry(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT session_user=$1 AND has_function_privilege(session_user,'zasp_temporal72.guard_page_effect(text,text,text,text,text,timestamptz)','EXECUTE')`, login).Scan(&callable); err != nil || !callable {
 		t.Fatal("registered native entry is not directly callable", err)
 	}
-	data, err := exec.CommandContext(ctx, "docker", "inspect", "zasp-runtime-services-openfga-1").Output()
+	token, err := testopenfga.ConsumerToken(ctx, pins.FGAURL, pins.FGATokenFile)
 	if err != nil {
-		t.Fatal("owned FGA unavailable")
-	}
-	var containers []struct{ Config struct{ Env []string } }
-	if json.Unmarshal(data, &containers) != nil || len(containers) != 1 {
-		t.Fatal("owned FGA configuration")
-	}
-	token := ""
-	for _, entry := range containers[0].Config.Env {
-		if strings.HasPrefix(entry, "OPENFGA_AUTHN_PRESHARED_KEYS=") {
-			token = strings.TrimPrefix(entry, "OPENFGA_AUTHN_PRESHARED_KEYS=")
-		}
-	}
-	if token == "" || strings.Contains(token, ",") {
-		t.Fatal("owned FGA credential")
+		t.Fatal(err)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	defer transport.CloseIdleConnections()
-	client, err := fga.NewSdkClient(&fga.ClientConfiguration{ApiUrl: pins.FGAURL, Credentials: &credentials.Credentials{Method: credentials.CredentialsMethodApiToken, Config: &credentials.Config{ApiToken: token}}, HTTPClient: &http.Client{Transport: transport, Timeout: 5 * time.Second}})
+	client, err := fga.NewSdkClient(&fga.ClientConfiguration{ApiUrl: pins.FGAURL, Credentials: &credentials.Credentials{Method: credentials.CredentialsMethodApiToken, Config: &credentials.Config{ApiToken: token}}, HTTPClient: &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
 	if err != nil {
 		t.Fatal("owned FGA client")
 	}

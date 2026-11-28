@@ -26,6 +26,7 @@ import (
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 	"go.temporal.io/api/operatorservice/v1"
@@ -116,6 +117,36 @@ func productRuntimeIO(t *testing.T, cfg productionDiscoveryDependencyConfig, q *
 	}
 }
 
+// Wait at the committed page receipt, outside provider and storage timeouts.
+// The other workflow must obtain its retry decision from the real database.
+type discoveryPageReceiptBarrier struct {
+	apiserver.JSONDatabase
+	jobID    string
+	recorded chan struct{}
+	resume   <-chan struct{}
+	held     atomic.Bool
+}
+
+func (b *discoveryPageReceiptBarrier) QueryJSON(ctx context.Context, statement string, args ...any) (json.RawMessage, error) {
+	raw, err := b.JSONDatabase.QueryJSON(ctx, statement, args...)
+	if err != nil || !strings.HasPrefix(statement, "SELECT zasp_temporal72.record_page(") || len(args) != 6 || args[3] != b.jobID {
+		return raw, err
+	}
+	var page orchestration.DiscoveryPage
+	if err := json.Unmarshal(raw, &page); err != nil {
+		return nil, err
+	}
+	if page.Outcome == "partial" && page.CheckpointVersion == 1 && b.held.CompareAndSwap(false, true) {
+		close(b.recorded)
+		select {
+		case <-b.resume:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return raw, nil
+}
+
 func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 	dsn := os.Getenv("ZASP_P4B_WORKER_DSN")
 	if dsn == "" {
@@ -165,27 +196,17 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 	q := &productRuntimeQueue{}
 	var closed atomic.Int32
 	var storage *productVersionedS3
-	firstIO, releaseIO := make(chan struct{}), make(chan struct{})
-	var firstBlocked atomic.Bool
+	firstPage, releasePage := make(chan struct{}), make(chan struct{})
 	var releaseOnce sync.Once
-	releaseFirst := func() { releaseOnce.Do(func() { close(releaseIO) }) }
+	releaseFirst := func() { releaseOnce.Do(func() { close(releasePage) }) }
 	defer releaseFirst()
 	external := productionWorkerIO()
+	external.temporalDiagnostic = &temporalDiagnosticDecorator{database: func(db apiserver.JSONDatabase) apiserver.JSONDatabase {
+		return &discoveryPageReceiptBarrier{JSONDatabase: db, jobID: start.Ref.RunID, recorded: firstPage, resume: releasePage}
+	}}
 	external.discovery = func(config productionDiscoveryDependencyConfig) (discoveryDependencyIO, error) {
 		io := productRuntimeIO(t, config, q, &closed)
 		storage = io.S3.(*productRuntimeS3).productVersionedS3
-		io.S3.(*productRuntimeS3).productVersionedS3.beforePut = func(ctx context.Context) error {
-			if firstBlocked.CompareAndSwap(false, true) {
-				close(firstIO)
-				select {
-				case <-releaseIO:
-					return nil
-				case <-ctx.Done():
-					return ctx.Err()
-				}
-			}
-			return nil
-		}
 		return io, nil
 	}
 	deps, err := buildWorkerRuntimeWithIO(ctx, cfg, external)
@@ -200,41 +221,6 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 	}()
 	if err := deps.Ready(ctx); err != nil {
 		t.Fatal("shipped72 readiness", err)
-	}
-	schedulerConfig := validSchedulerRuntimeConfig()
-	schedulerConfig.PostgresDSN = os.Getenv("ZASP_P4B_SCHEDULER_DSN")
-	schedulerConfig.RuntimeServices = cfg.RuntimeServices
-	scheduler, err := buildWorkerRuntimeWithIO(ctx, schedulerConfig, external)
-	if err != nil {
-		t.Fatal("shipped scheduler startup", err)
-	}
-	defer scheduler.Close()
-	if err := scheduler.Processor.RunOnce(ctx); err != nil {
-		t.Fatal("schedule delivery", err)
-	}
-	scheduleRef := orchestration.DiscoveryScheduleRef{OrganizationID: start.Ref.OrganizationID, WorkspaceID: start.Ref.WorkspaceID, EnvironmentID: start.Ref.EnvironmentID, IntegrationID: start.IntegrationID, ScheduleID: os.Getenv("ZASP_P4B_SCHEDULE_ID")}
-	scheduleID, _ := orchestration.DiscoveryScheduleID(scheduleRef)
-	if _, err := c.ScheduleClient().GetHandle(ctx, scheduleID).Describe(ctx); err != nil {
-		t.Fatal("schedule missing", err)
-	}
-	if err := c.ScheduleClient().GetHandle(ctx, scheduleID).Delete(ctx); err != nil {
-		t.Fatal("owned schedule deletion", err)
-	}
-	if err := scheduler.Close(); err != nil {
-		t.Fatal(err)
-	}
-	scheduler, err = buildWorkerRuntimeWithIO(ctx, schedulerConfig, external)
-	if err != nil {
-		t.Fatal("repair scheduler startup", err)
-	}
-	defer scheduler.Close()
-	if err := scheduler.Processor.RunOnce(ctx); err != nil {
-		t.Fatal("missing schedule repair", err)
-	}
-	if description, err := c.ScheduleClient().GetHandle(ctx, scheduleID).Describe(ctx); err != nil {
-		t.Fatal(err)
-	} else {
-		t.Logf("repaired Schedule: now=%s spec=%+v state=%+v info=%+v", time.Now().UTC(), description.Schedule.Spec, description.Schedule.State, description.Info)
 	}
 	outboxConfig := validSchedulerRuntimeConfig()
 	outboxConfig.Mode, outboxConfig.DatabaseAuthority, outboxConfig.WorkerID = workerModeOutbox, "zasp_outbox_worker", "owned-p4b-outbox"
@@ -262,14 +248,14 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 	if err := deps.Processor.RunOnce(ctx); err != nil {
 		t.Fatal("sole shipped start", err)
 	}
-	id, _ := orchestration.DiscoveryWorkflowID(start)
-	select {
-	case <-firstIO:
-	case <-ctx.Done():
-		t.Fatal("first active effect", ctx.Err())
-	}
 	httpHandler, scope := productDiscoveryHTTP(t, ctx)
 	manualID := productManualHTTP(t, httpHandler, scope, start.IntegrationID)
+	id, _ := orchestration.DiscoveryWorkflowID(start)
+	select {
+	case <-firstPage:
+	case <-ctx.Done():
+		t.Fatal("first committed page", ctx.Err())
+	}
 	deliver := func() string {
 		t.Helper()
 		if err := outbox.Processor.RunOnce(ctx); err != nil {
@@ -323,6 +309,58 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 	if value := productSyncHTTP(t, httpHandler, scope, start.IntegrationID, manualID); value.Status != "succeeded" || value.Attempt != 1 || value.SnapshotID == nil || value.RetryAt != nil {
 		t.Fatal("completed HTTP readback", value)
 	}
+	// The imported schedule retains its original subsecond phase. Start its
+	// independent timer after the manual overlap evidence is complete.
+	scheduleCtx, finishSchedule := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer finishSchedule()
+	ctx = scheduleCtx
+	arm, err := http.NewRequestWithContext(ctx, http.MethodPost, os.Getenv("ZASP_P4B_ARM_SCHEDULE"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.DefaultClient.Do(arm)
+	if err != nil {
+		t.Fatal("arm nominal occurrence", err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatal("arm nominal occurrence", response.Status)
+	}
+	schedulerConfig := validSchedulerRuntimeConfig()
+	schedulerConfig.PostgresDSN = os.Getenv("ZASP_P4B_SCHEDULER_DSN")
+	schedulerConfig.RuntimeServices = cfg.RuntimeServices
+	scheduler, err := buildWorkerRuntimeWithIO(ctx, schedulerConfig, external)
+	if err != nil {
+		t.Fatal("shipped scheduler startup", err)
+	}
+	defer scheduler.Close()
+	if err := scheduler.Processor.RunOnce(ctx); err != nil {
+		t.Fatal("schedule delivery", err)
+	}
+	scheduleRef := orchestration.DiscoveryScheduleRef{OrganizationID: start.Ref.OrganizationID, WorkspaceID: start.Ref.WorkspaceID, EnvironmentID: start.Ref.EnvironmentID, IntegrationID: start.IntegrationID, ScheduleID: os.Getenv("ZASP_P4B_SCHEDULE_ID")}
+	scheduleID, _ := orchestration.DiscoveryScheduleID(scheduleRef)
+	if _, err := c.ScheduleClient().GetHandle(ctx, scheduleID).Describe(ctx); err != nil {
+		t.Fatal("schedule missing", err)
+	}
+	if err := c.ScheduleClient().GetHandle(ctx, scheduleID).Delete(ctx); err != nil {
+		t.Fatal("owned schedule deletion", err)
+	}
+	if err := scheduler.Close(); err != nil {
+		t.Fatal(err)
+	}
+	scheduler, err = buildWorkerRuntimeWithIO(ctx, schedulerConfig, external)
+	if err != nil {
+		t.Fatal("repair scheduler startup", err)
+	}
+	defer scheduler.Close()
+	if err := scheduler.Processor.RunOnce(ctx); err != nil {
+		t.Fatal("missing schedule repair", err)
+	}
+	if description, err := c.ScheduleClient().GetHandle(ctx, scheduleID).Describe(ctx); err != nil {
+		t.Fatal(err)
+	} else {
+		t.Logf("repaired Schedule: now=%s spec=%+v state=%+v info=%+v", time.Now().UTC(), description.Schedule.Spec, description.Schedule.State, description.Info)
+	}
 	// Wait for our Schedule to produce its nominal occurrence. The Activity,
 	// current SQL authority and sole outbox route all remain real.
 	ticker := time.NewTicker(250 * time.Millisecond)
@@ -351,6 +389,9 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 	}
 	waitSuccess(deliver())
 	if raw := os.Getenv("ZASP_P4B_FOREIGN_IDS"); raw != "" {
+		foreignCtx, finishForeign := context.WithTimeout(t.Context(), 2*time.Minute)
+		defer finishForeign()
+		ctx = foreignCtx
 		var ids []string
 		if json.Unmarshal([]byte(raw), &ids) != nil || len(ids) != 5 {
 			t.Fatal("second tenant identity")
@@ -379,7 +420,7 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 		}
 		waitSuccess(foreignWorkflow)
 		foreignResult := productSyncHTTP(t, foreignHandler, foreignScope, ids[4], foreignID)
-		if foreignResult.Status != "succeeded" || foreignResult.DiscoveredCount != 3 || foreignResult.Attempt != 1 {
+		if foreignResult.Status != "succeeded" || foreignResult.DiscoveredCount != 6 || foreignResult.Attempt != 1 {
 			t.Fatal("foreign tenant missed independent inventory", foreignResult)
 		}
 		for _, response := range []*httptest.ResponseRecorder{productSyncHTTPResponse(httpHandler, scope, start.IntegrationID, foreignID), productSyncHTTPResponse(foreignHandler, foreignScope, ids[4], manualID)} {
@@ -398,7 +439,7 @@ func TestProductDiscoveryShippedTemporalRuntime(t *testing.T) {
 			}
 		}
 		storage.mu.Unlock()
-		if ownObjects != 24 || foreignObjects != 8 {
+		if ownObjects != 30 || foreignObjects != 10 {
 			t.Fatal("cross-tenant artifact storage", ownObjects, foreignObjects)
 		}
 		t.Log("identical-name connector scopes retained distinct schedules, runs, HTTP receipts and artifact keys")

@@ -5,11 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -794,15 +799,32 @@ func TestTemporalDiscoveryRealCollectorPostgres(t *testing.T) {
 	command.Env = append(os.Environ(), "ZASP_P4B_WORKER_DSN="+dsn, "ZASP_P4B_START="+string(raw))
 	output, err := command.CombinedOutput()
 	t.Log(string(output))
-	if err != nil {
+	if err != nil || !strings.Contains(string(output), "--- PASS: TestProductDiscoveryInstalledCollector (") {
 		t.Fatal("real collector child", err)
 	}
-	var entities, inputs, projections int
-	if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM zasp_inventory_entities),(SELECT count(*) FROM zasp_discovery_snapshot_inputs),(SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL)`).Scan(&entities, &inputs, &projections); err != nil {
+	var nativeIDs, containedServices []string
+	var inputs, projections int
+	if err := f.owner.QueryRow(f.ctx, `
+		SELECT ARRAY(SELECT o.source_native_id
+			FROM zasp_inventory_entities e JOIN zasp_inventory_source_observations o
+				ON (e.organization_id,e.workspace_id,e.environment_id,e.id)=(o.organization_id,o.workspace_id,o.environment_id,o.entity_id)
+			WHERE e.state='active' AND o.source_state='present' AND o.integration_id=$1
+			ORDER BY o.source_native_id COLLATE "C"),
+		ARRAY(SELECT service.source_native_id
+			FROM zasp_inventory_relationships r
+			JOIN zasp_inventory_source_observations account USING (organization_id,workspace_id,environment_id,integration_id,source)
+			JOIN zasp_inventory_source_observations service USING (organization_id,workspace_id,environment_id,integration_id,source)
+			WHERE r.integration_id=$1 AND r.kind='contains' AND r.state='present'
+				AND account.entity_id=r.from_entity_id AND account.source_kind='aws_account' AND account.source_native_id='123456789012'
+				AND service.entity_id=r.to_entity_id AND service.source_kind='aws_service'
+			ORDER BY service.source_native_id COLLATE "C"),
+		(SELECT count(*) FROM zasp_discovery_snapshot_inputs),
+		(SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL)`, replayIntegration).Scan(&nativeIDs, &containedServices, &inputs, &projections); err != nil {
 		t.Fatal(err)
 	}
-	if entities < 1 || inputs != 1 || projections != 3 {
-		t.Fatalf("nonempty typed inventory missing: entities=%d inputs=%d projections=%d", entities, inputs, projections)
+	wantIDs := []string{"123456789012", "aws:bedrock-agent", "aws:bedrock-agentcore", "aws:ec2", "aws:lambda"}
+	if !slices.Equal(nativeIDs, wantIDs) || !slices.Equal(containedServices, wantIDs[1:]) || inputs != 1 || projections != 3 {
+		t.Fatalf("AWS inventory: native IDs=%v contained services=%v inputs=%d projections=%d", nativeIDs, containedServices, inputs, projections)
 	}
 	var syncID string
 	if err := f.owner.QueryRow(f.ctx, `SELECT sync_id FROM zasp_temporal72.runs WHERE job_id=$1`, start.Ref.RunID).Scan(&syncID); err != nil {
@@ -1204,7 +1226,7 @@ func TestTemporalDiscoveryContinuationPostgres(t *testing.T) {
 	})
 	// The bounded scale scenario owns a longer test context, not a new product
 	// budget. Its persisted admission deadline remains exactly the original24h.
-	ctx, cancel := context.WithTimeout(context.Background(), 32*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 63*time.Minute)
 	defer cancel()
 	start.Continuation = &orchestration.DiscoveryContinuation{Deadline: deadline}
 	encoded, _ := json.Marshal(start)
@@ -1212,10 +1234,14 @@ func TestTemporalDiscoveryContinuationPostgres(t *testing.T) {
 	dsn := func(login string) string {
 		return (&url.URL{Scheme: "postgres", User: url.User(login), Host: net.JoinHostPort(cfg.Host, strconv.Itoa(int(cfg.Port))), Path: "/" + cfg.Database, RawQuery: "sslmode=disable"}).String()
 	}
-	child := exec.CommandContext(ctx, "go", "test", "../agentsec-worker", "-run", "^TestProductDiscoveryShippedContinuation$", "-count=1", "-timeout", "31m", "-v")
+	child := exec.Command("go", "test", "../agentsec-worker", "-run", "^TestProductDiscoveryShippedContinuation$", "-count=1", "-timeout", "61m", "-v")
 	child.Env = append(os.Environ(), "ZASP_P4B_CONTINUATION=true", "ZASP_P4B_WORKER_DSN="+dsn(f.registration.discovery), "ZASP_P4B_OUTBOX_DSN="+dsn(f.registration.outbox), "ZASP_P4B_START="+string(encoded))
-	child.Stdout, child.Stderr = os.Stdout, os.Stdout
-	err := child.Run()
+	output, err := runDiscoveryContinuation(ctx, child, func(readCtx context.Context) (int64, error) {
+		var version int64
+		err := f.owner.QueryRow(readCtx, `SELECT COALESCE((SELECT version FROM zasp_temporal72.checkpoints WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND job_id=$4),0)`, start.Ref.OrganizationID, start.Ref.WorkspaceID, start.Ref.EnvironmentID, start.Ref.RunID).Scan(&version)
+		return version, err
+	})
+	t.Logf("continuation worker output:\n%s", output)
 	var state []byte
 	diagnosticCtx, diagnosticCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer diagnosticCancel()
@@ -1226,7 +1252,7 @@ func TestTemporalDiscoveryContinuationPostgres(t *testing.T) {
 		t.Fatal("real continuation child", err)
 	}
 	var valid bool
-	if err := f.owner.QueryRow(ctx, `SELECT r.state='succeeded' AND r.deadline=$2 AND r.checkpoint_version=266 AND c.version=267 AND c.cursor->>'value' LIKE 'kubernetes:complete:%' AND (SELECT count(DISTINCT effect_id) FROM zasp_temporal72.page_effects WHERE job_id=$1)=267 AND (SELECT count(*) FROM zasp_discovery_jobs)=0 AND (SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE generation=1 AND jsonb_array_length(entities)=258)=1 AND (SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL)=3 FROM zasp_temporal72.runs r JOIN zasp_temporal72.checkpoints c USING(organization_id,workspace_id,environment_id,job_id) WHERE r.job_id=$1`, start.Ref.RunID, deadline).Scan(&valid); err != nil || !valid {
+	if err := f.owner.QueryRow(ctx, `SELECT r.state='succeeded' AND r.deadline=$2 AND r.checkpoint_version=267 AND c.version=268 AND c.cursor->>'value' LIKE 'kubernetes:complete:%' AND (SELECT count(DISTINCT effect_id) FROM zasp_temporal72.page_effects WHERE job_id=$1)=268 AND (SELECT count(*) FROM zasp_discovery_jobs)=0 AND (SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE generation=1 AND jsonb_array_length(entities)=258)=1 AND (SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL)=3 FROM zasp_temporal72.runs r JOIN zasp_temporal72.checkpoints c USING(organization_id,workspace_id,environment_id,job_id) WHERE r.job_id=$1`, start.Ref.RunID, deadline).Scan(&valid); err != nil || !valid {
 		t.Fatal("persisted continuation/cursor/generation", valid, err)
 	}
 }
@@ -1241,6 +1267,11 @@ func TestTemporalDiscoveryTenantIsolationPostgres(t *testing.T) {
 
 func temporalDiscoveryShippedRuntime(t *testing.T, isolation bool) {
 	t.Helper()
+	worker := filepath.Join(t.TempDir(), "discovery-worker.test")
+	build := exec.CommandContext(t.Context(), "go", "test", "-c", "-o", worker, "../agentsec-worker")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build shipped discovery worker: %v: %s", err, out)
+	}
 	f, _, start, deadline := temporalDiscoveryPageFixtureWith(t, func(f scheduleReplayFixture) {
 		for _, q := range []string{`UPDATE zasp_integrations SET configuration=jsonb_set(configuration,'{external_id_reference}','"ref:aws/external-id/customer-0001"') WHERE id=$1`, `UPDATE zasp_integration_connections SET connection_reference='ref:aws/external-id/customer-0001' WHERE integration_id=$1`, `UPDATE zasp_discovery_connection_subjects SET configuration_digest=(SELECT digest(convert_to(configuration::text,'UTF8'),'sha256') FROM zasp_integrations WHERE id=$1) WHERE integration_id=$1`} {
 			if _, err := f.owner.Exec(f.ctx, q, replayIntegration); err != nil {
@@ -1270,11 +1301,36 @@ func temporalDiscoveryShippedRuntime(t *testing.T, isolation bool) {
 			t.Fatal(err)
 		}
 	}
-	// An imported historical schedule whose next cadence falls shortly ahead.
-	// Keep the nonzero microsecond phase to exercise actual Schedule evidence.
-	if _, err := f.owner.Exec(f.ctx, `WITH due AS(SELECT date_trunc('second',clock_timestamp())+interval '45 seconds 123456 microseconds' v) UPDATE zasp_temporal72.schedules SET cadence_seconds=300,anchor=due.v-interval '300 seconds',next_run_at=due.v FROM due WHERE id=$1 AND organization_id=$2`, replaySchedule, replayOrg); err != nil {
-		t.Fatal(err)
-	}
+	// Arm the nominal occurrence only after the overlapping manual run finishes,
+	// so the scheduled outbox message cannot be mistaken for the manual one.
+	ownerConfig := f.owner.Config().Copy()
+	var armed atomic.Bool
+	armSchedule := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/" {
+			http.Error(w, "unexpected fixture request", http.StatusBadRequest)
+			return
+		}
+		if !armed.CompareAndSwap(false, true) {
+			http.Error(w, "schedule already armed", http.StatusConflict)
+			return
+		}
+		owner, err := pgx.ConnectConfig(r.Context(), ownerConfig)
+		if err != nil {
+			t.Errorf("connect to arm nominal occurrence: %v", err)
+			http.Error(w, "schedule not armed", http.StatusServiceUnavailable)
+			return
+		}
+		defer owner.Close(context.Background())
+		tag, err := owner.Exec(r.Context(), `WITH due AS(SELECT date_trunc('second',clock_timestamp())+interval '45 seconds 123456 microseconds' v) UPDATE zasp_temporal72.schedules SET cadence_seconds=300,anchor=due.v-interval '300 seconds',next_run_at=due.v FROM due WHERE id=$1 AND organization_id=$2 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE state='succeeded')=2`, replaySchedule, replayOrg)
+		if err != nil || tag.RowsAffected() != 1 {
+			t.Errorf("arming nominal occurrence: %v, %v", tag, err)
+			http.Error(w, "schedule not armed", http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer armSchedule.Close()
+
 	var payload []byte
 	if err := f.owner.QueryRow(f.ctx, `SELECT payload FROM zasp_discovery_outbox WHERE payload->>'job_id'=$1`, start.Ref.RunID).Scan(&payload); err != nil {
 		t.Fatal(err)
@@ -1283,12 +1339,19 @@ func temporalDiscoveryShippedRuntime(t *testing.T, isolation bool) {
 	encoded, _ := json.Marshal(start)
 	cfg := f.owner.Config()
 	dsn := (&url.URL{Scheme: "postgres", User: url.User(f.registration.discovery), Host: net.JoinHostPort(cfg.Host, strconv.Itoa(int(cfg.Port))), Path: "/" + cfg.Database, RawQuery: "sslmode=disable"}).String()
-	child := exec.CommandContext(f.ctx, "go", "test", "../agentsec-worker", "-run", "^TestProductDiscoveryShippedTemporalRuntime$", "-count=1", "-v")
+	runBudget := 5 * time.Minute
+	if isolation {
+		runBudget += 2 * time.Minute
+	}
+	runCtx, finishRun := context.WithTimeout(t.Context(), runBudget)
+	defer finishRun()
+	child := exec.CommandContext(runCtx, worker, "-test.run=^TestProductDiscoveryShippedTemporalRuntime$", "-test.count=1", "-test.v")
+	child.Dir = "../agentsec-worker"
 	outboxDSN := (&url.URL{Scheme: "postgres", User: url.User(f.registration.outbox), Host: net.JoinHostPort(cfg.Host, strconv.Itoa(int(cfg.Port))), Path: "/" + cfg.Database, RawQuery: "sslmode=disable"}).String()
 	apiDSN := (&url.URL{Scheme: "postgres", User: url.User(f.registration.api), Host: net.JoinHostPort(cfg.Host, strconv.Itoa(int(cfg.Port))), Path: "/" + cfg.Database, RawQuery: "sslmode=disable"}).String()
 	schedulerDSN := (&url.URL{Scheme: "postgres", User: url.User(f.registration.scheduler), Host: net.JoinHostPort(cfg.Host, strconv.Itoa(int(cfg.Port))), Path: "/" + cfg.Database, RawQuery: "sslmode=disable"}).String()
 	ids, _ := json.Marshal([]string{replayOrg, replayWorkspace, replayEnvironment, replayPrincipal, replayIntegration})
-	child.Env = append(os.Environ(), "ZASP_P4B_WORKER_DSN="+dsn, "ZASP_P4B_OUTBOX_DSN="+outboxDSN, "ZASP_P4B_API_DSN="+apiDSN, "ZASP_P4B_SCHEDULER_DSN="+schedulerDSN, "ZASP_P4B_SCHEDULE_ID="+replaySchedule, "ZASP_P4B_MUTATION_IDS="+string(ids), "ZASP_P4B_START="+string(encoded), "ZASP_P4B_PAYLOAD="+string(payload))
+	child.Env = append(os.Environ(), "ZASP_P4B_ARM_SCHEDULE="+armSchedule.URL, "ZASP_P4B_WORKER_DSN="+dsn, "ZASP_P4B_OUTBOX_DSN="+outboxDSN, "ZASP_P4B_API_DSN="+apiDSN, "ZASP_P4B_SCHEDULER_DSN="+schedulerDSN, "ZASP_P4B_SCHEDULE_ID="+replaySchedule, "ZASP_P4B_MUTATION_IDS="+string(ids), "ZASP_P4B_START="+string(encoded), "ZASP_P4B_PAYLOAD="+string(payload))
 	if isolation {
 		foreignIDs, _ := json.Marshal([]string{foreignOrg, replayWorkspace, replayEnvironment, foreignPrincipal, replayIntegration})
 		child.Env = append(child.Env, "ZASP_P4B_FOREIGN_IDS="+string(foreignIDs))
@@ -1297,14 +1360,14 @@ func temporalDiscoveryShippedRuntime(t *testing.T, isolation bool) {
 	err := child.Run()
 	if err != nil {
 		var diagnostic []byte
-		if queryErr := f.owner.QueryRow(f.ctx, `SELECT jsonb_build_object('runs',(SELECT jsonb_agg(jsonb_build_object('job',job_id,'state',state,'checkpoint',checkpoint_version)) FROM zasp_temporal72.runs),'pages',(SELECT jsonb_agg(jsonb_build_object('job',job_id,'result',result)) FROM zasp_temporal72.page_effects),'apply',(SELECT jsonb_agg(jsonb_build_object('job',job_id,'result',result)) FROM zasp_temporal72.apply_effects))`).Scan(&diagnostic); queryErr == nil {
+		if queryErr := f.owner.QueryRow(runCtx, `SELECT jsonb_build_object('runs',(SELECT jsonb_agg(jsonb_build_object('job',job_id,'state',state,'checkpoint',checkpoint_version)) FROM zasp_temporal72.runs),'pages',(SELECT jsonb_agg(jsonb_build_object('job',job_id,'result',result)) FROM zasp_temporal72.page_effects),'apply',(SELECT jsonb_agg(jsonb_build_object('job',job_id,'result',result)) FROM zasp_temporal72.apply_effects))`).Scan(&diagnostic); queryErr == nil {
 			t.Log("owned receipt diagnostics", string(diagnostic))
 		}
 		t.Fatal("shipped runtime child", err)
 	}
 	var valid bool
 	var counts []byte
-	if err := f.owner.QueryRow(f.ctx, `SELECT jsonb_build_object('syncs',(SELECT jsonb_agg(jsonb_build_object('id',id,'state',state,'attempt',attempt,'discovered_count',discovered_count,'snapshot_id',snapshot_id,'trigger',trigger_kind)) FROM zasp_discovery_syncs),'snapshots',(SELECT jsonb_agg(jsonb_build_object('id',snapshot_id,'entities',jsonb_array_length(entities),'generation',generation)) FROM zasp_discovery_snapshot_inputs),'projections',(SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL),'outbox',(SELECT jsonb_agg(jsonb_build_object('id',id,'job',payload->>'job_id','state',state)) FROM zasp_discovery_outbox),'jobs',(SELECT count(*) FROM zasp_discovery_jobs))`).Scan(&counts); err != nil {
+	if err := f.owner.QueryRow(runCtx, `SELECT jsonb_build_object('syncs',(SELECT jsonb_agg(jsonb_build_object('id',id,'state',state,'attempt',attempt,'discovered_count',discovered_count,'snapshot_id',snapshot_id,'trigger',trigger_kind)) FROM zasp_discovery_syncs),'snapshots',(SELECT jsonb_agg(jsonb_build_object('id',snapshot_id,'entities',jsonb_array_length(entities),'generation',generation)) FROM zasp_discovery_snapshot_inputs),'projections',(SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL),'outbox',(SELECT jsonb_agg(jsonb_build_object('id',id,'job',payload->>'job_id','state',state)) FROM zasp_discovery_outbox),'jobs',(SELECT count(*) FROM zasp_discovery_jobs))`).Scan(&counts); err != nil {
 		t.Fatal("persisted final diagnostics", err)
 	}
 	t.Log("persisted final receipt identities/counts", string(counts))
@@ -1312,11 +1375,11 @@ func temporalDiscoveryShippedRuntime(t *testing.T, isolation bool) {
 	if isolation {
 		wantRuns, wantManual, wantProjections = 4, 2, 12
 	}
-	if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM zasp_discovery_jobs)=0 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE state='succeeded' AND attempt=1)=$1 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE trigger_kind='manual')=$2 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE discovered_count=0)=2 AND (SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE jsonb_array_length(entities)=3)=$1 AND (SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL)=$3 AND (SELECT count(*) FROM zasp_discovery_outbox WHERE state='published')=$1`, wantRuns, wantManual, wantProjections).Scan(&valid); err != nil || !valid {
+	if err := f.owner.QueryRow(runCtx, `SELECT (SELECT count(*) FROM zasp_discovery_jobs)=0 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE state='succeeded' AND attempt=1)=$1 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE trigger_kind='manual')=$2 AND (SELECT count(*) FROM zasp_discovery_syncs WHERE discovered_count=0)=2 AND (SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE jsonb_array_length(entities)=6)=$1 AND (SELECT count(*) FROM zasp_projection_work WHERE input_digest IS NOT NULL)=$3 AND (SELECT count(*) FROM zasp_discovery_outbox WHERE state='published')=$1`, wantRuns, wantManual, wantProjections).Scan(&valid); err != nil || !valid {
 		t.Fatal("shipped typed inventory/evidence", valid, err)
 	}
 	if isolation {
-		if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(DISTINCT display_name) FROM zasp_integrations)=1 AND (SELECT count(DISTINCT id) FROM zasp_temporal72.schedules)=1 AND (SELECT count(*) FROM zasp_temporal72.schedules)=2 AND (SELECT count(*) FROM zasp_discovery_snapshots WHERE organization_id=$1 AND generation=1)=1 AND (SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE organization_id=$1 AND jsonb_array_length(entities)=3)=1 AND (SELECT count(*) FROM zasp_temporal72.runs WHERE organization_id=$1)=1`, foreignOrg).Scan(&valid); err != nil || !valid {
+		if err := f.owner.QueryRow(runCtx, `SELECT (SELECT count(DISTINCT display_name) FROM zasp_integrations)=1 AND (SELECT count(DISTINCT id) FROM zasp_temporal72.schedules)=1 AND (SELECT count(*) FROM zasp_temporal72.schedules)=2 AND (SELECT count(*) FROM zasp_discovery_snapshots WHERE organization_id=$1 AND generation=1)=1 AND (SELECT count(*) FROM zasp_discovery_snapshot_inputs WHERE organization_id=$1 AND jsonb_array_length(entities)=6)=1 AND (SELECT count(*) FROM zasp_temporal72.runs WHERE organization_id=$1)=1`, foreignOrg).Scan(&valid); err != nil || !valid {
 			t.Fatal("tenant projection alias", valid, err)
 		}
 	}

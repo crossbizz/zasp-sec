@@ -105,7 +105,7 @@ func TestP7WorkerDiscovery72NativeProofRequired(t *testing.T) {
 	if err := worker.QueryRow(f.ctx, `SELECT zasp_temporal72.finish($1,$2,$3,$4,$5,$6,'cancelled','')`, replayOrg, replayWorkspace, replayEnvironment, terminalJob, replayIntegration, fmt.Sprintf("%x", digest)).Scan(&receipt); err != nil {
 		t.Fatal("retained terminal finish", err)
 	}
-	for _, up := range []func(context.Context) error{f.runner.UpProductionTemporalAdmission, f.runner.UpProductionTemporalTestExecutor, f.runner.UpProductionTemporalTestSelector, f.runner.UpProductionTemporalHumanAdmission, f.runner.UpProductionTemporalAutomaticSources, f.runner.UpProductionTemporalFindingResponse, f.runner.UpProductionAuthorizationTemporalProfile} {
+	for _, up := range []func(context.Context) error{f.runner.UpProductionTemporalAdmission, f.runner.UpProductionTemporalTestExecutor, f.runner.UpProductionTemporalTestSelector, f.runner.UpProductionTemporalHumanAdmission, f.runner.UpProductionTemporalAutomaticSources, f.runner.UpProductionTemporalFindingResponse, f.runner.UpProductionAuthorizationTemporalIdentityProfile} {
 		if err := up(f.ctx); err != nil {
 			t.Fatal("current profile prerequisite", err)
 		}
@@ -122,7 +122,7 @@ func TestP7WorkerDiscovery72NativeProofRequired(t *testing.T) {
 	}
 	missing := &discoveryRollbackDatabase{migrationTransaction: &migrationTransaction{transaction: retention}, t: t}
 	missingRunner, _ := migrations.NewRunner(missing)
-	if err := missingRunner.UpProductionAuthorizationWorkerProfile(f.ctx); err == nil || missing.failure != "P0002" {
+	if err := missingRunner.UpProductionAuthorizationWorkerAuditProfile(f.ctx); err == nil || missing.failure != "P0002" {
 		_ = retention.Rollback(f.ctx)
 		t.Fatal("missing terminal provenance did not refuse installation", missing.failure, err)
 	}
@@ -134,7 +134,7 @@ func TestP7WorkerDiscovery72NativeProofRequired(t *testing.T) {
 	if err := retention.Rollback(f.ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.runner.UpProductionAuthorizationWorkerProfile(f.ctx); err != nil {
+	if err := f.runner.UpProductionAuthorizationWorkerAuditProfile(f.ctx); err != nil {
 		t.Fatal("current worker profile", err)
 	}
 	unsigned, err := api.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})

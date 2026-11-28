@@ -119,6 +119,7 @@ func exerciseSecurityAgentExistingTestPreparedDispatch(t *testing.T, dispatch bo
 				name += "_" + mode.refusal
 			}
 			t.Run(name, func(t *testing.T) {
+				ctx := existingTestDispatchScenarioContext(t)
 				run := fmt.Sprintf("pid_89c001%02d-0000-4000-8000-000000000001", i)
 				finding := fmt.Sprintf("pid_89c002%02d-0000-4000-8000-000000000002", i)
 				approval := fmt.Sprintf("pid_89c003%02d-0000-4000-8000-000000000003", i)
@@ -447,9 +448,35 @@ func exerciseSecurityAgentExistingTestPreparedDispatch(t *testing.T, dispatch bo
 			})
 		}
 		if checkReconcile {
-			assertReconcileBatchBound(t, ctx, owner, worker, org, ws, env)
+			assertReconcileBatchBound(t, existingTestDispatchScenarioContext(t), owner, worker, org, ws, env)
 		}
 	})
+}
+
+// Schema setup and each dispatch scenario have independent operation deadlines.
+func existingTestDispatchScenarioContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+func TestSecurityAgentExistingTestDispatchScenarioDeadline(t *testing.T) {
+	var previous context.Context
+	for _, name := range []string{"first", "second"} {
+		t.Run(name, func(t *testing.T) {
+			if previous != nil && previous.Err() != context.Canceled {
+				t.Fatal("previous dispatch scenario is still active")
+			}
+			started := time.Now()
+			ctx := existingTestDispatchScenarioContext(t)
+			deadline, ok := ctx.Deadline()
+			if !ok || deadline.Before(started.Add(2*time.Minute)) || deadline.After(time.Now().Add(2*time.Minute)) || ctx.Err() != nil {
+				t.Fatalf("expected a fresh two-minute deadline, got %v, err=%v", deadline, ctx.Err())
+			}
+			previous = ctx
+		})
+	}
 }
 
 func existingTestDispatchSnapshot(t *testing.T, ctx context.Context, owner *pgx.Conn, org, ws, env, run string) string {

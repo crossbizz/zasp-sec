@@ -1467,6 +1467,7 @@ function matrix(bound) {
  const productSecret = name => arn(`aws_secretsmanager_secret.product["${name}"]`);
  const key = name => arn(`aws_kms_key.${name}`);
  const queue = name => arn(`aws_sqs_queue.work["${name}"]`);
+ const auditDLQ = arn('aws_sqs_queue.dead_letter["audit-exports"]');
  const bucket = name => arn(`aws_s3_bucket.${name}`);
  const es = arn('aws_opensearch_domain.events');
  const add = (r, label, expected, action, resource, context = {}) => cases.push({ role: role(r), label, expected, request: { action, resource, context } });
@@ -1544,6 +1545,10 @@ function matrix(bound) {
   if (name !== 'publisher') for (const action of ['kms:Decrypt', ...(name === 'writer' ? ['kms:GenerateDataKey'] : [])]) contexts(r, `audit:kms:${action}`, action, key('staging'), { 'kms:ViaService': 's3.us-west-2.amazonaws.com', 'kms:EncryptionContext:aws:s3:arn': bucket('evidence') });
   if (name !== 'reader') sqs(r, 'audit-exports', name === 'publisher', 'staging');
   else deny(r, 'audit:no-queue', 'sqs:SendMessage', queue('audit-exports'));
+  deny(r, 'audit:no-other-dlq-inspection', 'sqs:GetQueueAttributes', arn('aws_sqs_queue.dead_letter["discovery-jobs"]'));
+  for (const action of ['sqs:SendMessage', 'sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:ChangeMessageVisibility', 'sqs:PurgeQueue', 'sqs:SetQueueAttributes', 'sqs:StartMessageMoveTask']) {
+   deny(r, `audit:no-dlq-mutation:${action}`, action, auditDLQ);
+  }
  }
  for (const name of ['github_app_private_key', 'github_client_secret', 'okta_client_secret']) secret('api_connectors', `aws_secretsmanager_secret.connector_provider["${name}"]`, 'connector_oauth');
  for (const name of ['aws_external_id', 'kubernetes_ca', 'kubernetes_connection', 'kubernetes_credential']) secret('api_connectors', `aws_secretsmanager_secret.connector_reference["${name}"]`, 'connector_oauth');
@@ -1579,6 +1584,8 @@ function matrix(bound) {
  // Every role receives independent unrelated-write requests, including secret-only and deny-all roles.
  for (const fullRole of workloadRoles) {
   const r = fullRole.slice('aws_iam_role.'.length);
+  const inspectsAuditDLQ = r === 'audit_exports["writer"]' || r === 'audit_exports["publisher"]';
+  add(r, 'audit:dlq-encryption-inspection', inspectsAuditDLQ ? 'allowed' : 'denied', 'sqs:GetQueueAttributes', auditDLQ);
   for (const [action, own, foreign] of [
    ['iam:CreateUser', 'arn:aws:iam::000000000000:user/unrelated', 'arn:aws:iam::111111111111:user/unrelated'],
    ['iam:AttachRolePolicy', get(fullRole).arn, 'arn:aws:iam::111111111111:role/foreign'],

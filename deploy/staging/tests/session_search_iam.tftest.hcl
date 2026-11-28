@@ -99,13 +99,14 @@ override_resource {
 run "audit_export_secret_metadata_and_access" {
   command = plan
   assert {
-    condition     = toset(keys(output.audit_export_deployment_metadata)) == toset(["role_arns", "secret_arns", "database_principals", "queue_url", "bucket", "expected_bucket_owner", "kms_key_arn", "web_identity_token_file"])
+    condition     = toset(keys(output.audit_export_deployment_metadata)) == toset(["role_arns", "secret_arns", "database_principals", "queue_url", "queue_encryption", "bucket", "expected_bucket_owner", "kms_key_arn", "web_identity_token_file"])
     error_message = "Deployment output must contain only the exact non-secret identifiers needed to configure export workloads."
   }
   assert {
     condition = (toset(keys(output.audit_export_deployment_metadata.role_arns)) == toset(["reader", "writer", "publisher"]) &&
       output.audit_export_deployment_metadata.role_arns == { for name, role in aws_iam_role.audit_exports : name => role.arn } &&
       output.audit_export_deployment_metadata.queue_url == aws_sqs_queue.work["audit-exports"].id &&
+      output.audit_export_deployment_metadata.queue_encryption == var.audit_export_queue_encryption &&
       output.audit_export_deployment_metadata.secret_arns == { for name, secret in aws_secretsmanager_secret.audit_exports : name => secret.arn } &&
       output.audit_export_deployment_metadata.database_principals == var.audit_export_database_principals &&
       output.audit_export_deployment_metadata.bucket == aws_s3_bucket.evidence.bucket &&
@@ -189,21 +190,23 @@ run "audit_export_roles_have_exact_authority" {
   assert {
     condition = alltrue([for name, expected_sids in {
       reader    = ["ReadExportVersions", "ExportBucketKey"]
-      writer    = ["ReadExportVersions", "WriteEncryptedExports", "ExportBucketKey", "ExportQueue", "ExportQueueKey"]
-      publisher = ["ExportQueue", "ExportQueueKey"]
+      writer    = ["ReadExportVersions", "WriteEncryptedExports", "ExportBucketKey", "ExportQueue", "InspectExportDLQEncryption", "ExportQueueKey"]
+      publisher = ["ExportQueue", "InspectExportDLQEncryption", "ExportQueueKey"]
       } : try(
       length(jsondecode(aws_iam_role_policy.audit_exports[name].policy).Statement) == length(expected_sids) &&
       toset([for statement in jsondecode(aws_iam_role_policy.audit_exports[name].policy).Statement : statement.Sid]) == toset(expected_sids) &&
       alltrue([for statement in jsondecode(aws_iam_role_policy.audit_exports[name].policy).Statement :
         statement.Effect == "Allow" && toset(statement.Action) == {
-          ReadExportVersions    = toset(["s3:GetObject", "s3:GetObjectVersion"])
-          WriteEncryptedExports = toset(["s3:PutObject"])
-          ExportBucketKey       = toset(concat(["kms:Decrypt"], name == "writer" ? ["kms:GenerateDataKey"] : []))
-          ExportQueue           = toset(concat(["sqs:GetQueueAttributes"], name == "writer" ? ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility"] : ["sqs:SendMessage"]))
-          ExportQueueKey        = toset(concat(["kms:Decrypt"], name == "publisher" ? ["kms:GenerateDataKey"] : []))
+          ReadExportVersions         = toset(["s3:GetObject", "s3:GetObjectVersion"])
+          WriteEncryptedExports      = toset(["s3:PutObject"])
+          ExportBucketKey            = toset(concat(["kms:Decrypt"], name == "writer" ? ["kms:GenerateDataKey"] : []))
+          ExportQueue                = toset(concat(["sqs:GetQueueAttributes"], name == "writer" ? ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility"] : ["sqs:SendMessage"]))
+          InspectExportDLQEncryption = toset(["sqs:GetQueueAttributes"])
+          ExportQueueKey             = toset(concat(["kms:Decrypt"], name == "publisher" && var.audit_export_queue_encryption == "aws-kms" ? ["kms:GenerateDataKey"] : []))
           }[statement.Sid] && jsonencode(try(statement.Condition, {})) == {
-          ReadExportVersions = jsonencode({})
-          ExportQueue        = jsonencode({})
+          ReadExportVersions         = jsonencode({})
+          ExportQueue                = jsonencode({})
+          InspectExportDLQEncryption = jsonencode({})
           WriteEncryptedExports = jsonencode({ StringEquals = {
             "s3:x-amz-server-side-encryption"                = "aws:kms"
             "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.staging.arn
@@ -248,7 +251,8 @@ run "audit_export_roles_have_exact_authority" {
         ]])) == toset(concat(
         name == "publisher" ? [] : [for action in concat(["s3:GetObject", "s3:GetObjectVersion"], name == "writer" ? ["s3:PutObject"] : []) : "${action} ${aws_s3_bucket.evidence.arn}/organizations/*/workspaces/*/environments/*/exports/*"],
         name == "reader" ? [] : [for action in concat(["sqs:GetQueueAttributes"], name == "writer" ? ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility"] : ["sqs:SendMessage"]) : "${action} ${aws_sqs_queue.work["audit-exports"].arn}"],
-        [for action in concat(["kms:Decrypt"], name == "reader" ? [] : ["kms:GenerateDataKey"]) : "${action} ${aws_kms_key.staging.arn}"]
+        name == "reader" ? [] : ["sqs:GetQueueAttributes ${aws_sqs_queue.dead_letter["audit-exports"].arn}"],
+        [for action in concat(["kms:Decrypt"], name == "writer" || (name == "publisher" && var.audit_export_queue_encryption == "aws-kms") ? ["kms:GenerateDataKey"] : []) : "${action} ${aws_kms_key.staging.arn}"]
     )), false)])
     error_message = "Role action/resource pairs must be closed: no list, object deletion, wildcard action, foreign prefix or mixed publisher/consumer authority."
   }
@@ -392,4 +396,35 @@ run "session_search_exact_method_path_authority" {
     error_message = "Session search grants must not leak to another runtime worker."
   }
 
+}
+
+run "discovery_recovery_evidence_encryption" {
+  command = plan
+  variables {
+    evidence_encryption = "provider-managed"
+  }
+
+  override_resource {
+    target          = aws_iam_role.worker
+    override_during = plan
+    values          = { arn = "arn:aws:iam::000000000000:role/discovery-evidence-writer" }
+  }
+  override_resource {
+    target          = aws_iam_role.recovery["recovery_backup"]
+    override_during = plan
+    values          = { arn = "arn:aws:iam::000000000000:role/recovery-evidence-writer" }
+  }
+
+  assert {
+    condition     = one(one(aws_s3_bucket_server_side_encryption_configuration.evidence.rule).apply_server_side_encryption_by_default).sse_algorithm == "AES256" && !one(aws_s3_bucket_server_side_encryption_configuration.evidence.rule).bucket_key_enabled
+    error_message = "The evidence bucket must select SSE-S3 without a KMS bucket key."
+  }
+  assert {
+    condition     = length(aws_s3_bucket_policy.evidence_sse_s3) == 1 && jsondecode(aws_s3_bucket_policy.evidence_sse_s3[0].policy).Statement[0].Condition.StringNotEquals["s3:x-amz-server-side-encryption"] == "AES256" && toset(jsondecode(aws_s3_bucket_policy.evidence_sse_s3[0].policy).Statement[0].Condition.ArnEquals["aws:PrincipalArn"]) == toset([aws_iam_role.worker.arn, aws_iam_role.recovery["recovery_backup"].arn])
+    error_message = "Only the discovery and recovery evidence writers should be bound to SSE-S3."
+  }
+  assert {
+    condition     = toset(keys(aws_iam_role_policy.evidence_historical_reads)) == toset(["discovery", "backup", "restore"]) && one(one(aws_s3_bucket_server_side_encryption_configuration.runtime_raw.rule).apply_server_side_encryption_by_default).sse_algorithm == "aws:kms"
+    error_message = "Historical permissions must remain scoped and runtime raw evidence must retain KMS."
+  }
 }

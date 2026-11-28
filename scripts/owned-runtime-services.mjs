@@ -27,7 +27,7 @@ const defaultAdapters={
  writeToken:async(root,token)=>{await mkdir(path.join(root,'home'),{mode:0o700});await writeFile(path.join(root,'openfga.token'),token,{flag:'wx',mode:0o600});},
  now:()=>Date.now(), wait:milliseconds=>delay(milliseconds),
  token:()=>randomBytes(32).toString('hex'),
- reservePort:()=>new Promise((resolve,reject)=>{const s=net.createServer();s.once('error',reject);s.listen(0,'127.0.0.1',()=>{const port=s.address().port;s.close(error=>error?reject(error):resolve(port));});}),
+ reservePort:(requested=0)=>new Promise((resolve,reject)=>{const s=net.createServer();s.once('error',reject);s.listen(requested,'127.0.0.1',()=>{const port=s.address().port;s.close(error=>error?reject(error):resolve(port));});}),
  start:async(name,args,options)=>{const owner=await spawnHeldTool(options.tool,args,{cwd:options.cwd,env:options.env,maxOutputBytes:1024*1024});try{lifetimes.set(owner,await captureStart(owner.child.pid));return owner;}catch(error){await owner.stop();throw error;}},
  listener:async(name,owner,port)=>observeOwnedListener({pid:owner.child.pid,start:lifetimes.get(owner),port}),
  command:async(tool,args,options)=>{const owner=await spawnHeldTool(tool,args,{cwd:options.cwd,env:options.env,maxOutputBytes:1024*1024});let cleanup;
@@ -46,7 +46,16 @@ const defaultAdapters={
 // This is service ownership/model publication only. It does not install SQL,
 // register principals/verifiers, acknowledge projection, or grant acceptance.
 // Production tools are opaque capabilities minted from exact official archives and consumed members. Test adapters never mint production authority.
-export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,signal){
+export function startOwnedRuntimeServices(config,adapters=defaultAdapters,signal){
+ return startRuntimeServices(config,adapters,signal,0);
+}
+
+// The native migration consumers use Temporal's default local service address.
+export function startOwnedMigrationRuntimeServices(config,adapters=defaultAdapters,signal){
+ return startRuntimeServices(config,adapters,signal,7233);
+}
+
+async function startRuntimeServices(config,adapters,signal,requestedTemporalPort){
  let diagnosticPhase='service-input';
  try{
  if((signal!==undefined&&!(signal instanceof AbortSignal))||!exact(config,['run','rootParent','tools'])||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run)||!exact(config.tools,['temporal','openfga'])||typeof config.rootParent!=='string'||!path.isAbsolute(config.rootParent)||path.normalize(config.rootParent)!==config.rootParent)fail();
@@ -77,7 +86,7 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
  diagnosticPhase='service-token-generate';
   const token=adapters.token();if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail();diagnosticPhase='service-token-file';await adapters.writeToken(root,token);
   diagnosticPhase='service-ports';
-  const temporalPort=await adapters.reservePort(),fgaPort=await adapters.reservePort(),grpcPort=await adapters.reservePort();if(![temporalPort,fgaPort,grpcPort].every(v=>Number.isSafeInteger(v)&&v>=1024&&v<=65535)||new Set([temporalPort,fgaPort,grpcPort]).size!==3)fail();
+  const temporalPort=await adapters.reservePort(requestedTemporalPort),fgaPort=await adapters.reservePort(),grpcPort=await adapters.reservePort();if((requestedTemporalPort!==0&&temporalPort!==requestedTemporalPort)||![temporalPort,fgaPort,grpcPort].every(v=>Number.isSafeInteger(v)&&v>=1024&&v<=65535)||new Set([temporalPort,fgaPort,grpcPort]).size!==3)fail();
   const temporalAddress='127.0.0.1:'+temporalPort,fgaURL='http://127.0.0.1:'+fgaPort;
   const env={PATH:'/usr/bin:/bin',HOME:path.join(root,'home'),TMPDIR:root,LANG:'C',LC_ALL:'C'};
   diagnosticPhase='service-temporal-start';

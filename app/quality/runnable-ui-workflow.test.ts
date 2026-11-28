@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { JSON_SCHEMA, load } from "js-yaml";
 import { describe, expect, it } from "vitest";
-import { stepsWithoutAcceptanceScheduling } from "../../scripts/acceptance-step-conditions.mjs";
+import { requiredAcceptanceSteps } from "../../scripts/acceptance-step-conditions.mjs";
 import { assertAuditSourceCoverage, readAuditSources, type AuditLane } from "./audit-ci-source-contract";
 
 type WorkflowStep = {
@@ -22,6 +22,7 @@ type WorkflowStep = {
 };
 
 type WorkflowJob = {
+  strategy?: unknown;
   env?: unknown;
   defaults?: unknown;
   "timeout-minutes"?: number;
@@ -158,17 +159,18 @@ ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" node -
 ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" go test -C services/platform -race -count=1 ./agentsec-api -run '^TestReconciliationMaintenancePrometheusExposition$'
 `;
 
-async function readWorkflow(): Promise<Workflow> {
+async function readRawWorkflow(): Promise<Workflow> {
   const source = await readFile(
     resolve(repositoryRoot, ".github/workflows/runnable-ui-acceptance.yml"),
     "utf8",
   );
 
-  const workflow = load(source, { schema: JSON_SCHEMA }) as Workflow;
-  const verify = workflow.jobs?.verify;
-  if (verify?.steps) {
-    verify.steps = stepsWithoutAcceptanceScheduling(verify.steps, "verify");
-  }
+  return load(source, { schema: JSON_SCHEMA }) as Workflow;
+}
+
+async function readWorkflow(): Promise<Workflow> {
+  const workflow = await readRawWorkflow();
+  workflow.jobs!.verify.steps = requiredAcceptanceSteps(workflow.jobs);
   return workflow;
 }
 
@@ -436,8 +438,9 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
   });
   it("accepts the source-inventory fixture before testing hostile source mutations", async () => {
     const inventory = assertAuditSourceCoverage(await readAuditSources(repositoryRoot), actualAuditLanes(validWorkflow()));
-    expect(inventory.declarations).toHaveLength(233);
-    expect(Object.keys(inventory.assignments)).toHaveLength(232);
+    expect(inventory.declarations).toHaveLength(234);
+    expect(Object.keys(inventory.assignments)).toHaveLength(233);
+    expect(inventory.assignments.TestAuditHTTPSizeProviderSourceComparison).toBe("audit_helpers");
     expect(inventory.assignments.TestAuditExportRunContextConsumersPostgres).toBe("audit_a3");
     expect(inventory.assignments.TestAuditExportProcessProviderExpectedArtifactsFollowSourceAndBinding).toBe("audit_a4");
     for (const name of [
@@ -783,6 +786,29 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
     for (const moved of ["Verify current compliance browser acceptance", "npm run production:release:gate", "Verify bounded Attack Lab network enforcement"]) expect(text).not.toContain(moved);
   });
 
+  it("runs the full compliance browser prerequisite command immediately after npm ci on every push and PR", async () => {
+    const [standard, acceptance, fixture] = await Promise.all([
+      readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8"),
+      readWorkflow(),
+      readFile(resolve(repositoryRoot, "scripts/compliance-browser-bytes.test.mjs"), "utf8"),
+    ]);
+    const steps = (load(standard, { schema: JSON_SCHEMA }) as Workflow).jobs?.verify?.steps ?? [];
+    const install = steps.findIndex(step => step.run === "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci");
+    const mounted = acceptance.jobs?.verify?.steps?.find(step => step.name === "Verify current compliance browser acceptance");
+    expect(install).toBeGreaterThan(-1);
+    expect(mounted?.run).toBe(complianceAcceptanceCommand);
+    expect(steps[install + 1]).toEqual({
+      name: "Test the compliance browser fixture",
+      env: mounted!.env,
+      run: mounted!.run!.split(" || {", 1)[0],
+    });
+
+    const imports = fixture.split("\n");
+    for (const original of ["owned-current80-composition", "browser-provisioning-subphase", "current80-runner-consumption", "retained-allocation-diagnostics"]) {
+      expect(imports).toContain(`import './${original}.test.mjs';`);
+    }
+  });
+
   it("selects the registered precision PostgreSQL tests in required CI", async () => {
     const workflow = await readWorkflow();
     const command = workflow.jobs?.verify?.steps?.flatMap(step => (step.run ?? "").split("\n")).find(line => line.includes("./apiserver -run '^(TestRuntime("));
@@ -796,8 +822,9 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
   });
 
   it("runs the cutover executor package tests, not only importing its implementation", async () => {
-    const workflow = await readWorkflow();
-    const command = workflow.jobs?.verify?.steps?.flatMap(step => (step.run ?? "").split("\n")).find(line => line.startsWith("go test ") && line.includes("./agentsec-migrate"));
+    const workflow = await readRawWorkflow();
+    const group = workflow.jobs?.verify?.steps?.find(step => step.name === "Verify migrations and runtime infrastructure packages");
+    const command = group?.run?.split("\n").find(line => line.startsWith("go test "));
     expect(command?.split(/\s+/)).toContain("./internal/sandboxcutover");
   });
 
@@ -808,6 +835,93 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
   });
 });
 
+
+describe("full-size audit scheduling", () => {
+  it("requires every lane with its own runner, exact tooling, mode and unfiltered command", async () => {
+    const workflow = await readRawWorkflow();
+    const original = workflow.jobs!["audit-full-size"];
+    const manifest = await readPackageManifest();
+    const validate = (job: WorkflowJob) => {
+      const jobs = {...workflow.jobs, "audit-full-size": job};
+      const steps = requiredAcceptanceSteps(jobs);
+      assertRunnableUiWorkflow({...workflow, jobs: {...jobs, verify: {...workflow.jobs!.verify, steps}}}, manifest);
+    };
+    const mutate = (change: (job: WorkflowJob & {strategy: {"fail-fast": boolean; matrix: {lane: string[]}}}) => void) => {
+      const job = structuredClone(original) as Parameters<typeof change>[0];
+      change(job);
+      expect(() => validate(job)).toThrow();
+    };
+    validate(original);
+    mutate(job => { job.strategy.matrix.lane.pop(); });
+    mutate(job => { job.strategy.matrix.lane.push("${{ inputs.lane }}"); });
+    mutate(job => { job.strategy["fail-fast"] = true; });
+    mutate(job => { job["continue-on-error"] = true; });
+    mutate(job => { job.if = "github.ref == 'refs/heads/main'"; });
+    mutate(job => { job.steps![0].with = {ref: "main"}; });
+    mutate(job => { job.steps![4].env = {AUDIT_CHILD_MODE: "normal"}; });
+    mutate(job => { job.steps![5].if = "matrix.lane == 'audit_normal'"; });
+    mutate(job => { job.steps![5].run += " || true"; });
+  });
+});
+
+describe("owned migration suite scheduling", () => {
+  it.each([
+    ["retain-on-error", (job: WorkflowJob) => { job["continue-on-error"] = true; }],
+    ["branch filter", (job: WorkflowJob) => { job.if = "github.ref == 'refs/heads/main'"; }],
+    ["unchecked checkout", (job: WorkflowJob) => { job.steps![0].with = {ref: "main"}; }],
+    ["missing runtime tool intake", (job: WorkflowJob) => { job.steps!.splice(5, 1); }],
+    ["missing child compilation", (job: WorkflowJob) => { job.steps!.splice(4, 1); }],
+    ["race-instrumented child tests", (job: WorkflowJob) => {
+      const step = job.steps![4];
+      step.run = step.run!.replace("go test -C services/platform -c", "go test -C services/platform -race -c");
+    }],
+    ["omitted nested authorization test binary", (job: WorkflowJob) => {
+      const step = job.steps![4];
+      step.run = step.run!.replace(" apiserver authorization;", " apiserver;");
+    }],
+    ["default ten-minute suite budget", (job: WorkflowJob) => {
+      job.steps!.at(-1)!.run = job.steps!.at(-1)!.run!.replace("-timeout=90m ", "");
+    }],
+    ["partial selection", (job: WorkflowJob) => { job.steps!.at(-1)!.run += " -run TestOne"; }],
+    ["unfiltered fixture authority", (job: WorkflowJob) => {
+      job.steps!.at(-1)!.run = job.steps!.at(-1)!.run!.split("\n")[1].trim() + "\n";
+    }],
+  ] as const)("rejects %s on the real workflow", async (_name, mutate) => {
+    const {jobs} = await readRawWorkflow();
+    mutate(jobs!["migration-tests"]);
+    expect(() => requiredAcceptanceSteps(jobs)).toThrow();
+  });
+});
+
+describe("durable API suite scheduling", () => {
+  it("keeps every required partition and its complete input filter", async () => {
+    const workflow = await readRawWorkflow();
+    const manifest = await readPackageManifest();
+    const original = workflow.jobs!["durable-apiserver"];
+    for (const change of [
+      (job: WorkflowJob) => { job.strategy = {"fail-fast": false, matrix: {shard: [0, 1]}}; },
+      (job: WorkflowJob) => { job.if = "github.ref == 'refs/heads/main'"; },
+      (job: WorkflowJob) => { job.steps!.at(-1)!.env = {DURABLE_SHARD: "0"}; },
+      (job: WorkflowJob) => {
+        const step = job.steps!.at(-1)!;
+        step.run = step.run!.replace(/^export ZASP_ATTACK_LAB_TASK2_WORKER_BINARY=.*\n/m, "");
+      },
+      (job: WorkflowJob) => {
+        const step = job.steps!.at(-1)!;
+        step.run = step.run!.replace('ZASP_ATTACK_LAB_TASK2_WORKER_BINARY="$ZASP_RECONCILE_CLIENT_BINARY"', 'ZASP_ATTACK_LAB_TASK2_WORKER_BINARY="/tmp/other-worker"');
+      },
+      (job: WorkflowJob) => { job.steps!.at(-1)!.run = job.steps!.at(-1)!.run!.replace("TestSensor|", ""); },
+      (job: WorkflowJob) => { job.steps!.at(-1)!.run += " || true"; },
+    ]) {
+      const job = structuredClone(original);
+      change(job);
+      const jobs = {...workflow.jobs, "durable-apiserver": job};
+      expect(() => assertRunnableUiWorkflow({
+        ...workflow, jobs: {...jobs, verify: {...workflow.jobs!.verify, steps: requiredAcceptanceSteps(jobs)}},
+      }, manifest)).toThrow();
+    }
+  });
+});
 
 describe("compliance browser workflow failure attribution", () => {
   it.each([

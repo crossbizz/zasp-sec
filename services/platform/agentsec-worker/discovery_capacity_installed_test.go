@@ -187,14 +187,16 @@ func TestDiscoveryCapacityInstalledIO(t *testing.T) {
 			var original string
 			changed := "pid_72920001-0000-4000-8000-000000000001"
 			args := []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.IntegrationID}
-			if err := owner.QueryRow(ctx, `SELECT id FROM zasp_inventory_relationships WHERE(organization_id,workspace_id,environment_id,integration_id)=($1,$2,$3,$4)`, args...).Scan(&original); err != nil {
+			if err := owner.QueryRow(ctx, `SELECT id FROM zasp_inventory_relationships WHERE(organization_id,workspace_id,environment_id,integration_id)=($1,$2,$3,$4) AND source='aws' AND kind='contains' AND source_native_id='123456789012|contains|aws:ec2'`, args...).Scan(&original); err != nil {
 				return err
 			}
-			if _, err := owner.Exec(ctx, `UPDATE zasp_inventory_relationships SET id=$5 WHERE(organization_id,workspace_id,environment_id,integration_id)=($1,$2,$3,$4)`, append(args, changed)...); err != nil {
+			const changeEdgeID = `UPDATE zasp_inventory_relationships SET id=$6 WHERE(organization_id,workspace_id,environment_id,integration_id,id)=($1,$2,$3,$4,$5) RETURNING id`
+			var updated string
+			if err := owner.QueryRow(ctx, changeEdgeID, append(args, original, changed)...).Scan(&updated); err != nil {
 				return err
 			}
 			defer func() {
-				if _, err := owner.Exec(context.Background(), `UPDATE zasp_inventory_relationships SET id=$5 WHERE(organization_id,workspace_id,environment_id,integration_id)=($1,$2,$3,$4)`, append(args, original)...); err != nil {
+				if err := owner.QueryRow(context.Background(), changeEdgeID, append(args, changed, original)...).Scan(&updated); err != nil {
 					t.Error("fixture edge restoration", err)
 				}
 			}()

@@ -699,7 +699,7 @@ func TestPrecisionExplicitReleaseCommand(t *testing.T) {
 			t.Errorf("historical command %s changed precision: version=%d events=%v err=%v", command, runner.version, runner.events, err)
 		}
 	}
-	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-56"}, {"down-to-50"}} {
+	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-051"}, {"down-to-50"}} {
 		if isForwardMigration(args) {
 			t.Error("unexpected forward command", args)
 		}
@@ -3388,9 +3388,9 @@ func TestRunReleaseMigrationRejectsAmbiguousInputsAndStopsOnFailure(t *testing.T
 
 func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDrift(t *testing.T) {
 	dsn := startMigrationPostgres(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	connection, err := pgx.Connect(ctx, dsn)
+	connectCtx, cancelConnect := context.WithTimeout(t.Context(), 20*time.Second)
+	connection, err := pgx.Connect(connectCtx, dsn)
+	cancelConnect()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3399,30 +3399,46 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := runReleaseMigration(ctx, runner, []string{"up-to-48"}); err != nil {
-		version, versionErr := runner.Version(ctx)
-		t.Fatalf("empty to target at version %d (%v): %v", version, versionErr, err)
+
+	runPhase := func(name string, wantVersion int64, migrate func(context.Context) error) {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+		defer cancel()
+		if err := migrate(ctx); err != nil {
+			t.Fatalf("%s: %v (context error: %v)", name, err, ctx.Err())
+		}
+		if version, err := runner.Version(ctx); err != nil || version != wantVersion {
+			t.Fatalf("%s: version = (%d, %v), want %d", name, version, err, wantVersion)
+		}
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 48 {
-		t.Fatalf("v34 = (%d, %v)", version, err)
+	upTo48 := func(ctx context.Context) error { return runReleaseMigration(ctx, runner, []string{"up-to-48"}) }
+	down := func(ctx context.Context) error { return runReleaseMigration(ctx, runner, []string{"down"}) }
+	runPhase("empty to v48", 48, upTo48)
+	runPhase("v48 retry", 48, upTo48)
+	runPhase("v48 to empty", 0, down)
+	runPhase("create v1", 1, runner.Up)
+	runPhase("v1 to v48", 48, upTo48)
+	runPhase("v48 to empty before v2", 0, down)
+	runPhase("create baseline for v2", 1, runner.Up)
+	runPhase("create v2", 2, runner.UpCore)
+	runPhase("v2 to v48", 48, upTo48)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	changed, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`)
+	if err != nil || changed.RowsAffected() != 1 {
+		t.Fatalf("corrupt v2 checksum: rows = %d, error = %v", changed.RowsAffected(), err)
 	}
-	if err := runReleaseMigration(ctx, runner, []string{"up-to-48"}); err != nil {
-		t.Fatalf("v27 retry: %v", err)
+	if err := upTo48(ctx); !errors.Is(err, migrations.ErrInvalidState) {
+		t.Fatalf("drift error = %v", err)
 	}
-	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v27 to empty: %v", err)
-	}
-	if err := runner.Up(ctx); err != nil {
-		t.Fatalf("create v1: %v", err)
-	}
-	if err := runReleaseMigration(ctx, runner, []string{"up-to-48"}); err != nil {
-		t.Fatalf("v1 to v27: %v", err)
-	}
-	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
+	var rows, latestVersion int64
+	var checksum string
+	if err := connection.QueryRow(ctx, `SELECT count(*), max(version), max(checksum) FILTER (WHERE version = 2) FROM zasp_schema_versions`).Scan(&rows, &latestVersion, &checksum); err != nil {
 		t.Fatal(err)
 	}
-	if err := runReleaseMigration(ctx, runner, []string{"up-to-48"}); !errors.Is(err, migrations.ErrInvalidState) {
-		t.Fatalf("drift error = %v", err)
+	if rows != 48 || latestVersion != 48 || checksum != strings.Repeat("0", 64) {
+		t.Fatalf("after rejected drift: rows = %d, version = %d, v2 checksum = %q", rows, latestVersion, checksum)
 	}
 }
 

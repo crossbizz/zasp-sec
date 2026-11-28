@@ -66,6 +66,19 @@ describe("production acceptance failure reporting", () => {
     },
   );
 
+  const durableGroups = [
+    "Verify migrations and runtime infrastructure packages",
+    "Verify API and worker packages",
+    "Verify runtime metadata, lineage and search packages",
+  ];
+  it.each(durableGroups)("continues every sibling when %s fails", failed => {
+    const { outcomes, failedJob } = run("verify", failed);
+    expect(failedJob).toBe(true);
+    for (const group of durableGroups) {
+      expect(outcomes.get(group)).toBe(group === failed ? "failure" : "success");
+    }
+  });
+
   it.each(["Verify runnable UI", "Provision isolated compliance browser prerequisites"])(
     "requires %s for both consumers of the compiled UI and pinned browser image", failed => {
       const { outcomes, failedJob } = run("verify", failed);

@@ -35,7 +35,11 @@ func TestWorkerVerifierCLIConfiguration(t *testing.T) {
 		size int
 		mode os.FileMode
 	}{{"short", 31, 0o400}, {"oversize", 4097, 0o400}, {"writable", 32, 0o600}, {"public", 32, 0o444}} {
-		if err := os.WriteFile(filepath.Join(dir, file.name), bytes.Repeat([]byte{42}, file.size), file.mode); err != nil {
+		path := filepath.Join(dir, file.name)
+		if err := os.WriteFile(path, bytes.Repeat([]byte{42}, file.size), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, file.mode); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { migrationTestCensus, migrationTestCommands } from "./migration-test-partition.mjs";
 
 import {
   apiserverFeatureRun,
@@ -13,6 +14,7 @@ import {
   platformGoTestCommands,
   reachableScripts,
   uncoveredPackages,
+  verifiedMigrationCoverage,
 } from "./platform-go-test-packages.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
@@ -32,14 +34,50 @@ test("finds only platform go test commands, split at shell operators", () => {
   ]);
 });
 
-test("a command with -run or -c covers no package", () => {
+test("a filtered, list-only or compile-only command covers no package", () => {
   const patterns = fullyRunPatterns([
     "go test -C services/platform -race ./full ./tree/...",
     "go test -C services/platform -race ./filtered -run '^TestX$'",
     "go test -C services/platform -run=^TestY$ ./filtered2",
     "go test -C services/platform -race -c -o bin ./compiled",
+    "go test -C services/platform ./skipped -skip TestExpensive",
+    "go test -C services/platform -skip=Test ./filtered",
+    "go test -C services/platform -test.skip=Test ./also-filtered",
+    "go test -C services/platform -list Test ./inventory",
   ]);
   assert.deepEqual([...patterns].sort(), ["full", "tree/..."]);
+});
+
+test("migration filters partition the current long cases, future tests and ordinary Go examples and fuzz seeds", () => {
+  const prefix = "^TestTemporalDiscovery";
+  const long = prefix + "(Continuation|ShippedRuntime|TenantIsolation)Postgres$";
+  const suffix = ["./agentsec-migrate"];
+  assert.deepEqual(migrationTestCommands.continuation.slice(6), ["-timeout=70m", "-run", prefix + "ContinuationPostgres$", ...suffix]);
+  assert.deepEqual(migrationTestCommands["discovery-long"].slice(6), ["-timeout=45m", "-run", prefix + "(ShippedRuntime|TenantIsolation)Postgres$", ...suffix]);
+  assert.deepEqual(migrationTestCommands.discovery.slice(6), ["-timeout=65m", "-run", prefix, "-skip", long, ...suffix]);
+  assert.deepEqual(migrationTestCommands.remaining.slice(6), ["-timeout=90m", "-skip", prefix, ...suffix]);
+  const cases = ["TestTemporalDiscoveryContinuationPostgres", "TestTemporalDiscoveryShippedRuntimePostgres",
+    "TestTemporalDiscoveryTenantIsolationPostgres", "TestTemporalDiscoveryContinuationPostgresFuture", "TestTemporalDiscoveryNew",
+    "TestNew", "FuzzMigration", "ExampleMigration", "ok  github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate 0.1s"];
+  assert.deepEqual(migrationTestCensus(cases.join("\n")), {continuation: 1, "discovery-long": 2, discovery: 2, remaining: 3});
+  assert.throws(() => migrationTestCensus(cases.slice(1).join("\n")));
+  assert.throws(() => migrationTestCensus([cases[0], ...cases].join("\n")));
+  assert.throws(() => migrationTestCensus(cases.slice(0, -1).join("\n")));
+});
+
+test("only the checked acceptance migration matrix covers the complete package", () => {
+  const yaml = readFileSync(workflowPath, "utf8");
+  assert.equal(verifiedMigrationCoverage(yaml), "agentsec-migrate");
+  for (const change of [
+    ["lane: [continuation, discovery-long, discovery, remaining]", "lane: [discovery-long, discovery, remaining]"],
+    ["-run '^TestTemporalDiscoveryContinuationPostgres$'", "-run '^TestTemporalDiscovery'"],
+    ["-run '^TestTemporalDiscovery(ShippedRuntime|TenantIsolation)Postgres$'", "-run '^TestTemporalDiscovery(Continuation|ShippedRuntime|TenantIsolation)Postgres$'"],
+    ["if: matrix.lane == 'discovery-long'", "if: false"],
+    ["-skip '^TestTemporalDiscovery' ./agentsec-migrate", "-skip '^Test' ./agentsec-migrate"],
+  ]) {
+    assert.notEqual(yaml.replace(...change), yaml);
+    assert.throws(() => verifiedMigrationCoverage(yaml.replace(...change)));
+  }
 });
 
 test("a dir/... pattern covers the directory and everything below it only", () => {

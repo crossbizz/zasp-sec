@@ -77,9 +77,8 @@ func verifySandboxMigrationBinary(t *testing.T, ctx context.Context, dsn string,
 	}
 	run("up", principals, false)
 	check(50)
-	// 52 and 53 are supported forward migrations now. Keep the unknown-target
-	// refusal check above the compiled range without advancing this50 fixture.
-	run("up-to-54", principals, false)
+	// Reject a noncanonical spelling of this release without changing the fixture.
+	run("up-to-050", principals, false)
 	check(50)
 	run("down-to-49", nil, true)
 	check(49)
@@ -89,5 +88,5 @@ func verifySandboxMigrationBinary(t *testing.T, ctx context.Context, dsn string,
 	if err := connection.QueryRow(ctx, `SELECT zasp_production_runtime_correlation_routing_readiness($1,$2) AND zasp_runtime_principals_ready()`, migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&ready); err != nil || !ready {
 		t.Fatal("binary rollback did not restore compiled49 readiness", ready, err)
 	}
-	t.Log("compiled executable with explicit environment: invalid50 config preserves49; install/retry50; compiled readiness and immutable bindings; plain up/unknown54 rejected; clean rollback/retry49")
+	t.Log("compiled executable with explicit environment: invalid50 config preserves49; install/retry50; compiled readiness and immutable bindings; plain up/noncanonical release rejected; clean rollback/retry49")
 }

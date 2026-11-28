@@ -28,7 +28,8 @@ func TestProductDiscoveryInstalledCollector(t *testing.T) {
 	if dsn == "" {
 		t.Skip("requires owned discovery72 PostgreSQL parent")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	// Cover five bounded pages and their replays before committing the snapshot.
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -65,13 +66,14 @@ func TestProductDiscoveryInstalledCollector(t *testing.T) {
 	start.Continuation = nil
 	command := orchestration.DiscoveryPageCommand{Start: start, Deadline: deadline}
 	var page orchestration.DiscoveryPage
-	for n := 1; n <= 4; n++ {
+	// The real AWS collector records account, IAM, resources, agents and posture.
+	for n := 1; n <= 5; n++ {
 		page, err = product.CollectDiscoveryPage(ctx, command)
 		want := "partial"
-		if n == 4 {
+		if n == 5 {
 			want = "complete"
 		}
-		if err != nil || page.Outcome != want {
+		if err != nil || page.Outcome != want || page.CheckpointVersion != int64(min(n, 4)) || !collection.ValidExecutionIdentity(0, page.ReceiptDigest) || page.ReceiptDigest == command.ExpectedCheckpointDigest {
 			t.Fatal("actual bounded fresh page", n, page, err)
 		}
 		writes := storage.writes
@@ -79,10 +81,16 @@ func TestProductDiscoveryInstalledCollector(t *testing.T) {
 		if err != nil || replay != page || storage.writes != writes || writes != n*2 {
 			t.Fatal("page replay/resume storage", n, replay, err, writes, storage.writes)
 		}
+		if n == 4 {
+			receipt, err := product.ApplyDiscoverySnapshot(ctx, orchestration.DiscoveryApplyCommand{Start: start, Deadline: deadline, CompleteReceiptDigest: page.ReceiptDigest})
+			if err == nil || receipt != "" || storage.writes != writes {
+				t.Fatal("partial agents receipt authorized snapshot application", receipt, err)
+			}
+		}
 		command.ExpectedCheckpointVersion, command.ExpectedCheckpointDigest = page.CheckpointVersion, page.ReceiptDigest
 	}
 	receipt, err := product.ApplyDiscoverySnapshot(ctx, orchestration.DiscoveryApplyCommand{Start: start, Deadline: deadline, CompleteReceiptDigest: page.ReceiptDigest})
-	if err != nil || len(receipt) != 64 {
+	if err != nil || !collection.ValidExecutionIdentity(0, receipt) {
 		t.Fatal("typed application", receipt, err)
 	}
 	if err := product.FinishDiscovery(ctx, orchestration.DiscoveryFinish{Start: start, Outcome: "succeeded", ReceiptDigest: receipt}); err != nil {

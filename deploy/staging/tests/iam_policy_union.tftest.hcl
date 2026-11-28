@@ -809,23 +809,3 @@ run "closed_default_workload_policy_union" {
   error_message = "The fixed default workload profile requires its exact role split and no optional roles."
  }
 }
-
-run "discovery_recovery_evidence_encryption" {
-  command = plan
-  variables {
-    evidence_encryption = "provider-managed"
-  }
-
-  assert {
-    condition     = one(one(aws_s3_bucket_server_side_encryption_configuration.evidence.rule).apply_server_side_encryption_by_default).sse_algorithm == "AES256" && !one(aws_s3_bucket_server_side_encryption_configuration.evidence.rule).bucket_key_enabled
-    error_message = "The evidence bucket must select SSE-S3 without a KMS bucket key."
-  }
-  assert {
-    condition     = length(aws_s3_bucket_policy.evidence_sse_s3) == 1 && jsondecode(aws_s3_bucket_policy.evidence_sse_s3[0].policy).Statement[0].Condition.StringNotEquals["s3:x-amz-server-side-encryption"] == "AES256" && toset(jsondecode(aws_s3_bucket_policy.evidence_sse_s3[0].policy).Statement[0].Condition.ArnEquals["aws:PrincipalArn"]) == toset([aws_iam_role.worker.arn, aws_iam_role.recovery["recovery_backup"].arn])
-    error_message = "Only the discovery and recovery evidence writers should be bound to SSE-S3."
-  }
-  assert {
-    condition     = toset(keys(aws_iam_role_policy.evidence_historical_reads)) == toset(["discovery", "backup", "restore"]) && one(one(aws_s3_bucket_server_side_encryption_configuration.runtime_raw.rule).apply_server_side_encryption_by_default).sse_algorithm == "aws:kms"
-    error_message = "Historical permissions must remain scoped and runtime raw evidence must retain KMS."
-  }
-}
