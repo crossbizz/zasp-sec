@@ -127,7 +127,12 @@ jobs:
         stages=[x for x in ["approval maintenance refused","baseline refused","release migration configuration rejected","owned current authorization fixture unavailable","empty authorization projection","owned projection cleanup incomplete","permission denied","does not exist","duplicate key","violates foreign key","violates check constraint","request_forbidden","request_unauthenticated","request_invalid","not_found","browser text not found","ECONNREFUSED"] if x in data]
         status=[key+"-"+n for key,n in re.findall(r"\b(actual|expected): (\d{1,3})\b", data) if int(n)<=599]
         sqlstate=["SQLSTATE-"+x for x in re.findall(r"(?i)\bsqlstate[= ]([0-9A-Z]{5})\b",data)]
-        print("phase="+(" ".join(dict.fromkeys(refused+stages+sqlstate+status+codes+frames))[:235] or "no classified evidence"))
+        paging=[]
+        for line in re.findall(r"^ZASP_COMPLIANCE_PAGING=([^\r\n]{1,1100})$",data,re.M):
+            for value in line.split():
+                if re.fullmatch(r"ui-(?:loading|forbidden|unavailable|read-error|sign-in|evidence|other)-links-(?:0|1|other)|(?:controls|evidence)-(?:all|soc2|hipaa)-(?:selected|other)-(?:first|short|long)-[1-5][0-9]{2}",value):
+                    paging.append(value)
+        print("phase="+(" ".join(dict.fromkeys(paging+refused+stages+sqlstate+status+codes+frames))[:235] or "no classified evidence"))
         DIAG
         exit 1
       id: browser

@@ -2383,14 +2383,13 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   await stopChild(api);await startAPI();
   await reloadBrowser(cdp);
   await waitForBrowserText(cdp,/Create evidence export/);
+  const pagingStart=complianceResponseTrace.length;
   await selectBrowserOption(cdp,"Authorized scope","Staging");
   await waitForBrowserScope(cdp,selectedScope);
   // Both mounted chains must traverse an actual >512-character SQL/HTTP cursor.
   // These owned paging records are removed before export, whose 100-record cap
   // and original single-record byte assertions stay unchanged.
-  await waitForBrowserText(cdp,new RegExp(pagingLast));
-  const pagingLinks=await cdp.send("Runtime.evaluate",{expression:`[...document.querySelectorAll('a')].filter(e=>e.getAttribute('aria-label')==='Open policy ${pagingLast} version 7').length`,returnByValue:true});
-  assert.equal(pagingLinks.result.value,2,"all frameworks must include the last maximum-ID policy");
+  await waitForCompliancePagingLinks(cdp,`Open policy ${pagingLast} version 7`,selectedScope,pagingStart);
   for(const framework of ["soc2_security","hipaa"]) assert.ok(complianceResponseTrace.some(entry=>entry.path==="/api/v1/compliance/evidence"&&entry.scope===selectedScope&&entry.framework===framework&&entry.cursorLength>512&&entry.status===200),framework+" mounted long-cursor continuation missing");
   await selectBrowserOption(cdp,"Framework","HIPAA");
   await selectBrowserOption(cdp,"Control","Policy definitions");
@@ -6860,6 +6859,36 @@ async function assertResponsiveRiskLayout(cdp, heading) {
     assert.equal(state.focusedVisible, true, `${heading} focus target was not visible at ${viewport.width}x${viewport.height}`);
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+}
+
+async function waitForCompliancePagingLinks(cdp, label, scope, traceStart) {
+  const expression = `(() => {
+    const links = [...document.querySelectorAll('a')].filter(link => link.getAttribute('aria-label') === ${JSON.stringify(label)});
+    const text = document.body.innerText;
+    const states = [["Loading compliance evidence", "loading"], ["Access denied", "forbidden"], ["Source unavailable", "unavailable"],
+      ["Compliance request failed", "read-error"], ["Sign in to Zasp", "sign-in"], ["Evidence controls", "evidence"]];
+    return {links: links.length, state: states.find(([message]) => text.includes(message))?.[1] ?? "other"};
+  })()`;
+  let last;
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const result = await cdp.send("Runtime.evaluate", {expression, returnByValue: true});
+    last = result.result?.value;
+    if (last?.links === 2) return;
+    await delay(50);
+  }
+  const evidencePaths = new Map([["/api/v1/compliance/evidence","evidence"],["/api/v1/compliance/controls","controls"]]);
+  const observations = new Set();
+  for (const response of complianceResponseTrace.slice(traceStart)) {
+    const route = evidencePaths.get(response.path);
+    if (!route || response.method !== "GET" || !Number.isInteger(response.status) || response.status < 100 || response.status > 599) continue;
+    const framework = response.framework === "soc2_security" ? "soc2" : response.framework === "hipaa" ? "hipaa" : "all";
+    const cursor = response.cursor ? response.cursorLength > 512 ? "long" : "short" : "first";
+    observations.add([route,framework,response.scope===scope?"selected":"other",cursor,response.status].join("-"));
+  }
+  const state = ["loading","forbidden","unavailable","read-error","sign-in","evidence"].includes(last?.state) ? last.state : "other";
+  const links = last?.links === 0 || last?.links === 1 ? last.links : "other";
+  console.error(`ZASP_COMPLIANCE_PAGING=ui-${state}-links-${links} ${[...observations].slice(-12).join(" ")}`);
+  throw new Error("Expected both frameworks to render the final policy link");
 }
 
 async function waitForBrowserText(cdp, pattern) {
