@@ -91,5 +91,7 @@ func (handler *identityHTTPHandler) serveAuditPublicPage(writer http.ResponseWri
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
-	_, _ = writer.Write(body)
+	if _, err := writer.Write(body); err == nil {
+		recordWorkflowResponse(request, http.StatusOK)
+	}
 }

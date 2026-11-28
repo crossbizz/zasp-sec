@@ -83,6 +83,7 @@ type CookiePolicy struct {
 	FindingTickets          FindingTicketCreator
 	IntegrationWebhookTests IntegrationWebhookTester
 	AuditPublicPages        *AuditPublicPageRepository
+	WorkflowTelemetry       WorkflowTelemetry
 }
 
 type sessionRepository interface {
@@ -299,12 +300,13 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		}
 	}
 	return Dependencies{
-		Session:   session,
-		Identity:  &identityHTTPHandler{repository: repository, administration: &administration, provider: provider, identityAdministration: identityAdministration, tokenPolicy: &apiTokenPolicyHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}, auditPublicPages: cookie.AuditPublicPages, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
-		Inventory: inventorySurface,
-		Risk:      risk,
-		Workflow:  workflowSurface,
-		Connector: connector,
+		WorkflowTelemetry: cookie.WorkflowTelemetry,
+		Session:           session,
+		Identity:          &identityHTTPHandler{repository: repository, administration: &administration, provider: provider, identityAdministration: identityAdministration, tokenPolicy: &apiTokenPolicyHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}, auditPublicPages: cookie.AuditPublicPages, postHogEnabled: !nilInterface(cookie.WorkflowTelemetry), signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
+		Inventory:         inventorySurface,
+		Risk:              risk,
+		Workflow:          workflowSurface,
+		Connector:         connector,
 	}, mustDeploymentAuthenticator(repository.Authenticate, cookie.DeploymentMode, pinnedOrganization), nil
 }
 
@@ -551,6 +553,7 @@ type identityHTTPHandler struct {
 	// tokenPolicy serves the API token lifetime setting of an Environment.
 	tokenPolicy      *apiTokenPolicyHTTPHandler
 	auditPublicPages *AuditPublicPageRepository
+	postHogEnabled   bool
 	signingKey       []byte
 	tokenRevealKey   []byte
 	now              func() time.Time
@@ -1357,6 +1360,9 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			state = "healthy"
 		}
 		items := []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}
+		if handler.postHogEnabled {
+			items = append(items, map[string]any{"id": "posthog", "required": false, "categories": []string{"product_usage"}, "enabled": true, "health": "unknown"})
+		}
 		intent, err := handler.modelFlow(request, routed.OperationID)
 		if err != nil {
 			writeProductionError(writer, request, err)
@@ -1502,8 +1508,11 @@ func writeProductionResponse(writer http.ResponseWriter, request *http.Request, 
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
-	_, _ = writer.Write(payload)
-	_, _ = writer.Write([]byte("\n"))
+	_, bodyErr := writer.Write(payload)
+	_, newlineErr := writer.Write([]byte("\n"))
+	if bodyErr == nil && newlineErr == nil {
+		recordWorkflowResponse(request, status)
+	}
 }
 
 func writeProductionError(writer http.ResponseWriter, request *http.Request, err error) {

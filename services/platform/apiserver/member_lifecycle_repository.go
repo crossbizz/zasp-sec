@@ -101,6 +101,7 @@ func (r *PostgresRepository) mutateMember(ctx context.Context, identity RequestI
 		return nil, ErrRepositoryUnavailable
 	}
 	if reservation.Organization == "" {
+		suppressReplayedWorkflow(ctx)
 		return payload, nil
 	}
 	member, err := r.memberDirectory.DeliverMemberInvitation(ctx, reservation.Organization, m.Email, reservation.Resuming, func(ref string, loginLink bool) error {

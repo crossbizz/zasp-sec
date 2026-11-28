@@ -79,6 +79,7 @@ export const apiserverFeatureTestFiles = [
   "security_agent_remediation_test.go",
   "ticket_cohort_test.go",
   "ticket_proof_test.go",
+  "workflow_telemetry_test.go",
   "workload_action_test.go",
   "workload_context_test.go",
   "workload_binding_test.go",

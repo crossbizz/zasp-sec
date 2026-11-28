@@ -187,6 +187,15 @@ spec:
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.stytchCIDR is required" .Values.network.stytchCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 443 }]
+    {{- if and .Values.posthog .Values.posthog.enabled }}
+    {{- if not .Values.posthog.egressCIDRs }}{{ fail "posthog.egressCIDRs is required when posthog.enabled is set" }}{{ end }}
+    {{- $origin := urlParse (required "posthog.host is required" .Values.posthog.host) }}
+    - to:
+        {{- range .Values.posthog.egressCIDRs }}
+        - ipBlock: { cidr: {{ . | quote }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: {{ regexFind ":[0-9]+$" $origin.host | trimPrefix ":" | default "443" | atoi }} }]
+    {{- end }}
     {{- include "zasp.searchTLS.egress" . | nindent 4 }}
 {{- $connectorAWS := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
 {{- $connectorGitHub := required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github }}

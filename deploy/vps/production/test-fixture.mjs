@@ -20,7 +20,7 @@ export async function renderChart(release, chart, namespace, args = []) {
 
 // Render the complete shipped chart using the same hosted fixture as its AWS tests.
 // The operator overlay follows private site inputs, including their old endpoints.
-export async function renderVpsFixture(sessionSearchPhase = 'precision-intake') {
+export async function renderVpsFixture(sessionSearchPhase = 'precision-intake', extraArgs = []) {
   const options = sessionSearchPhase === 'precision-intake' ? canonicalRuntimeFixture() :
     {schemaVersion: 49, sessionSearchPhase};
   const {set, authorizationTemporal, runtimeServices} = hostedReleaseInputs(productionReleaseFixture, options);
@@ -39,7 +39,7 @@ export async function renderVpsFixture(sessionSearchPhase = 'precision-intake') 
   const directory = await mkdtemp(tmpdir() + '/vps-chart-');
   try {
     await writeFile(directory + '/site.json', JSON.stringify(site), {mode: 0o600});
-    return await renderChart('agentsec', 'deploy/staging/product', 'zasp', ['-f', directory + '/site.json', '-f', 'deploy/vps/production/values.yaml']);
+    return await renderChart('agentsec', 'deploy/staging/product', 'zasp', ['-f', directory + '/site.json', '-f', 'deploy/vps/production/values.yaml', ...extraArgs]);
   } finally {
     await rm(directory, {recursive: true, force: true});
   }

@@ -26,6 +26,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
+	"github.com/zasp-ai/zasp-sec/services/platform/producttelemetry"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -582,6 +583,14 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 		cookie.HostedGateway = gateway
 		connectorResources = append(connectorResources, transportCloser{transport: gateway.Client.Transport.(*http.Transport)})
+	}
+	if config.PostHogHost != "" {
+		tracker, err := producttelemetry.NewPostHog(config.PostHogHost, config.PostHogProjectKey)
+		if err != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("production-handlers", errRuntimeUnavailable)
+		}
+		cookie.WorkflowTelemetry = tracker
+		connectorResources = append(connectorResources, tracker)
 	}
 	cookie.AuditPublicPages = auditPublicPages
 	if verifier, ok := securityAgentDatabase.(interface {

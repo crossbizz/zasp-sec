@@ -9,13 +9,14 @@ import (
 var ErrInvalidComposition = errors.New("invalid API composition")
 
 type Dependencies struct {
-	Authorizer RequestAuthorizer
-	Session    http.Handler
-	Identity   http.Handler
-	Inventory  http.Handler
-	Risk       http.Handler
-	Workflow   http.Handler
-	Connector  http.Handler
+	WorkflowTelemetry WorkflowTelemetry
+	Authorizer        RequestAuthorizer
+	Session           http.Handler
+	Identity          http.Handler
+	Inventory         http.Handler
+	Risk              http.Handler
+	Workflow          http.Handler
+	Connector         http.Handler
 }
 
 type OperationDefinition struct {
@@ -467,7 +468,8 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 			operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: "view", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: definition.Method == http.MethodPost, Handler: agentExportHandler})
 		}
 	}
-	for _, operation := range operations {
+	for index, operation := range operations {
+		operations[index].Handler = withWorkflowTelemetry(operation, dependencies.WorkflowTelemetry)
 		if seenOperations[operation.OperationID] {
 			return nil, ErrInvalidComposition
 		}

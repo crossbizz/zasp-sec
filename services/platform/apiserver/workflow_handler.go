@@ -442,6 +442,9 @@ func (handler *workflowHTTPHandler) testIntegrationWebhook(writer http.ResponseW
 }
 
 func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, idempotencyKey string, intent json.RawMessage, result WorkflowMutationResult, status int, responseKind string) {
+	if result.Replayed {
+		suppressReplayedWorkflow(request.Context())
+	}
 	writer.Header().Set("ETag", quoteVersion(result.Version))
 	writer.Header().Set("X-Audit-ID", result.AuditID)
 	if result.ReceiptID != "" {

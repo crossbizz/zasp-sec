@@ -4,6 +4,33 @@ import {readFile} from 'node:fs/promises';
 import {load, loadAll} from 'js-yaml';
 import {renderChart, renderVpsFixture} from './test-fixture.mjs';
 
+test('the PostHog project key and ingestion egress belong only to the enabled product API', async () => {
+  const host = 'https://analytics.example.test:8443';
+  const cidr = '192.0.2.71/32';
+  const args = ['--set', `posthog.host=${host},posthog.existingSecret=ingestion`];
+  const enabled = ['--set', 'posthog.enabled=true'];
+  const ranges = ['--set-string', `posthog.egressCIDRs[0]=${cidr}`];
+  const off = await renderVpsFixture('compatibility', [...args, ...ranges]);
+  assert.ok(!JSON.stringify(off).includes('ZASP_POSTHOG_'));
+  assert.ok(!JSON.stringify(off).includes(cidr));
+  await assert.rejects(renderVpsFixture('compatibility', [...args, ...enabled]), /posthog\.egressCIDRs is required/);
+
+  const rows = await renderVpsFixture('compatibility', [...args, ...enabled, ...ranges]);
+  const api = rows.find(r => r.kind === 'Deployment' && r.metadata.name === 'agentsec-api');
+  const vars = api.spec.template.spec.containers[0].env.filter(e => e.name.startsWith('ZASP_POSTHOG_'));
+  assert.deepEqual(vars, [
+    {name: 'ZASP_POSTHOG_HOST', value: host},
+    {name: 'ZASP_POSTHOG_PROJECT_KEY', valueFrom: {secretKeyRef: {name: 'ingestion', key: 'project-key'}}},
+  ]);
+  assert.ok(rows.filter(r => r !== api).every(r => !JSON.stringify(r).includes('ZASP_POSTHOG_')));
+  const policies = rows.filter(r => r.kind === 'NetworkPolicy' && JSON.stringify(r.spec).includes(cidr));
+  assert.equal(policies.length, 1);
+  assert.equal(policies[0].spec.podSelector.matchLabels['app.kubernetes.io/name'], 'agentsec-api');
+  assert.deepEqual(policies[0].spec.egress.find(rule => JSON.stringify(rule).includes(cidr)), {
+    to: [{ipBlock: {cidr}}], ports: [{protocol: 'TCP', port: 8443}],
+  });
+});
+
 test('reserves the four peer namespaces independently of product Helm releases', async () => {
   const objects = loadAll(await readFile(new URL('./namespaces.yaml', import.meta.url), 'utf8'));
   assert.deepEqual(objects.map(o => o.kind), Array(4).fill('Namespace'));

@@ -34,6 +34,11 @@ deploymentAdmin:
   id: ""         # defaults to the public hostname
   existingSecret: "" # optional Secret containing the operator password under "password"
 
+posthog:
+  enabled: false
+  host: ""           # HTTPS ingestion origin, e.g. https://us.i.posthog.com
+  existingSecret: "" # Secret with the PostHog project key under "project-key"
+
 images:
   # REQUIRED. The three product images, built from deploy/production/*.Dockerfile
   # (api.Dockerfile, worker.Dockerfile, web.Dockerfile) and pushed to a registry

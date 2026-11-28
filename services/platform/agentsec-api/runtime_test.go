@@ -106,6 +106,38 @@ func TestConnectorWorkerOwnerIsPerProcessAndBounded(t *testing.T) {
 	}
 }
 
+func TestPostHogRuntimeOptIn(t *testing.T) {
+	const host = "https://us.i.posthog.com"
+	const key = "phc_fixture"
+	for _, tc := range []struct {
+		name  string
+		host  string
+		key   string
+		valid bool
+	}{
+		{"disabled", "", "", true},
+		{"enabled", host, key, true},
+		{"missing host", "", key, false},
+		{"missing project key", host, "", false},
+		{"insecure host", "http://us.i.posthog.com", key, false},
+		{"personal API key", host, "phx_fixture", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := fixtureRuntimeEnvironment()
+			env["ZASP_POSTHOG_HOST"] = tc.host
+			env["ZASP_POSTHOG_PROJECT_KEY"] = tc.key
+			config, err := loadRuntimeConfig(func(key string) string { return env[key] })
+			if tc.valid {
+				if err != nil || config.PostHogHost != tc.host || config.PostHogProjectKey != tc.key {
+					t.Fatal("PostHog settings did not load")
+				}
+			} else if !errors.Is(err, errInvalidRuntimeConfig) {
+				t.Fatalf("expected invalid configuration, got %v", err)
+			}
+		})
+	}
+}
+
 func TestRuntimeNangoConfigurationIsOptionalAllOrNothingAndPrivate(t *testing.T) {
 	config := fixtureRuntimeConfig()
 	if !validRuntimeConfig(config) {

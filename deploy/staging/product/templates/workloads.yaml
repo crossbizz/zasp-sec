@@ -76,6 +76,11 @@ spec:
             - { name: ZASP_DEPLOYMENT_MODE, value: {{ $root.Values.global.deploymentMode | quote }} }
             - { name: ZASP_PUBLIC_ORIGIN, value: {{ required "global.publicOrigin is required" $root.Values.global.publicOrigin | quote }} }
             {{- if eq .name "agentsec-api" }}
+            {{- if and $root.Values.posthog $root.Values.posthog.enabled }}
+            - { name: ZASP_POSTHOG_HOST, value: {{ required "posthog.host is required" $root.Values.posthog.host | quote }} }
+            - name: ZASP_POSTHOG_PROJECT_KEY
+              valueFrom: { secretKeyRef: { name: {{ required "posthog.existingSecret is required" $root.Values.posthog.existingSecret | quote }}, key: project-key } }
+            {{- end }}
             {{- if $root.Values.deploymentAdmin.enabled }}
             - { name: ZASP_DEPLOYMENT_ADMIN_ID, value: {{ required "deploymentAdmin.id must identify this installation" $root.Values.deploymentAdmin.id | quote }} }
             - { name: ZASP_DEPLOYMENT_ADMIN_PASSWORD_FILE, value: "/var/run/secrets/zasp-deployment-admin/password" }

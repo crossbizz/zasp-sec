@@ -197,6 +197,11 @@ nango:
   storageSecretName: ""
   databaseEgressCIDRs: []
   providerEgressCIDRs: []
+posthog:
+  enabled: false
+  host: ""           # HTTPS ingestion origin, e.g. https://us.i.posthog.com
+  existingSecret: "" # Secret with the PostHog project key under "project-key"
+  egressCIDRs: []    # Addresses of the configured ingestion host
 telemetry:
   replicas: 2
   backend: none

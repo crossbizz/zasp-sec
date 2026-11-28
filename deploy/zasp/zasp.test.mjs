@@ -519,6 +519,29 @@ function render(box, extra = []) {
 }
 const pod = documents => documents.find(document => document.kind === "StatefulSet").spec.template.spec;
 
+test("the evaluation chart injects the opt-in PostHog project key only into the API", needsHelm, () => {
+  const box = kubeBox();
+  try {
+    assert.equal(box.run(["secrets", "init"]).status, 0);
+    const host = "https://eu.i.posthog.com";
+    const settings = ["--set", `posthog.host=${host},posthog.existingSecret=ingestion`];
+    const disabled = render(box, settings);
+    assert.equal(disabled.status, 0, disabled.stderr);
+    assert.doesNotMatch(disabled.stdout, /ZASP_POSTHOG/);
+
+    const enabled = render(box, [...settings, "--set", "posthog.enabled=true"]);
+    assert.equal(enabled.status, 0, enabled.stderr);
+    const spec = pod(enabled.documents);
+    for (const container of [...spec.initContainers, ...spec.containers]) {
+      const vars = (container.env ?? []).filter(entry => entry.name.startsWith("ZASP_POSTHOG_"));
+      assert.deepEqual(vars, container.name === "api" ? [
+        { name: "ZASP_POSTHOG_HOST", value: host },
+        { name: "ZASP_POSTHOG_PROJECT_KEY", valueFrom: { secretKeyRef: { name: "ingestion", key: "project-key" } } },
+      ] : [], container.name);
+    }
+  } finally { box.done(); }
+});
+
 test("the chart renders the previous standalone profile when Nango is disabled", needsHelm, () => {
   const box = kubeBox();
   try {

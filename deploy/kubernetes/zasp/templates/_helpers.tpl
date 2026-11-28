@@ -55,8 +55,14 @@ Arguments: root, name, image, args (list).
     - configMapRef: { name: {{ include "zasp.name" .root }}-settings }
   {{- $nangoClient := and .root.Values.nango.enabled (has .name (list "api" "worker-discovery")) }}
   {{- $console := and (eq .name "api") .root.Values.deploymentAdmin.enabled }}
-  {{- if or $nangoClient $console }}
+  {{- $posthog := and (eq .name "api") .root.Values.posthog.enabled }}
+  {{- if or $nangoClient $console $posthog }}
   env:
+    {{- if $posthog }}
+    - { name: ZASP_POSTHOG_HOST, value: {{ required "posthog.host is required" .root.Values.posthog.host | quote }} }
+    - name: ZASP_POSTHOG_PROJECT_KEY
+      valueFrom: { secretKeyRef: { name: {{ required "posthog.existingSecret is required" .root.Values.posthog.existingSecret | quote }}, key: project-key } }
+    {{- end }}
     {{- if $console }}
     - { name: ZASP_DEPLOYMENT_ADMIN_ID, value: {{ .root.Values.deploymentAdmin.id | default (include "zasp.host" .root) | quote }} }
     - { name: ZASP_DEPLOYMENT_ADMIN_PASSWORD_FILE, value: "/var/run/secrets/zasp-deployment-admin/password" }

@@ -96,31 +96,13 @@ func NewAllowlistSerializer() EventSerializer {
 }
 
 func (allowlistSerializer) Serialize(scope domain.Scope, event Event) (DriverRecord, error) {
-	if scope.Validate() != nil || event.Name != EventProofCompleted || len(event.Fields) != 2 {
+	if scope.Validate() != nil || event.Name != EventProofCompleted {
 		return DriverRecord{}, ErrEvent
 	}
 
-	var source string
-	var success bool
-	sourceSeen := false
-	successSeen := false
-	for _, field := range event.Fields {
-		switch field.name {
-		case "source":
-			if sourceSeen || field.kind != fieldText || field.boolean || !validSource(field.text) {
-				return DriverRecord{}, ErrEvent
-			}
-			sourceSeen = true
-			source = field.text
-		case "success":
-			if successSeen || field.kind != fieldBoolean || field.text != "" {
-				return DriverRecord{}, ErrEvent
-			}
-			successSeen = true
-			success = field.boolean
-		default:
-			return DriverRecord{}, ErrEvent
-		}
+	source, success, err := sourceAndSuccess(event.Fields)
+	if err != nil {
+		return DriverRecord{}, err
 	}
 	organizationID := scope.OrganizationID().String()
 	return DriverRecord{
@@ -133,6 +115,36 @@ func (allowlistSerializer) Serialize(scope domain.Scope, event Event) (DriverRec
 		Source:               source,
 		Success:              success,
 	}, nil
+}
+
+// sourceAndSuccess requires exactly one well-typed value for each property.
+func sourceAndSuccess(fields []Field) (string, bool, error) {
+	if len(fields) != 2 {
+		return "", false, ErrEvent
+	}
+	var source string
+	var success bool
+	sourceSeen := false
+	successSeen := false
+	for _, field := range fields {
+		switch field.name {
+		case "source":
+			if sourceSeen || field.kind != fieldText || field.boolean || !validSource(field.text) {
+				return "", false, ErrEvent
+			}
+			sourceSeen = true
+			source = field.text
+		case "success":
+			if successSeen || field.kind != fieldBoolean || field.text != "" {
+				return "", false, ErrEvent
+			}
+			successSeen = true
+			success = field.boolean
+		default:
+			return "", false, ErrEvent
+		}
+	}
+	return source, success, nil
 }
 
 type Telemetry struct {

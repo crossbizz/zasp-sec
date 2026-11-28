@@ -22,6 +22,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/infraprovider"
+	"github.com/zasp-ai/zasp-sec/services/platform/producttelemetry"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -111,6 +112,8 @@ type RuntimeConfig struct {
 	// the deployment's worker serves Google Cloud; the provider is offered
 	// only then.
 	GCPCollectorVersion         string
+	PostHogHost                 string
+	PostHogProjectKey           string
 	NangoBaseURL                string
 	NangoServiceSecretReference string
 	NangoEnvironment            string
@@ -146,7 +149,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		return RuntimeConfig{}, err
 	}
 	var fileErr error
-	getenv, fileErr = runtimesecret.FromFiles(getenv, "ZASP_POSTGRES_DSN", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN")
+	getenv, fileErr = runtimesecret.FromFiles(getenv, "ZASP_POSTGRES_DSN", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN", "ZASP_POSTHOG_PROJECT_KEY")
 	if fileErr != nil {
 		return RuntimeConfig{}, fileErr
 	}
@@ -219,6 +222,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
 		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), GCPCollectorVersion: getenv("ZASP_DISCOVERY_GCP_COLLECTOR_VERSION"),
+		PostHogHost: getenv("ZASP_POSTHOG_HOST"), PostHogProjectKey: getenv("ZASP_POSTHOG_PROJECT_KEY"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
@@ -241,6 +245,11 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	}
 	if config.AttackLabWorkflow != "" && config.AttackLabWorkflow != "enabled" {
 		return false
+	}
+	if config.PostHogHost != "" || config.PostHogProjectKey != "" {
+		if producttelemetry.ValidatePostHogConfig(config.PostHogHost, config.PostHogProjectKey) != nil {
+			return false
+		}
 	}
 	if !validComplianceAPIConfiguration(config) {
 		return false
