@@ -48,12 +48,17 @@ jobs:
           set -o pipefail
           sdk_venv="$RUNNER_TEMP/zasp-sdk-python"
           log="$RUNNER_TEMP/zasp-sdk-test.log"
+          node --test fern/scripts/java-failure.test.mjs
           if PATH="$sdk_venv/bin:$PATH" npm run sdk:test -- --python --java 2>&1 | tee "$log"; then
             exit 0
           fi
           # The SDK runner prints its failed steps on a single line. Publish only known step names.
           failed=$(sed -n 's/^Failed: //p' "$log" | tail -1 | tr ',' '\n' | sed 's/^ *//' |
             awk '/^(typescript: (compile|smoke test)|go: (build|vet|test)|python: (compile|smoke test)|java: compile and test)$/ {print}' | paste -sd,)
+          if [[ "$failed" == *"java: compile and test"* ]]; then
+            java_detail=$(node fern/scripts/java-failure.mjs "$log")
+            failed="$failed ($java_detail)"
+          fi
           echo "failure=SDK checks: ${failed:-see SDK log}" >> "$GITHUB_OUTPUT"
           exit 1
       # Reference validation only. Older-major compatibility remains an open

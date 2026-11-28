@@ -128,3 +128,79 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - run: echo "See the compliance job."
+  previous_failures:
+    name: Read previous acceptance and SDK results
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+    outputs:
+      compliance: ${{ steps.summary.outputs.compliance }}
+      java: ${{ steps.summary.outputs.java }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Read the original jobs
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        umask 077
+        destination="$RUNNER_TEMP/previous-acceptance"
+        mkdir -p "$destination"
+        for pair in 46099850059/140839602924 46099849819/140839581826; do
+          run_id=${pair%/*}
+          job_id=${pair#*/}
+          repo="repos/$GITHUB_REPOSITORY"
+          test "$(gh api "$repo/actions/jobs/$job_id" --jq .run_id)" = "$run_id"
+          gh api "$repo/check-runs/$job_id/annotations?per_page=100" > "$destination/$job_id.json" || echo '[]' > "$destination/$job_id.json"
+          gh api "$repo/actions/jobs/$job_id/logs" > "$destination/$job_id.log" || : > "$destination/$job_id.log"
+        done
+    - name: Classify the retained evidence
+      id: summary
+      run: |
+        node --input-type=module <<'NODE'
+        import {readFileSync, appendFileSync} from 'node:fs';
+        import {execFileSync} from 'node:child_process';
+        import path from 'node:path';
+        import {javaFailure} from './fern/scripts/java-failure.mjs';
+        const tracked = new Set(execFileSync('git',['ls-files','-z'],{encoding:'utf8',maxBuffer:16*1024*1024}).split('\0').filter(Boolean));
+        const javaNames = new Set([...tracked].filter(p=>p.endsWith('.java')).map(p=>path.basename(p)));
+        const knownLabels = new Set(['install','forward-readiness','deployment-admin', ...['scripts/browser-command-failure.mjs','scripts/owned-runtime-startup-diagnostics.mjs'].flatMap(p=>
+          [...readFileSync(p,'utf8').matchAll(/["']([a-z][a-z0-9-]{1,65})["']/g)].map(m=>m[1]))]);
+        const previous = path.join(process.env.RUNNER_TEMP,'previous-acceptance');
+        function read(job) {
+          const list = JSON.parse(readFileSync(path.join(previous,job+'.json'),'utf8'));
+          const log = readFileSync(path.join(previous,job+'.log'),'utf8');
+          return {log, list};
+        }
+        const {log,list}=read('140839602924');
+        const text=[...list.map(v=>v.message||''),log].join('\n');
+        const labels=[];
+        for(const m of text.matchAll(/(?:Observed (?:phase|child stage|command class|dependency phase|readiness reason|branch|inner step): |Observed owned runtime startup: phase=|; (?:failure|stage)[:=] ?)([a-z][a-z0-9-]{1,65})/g)) {
+          if(knownLabels.has(m[1])) labels.push(m[1]);
+        }
+        const frames=[];
+        for(const m of text.matchAll(/(?:zasp-sec\/zasp-sec\/|(?:file:\/\/)?(?:^|\s))((?:scripts|app|apps|services|fern)\/[A-Za-z0-9_./-]+\.(?:mjs|ts|tsx|go|java)):(\d{1,6})(?:[,:]\d+)?/gm)) {
+          if(tracked.has(m[1])) frames.push(path.basename(m[1])+':'+Number(m[2]));
+        }
+        for (const a of list) {
+          if(tracked.has(a.path) && Number.isSafeInteger(a.start_line) && a.start_line>0) frames.push(path.basename(a.path)+':'+a.start_line);
+        }
+        const java=read('140839581826');
+        let category=javaFailure(java.log+'\n'+java.list.map(v=>v.message||'').join('\n'));
+        const javaSource=/^(compiler|JUnit) (.+\.java):\d+$/.exec(category);
+        if(javaSource && !javaNames.has(javaSource[2])) category=javaSource[1]+' failure';
+        const summary=[...new Set([...labels,...frames])].join(' ').slice(0,185)||'no classified evidence';
+        appendFileSync(process.env.GITHUB_OUTPUT,'compliance='+summary+'\njava='+category+'\n');
+        NODE
+  previous_results:
+    needs: previous_failures
+    name: ${{ format('Previous compliance · {0} | Java · {1}', needs.previous_failures.outputs.compliance, needs.previous_failures.outputs.java) }}
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+    - run: echo "The check name identifies the classified results."
