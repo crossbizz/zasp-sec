@@ -130,7 +130,7 @@ jobs:
         paging=[]
         for line in re.findall(r"^ZASP_COMPLIANCE_PAGING=([^\r\n]{1,1100})$",data,re.M):
             for value in line.split():
-                if re.fullmatch(r"ui-(?:loading|forbidden|unavailable|read-error|sign-in|pending|session-error|no-access|switching|evidence|other)-links-(?:0|1|other)-route-(?:evidence|other)|(?:controls|evidence)-(?:all|soc2|hipaa)-(?:selected|other)-(?:first|short|long)-[1-5][0-9]{2}",value):
+                if re.fullmatch(r"ui-(?:loading|forbidden|unavailable|read-error|sign-in|pending|session-error|no-access|switching|evidence|other)-links-(?:0|1|other)-route-(?:evidence|other)|(?:controls|evidence)-(?:all|soc2|hipaa)-(?:selected|other)-(?:first|short|long)-[1-5][0-9]{2}-(?:lt1s|1to5s|5to9s|9to11s|ge11s|unknown)",value):
                     paging.append(value)
         print("phase="+(" ".join(dict.fromkeys(paging+refused+stages+sqlstate+status+codes+frames))[:235] or "no classified evidence"))
         DIAG
