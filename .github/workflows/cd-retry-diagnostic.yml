@@ -14,7 +14,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     outputs:
-      phase: ${{ steps.browser.outputs.phase }}
+      phase: ${{ steps.browser.outputs.phase || steps.prerequisites.outputs.phase }}
     steps:
     - name: Check out repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -56,34 +56,36 @@ jobs:
     - name: Build the web client
       run: npm run build
     - name: Provision isolated compliance browser prerequisites
+      id: prerequisites
       timeout-minutes: 10
-      run: '# This populates the exact cache entry consumed with --pull=never.
-
+      run: |
+        set -euo pipefail
+        # This populates the exact cache entry consumed with --pull=never.
         compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
-
-        docker pull "$compliance_postgres_image"
-
-        docker image inspect "$compliance_postgres_image" --format ''{{json .RepoDigests}}'' | node --input-type=module -e ''import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");'' "$compliance_postgres_image"
-
-        node --input-type=module <<''NODE''
-
+        phase=postgres-image-pull
+        trap 'printf "phase=%s\n" "$phase" >> "$GITHUB_OUTPUT"' ERR
+        pull_log="$RUNNER_TEMP/compliance-postgres-pull"
+        for attempt in 1 2 3; do
+          if docker pull "$compliance_postgres_image" > "$pull_log" 2>&1; then break; fi
+          if grep -Eiq 'too many requests|toomanyrequests|429' "$pull_log"; then phase=postgres-registry-throttled
+          elif grep -Eiq 'internal server error|bad gateway|service unavailable|gateway timeout| 50[0234]|retry later|unexpected EOF|TLS handshake timeout|connection reset|i/o timeout' "$pull_log"; then phase=postgres-registry-transient
+          else printf 'phase=%s\n' "$phase" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+          if [ "$attempt" = 3 ]; then printf 'phase=%s\n' "$phase" >> "$GITHUB_OUTPUT"; exit 1; fi
+          sleep "$((attempt * 10))"
+        done
+        phase=postgres-image-digest
+        docker image inspect "$compliance_postgres_image" --format '{{json .RepoDigests}}' | node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");' "$compliance_postgres_image"
+        phase=chromium-discovery
+        node --input-type=module <<'NODE'
         import { execFileSync } from "node:child_process";
-
         import { appendFileSync } from "node:fs";
-
         import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
-
         const chrome = selectBrowserExecutable();
-
         console.log(`Hosted compliance browser: ${chrome}`);
-
         console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
-
         appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
-
         NODE
-
-        '
     - name: Provision pinned owned authorization runtime tools
       timeout-minutes: 5
       run: 'node scripts/hosted-runtime-tool-intake.mjs
@@ -245,6 +247,7 @@ jobs:
     outputs:
       compliance: ${{ steps.summary.outputs.compliance }}
       java: ${{ steps.summary.outputs.java }}
+      fixture: ${{ steps.summary.outputs.fixture }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -257,7 +260,7 @@ jobs:
         umask 077
         destination="$RUNNER_TEMP/previous-acceptance"
         mkdir -p "$destination"
-        for pair in 46099850059/140839602924 46099849819/140839581826; do
+        for pair in 46099850059/140839602924 46099849819/140839581826 46106367646/140859915800; do
           run_id=${pair%/*}
           job_id=${pair#*/}
           repo="repos/$GITHUB_REPOSITORY"
@@ -276,7 +279,7 @@ jobs:
         job, archive, log = sys.argv[1:]
         if zipfile.is_zipfile(archive):
             with zipfile.ZipFile(archive) as run:
-                needle = "verify current compliance browser acceptance" if job == "140839602924" else "compile and exercise all four generated sdks"
+                needle = {"140839602924":"verify current compliance browser acceptance","140839581826":"compile and exercise all four generated sdks","140859915800":"provision isolated compliance browser prerequisites"}[job]
                 for step in run.infolist():
                     name = re.sub(r"[ _-]+", " ", Path(step.filename).stem.lower())
                     if needle in name and step.file_size <= 64 * 1024 * 1024:
@@ -326,16 +329,29 @@ jobs:
         for (const a of list) {
           if(tracked.has(a.path) && Number.isSafeInteger(a.start_line) && a.start_line>0) frames.push(path.basename(a.path)+':'+a.start_line);
         }
+        const fixture=read('140859915800');
+        const joined=(fixture.log+'\n'+fixture.list.map(v=>v.message||'').join('\n')).replace(/.*?##\[group\]Run [\s\S]*?##\[endgroup\]/g,'');
+        const fixtureCategories=[
+          [/too many requests|toomanyrequests|HTTP 429/i,'registry throttled'],
+          [/internal server error|bad gateway|service unavailable|gateway timeout|HTTP 50[0234]/i,'registry upstream error'],
+          [/unexpected EOF|TLS handshake timeout|connection reset|i\/o timeout/i,'registry transport interrupted'],
+          [/no space left on device/i,'runner disk full'],
+          [/pinned browser PostgreSQL digest absent/i,'digest missing'],
+          [/unable to find.*chrom|no supported browser|browser executable unavailable/i,'Chromium unavailable'],
+          [/unauthorized|authentication required|denied: requested access/i,'registry denied'],
+          [/manifest unknown|manifest not found/i,'pinned image unavailable']
+        ];
+        const fixtureReason=fixtureCategories.find(([match])=>match.test(joined))?.[1]??'unclassified';
         const java=read('140839581826');
         let category=javaFailure(java.log+'\n'+java.list.map(v=>v.message||'').join('\n'));
         const javaSource=/^(compiler|JUnit) (.+\.java):\d+$/.exec(category);
         if(javaSource && !javaNames.has(javaSource[2])) category=javaSource[1]+' failure';
         const summary=[...new Set([...labels,...frames])].join(' ').slice(0,185)||'no classified evidence';
-        appendFileSync(process.env.GITHUB_OUTPUT,'compliance='+summary+(log.trim()?'':' [annotations only]')+'\njava='+category+(java.log.trim()?'':' [annotations only]')+'\n');
+        appendFileSync(process.env.GITHUB_OUTPUT,'compliance='+summary+(log.trim()?'':' [annotations only]')+'\njava='+category+(java.log.trim()?'':' [annotations only]')+'\nfixture='+fixtureReason+'\n');
         NODE
   previous_results:
     needs: previous_failures
-    name: ${{ format('Previous compliance · {0} | Java · {1}', needs.previous_failures.outputs.compliance, needs.previous_failures.outputs.java) }}
+    name: ${{ format('Previous compliance · {0} | Java · {1} | Setup · {2}', needs.previous_failures.outputs.compliance, needs.previous_failures.outputs.java, needs.previous_failures.outputs.fixture) }}
     runs-on: ubuntu-24.04
     permissions: {}
     steps:
