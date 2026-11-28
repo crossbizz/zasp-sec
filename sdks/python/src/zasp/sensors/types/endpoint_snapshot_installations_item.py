@@ -4,11 +4,13 @@ import typing
 
 import pydantic
 from ...core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
+from ...types.endpoint_skill_scan import EndpointSkillScan
 
 
 class EndpointSnapshotInstallationsItem(UniversalBaseModel):
     installation_id: str
     manifest_digest: typing.Optional[str] = None
+    skill_scan: typing.Optional[EndpointSkillScan] = None
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

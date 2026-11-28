@@ -86,8 +86,8 @@ function AIEditors({ settings, api, reload, client, expectedScope, refreshQualif
     {!fresh && (canEditOrganization || canEditEnvironment) && <div role="status" className="ai-actions">Sign in again to change AI policies. <Button onClick={reauthenticate}>Reauthenticate</Button></div>}
     <div className="ai-panels">
       {panel("organization", "Organization AI policy", canEditOrganization, <OrganizationFields policy={{ ...settings.organization, ...org }} change={patch => setOrg(current => ({ ...current, ...patch }))} />)}
-      {panel("environment", "Environment AI controls", canEditEnvironment, <EnvironmentFields settings={settings} draft={env} change={patch => setEnv(current => ({ ...current, ...patch }))} />)}
+      {panel("environment", "Environment AI controls", canEditEnvironment, <EnvironmentFields key={editing === "environment" ? "edit" : "view"} settings={settings} draft={env} change={patch => setEnv(current => ({ ...current, ...patch }))} />)}
     </div>
-    <Card title={<h2>Model qualifications</h2>}><div className="table-scroll"><Qualifications items={settings.qualifications} /></div><QualificationRunner client={client} expectedScope={expectedScope} environment={settings.environment} canEdit={canEditEnvironment} fresh={fresh} refreshQualifications={refreshQualifications} /></Card>
+    <Card title={<h2 id="model-qualifications">Model qualifications</h2>}><div className="table-scroll"><Qualifications items={settings.qualifications} /></div><QualificationRunner client={client} expectedScope={expectedScope} environment={settings.environment} canEdit={canEditEnvironment} fresh={fresh} refreshQualifications={refreshQualifications} /></Card>
   </>;
 }

@@ -1,5 +1,7 @@
 # Private static add-on scans
 
+The private worker handles manual ZIP uploads. Enrolled devices can also scan installed skills locally and send findings during inventory check-in. [Automatic device scans](../getting-started/local-skill-scan.md#when-a-skill-is-added-or-changed)
+
 The private worker scans an explicitly selected ZIP for one Environment. The API authorizes one archive digest and size. The worker receives the bytes over TLS and returns aggregate static finding counts. Administrators can also enable registry delivery so AppSec can review an exact version. The submitting browser previews which destination will receive the findings. A regular local scan and findings-only submission remain available without this worker.
 
 ## Provision the private worker
@@ -20,7 +22,9 @@ The product API records the grant, approved actor, scope, archive SHA-256, size,
 
 ## Submit and interpret a scan
 
-In Tools & MCP, open **Scan a private skill ZIP**. Choose the file and **Prepare private scan**. The browser hashes the file locally and sends the digest and byte count to the product API. A fresh data-controls administrator must approve in an Environment assigned to the worker. The next button names the recipient host and the page explains whether the findings will be kept in the Environment registry. Selecting it sends the ZIP directly with its narrow grant and without Zasp cookies. The confirmation displays completeness and rule counts. A partial scan has no approvable version. A completed scan by itself conveys no publisher attestation or review decision.
+Open **Tools & MCP → Skill scanner**. Choose a ZIP up to 8 MiB with `SKILL.md` at its root. Select **Review upload** to hash the file locally and request authorization for that digest and size. Private uploads require a freshly authenticated data-controls administrator, extended collection and a worker assigned to the selected Environment. Under **Scan this device**, you can also run the scanner locally.
+
+Review the worker hostname, archive retention and where the findings will go. Select **Scan on** followed by the worker hostname to send the ZIP directly to the worker with a single-use grant. The browser omits Zasp cookies. The result shows scan completeness and static finding counts. A partial scan has no approvable version. AppSec reviews completed versions separately.
 
 The API operation is `POST /api/v1/addon-scan-uploads`. The request selects `mode=private_upload`, `retention=memory_only`, `archive_digest=sha256:…` and `archive_bytes`. It requires the authorized browser session, current scope, CSRF and an idempotency key. An authorized retry returns the same unexpired grant. Switching to metadata-only collection prevents new grants. A worker validates issued grants locally until their five-minute expiry. To stop uploads immediately, disable worker ingress or stop the worker. Revoking its reporting token stops future registry submissions. The worker accepts `PUT /v1/uploads/{id}` with the signed grant, `Content-Type: application/zip` and the exact content length. The worker consumes a grant when it begins processing. On a failed or interrupted transmission, prepare a new grant. Raw content does not enter Zasp logs or report fields through the worker code.
 
@@ -34,7 +38,7 @@ The JSON report contains coverage and rule-count identifiers only. It omits memb
 
 ## Retain an encrypted archive for 24 hours
 
-In **Tools & MCP → Add-ons → Private scan**, select the archive, choose encrypted retention and review the Environment, destination and deletion deadline before confirming the transfer. Each new file starts in memory-only mode. The retained grant binds the Environment, actor, exact ZIP SHA-256, byte length and expiration. The returned retention receipt identifies the grant and deadline after the storage process reads back the encrypted object. If a retained transfer is interrupted, give the operator its grant ID so they can check its state.
+In **Tools & MCP → Skill scanner**, select the archive, choose encrypted retention and review the Environment, destination and deletion deadline before confirming the transfer. Each new file starts in memory-only mode. The retained grant binds the Environment, actor, exact ZIP SHA-256, byte length and expiration. The returned retention receipt identifies the grant and deadline after the storage process reads back the encrypted object. If a retained transfer is interrupted, give the operator its grant ID so they can check its state.
 
 Enable this mode independently on the API, scanner and storage process. The existing extended-collection and fresh data-control permissions apply. The API requires `ZASP_PRIVATE_ADDON_RETAINED_SCOPE` to equal its configured private worker scope. With the staging chart set `privateAddonWorker.retained: true` alongside its existing scope and origin. The scanner requires `ZASP_PRIVATE_ADDON_RETENTION_UPLOAD_SOCKET` pointing at the storage process's `uploads.sock`. A memory-only grant bypasses that socket. A retained grant uses a distinct signed version so an older scanner rejects it.
 

@@ -16,7 +16,7 @@ try {
  }
  $stage=Join-Path $fixture 'stage'
  & (Join-Path $PSScriptRoot 'Stage-Device.ps1') -SignedExecutable $exe -AgentSHA256 $hash -SignerThumbprint $thumb -NewOutput $stage
- foreach ($name in @('Manage-Device.ps1','Manage-Pretool.ps1','Collect-Inventory.ps1')) {
+ foreach ($name in @('Manage-Device.ps1','Manage-Pretool.ps1','Collect-Inventory.ps1','Watch-Inventory.ps1','Sync-Inventory.ps1')) {
   if ((Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $name)).Hash -ne (Get-FileHash -LiteralPath (Join-Path $stage "input/$name")).Hash) { throw 'Staged management file differs.' }
  }
  foreach ($name in @('Detect-Device.ps1','Detect-Pretool.ps1')) {
@@ -32,3 +32,5 @@ try {
  if (!$rejected -or (Test-Path -LiteralPath $target)) {throw 'Mismatched signer was staged.'}
  Write-Output 'Verified both generated Intune detectors and packaged broker management scripts.'
 } finally { if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force } }
+
+& (Join-Path $PSScriptRoot 'Test-InventoryWatch.ps1')

@@ -6,10 +6,39 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestDataControlsReportsScopedPrivateScanConfiguration(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	scope := identity.Scope
+	partition := scope.OrganizationID().String() + "/" + scope.WorkspaceID().String() + "/" + scope.EnvironmentID().String()
+	repo, err := NewPostgresRepository(&workflowCallDatabase{response: json.RawMessage(`{"version":1}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &identityHTTPHandler{repository: repo, administration: repo, tokenRevealKey: bytes.Repeat([]byte{0x24}, 32)}
+	t.Setenv("ZASP_PRIVATE_ADDON_RESULT_CREDENTIAL", "")
+	for _, test := range []struct{ origin, scope, retention, want string }{
+		{"", "", "", "unconfigured"},
+		{"https://scanner.example.invalid", "another-scope", "", "unconfigured"},
+		{"https://scanner.example.invalid", partition, "another-scope", "memory_only"},
+		{"https://scanner.example.invalid", partition, partition, "encrypted_24h"},
+	} {
+		t.Setenv("ZASP_PRIVATE_ADDON_WORKER_ORIGIN", test.origin)
+		t.Setenv("ZASP_PRIVATE_ADDON_WORKER_SCOPE", test.scope)
+		t.Setenv("ZASP_PRIVATE_ADDON_RETAINED_SCOPE", test.retention)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/settings/data-controls", nil)
+		h.serveAdministration(rec, req, identity, RoutedOperation{OperationID: "getDataControls"})
+		if rec.Code != http.StatusOK || rec.Header().Get("X-Zasp-Private-Scan") != test.want || rec.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("expected %s, got HTTP %d with headers %v", test.want, rec.Code, rec.Header())
+		}
+	}
+}
 
 func TestPrivateAddonUploadOnInstalledBaselinePostgres(t *testing.T) {
 	b := startInstalledV2Baseline(t)

@@ -15,7 +15,7 @@ const legacyRules = [
   "script.network_access",
   "script.shell_execution",
 ];
-const rules = [...legacyRules, "instruction.override", "script.credential_path_access", "script.remote_exec_pipe", "mcp.unpinned_exec"];
+export const staticRules = [...legacyRules, "instruction.override", "script.credential_path_access", "script.remote_exec_pipe", "mcp.unpinned_exec"];
 export type ReviewDecision = "approved" | "rejected" | "revoked";
 export type AddonFrameworkEvidence = Readonly<{
   rule_id: string;
@@ -29,7 +29,7 @@ export type AddonFrameworkEvidence = Readonly<{
 export type AddonVersion = Readonly<{
   id: string;
   manifest_digest: string;
-  origin: "local" | "ci" | "private_worker";
+  origin: "local" | "ci" | "private_worker" | "endpoint";
   provenance: "reported";
   ruleset: "zasp-static.v1" | "zasp-static.v2";
   findings: readonly { rule_id: string; count: number }[];
@@ -49,14 +49,14 @@ function record(value: unknown): Record<string, unknown> {
     return invalid();
   return value as Record<string, unknown>;
 }
-function decodeFindings(items: unknown, ruleset: AddonVersion["ruleset"]) {
-  if (!Array.isArray(items) || items.length > rules.length) return invalid();
+export function decodeFindings(items: unknown, ruleset: AddonVersion["ruleset"]) {
+  if (!Array.isArray(items) || items.length > staticRules.length) return invalid();
   const seen = new Set<string>();
   return items.map((item) => {
     const f = record(item);
     if (
       typeof f.rule_id !== "string" ||
-      !(ruleset === "zasp-static.v1" ? legacyRules : rules).includes(f.rule_id) ||
+      !(ruleset === "zasp-static.v1" ? legacyRules : staticRules).includes(f.rule_id) ||
       seen.has(f.rule_id) ||
       typeof f.count !== "number" ||
       !Number.isSafeInteger(f.count) ||
@@ -121,7 +121,7 @@ export function decodeAddonVersion(
     typeof row.manifest_digest !== "string" ||
     !digest.test(row.manifest_digest) ||
     row.provenance !== "reported" ||
-    (row.origin !== "local" && row.origin !== "ci" && row.origin !== "private_worker") ||
+    (row.origin !== "local" && row.origin !== "ci" && row.origin !== "private_worker" && row.origin !== "endpoint") ||
     (row.ruleset !== "zasp-static.v1" && row.ruleset !== "zasp-static.v2") ||
     (row.review_state !== "pending" &&
       row.review_state !== "approved" &&

@@ -76,8 +76,9 @@ func Parse(raw []byte, project string, seed []byte, sequence uint64) ([]endpoint
 			Roots []struct{ Scope, Root, Status string } `json:"roots"`
 		} `json:"coverage"`
 		Items []struct {
-			Path, Scope string
-			Digest      string `json:"manifest_digest"`
+			Path, Scope, Type string
+			SkillScan         *endpointprotocol.SkillScan `json:"skill_scan"`
+			Digest            string                      `json:"manifest_digest"`
 		} `json:"items"`
 	}
 	if !UniqueJSON(raw) || json.Unmarshal(raw, &r) != nil || r.Schema != "zaspctl.local.v1" || r.Command != "inventory" || (r.Status != "complete" && r.Status != "partial") || r.Coverage.Mode != "local_only" || len(r.Coverage.Roots) == 0 || len(r.Coverage.Roots) > 128 || len(r.Items) > 2048 {
@@ -117,7 +118,7 @@ func Parse(raw []byte, project string, seed []byte, sequence uint64) ([]endpoint
 			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 				continue
 			}
-			if matched[index] || root.Status == "absent" {
+			if matched[index] || root.Status == "absent" || (item.SkillScan != nil && item.Type != "skill") {
 				return nil, sequence, errInvalid
 			}
 			matched[index] = true
@@ -125,7 +126,7 @@ func Parse(raw []byte, project string, seed []byte, sequence uint64) ([]endpoint
 				complete = false
 				continue
 			}
-			v.Items = append(v.Items, endpointprotocol.Installation{ID: OpaqueID(seed, "install", partition, rel), Digest: item.Digest})
+			v.Items = append(v.Items, endpointprotocol.Installation{ID: OpaqueID(seed, "install", partition, rel), Digest: item.Digest, SkillScan: item.SkillScan})
 		}
 		if !v.Valid() {
 			return nil, sequence, errInvalid

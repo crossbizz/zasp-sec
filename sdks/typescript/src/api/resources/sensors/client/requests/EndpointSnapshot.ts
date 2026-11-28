@@ -33,6 +33,7 @@ export namespace EndpointSnapshot {
         export interface Item {
             installation_id: string;
             manifest_digest?: string | undefined;
+            skill_scan?: Zasp.EndpointSkillScan | undefined;
         }
     }
 }

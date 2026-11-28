@@ -38,6 +38,9 @@ const allowedExactSources = new Set([
   "app/features/tools/AddonScanReceipt.tsx",
   "app/features/tools/AddonInstallations.tsx",
   "app/features/tools/PrivateAddonScan.tsx",
+  "app/features/tools/SkillScannerPanel.tsx",
+  "app/features/tools/AutomaticSkillScans.tsx",
+  "app/features/tools/SkillRuleLabel.tsx",
   // The download view reads the release metadata staged by the operator.
   "app/features/tools/CLIReleaseDownloads.tsx",
   "app/features/tools/cli-release-pin.json",

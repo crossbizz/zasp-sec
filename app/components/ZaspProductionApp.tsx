@@ -33,10 +33,9 @@ import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
-import { PrivateAddonScan } from "../features/tools/PrivateAddonScan";
 import { Button, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
-import { enrollSensorLocation, parseActivityLink } from "../domain/activity-links";
+import { deviceFleetLocation, enrollSensorLocation, parseActivityLink } from "../domain/activity-links";
 import { parseCatalogLink } from "../domain/coverage-links";
 import { parseComplianceLink } from "../domain/compliance-links";
 
@@ -106,7 +105,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}/${initialSection}`} initialSection={initialSection} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   }
   if (path === "/connectors") return <ProductionIntegrationsView location={location} canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
-  if (path === "/integrations/sensors") return <ProductionSensorSurface startEnrollment={location === enrollSensorLocation} canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
+  if (path === "/integrations/sensors") return <ProductionSensorSurface startDeviceFleet={location === deviceFleetLocation} startEnrollment={location === enrollSensorLocation} canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" selectedID={selected?.kind === "approval" ? selected.id : undefined} onNavigate={navigate} />;
   if (path === "/administration/identity-access") {
@@ -132,11 +131,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     getScopeStaleGeneration,
   }} />;
   }
-  const inventory = <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
-  if (path === "/inventory/tools" && session.hasCapability("data-controls.manage")) {
-    return <>{inventory}<PrivateAddonScan key={JSON.stringify([queryScopeKey, queryGeneration])} client={client} environment={session.environmentID} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} /></>;
-  }
-  return inventory;
+  return <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
 function IdentityAdministration({ client, session }: { client: APIClient; session: SessionContextValue }) {

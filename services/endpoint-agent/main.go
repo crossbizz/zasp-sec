@@ -80,6 +80,13 @@ func run(ctx context.Context, args []string, in io.Reader, out, diag io.Writer) 
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	f.SetOutput(diag)
 	switch args[0] {
+	case "watch-skills":
+		socket := f.String("socket", defaultSocket, "assigned endpoint socket")
+		project := f.String("project", "", "scan only this assigned project root")
+		if err := f.Parse(args[1:]); err != nil || f.NArg() != 0 {
+			return errInvalid
+		}
+		return watchInstalledSkills(ctx, *socket, installedScanner, *project)
 	case "watch-ticket":
 		return watchTicket(ctx, args[1:], out, diag)
 	case "prove-ticket":

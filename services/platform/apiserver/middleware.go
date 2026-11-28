@@ -97,6 +97,13 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 		if maximumBody < guardrailMaxBodyBytes && request.URL != nil && request.URL.Path == guardrailDecisionPath && request.Method == http.MethodPost {
 			maximumBody = guardrailMaxBodyBytes
 		}
+		if request.URL != nil && request.Method == http.MethodPost {
+			path, prefix := strings.CutPrefix(request.URL.Path, "/api/v1/devices/")
+			device, suffix := strings.CutSuffix(path, "/inventory-snapshots")
+			if prefix && suffix && validProductID(device) {
+				maximumBody = endpointInventoryBodyLimit
+			}
+		}
 		gateway := security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path)
 		mcp := request.URL != nil && request.URL.Path == "/mcp"
 		if gateway {

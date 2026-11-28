@@ -148,6 +148,7 @@ for (const [manifest, name, version] of [
 for (const [manifest, name, version, license] of [
   ["cmd/zaspctl/go.mod", "golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["cmd/zaspctl/go.mod", "gopkg.in/yaml.v3", "v3.0.1", "MIT"],
+  ["services/endpoint-agent/go.mod", "github.com/fsnotify/fsevents", "v0.2.0", "BSD-3-Clause"],
   ["services/endpoint-agent/go.mod", "golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["services/platform/go.mod", "golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["services/platform/go.mod", "go.temporal.io/sdk", "v1.48.0", "MIT"],

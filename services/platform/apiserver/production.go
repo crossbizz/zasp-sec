@@ -758,6 +758,12 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 		handler.writeAdministrationPage(writer, request, identity, routed.OperationID, parameters, payload)
 		return
 	}
+	if routed.OperationID == "getDataControls" {
+		scope := identity.Scope
+		partition := scope.OrganizationID().String() + "/" + scope.WorkspaceID().String() + "/" + scope.EnvironmentID().String()
+		writer.Header().Set("Cache-Control", "no-store")
+		writer.Header().Set("X-Zasp-Private-Scan", handler.privateScanConfig(partition).mode)
+	}
 	var versioned struct {
 		Version int64 `json:"version"`
 	}

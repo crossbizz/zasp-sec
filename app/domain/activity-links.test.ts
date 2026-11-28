@@ -127,3 +127,8 @@ describe("exact scoped activity links", () => {
     expect(parseActivityLink(`/violations?${query}`, invalid)).toEqual({ state: "invalid" });
   });
 });
+
+it("opens the managed-device tab and the model qualification section", () => {
+  expect(parseActivityLink("/integrations/sensors?tab=devices", scope)).toEqual({ state: "none" });
+  expect(parseActivityLink("/administration/ai-controls#model-qualifications", scope)).toEqual({ state: "none" });
+});

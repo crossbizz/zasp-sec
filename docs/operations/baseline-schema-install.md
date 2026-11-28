@@ -101,14 +101,14 @@ The production Neon project was installed this way on 2026-11-12 in 7 seconds.
 
 ## Upgrading an existing baseline
 
-Use the V5 release's operator binary and a direct connection as the database owner. Take a backup and rehearse on a restored copy before upgrading a customer deployment.
+Use the V6 release's operator binary and a direct connection as the database owner. Take a backup and rehearse on a restored copy before upgrading a customer deployment.
 
 ```bash
-/app/agentsec-migrate upgrade-feature-v5
+/app/agentsec-migrate upgrade-feature-v6
 /app/agentsec-migrate verify-baseline
 ```
 
-Both commands read `ZASP_POSTGRES_DSN`. The upgrade recognizes the sealed pre-V2, framework, V2 and V3/V4 artifacts recorded in the release, including the artifact shipped in V4 at commit `a647c7a2`. It obtains the catalog lock, applies pending migrations, restores temporary grants, seals the catalog and checks readiness in one transaction. Existing tenant data and service credentials carry forward. A failed migration rolls back. Repeating the command against the current release checks readiness again. The older command names `upgrade-feature-v2` and `upgrade-feature-v3` remain available.
+Both commands read `ZASP_POSTGRES_DSN`. The upgrade recognizes the sealed pre-V2, framework, V2, V3/V4 and V5 artifacts recorded in the release. V5 shipped the preceding catalog at commit `299c4290`. It obtains the catalog lock, applies pending migrations, restores temporary grants, seals the catalog and checks readiness in one transaction. Existing tenant data and service credentials carry forward. A failed migration rolls back. Repeating the command against the current release checks readiness again. The older command names `upgrade-feature-v2`, `upgrade-feature-v3` and `upgrade-feature-v5` remain available.
 
 If the upgrade refuses an unknown artifact or reports drift, keep the database and its backup. Record the installed artifact with `verify-baseline` and identify the source version or catalog change before planning its migration.
 

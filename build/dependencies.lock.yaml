@@ -178,6 +178,14 @@ dependencies:
     review: approved
   - ecosystem: go
     manifest: services/endpoint-agent/go.mod
+    name: github.com/fsnotify/fsevents
+    version: v0.2.0
+    license: BSD-3-Clause
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/endpoint-agent/go.mod
     name: golang.org/x/sys
     version: v0.47.0
     license: BSD-3-Clause

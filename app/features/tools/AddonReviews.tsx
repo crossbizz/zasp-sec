@@ -23,7 +23,7 @@ import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Button, Card } from "../../components/ui";
 
-const originLabels: Record<AddonVersion["origin"], string> = {local: "local", ci: "CI", private_worker: "Private scanner"};
+const originLabels: Record<AddonVersion["origin"], string> = {local: "local", ci: "CI", private_worker: "Private scanner", endpoint: "Managed endpoint"};
 
 const staticRemediation: Readonly<Record<string, string>> = {
   "dependency.unpinned": "Pin the approved release and check the lockfile.",
@@ -283,7 +283,7 @@ function VersionReview({
               <code>{row.manifest_digest}</code>
             </dd>
             <dt>Source</dt>
-            <dd>{originLabels[row.origin]} · reported by submitter</dd>
+            <dd>{originLabels[row.origin]} · {row.origin === "endpoint" ? "reported by enrolled device" : "reported by submitter"}</dd>
             <dt>CI evidence</dt>
             <dd>
               {origin.data ? (

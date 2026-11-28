@@ -21,7 +21,7 @@ type Feedback = Readonly<{ role: "status" | "alert"; message: string }> | null;
 
 export { type SensorsAPI } from "./api";
 
-type SensorSurfaceProps = { startEnrollment?: boolean; canWrite: boolean; canManagePolicy?: boolean; fresh: boolean; onReauthenticate(): void };
+type SensorSurfaceProps = { startEnrollment?: boolean; startDeviceFleet?: boolean; canWrite: boolean; canManagePolicy?: boolean; fresh: boolean; onReauthenticate(): void };
 
 function subscribeToNavigation(notify: () => void) {
   window.addEventListener("popstate", notify);
@@ -35,12 +35,12 @@ function linkedDeviceFromLocation() {
 
 export function ProductionSensorSurface(props: SensorSurfaceProps) {
   const linkedDevice = useSyncExternalStore(subscribeToNavigation, linkedDeviceFromLocation, () => "");
-  return <SensorSections key={linkedDevice} {...props} linkedDevice={linkedDevice} />;
+  return <SensorSections key={linkedDevice || String(props.startDeviceFleet)} {...props} linkedDevice={linkedDevice} />;
 }
 
-function SensorSections({ startEnrollment, canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
+function SensorSections({ startEnrollment, startDeviceFleet, canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
-  const [section, setSection] = useState(linkedDevice ? "devices" : "sensors");
+  const [section, setSection] = useState(linkedDevice || startDeviceFleet ? "devices" : "sensors");
   const session = useOptionalSession();
   const scope = session?.status === "authenticated" ? [session.organizationID, session.workspaceID, session.environmentID].join("/") : undefined;
   const fleet = useMemo(() => createFleetAPI(client), [client]);

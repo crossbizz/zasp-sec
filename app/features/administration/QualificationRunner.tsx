@@ -60,7 +60,7 @@ export function QualificationRunner(props: {
 
   async function start(event: FormEvent) {
     event.preventDefault();
-    if (!selection?.model || !fresh || !canEdit || pending.current || (run && !terminal(run))) return;
+    if (!selection?.model || environment.monthly_budget_nano_credits <= 0 || !fresh || !canEdit || pending.current || (run && !terminal(run))) return;
     const purpose: Purpose = choice || selection.purposes[0];
     const body = { purpose, provider: selection.provider, model: selection.model };
     const serialized = JSON.stringify(body);
@@ -82,7 +82,8 @@ export function QualificationRunner(props: {
     <Select label="Qualification job" value={choice || selection.purposes[0]} disabled={busy || !fresh} onChange={e => setChoice(e.target.value as Purpose)}>
       {selection.purposes.map(purpose => <option value={purpose} key={purpose}>{purpose.replaceAll("_", " ")}</option>)}
     </Select>
-    <Button type="submit" disabled={!fresh || busy}>{saving ? "Requesting qualification…" : "Run qualification"}</Button>
+    <Button type="submit" disabled={!fresh || busy || environment.monthly_budget_nano_credits <= 0}>{saving ? "Requesting qualification…" : "Run qualification"}</Button>
+    {environment.monthly_budget_nano_credits <= 0 && <p>Save a positive monthly budget in Environment AI controls to run a qualification.</p>}
     {run && <p role="status">Qualification {run.status} · {run.purpose.replaceAll("_", " ")}</p>}
     {error && <p role="alert">{error} {run && !terminal(run) && <Button type="button" onClick={() => setError("")}>Check status</Button>}</p>}
   </form>;

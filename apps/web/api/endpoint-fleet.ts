@@ -1,4 +1,5 @@
 import { APITransportError, requireAPIData, type APIClient } from "./client";
+import { staticRules } from "./addon-reviews";
 import type {
   EndpointDevice,
   EndpointDetail,
@@ -93,6 +94,18 @@ function boundedRows<T>(value: unknown, total: number, max: number, decode: (row
   if (!Array.isArray(value) || value.length !== Math.min(total, max)) return invalid();
   return value.map(decode);
 }
+function decodeSkillScan(raw: unknown, hasManifest: boolean) {
+  const scan = obj(raw);
+  const skipped = n(scan.skipped_count);
+  if (scan.ruleset !== "zasp-static.v2" || skipped > 1024 || (skipped === 0) !== hasManifest) return invalid();
+  const counts: Record<string, number> = {};
+  for (const [rule, value] of Object.entries(obj(scan.rule_counts))) {
+    const count = n(value, 1);
+    if (!staticRules.includes(rule) || count > 1024) return invalid();
+    counts[rule] = count;
+  }
+  return { ruleset: "zasp-static.v2" as const, rule_counts: counts, skipped_count: skipped };
+}
 function decodeInstallation(row: unknown): EndpointInstallationDetail {
   const r = obj(row);
   if (
@@ -100,8 +113,12 @@ function decodeInstallation(row: unknown): EndpointInstallationDetail {
     (typeof r.manifest_digest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(r.manifest_digest))
   )
     return invalid();
+  const scan = r.skill_scan === undefined ? undefined : decodeSkillScan(r.skill_scan, typeof r.manifest_digest === "string");
+  if (r.skill_version_id !== undefined && (!scan || scan.skipped_count !== 0 || typeof r.skill_version_id !== "string" || !idPattern.test(r.skill_version_id))) return invalid();
   return {
     installation_id: digest(r.installation_id),
+    ...(scan && { skill_scan: scan }),
+    ...(typeof r.skill_version_id === "string" && { skill_version_id: r.skill_version_id }),
     ...(typeof r.manifest_digest === "string" && { manifest_digest: r.manifest_digest }),
   };
 }

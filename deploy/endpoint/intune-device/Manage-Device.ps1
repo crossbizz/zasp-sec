@@ -4,7 +4,7 @@ param(
  [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{64}$')][string]$AgentSHA256,
  [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{40}$')][string]$SignerThumbprint,
  [ValidatePattern('^S-1-(5-21|12-1)(-[0-9]+){4}$')][string]$EmployeeSID,
- [ValidateSet('personal','managed')][string]$Scope='personal'
+ [ValidateSet('personal','managed','project')][string]$Scope='personal'
 )
 $ErrorActionPreference='Stop'
 if (![Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) { throw 'Deploy as LocalSystem.' }
@@ -24,7 +24,9 @@ function Valid-Release([string]$Path) {
 Assert-Plain $root
 Assert-Plain $exe
 if ($Action -eq 'Detect') {
- if ((Valid-Release $exe) -and (Get-ScheduledTask -TaskName 'Zasp Inventory Device Sync' -ErrorAction SilentlyContinue) -and (Get-ScheduledTask -TaskName 'Zasp Inventory User Scan' -ErrorAction SilentlyContinue)) { Write-Output 'Installed'; exit 0 }
+ $scan=Get-ScheduledTask -TaskName 'Zasp Inventory User Scan' -ErrorAction SilentlyContinue
+ $sync=Get-ScheduledTask -TaskName 'Zasp Inventory Device Sync' -ErrorAction SilentlyContinue
+ if ((Valid-Release $exe) -and $sync -and $scan -and $scan.Triggers.Count -eq 1 -and $scan.Triggers[0].CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger' -and !$scan.Triggers[0].Repetition.Interval -and (Test-Path -LiteralPath (Join-Path $root 'Watch-Inventory.ps1') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $root 'Sync-Inventory.ps1') -PathType Leaf)) { Write-Output 'Installed'; exit 0 }
  exit 1
 }
 if ($Action -eq 'Uninstall') {
@@ -40,7 +42,7 @@ if ($Action -eq 'Uninstall') {
  }
  # Preserve the sealed queue for controlled recovery. Remove the employee's
  # plaintext handoff and managed collector after stopping the task that writes it.
- foreach ($known in @('Collect-Inventory.ps1','report.json')) {
+ foreach ($known in @('Collect-Inventory.ps1','Watch-Inventory.ps1','Sync-Inventory.ps1','report.json')) {
   $item=Join-Path $root $known
   Assert-Plain $item
   if (Test-Path -LiteralPath $item -PathType Leaf) { Remove-Item -LiteralPath $item }
@@ -64,7 +66,7 @@ Assert-Plain $root
 $folderAcl=New-Object Security.AccessControl.DirectorySecurity
 $folderAcl.SetSecurityDescriptorSddlForm('O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FRFX;;;BU)')
 Set-Acl -LiteralPath $root -AclObject $folderAcl
-foreach ($name in @('report.json','Collect-Inventory.ps1','identity.dpapi','transport.dpapi','state.dpapi','inventory.lock','device.json')) { Assert-Plain (Join-Path $root $name) }
+foreach ($name in @('report.json','Collect-Inventory.ps1','Watch-Inventory.ps1','Sync-Inventory.ps1','identity.dpapi','transport.dpapi','state.dpapi','inventory.lock','device.json')) { Assert-Plain (Join-Path $root $name) }
 $report=Join-Path $root 'report.json'
 if (!(Test-Path -LiteralPath $report)) { [IO.File]::WriteAllBytes($report,[byte[]]@()) }
 # Only the assigned user gets write-data. A user cannot replace the file or grant access.
@@ -95,12 +97,22 @@ if (!(Valid-Release $exe)) {
  }
 }
 $collector=Join-Path $root 'Collect-Inventory.ps1'
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Collect-Inventory.ps1') -Destination $collector -Force
+foreach ($name in @('Watch-Inventory.ps1','Sync-Inventory.ps1','Collect-Inventory.ps1')) {
+ Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $root $name) -Force
+}
 & $exe init-device-key
 if ($LASTEXITCODE) { throw 'Device key initialization failed.' }
-$interval=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $system=New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $employee=New-ScheduledTaskPrincipal -UserId $EmployeeSID -LogonType Interactive -RunLevel Limited
-Register-ScheduledTask -TaskName 'Zasp Inventory Device Sync' -Action (New-ScheduledTaskAction -Execute $exe -Argument 'sync') -Principal $system -Trigger $interval -Force | Out-Null
 $argsValue='-NoProfile -NonInteractive -File "'+$collector+'" -Scope '+$Scope
-Register-ScheduledTask -TaskName 'Zasp Inventory User Scan' -Action (New-ScheduledTaskAction -Execute $ps -Argument $argsValue) -Principal $employee -Trigger @($interval,(New-ScheduledTaskTrigger -AtLogOn -User $EmployeeSID)) -Force | Out-Null
+$watchSettings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+foreach ($task in @('Zasp Inventory User Scan','Zasp Inventory Device Sync')) {
+ $active=Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+ if ($active -and $active.State -eq 'Running') { Stop-ScheduledTask -TaskName $task }
+}
+$syncArgs='-NoProfile -NonInteractive -File "'+(Join-Path $root 'Sync-Inventory.ps1')+'"'
+Register-ScheduledTask -TaskName 'Zasp Inventory Device Sync' -Action (New-ScheduledTaskAction -Execute $ps -Argument $syncArgs) -Principal $system -Settings $watchSettings -Trigger (New-ScheduledTaskTrigger -AtStartup) -Force | Out-Null
+Register-ScheduledTask -TaskName 'Zasp Inventory User Scan' -Action (New-ScheduledTaskAction -Execute $ps -Argument $argsValue) -Principal $employee -Settings $watchSettings -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $EmployeeSID) -Force | Out-Null
+Start-ScheduledTask -TaskName 'Zasp Inventory Device Sync'
+# A signed-out employee starts the same task at next logon.
+Start-ScheduledTask -TaskName 'Zasp Inventory User Scan' -ErrorAction SilentlyContinue

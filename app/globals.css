@@ -897,6 +897,7 @@ a { color: var(--blue-text); }
 .auth-page::before { grid-area: 1 / 1; }
 .ai-effective, .ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ai-effective { justify-content: space-between; padding: 16px 20px; border-left: 3px solid var(--blue); background: var(--surface2); border-radius: var(--radius-control); }
+.ai-note a { display: inline-block; }
 .ai-effective p, .ai-note { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 .ai-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; align-items: start; }
 .ai-controls .card { min-width: 0; }
@@ -946,3 +947,16 @@ a { color: var(--blue-text); }
 .search-results-inline li > a { display: block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
 .search-results-inline li:last-child { border: 0; }
 .search-results-inline small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+
+.skill-scanner-panels, .endpoint-skill-scans { display: grid; gap: 16px; }
+.endpoint-skill-scans a { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+.endpoint-skill-scans p { margin: 0; }
+.endpoint-skill-scans .field { max-width: 36rem; }
+.skill-scan { display: grid; gap: 14px; max-width: 44rem; }
+.skill-scan > .button, .skill-scan__drop > .button { justify-self: start; }
+.skill-scan p { margin: 0; }
+.skill-scan__drop { display: grid; gap: 8px; padding: 22px; border: 1px dashed var(--muted); border-radius: var(--radius); overflow-wrap: anywhere; }
+.skill-scan__drop--active { border-color: var(--brand); background: var(--hover); }
+.skill-scan__retention { display: flex; align-items: baseline; gap: 8px; }
+.skill-scan__recipient { display: grid; gap: 4px; }
+.skill-scan > [role="status"]:empty { display: none; }

@@ -1502,6 +1502,143 @@ func (e *EndpointSigned) String() string {
 }
 
 var (
+	endpointSkillScanFieldRuleset      = big.NewInt(1 << 0)
+	endpointSkillScanFieldRuleCounts   = big.NewInt(1 << 1)
+	endpointSkillScanFieldSkippedCount = big.NewInt(1 << 2)
+)
+
+type EndpointSkillScan struct {
+	Ruleset      EndpointSkillScanRuleset `json:"ruleset" url:"ruleset"`
+	RuleCounts   map[string]int           `json:"rule_counts" url:"rule_counts"`
+	SkippedCount int                      `json:"skipped_count" url:"skipped_count"`
+
+	// Private bitmask of fields set to an explicit value and therefore not to be omitted
+	explicitFields *big.Int `json:"-" url:"-"`
+
+	extraProperties map[string]interface{}
+	rawJSON         json.RawMessage
+}
+
+func (e *EndpointSkillScan) GetRuleset() EndpointSkillScanRuleset {
+	if e == nil {
+		return ""
+	}
+	return e.Ruleset
+}
+
+func (e *EndpointSkillScan) GetRuleCounts() map[string]int {
+	if e == nil {
+		return nil
+	}
+	return e.RuleCounts
+}
+
+func (e *EndpointSkillScan) GetSkippedCount() int {
+	if e == nil {
+		return 0
+	}
+	return e.SkippedCount
+}
+
+func (e *EndpointSkillScan) GetExtraProperties() map[string]interface{} {
+	if e == nil {
+		return nil
+	}
+	return e.extraProperties
+}
+
+func (e *EndpointSkillScan) require(field *big.Int) {
+	next := new(big.Int)
+	if e.explicitFields != nil {
+		next.Set(e.explicitFields)
+	}
+	next.Or(next, field)
+	e.explicitFields = next
+}
+
+// SetRuleset sets the Ruleset field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSkillScan) SetRuleset(ruleset EndpointSkillScanRuleset) {
+	e.Ruleset = ruleset
+	e.require(endpointSkillScanFieldRuleset)
+}
+
+// SetRuleCounts sets the RuleCounts field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSkillScan) SetRuleCounts(ruleCounts map[string]int) {
+	e.RuleCounts = ruleCounts
+	e.require(endpointSkillScanFieldRuleCounts)
+}
+
+// SetSkippedCount sets the SkippedCount field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSkillScan) SetSkippedCount(skippedCount int) {
+	e.SkippedCount = skippedCount
+	e.require(endpointSkillScanFieldSkippedCount)
+}
+
+func (e *EndpointSkillScan) UnmarshalJSON(data []byte) error {
+	type unmarshaler EndpointSkillScan
+	var value unmarshaler
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = EndpointSkillScan(value)
+	extraProperties, err := internal.ExtractExtraProperties(data, *e)
+	if err != nil {
+		return err
+	}
+	e.extraProperties = extraProperties
+	e.rawJSON = json.RawMessage(data)
+	return nil
+}
+
+func (e *EndpointSkillScan) MarshalJSON() ([]byte, error) {
+	type embed EndpointSkillScan
+	var marshaler = struct {
+		embed
+	}{
+		embed: embed(*e),
+	}
+	explicitMarshaler := internal.HandleExplicitFields(marshaler, e.explicitFields)
+	return json.Marshal(explicitMarshaler)
+}
+
+func (e *EndpointSkillScan) String() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if len(e.rawJSON) > 0 {
+		if value, err := internal.StringifyJSON(e.rawJSON); err == nil {
+			return value
+		}
+	}
+	if value, err := internal.StringifyJSON(e); err == nil {
+		return value
+	}
+	return fmt.Sprintf("%#v", e)
+}
+
+type EndpointSkillScanRuleset string
+
+const (
+	EndpointSkillScanRulesetZaspStaticV2 EndpointSkillScanRuleset = "zasp-static.v2"
+)
+
+func NewEndpointSkillScanRulesetFromString(s string) (EndpointSkillScanRuleset, error) {
+	switch s {
+	case "zasp-static.v2":
+		return EndpointSkillScanRulesetZaspStaticV2, nil
+	}
+	var t EndpointSkillScanRuleset
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
+func (e EndpointSkillScanRuleset) Ptr() *EndpointSkillScanRuleset {
+	return &e
+}
+
+var (
 	sensorFieldRuntimeSensorID = big.NewInt(1 << 0)
 	sensorFieldID              = big.NewInt(1 << 1)
 	sensorFieldName            = big.NewInt(1 << 2)
@@ -2639,11 +2776,13 @@ func (e EndpointHeartbeatPolicyStatus) Ptr() *EndpointHeartbeatPolicyStatus {
 var (
 	endpointSnapshotInstallationsItemFieldInstallationID = big.NewInt(1 << 0)
 	endpointSnapshotInstallationsItemFieldManifestDigest = big.NewInt(1 << 1)
+	endpointSnapshotInstallationsItemFieldSkillScan      = big.NewInt(1 << 2)
 )
 
 type EndpointSnapshotInstallationsItem struct {
-	InstallationID string  `json:"installation_id" url:"installation_id"`
-	ManifestDigest *string `json:"manifest_digest,omitempty" url:"manifest_digest,omitempty"`
+	InstallationID string             `json:"installation_id" url:"installation_id"`
+	ManifestDigest *string            `json:"manifest_digest,omitempty" url:"manifest_digest,omitempty"`
+	SkillScan      *EndpointSkillScan `json:"skill_scan,omitempty" url:"skill_scan,omitempty"`
 
 	// Private bitmask of fields set to an explicit value and therefore not to be omitted
 	explicitFields *big.Int `json:"-" url:"-"`
@@ -2664,6 +2803,13 @@ func (e *EndpointSnapshotInstallationsItem) GetManifestDigest() *string {
 		return nil
 	}
 	return e.ManifestDigest
+}
+
+func (e *EndpointSnapshotInstallationsItem) GetSkillScan() *EndpointSkillScan {
+	if e == nil {
+		return nil
+	}
+	return e.SkillScan
 }
 
 func (e *EndpointSnapshotInstallationsItem) GetExtraProperties() map[string]interface{} {
@@ -2694,6 +2840,13 @@ func (e *EndpointSnapshotInstallationsItem) SetInstallationID(installationID str
 func (e *EndpointSnapshotInstallationsItem) SetManifestDigest(manifestDigest *string) {
 	e.ManifestDigest = manifestDigest
 	e.require(endpointSnapshotInstallationsItemFieldManifestDigest)
+}
+
+// SetSkillScan sets the SkillScan field and marks it as non-optional;
+// this prevents an empty or null value for this field from being omitted during serialization.
+func (e *EndpointSnapshotInstallationsItem) SetSkillScan(skillScan *EndpointSkillScan) {
+	e.SkillScan = skillScan
+	e.require(endpointSnapshotInstallationsItemFieldSkillScan)
 }
 
 func (e *EndpointSnapshotInstallationsItem) UnmarshalJSON(data []byte) error {

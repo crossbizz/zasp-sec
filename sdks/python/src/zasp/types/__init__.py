@@ -93,6 +93,8 @@ if typing.TYPE_CHECKING:
     from .endpoint_exchange_receipt_state import EndpointExchangeReceiptState
     from .endpoint_recorded import EndpointRecorded
     from .endpoint_signed import EndpointSigned
+    from .endpoint_skill_scan import EndpointSkillScan
+    from .endpoint_skill_scan_ruleset import EndpointSkillScanRuleset
     from .finding import Finding
     from .finding_acceptance_input import FindingAcceptanceInput
     from .finding_framework_reference import FindingFrameworkReference
@@ -612,6 +614,8 @@ _dynamic_imports: typing.Dict[str, str] = {
     "EndpointExchangeReceiptState": ".endpoint_exchange_receipt_state",
     "EndpointRecorded": ".endpoint_recorded",
     "EndpointSigned": ".endpoint_signed",
+    "EndpointSkillScan": ".endpoint_skill_scan",
+    "EndpointSkillScanRuleset": ".endpoint_skill_scan_ruleset",
     "Finding": ".finding",
     "FindingAcceptanceInput": ".finding_acceptance_input",
     "FindingFrameworkReference": ".finding_framework_reference",
@@ -1123,6 +1127,8 @@ __all__ = [
     "EndpointExchangeReceiptState",
     "EndpointRecorded",
     "EndpointSigned",
+    "EndpointSkillScan",
+    "EndpointSkillScanRuleset",
     "Finding",
     "FindingAcceptanceInput",
     "FindingFrameworkReference",
