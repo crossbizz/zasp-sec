@@ -16,11 +16,12 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[3]
 OWNER = "zasp.io/installation"
 LABEL = re.compile(r"[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?\Z")
-ACTIONS = {"doctor", "status", "install", "upgrade", "start", "stop", "logs", "init", "unseal"}
+ACTIONS = {"dashboard", "doctor", "status", "install", "upgrade", "start", "stop", "logs", "init", "unseal"}
 COMPONENT_IO_TIMEOUT = 8
 OPENBAO_INIT_DEADLINE = 60
 
@@ -412,8 +413,12 @@ def check_inputs(service, rendered):
             inputs = [("secret", volumes["tls"]["secret"]["secretName"], ["tls.crt", "tls.key", "ca.crt"])]
         else:
             inputs = [("secret", volumes["server-tls"]["secret"]["secretName"], ["tls.crt", "tls.key"]),
-                      ("secret", volumes["storage"]["secret"]["secretName"], ["database-url", "service-key", "encryption-key"]),
+                      ("secret", volumes["storage"]["secret"]["secretName"], ["database-url", "service-key", "encryption-key", "admin-key"]),
                       ("configmap", volumes["db-ca"]["configMap"]["name"], ["ca.crt"])]
+            server = next(container for container in pod["containers"] if container["name"] == "nango")
+            for env in server["env"]:
+                if env["name"] == "SMTP_URL":
+                    inputs.append(("secret", env["valueFrom"]["secretKeyRef"]["name"], ["smtp-url", "smtp-from"]))
     except (KeyError, StopIteration, TypeError, yaml.YAMLError):
         raise ServiceError("cannot determine the chart's required startup inputs") from None
     for kind, name, keys in inputs:
@@ -466,10 +471,34 @@ def owned_workload(service):
     return doc
 
 
+def dashboard(service):
+    if not service.namespace():
+        raise ServiceError("Nango namespace is missing")
+    workload = owned_workload(service)
+    containers = workload["spec"]["template"]["spec"]["containers"]
+    server = next((c for c in containers if c["name"] == "nango"), {})
+    origin = next((v.get("value", "") for v in server.get("env", []) if v["name"] == "NANGO_PUBLIC_SERVER_URL"), "")
+    url = urlsplit(origin)
+    if (url.scheme != "https" or not url.hostname or url.port != 18443 or url.netloc != url.hostname + ":18443"
+            or url.path or url.query or url.fragment or not all(LABEL.fullmatch(part) for part in url.hostname.split("."))):
+        raise ServiceError("installed release needs the private HTTPS Nango dashboard configuration")
+    print(f"Map {url.hostname} to 127.0.0.1 and trust the Nango service CA on this workstation.", flush=True)
+    print(f"Open {origin}/ while this tunnel is running. Press Ctrl-C to close it.", flush=True)
+    try:
+        result = subprocess.run(["kubectl", "--context", service.context, "-n", service.ns, "port-forward",
+                                 "--address=127.0.0.1", service.workload, "18443:9443"], check=False)
+    except KeyboardInterrupt:
+        return
+    if result.returncode:
+        raise ServiceError("private Nango dashboard tunnel failed")
+
+
 def run(action, component):
     if action not in ACTIONS or component not in ("openbao", "nango"):
         raise ServiceError("expected an independent component and a supported action")
     service = Service(component)
+    if action == "dashboard" and (component != "nango" or service.mode != "managed"):
+        raise ServiceError("the dashboard tunnel requires the managed Nango Kubernetes release")
     if action in ("init", "unseal") and component != "openbao":
         raise ServiceError("initialization and unseal are OpenBao operations")
     if service.mode == "existing" and action in ("init", "unseal", "stop", "upgrade"):
@@ -477,6 +506,8 @@ def run(action, component):
     if os.environ.get("ZASP_DRY_RUN") == "1":
         print(f"{component}: dry run; {action} ({service.mode})")
         return
+    if action == "dashboard":
+        return dashboard(service)
     release = None
     if service.mode == "managed":
         present = service.namespace()

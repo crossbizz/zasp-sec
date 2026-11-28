@@ -212,18 +212,21 @@ class Doctor(unittest.TestCase):
                 mocks.enter_context(mock.patch.dict(d.env,ctx,clear=True))
                 for helper in ("production_settings","public_tls","registry","discovery_projection","backup_probe","s3","run"):
                     mocks.enter_context(mock.patch.object(d,helper))
+                mocks.enter_context(mock.patch.object(d.shutil, "which", return_value="/test/tool"))
+                mocks.enter_context(mock.patch.object(d, "host_capacity"))
                 mocks.enter_context(mock.patch.object(d,"destination",return_value=read))
                 mocks.enter_context(mock.patch.object(d,"aws_identity",return_value=mock.Mock()))
                 sqs = mocks.enter_context(mock.patch.object(d,"sqs"))
                 health = mocks.enter_context(mock.patch.object(d,"service_status"))
                 out = mocks.enter_context(contextlib.redirect_stdout(io.StringIO()))
-                self.assertEqual(d.main(False),1)
+                self.assertEqual(d.main(False),0)
                 self.assertEqual(health.call_args_list,[mock.call("openbao"),mock.call("nango")])
                 self.assertEqual([c.args[3] for c in sqs.call_args_list],
                                  ["agentsec-discovery-jobs","agentsec-audit-exports","agentsec-recovery-restore-jobs"])
                 self.assertIn("OK configured persistent StorageClass",out.getvalue())
                 self.assertIn("OK nango authenticated readiness",out.getvalue())
-                self.assertIn("BLOCKED full customer-pilot",out.getvalue())
+                self.assertNotIn("CHECK REQUIRED", out.getvalue())
+                self.assertIn("status application", out.getvalue())
 
     def test_dry_run_is_nonmutating_and_redacts_failures(self):
         poison = "PRIVATE-UNTRUSTED-SETTING"
@@ -238,7 +241,7 @@ class Doctor(unittest.TestCase):
                     run.assert_not_called()
                     dns.assert_not_called()
             self.assertNotIn(poison, buf.getvalue())
-            self.assertIn("BLOCKED full customer-pilot", buf.getvalue())
+            self.assertIn("CHECK REQUIRED ZASP_IMAGE_API immutable reference", buf.getvalue())
 
 
 if __name__ == "__main__":

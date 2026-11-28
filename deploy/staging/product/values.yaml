@@ -192,6 +192,7 @@ connectors:
 nango:
   # Set to use an independently installed, TLS-protected Nango service.
   externalNamespace: ""
+  clientCAKey: ""
   replicas: 2
   storageSecretName: ""
   databaseEgressCIDRs: []
@@ -306,6 +307,8 @@ discovery:
   oktaClientSecretReference: ""
   providerTimeout: 5s
   readinessTimeout: 5s
+searchTLS:
+  enabled: false
 projectionSearch:
   awsRegion: ""
   endpoint: ""
@@ -372,6 +375,7 @@ redTeam:
   adapterRequestTimeout: 10s
   adapterShutdownTimeout: 15s
 attackLab:
+  enabled: true
   runnerTestRoleArn: ""
   awsRegion: ""
   queueURL: ""
@@ -660,3 +664,12 @@ openbaoClients:
   namespace: ""
   kvMount: ""
   transitKey: ""
+
+# Operator credentials originate outside the tenant identity authority. Each site
+# supplies its own id and dedicated database credentials in a namespace Secret.
+deploymentAdmin:
+  enabled: false
+  id: ""
+  existingSecret: deployment-admin
+  databaseCAKey: "" # optional PEM root in the same Secret
+  initialPointers: {}

@@ -3,9 +3,6 @@ package opensearchdriver
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -20,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/zasp-ai/zasp-sec/services/platform/inventorysearch"
+	"github.com/zasp-ai/zasp-sec/services/platform/opensearchaccess"
 )
 
 const (
@@ -36,6 +34,7 @@ var (
 )
 
 type Config struct {
+	AuthMode             opensearchaccess.Mode
 	Endpoint             string
 	Region               string
 	RequestTimeout       time.Duration
@@ -71,11 +70,15 @@ func New(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, 
 	if err != nil {
 		return nil, err
 	}
+	transportTLS, err := config.AuthMode.TLSConfig(endpoint.Hostname())
+	if err != nil {
+		return nil, inventorysearch.ErrConfiguration
+	}
 	transport := &http.Transport{
 		Proxy:                  nil,
 		DialContext:            (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 		ForceAttemptHTTP2:      true,
-		TLSClientConfig:        &tls.Config{MinVersion: tls.VersionTLS12, ServerName: endpoint.Hostname()},
+		TLSClientConfig:        transportTLS,
 		TLSHandshakeTimeout:    5 * time.Second,
 		ResponseHeaderTimeout:  config.RequestTimeout,
 		MaxResponseHeaderBytes: maximumResponseHeaderBytes,
@@ -99,8 +102,14 @@ func newWithClient(config Config, credentials aws.CredentialsProvider, signer HT
 }
 
 func validateConfig(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, clock func() time.Time) (*url.URL, error) {
-	if nilInterface(credentials) || nilInterface(signer) || clock == nil || !regionPattern.MatchString(config.Region) || config.RequestTimeout < time.Second || config.RequestTimeout > maximumConfiguredTimeout || config.RequestTimeout%time.Second != 0 || config.MaximumRequestBytes < 1 || config.MaximumRequestBytes > maximumConfiguredRequest || config.MaximumResponseBytes < 1 || config.MaximumResponseBytes > maximumConfiguredResponse {
+	if (config.AuthMode != opensearchaccess.MutualTLS && (nilInterface(credentials) || nilInterface(signer))) || clock == nil || !regionPattern.MatchString(config.Region) || config.RequestTimeout < time.Second || config.RequestTimeout > maximumConfiguredTimeout || config.RequestTimeout%time.Second != 0 || config.MaximumRequestBytes < 1 || config.MaximumRequestBytes > maximumConfiguredRequest || config.MaximumResponseBytes < 1 || config.MaximumResponseBytes > maximumConfiguredResponse {
 		return nil, inventorysearch.ErrConfiguration
+	}
+	if config.AuthMode != "" {
+		if !config.AuthMode.AllowsPrivateEndpoint(config.Endpoint, config.AllowTestLoopback) {
+			return nil, inventorysearch.ErrConfiguration
+		}
+		return url.Parse(config.Endpoint)
 	}
 	if config.AllowTestLoopback {
 		local, err := url.Parse(config.Endpoint)
@@ -164,15 +173,7 @@ func (driver *Driver) request(ctx context.Context, method, path, contentType str
 	if clockErr != nil || now.IsZero() || now.Location() != time.UTC {
 		return response{}, inventorysearch.ErrDenied
 	}
-	credentials, err := retrieveCredentials(driver.credentials, ctx)
-	if err != nil || !credentials.HasKeys() || credentials.Expired() {
-		if ctx.Err() != nil {
-			return response{}, inventorysearch.ErrCanceled
-		}
-		return response{}, inventorysearch.ErrDenied
-	}
-	payloadDigest := sha256.Sum256(body)
-	if err := signRequest(driver.signer, ctx, credentials, request, hex.EncodeToString(payloadDigest[:]), driver.config.Region, now); err != nil || ctx.Err() != nil {
+	if err := driver.config.AuthMode.Authorize(ctx, request, body, driver.config.Region, now, driver.credentials, driver.signer); err != nil || ctx.Err() != nil {
 		if ctx.Err() != nil {
 			return response{}, inventorysearch.ErrCanceled
 		}
@@ -213,25 +214,6 @@ func readClock(clock func() time.Time) (now time.Time, resultErr error) {
 	return clock(), nil
 }
 
-func retrieveCredentials(provider aws.CredentialsProvider, ctx context.Context) (credentials aws.Credentials, resultErr error) {
-	defer func() {
-		if recover() != nil {
-			credentials = aws.Credentials{}
-			resultErr = inventorysearch.ErrDenied
-		}
-	}()
-	return provider.Retrieve(ctx)
-}
-
-func signRequest(signer HTTPSigner, ctx context.Context, credentials aws.Credentials, request *http.Request, digest, region string, now time.Time) (resultErr error) {
-	defer func() {
-		if recover() != nil {
-			resultErr = inventorysearch.ErrDenied
-		}
-	}()
-	return signer.SignHTTP(ctx, credentials, request, digest, "es", region, now)
-}
-
 func doRequest(client HTTPDoer, request *http.Request) (returned *http.Response, resultErr error) {
 	defer func() {
 		if recover() != nil {
@@ -256,7 +238,7 @@ func decodeExact(raw []byte, destination any) error {
 }
 
 func (driver *Driver) usable() bool {
-	return driver != nil && driver.endpoint != nil && !nilInterface(driver.credentials) && !nilInterface(driver.signer) && !nilInterface(driver.client) && driver.clock != nil
+	return driver != nil && driver.endpoint != nil && (driver.config.AuthMode == opensearchaccess.MutualTLS || !nilInterface(driver.credentials) && !nilInterface(driver.signer)) && !nilInterface(driver.client) && driver.clock != nil
 }
 
 func nilInterface(value any) bool {

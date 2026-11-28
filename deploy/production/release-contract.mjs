@@ -77,7 +77,7 @@ export async function inspectContainerBuilds() {
   }));
 }
 
-export async function renderRelease(value, options = { schemaVersion: 49 }) {
+export function hostedReleaseInputs(value, options = { schemaVersion: 49 }) {
   if (!validRelease(value, options?.openbaoClients) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "openbaoClients"].includes(key))) throw new Error("release rejected");
   if (options.openbaoClients !== undefined && (!options.openbaoClients || typeof options.openbaoClients !== "object" || Array.isArray(options.openbaoClients) ||
     Object.entries(options.openbaoClients).some(([key, val]) => !["namespace", "connectorSecretsProvider", "recoverySigningProvider", "kvMount", "transitKey"].includes(key) || typeof val !== "string" || !/^[a-zA-Z0-9._-]{0,127}$/.test(val)))) throw new Error("release rejected");
@@ -381,6 +381,11 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   if (authorizationTemporal) for (const entry of set) {
     if (entry[0].startsWith("secrets.") && entry[0].endsWith("ObjectName") && entry[1].startsWith("zasp/production/")) entry[1] = "zasp-production/" + entry[1].slice("zasp/production/".length).replaceAll("/", "-");
   }
+  return {set, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, runtimeServices};
+}
+
+export async function renderRelease(value, options = { schemaVersion: 49 }) {
+  const {set, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, runtimeServices} = hostedReleaseInputs(value, options);
   const chart = path.join(root, "deploy/staging/product");
   const valueArgs = [];
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);

@@ -33,8 +33,7 @@ spec:
   egress:
     - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
       ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
-    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
-      ports: [{ protocol: TCP, port: 443 }]
+    {{- include "zasp.searchTLS.egress" . | nindent 4 }}
     - to:
       {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
@@ -110,6 +109,7 @@ spec:
             - { name: ZASP_PROJECTION_INIT_TIMEOUT, value: {{ required "projection init timeout is required" .timeout | quote }} }
             {{- if eq .mode "projection-search-init" }}
             - { name: ZASP_RUNTIME_SESSION_INDEX, value: {{ default "zasp-runtime-sessions-v1" .sessionIndex | quote }} }
+            {{- include "zasp.searchTLS.env" $root | nindent 12 }}
             - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "projectionSearch.endpoint is required" $root.Values.projectionSearch.endpoint | quote }} }
             - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "projectionSearch.index is required" $root.Values.projectionSearch.index | quote }} }
             {{- else }}
@@ -120,8 +120,14 @@ spec:
           resources: { requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 32Mi }, limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 128Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           volumeMounts:
+            {{- if and $root.Values.searchTLS.enabled (eq .mode "projection-search-init") }}
+            {{- include "zasp.searchTLS.mount" . | nindent 12 }}
+            {{- end }}
             - { name: projection-init-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
       volumes:
+        {{- if and $root.Values.searchTLS.enabled (eq .mode "projection-search-init") }}
+        {{- include "zasp.searchTLS.volume" "schema" | nindent 8 }}
+        {{- end }}
         - name: projection-init-web-identity
           projected:
             defaultMode: 256

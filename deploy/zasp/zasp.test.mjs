@@ -407,7 +407,7 @@ test("kubernetes secrets init writes a private values file, prints no value, and
     for (const [key, pattern] of Object.entries({
       workflowSigningKey: /^[0-9a-f]{64}$/, tokenRevealKey: /^[A-Za-z0-9_-]{43}$/, stytchWebhookSecret: /^whsec_[A-Za-z0-9+/]{43}=$/,
       openfgaToken: /^[0-9a-f]{64}$/, awsExternalId: /^[0-9a-f]{48}$/, gatewaySigningKey: /^[A-Za-z0-9_-]{86}$/,
-      nangoServiceKey: /^[0-9a-f]{64}$/, nangoAdminKey: /^[0-9a-f]{64}$/, nangoEncryptionKey: /^[A-Za-z0-9+/]{43}=$/,
+      deploymentAdminPassword: /^[0-9a-f]{64}$/, nangoServiceKey: /^[0-9a-f]{64}$/, nangoAdminKey: /^[0-9a-f]{64}$/, nangoEncryptionKey: /^[A-Za-z0-9+/]{43}=$/,
       neo4jAdminPassword: /^[0-9a-f]{48}$/, frontTlsCertificate: /BEGIN CERTIFICATE/, frontTlsKey: /BEGIN (RSA )?PRIVATE KEY/, neo4jTlsCa: /BEGIN CERTIFICATE/,
     })) {
       assert.match(document.secrets[key], pattern, key);
@@ -422,6 +422,8 @@ test("kubernetes secrets init writes a private values file, prints no value, and
     assert.equal(document.secrets.stytchSecret, "secret-test-do-not-print-abcdef");
     assert.equal(document.bootstrap.adminEmail, "admin@example.test");
     assert.equal(document.nango.enabled, true);
+    assert.equal(document.deploymentAdmin.enabled, true);
+    assert.notEqual(document.secrets.deploymentAdminPassword, document.secrets.nangoAdminKey);
     assert.ok(existsSync(box.values.replace(/\.yaml$/, ".ca.crt")));
     const second = box.run(["secrets", "init"]);
     assert.equal(second.status, 0);
@@ -523,7 +525,7 @@ test("the chart renders the previous standalone profile when Nango is disabled",
     assert.equal(box.run(["secrets", "init"]).status, 0);
     const rendered = render(box, ["--set", "nango.enabled=false"]);
     assert.equal(rendered.status, 0, rendered.stderr);
-    assert.deepEqual(rendered.documents.map(document => document.kind).sort(), ["ConfigMap", "ConfigMap", "NetworkPolicy", "Secret", "Service", "StatefulSet"]);
+    assert.deepEqual(rendered.documents.map(document => document.kind).sort(), ["ConfigMap", "ConfigMap", "NetworkPolicy", "Secret", "Secret", "Service", "StatefulSet"]);
     const spec = pod(rendered.documents);
     assert.deepEqual(spec.initContainers.map(container => container.name), ["postgres", "database-init", "prepare", "openfga-migrate", "openfga",
       "temporal", "localstack", "opensearch", "neo4j", "fga-model", "graph-user", "schema", "search-init", "graph-init"]);
@@ -548,7 +550,15 @@ test("the chart renders the previous standalone profile when Nango is disabled",
     const service = rendered.documents.find(document => document.kind === "Service");
     assert.deepEqual(service.spec.ports, [{ name: "https", port: 8443, targetPort: "https" }]);
     // No secret value is passed as a plain environment value.
-    const secret = rendered.documents.find(document => document.kind === "Secret");
+    const secret = rendered.documents.find(document => document.metadata.name === "zasp-secrets");
+    const consoleSecret = rendered.documents.find(document => document.metadata.name === "zasp-deployment-admin");
+    assert.deepEqual(Object.keys(consoleSecret.data), ["password"]);
+    const consoleVolume = spec.volumes.find(volume => volume.name === "deployment-admin");
+    assert.equal(consoleVolume.secret.secretName, consoleSecret.metadata.name);
+    const consoleClients = everyContainer(spec).filter(container => container.volumeMounts?.some(mount => mount.name === consoleVolume.name));
+    assert.deepEqual(consoleClients.map(container => container.name), ["api"]);
+    assert.ok(consoleClients[0].env.some(entry => entry.name === "ZASP_DEPLOYMENT_ADMIN_PASSWORD_FILE"));
+    assert.match(spec.initContainers.find(container => container.name === "database-init").args[0], /CREATE DATABASE zasp_console OWNER zasp_console/);
     // Compared by their longest line: a certificate spans lines, and a raw key may contain a line break.
     const longestLine = value => value.split("\n").reduce((longest, line) => (line.length > longest.length ? line : longest), "");
     const values = Object.values(secret.data).map(value => longestLine(Buffer.from(value, "base64").toString("latin1"))).filter(value => value.length >= 16);
@@ -569,6 +579,7 @@ test("the chart refuses what the product would refuse, with the setting's name",
       ["publicOrigin=https://localhost:8443", /publicOrigin must not be localhost/], ["publicOrigin=https://192.0.2.7", /publicOrigin must not be localhost/],
       ["publicOrigin=http://zasp.example.test", /publicOrigin must be https/], ["images.api=", /images\.api is required/],
       ["secrets.stytchSecret=", /secrets\.stytchSecret is required/], ["secrets.workflowSigningKey=", /secrets\.workflowSigningKey is required/],
+      ["secrets.deploymentAdminPassword=short", /secrets.deploymentAdminPassword must contain/],
       ["secrets.awsExternalId=short", /exactly 48 characters/], ["bootstrap.adminEmail=", /must be set together/],
       ["securityAgent.planner=true", /securityAgent\.planner needs secrets\.plannerApiKey/], ["database.external.enabled=true", /database\.external\.host is required/],
       ["identity.oauthProvider=facebook", /identity\.oauthProvider must be/], ["ingress.enabled=true", /ingress\.tlsSecretName is required/],
@@ -601,6 +612,10 @@ test("the chart's switches: planner, maintenance mode, external database, no per
     assert.doesNotMatch(init, /CREATE ROLE zasp_operator/);
     assert.match(init, /CREATE DATABASE openfga/);
 
+    const consoleExternal = render(box, ["--set", "deploymentAdmin.existingSecret=installation-operator", "--set", "secrets.deploymentAdminPassword="]);
+    assert.equal(consoleExternal.status, 0, consoleExternal.stderr);
+    assert.equal(consoleExternal.documents.some(doc => doc.metadata.name === "zasp-deployment-admin"), false);
+    assert.equal(pod(consoleExternal.documents).volumes.find(volume => volume.name === "deployment-admin").secret.secretName, "installation-operator");
     const ephemeral = render(box, ["--set", "persistence.enabled=false"]).documents.find(document => document.kind === "StatefulSet");
     assert.equal(ephemeral.spec.volumeClaimTemplates, undefined);
     assert.ok(ephemeral.spec.template.spec.volumes.some(volume => volume.name === "data" && volume.emptyDir));

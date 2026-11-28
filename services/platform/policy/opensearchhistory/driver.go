@@ -3,9 +3,6 @@ package opensearchhistory
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -20,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/opensearchaccess"
 	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
@@ -37,6 +35,7 @@ var (
 type SignerOptions = v4.SignerOptions
 
 type Config struct {
+	AuthMode             opensearchaccess.Mode
 	Endpoint             string
 	Region               string
 	RequestTimeout       time.Duration
@@ -69,7 +68,11 @@ func New(config Config, credentials aws.CredentialsProvider, signer Signer, read
 	if err != nil {
 		return nil, err
 	}
-	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, ServerName: endpoint.Hostname()}, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: config.RequestTimeout, MaxResponseHeaderBytes: 1 << 20}
+	transportTLS, err := config.AuthMode.TLSConfig(endpoint.Hostname())
+	if err != nil {
+		return nil, ErrHistory
+	}
+	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: transportTLS, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: config.RequestTimeout, MaxResponseHeaderBytes: 1 << 20}
 	client := &http.Client{Transport: transport, Timeout: config.RequestTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	return &Driver{config: config, endpoint: endpoint, credentials: credentials, signer: signer, client: client, readiness: readiness, clock: clock, transport: transport}, nil
 }
@@ -83,8 +86,14 @@ func newWithClient(config Config, credentials aws.CredentialsProvider, signer Si
 }
 
 func validConfig(config Config, credentials aws.CredentialsProvider, signer Signer, readiness SchemaReadiness, clock func() time.Time) (*url.URL, error) {
-	if credentials == nil || signer == nil || readiness == nil || clock == nil || !historyRegionPattern.MatchString(config.Region) || config.RequestTimeout < time.Second || config.RequestTimeout > 30*time.Second || config.RequestTimeout%time.Second != 0 || config.MaximumResponseBytes < 1 || config.MaximumResponseBytes > 8<<20 {
+	if (config.AuthMode != opensearchaccess.MutualTLS && (credentials == nil || signer == nil)) || readiness == nil || clock == nil || !historyRegionPattern.MatchString(config.Region) || config.RequestTimeout < time.Second || config.RequestTimeout > 30*time.Second || config.RequestTimeout%time.Second != 0 || config.MaximumResponseBytes < 1 || config.MaximumResponseBytes > 8<<20 {
 		return nil, ErrHistory
+	}
+	if config.AuthMode != "" {
+		if !config.AuthMode.AllowsPrivateEndpoint(config.Endpoint, config.AllowTestLoopback) {
+			return nil, ErrHistory
+		}
+		return url.Parse(config.Endpoint)
 	}
 	endpoint, err := url.Parse(config.Endpoint)
 	if err != nil || endpoint.String() != config.Endpoint || endpoint.User != nil || endpoint.Path != "" || endpoint.RawPath != "" || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Opaque != "" {
@@ -351,13 +360,7 @@ func (driver *Driver) request(ctx context.Context, path string, body []byte) (*h
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Content-Type", "application/json")
-	credentials, err := driver.credentials.Retrieve(ctx)
-	now := driver.clock()
-	if err != nil || !credentials.HasKeys() || credentials.Expired() || now.IsZero() || now.Location() != time.UTC {
-		return nil, ErrHistory
-	}
-	digest := sha256.Sum256(body)
-	if driver.signer.SignHTTP(ctx, credentials, request, hex.EncodeToString(digest[:]), "es", driver.config.Region, now) != nil || ctx.Err() != nil {
+	if err := driver.config.AuthMode.Authorize(ctx, request, body, driver.config.Region, driver.clock(), driver.credentials, driver.signer); err != nil || ctx.Err() != nil {
 		return nil, ErrHistory
 	}
 	response, err := driver.client.Do(request)

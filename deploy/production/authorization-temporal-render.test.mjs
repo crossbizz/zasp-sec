@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderRelease, validateRenderedRelease } from './release-contract.mjs';
-import { productionReleaseFixture as release } from './release-fixture.mjs';
+import { productionReleaseFixture as release, canonicalRuntimeFixture as config } from './release-fixture.mjs';
 import { load } from 'js-yaml';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -9,27 +9,7 @@ import { mkdtemp, mkdir, writeFile, symlink, lstat, readFile, rm } from 'node:fs
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const config = () => ({
-  schemaVersion: 61,
-  authorizationTemporal: {
-    profile: 'canonical61-temporal78-authorization79-80-worker-v1',
-    executorPrincipal: 'zasp_svc_temporal_executor', compensationPrincipal: 'zasp_svc_temporal_compensation',
-    projectorPrincipal: 'zasp_svc_outbox', adapterPrincipal: 'zasp_svc_red_team_adapter',
-    executorDSNSecret: 'zasp-temporal-executor', compensationDSNSecret: 'zasp-temporal-compensation',
-    projectorDSNSecret: 'zasp-authorization-projector', adapterDSNSecret: 'zasp-authorization-adapter',
-    forwardKey: { purpose: 'worker-forward', secretName: 'zasp-worker-forward-key', key: 'seed' },
-    compensationKey: { purpose: 'captured-compensation', secretName: 'zasp-worker-compensation-key', key: 'seed' },
-    pricingBindingsConfigMap: 'zasp-temporal-pricing',
-    gatewayPolicyKeysConfigMap: 'zasp-gateway-policy-verifiers',
-    workerRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-temporal-worker',
-    projectorRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-authorization-projector',
-    adapterRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-red-team-adapter',
-    approvalMaintenanceChecksum: 'a'.repeat(64), approvalMaintenanceDSNSecret: 'zasp-approval-maintenance-dsn',
-    approvalMaintenanceKey: { purpose: 'approval-forward', secretName: 'zasp-approval-maintenance-key', key: 'seed' },
-    registerIdentityVerifiers: false,
-  },
-  runtimeServices: { enabled: true, timeout: '5s', temporalAddress: 'temporal-frontend.zasp-runtime.svc.cluster.local:7233', namespace: 'zasp-staging', taskQueue: 'zasp-security-agent', discoveryTaskQueue: 'zasp-discovery', openfgaURL: 'https://openfga.zasp-runtime.svc.cluster.local:8080', storeID: '01ARZ3NDEKTSV4RRFFQ69G5FAV', modelID: '01ARZ3NDEKTSV4RRFFQ69G5FAW', clientSecret: 'zasp-runtime-services-client' },
-});
+
 const one = (rows, kind, name) => { const found = rows.filter(r => r.kind === kind && r.metadata.name === name); assert.equal(found.length, 1, `${kind}/${name}`); return found[0]; };
 const pod = r => r.kind === 'CronJob' ? r.spec.jobTemplate.spec.template.spec : r.spec.template.spec;
 const env = r => Object.fromEntries(pod(r).containers[0].env.map(e => [e.name, e.value ?? e.valueFrom]));

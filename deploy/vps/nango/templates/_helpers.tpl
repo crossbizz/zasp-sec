@@ -1,3 +1,5 @@
+{{- define "nango.dashboardHost" -}}{{ .Values.dashboard.hostname | default (printf "nango.%s.svc.cluster.local" .Release.Namespace) }}{{- end -}}
+{{- define "nango.dashboardURL" -}}https://{{ include "nango.dashboardHost" . }}:18443{{- end -}}
 {{- define "nango.podSecurity" -}}
 automountServiceAccountToken: false
 enableServiceLinks: false

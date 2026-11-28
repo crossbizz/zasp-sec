@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/zasp-ai/zasp-sec/services/platform/inventorysearch"
+	"github.com/zasp-ai/zasp-sec/services/platform/opensearchaccess"
 )
 
 type credentialProvider struct {
@@ -751,4 +752,28 @@ func sequenceDoer(t *testing.T, values ...any) HTTPDoer {
 		index += 2
 		return response, err
 	})
+}
+
+func TestPrivateSearchSelectsWorkloadIdentity(t *testing.T) {
+	sent := false
+	client := doerFunc(func(request *http.Request) (*http.Response, error) {
+		sent = true
+		if request.URL.Host != opensearchaccess.Host+":9200" || request.Header.Get("Authorization") != "" {
+			t.Fatal("unexpected private search authority")
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}, nil
+	})
+	config := Config{AuthMode: opensearchaccess.MutualTLS, Endpoint: opensearchaccess.Endpoint, Region: "us-west-2", RequestTimeout: time.Second, MaximumRequestBytes: 4096, MaximumResponseBytes: 4096}
+	driver, err := newWithClient(config, nil, nil, client, func() time.Time { return time.Now().UTC() })
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = driver.request(context.Background(), http.MethodGet, "/_mapping", "", nil, false)
+	if err != nil || !sent {
+		t.Fatalf("private request: sent %t, error %v", sent, err)
+	}
+	config.Endpoint = "https://search-foreign.us-west-2.es.amazonaws.com"
+	if _, err = newWithClient(config, nil, nil, client, func() time.Time { return time.Now().UTC() }); err == nil {
+		t.Fatal("accepted a different search authority")
+	}
 }

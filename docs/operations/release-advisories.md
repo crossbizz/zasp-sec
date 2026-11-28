@@ -64,3 +64,36 @@ For a staging rehearsal, point `ZASP_RELEASE_EVIDENCE_DIR` at the absolute priva
 `install release`, `up`, `start` and `upgrade` verify the signed evidence again before applying a release. The installer stages chart bytes from the attested Git commit and private copies of the supplied values, compares the local render with the signed bytes, then compares a Helm server dry run with all approved objects including hooks. A Helm post-renderer checks the ordinary resources a second time during the live upgrade. The bootstrap step verifies the registration-phase render and exact API image before starting the container that receives operator credentials. A changed value or hook requires a newly signed render. Secret values in a rendered bundle must remain private.
 
 Produce `rendered.yaml` with `helm --kube-context CONTEXT -n NAMESPACE template RELEASE deploy/staging/product -f values-terraform.json -f values-images.yaml -f operator-values.yaml` using the same Helm version, effective values and `--set` options the installer will receive. A preview through `./zasp --dry-run` prints the planned commands. The local and single-pod Kubernetes evaluation profiles do not use this production gate.
+
+## Continuous deployment to private k3s
+
+The protected production workflow upgrades the `agentsec` Helm release in the `agentsec` namespace. It waits for the main push checks and full acceptance suite at the candidate commit, then runs the existing protected production promotion. The upgrade job rechecks the signed evidence, the branch head and the identity of the target cluster. It serializes upgrades and waits for the workloads and migration jobs. Helm can roll back a failed release. Database recovery follows the migration runbook. [Production CD workflow](../../.github/workflows/production-cd.yml)
+
+### Enroll the installation
+
+1. Protect `main`, the `production-promotion` and `production` GitHub environments, and changes to workflows, deploy scripts and charts. Limit each environment to `main` and configure the reviewers your release process requires. Restrict the private runner group `zasp-production` to this repository and the workflow `.github/workflows/production-cd.yml@refs/heads/main`. Use dedicated, ephemeral Linux runners with the label `zasp-production-deploy`, Helm 3, kubectl, Git, tar, Node 22 and a prewarmed locked npm cache. The private promotion runner retains its existing independent `zasp-release` assignment. Run pull request jobs on separate runners.
+2. An installer verifies the cluster's UID and applies the product namespace Role, the binding for the `zasp-cd` ServiceAccount and the read-only cluster identity permission. Give the deploy runner a private kubeconfig at `/var/run/zasp-production-cd/kubeconfig` for that account, using short-lived credentials. Its namespace Role includes the Secret operations required by Helm's release storage. Keep runner access restricted accordingly. Its only cluster-scoped grant reads the `agentsec` and `kube-system` Namespace objects. [CD identity and RBAC](../../deploy/vps/production/cd-rbac.yaml)
+3. Set protected `production` environment secrets `ZASP_VPS_KUBE_CONTEXT`, `ZASP_VPS_CLUSTER_UID` and `ZASP_VPS_INSTALLATION_ID` from the verified installation inventory. The application namespace must have the matching `zasp.io/installation` label. Configure the four release public keys in both protected environments. Deliver the signed evidence to each runner at `/var/lib/zasp/release-evidence/<commit>`.
+4. Build the nine product images from the exact commit, publish them to the cluster's registry and retain their immutable digests. The independent private build, intake, scan and AppSec authorities provide the signed evidence described above. Image publishing, signers, current advisory data and protected runner provisioning are deployment prerequisites.
+5. Before enabling automatic upgrades, perform the first installation using `./zasp --profile vps install application` from the signed checkout and the approved operator configuration. The underlying command `node scripts/release-security/deploy.mjs install-vps-production` requires an unused Helm release name in the preprovisioned application namespace. It enforces the same signed image, render and cluster identity checks as the upgrade. The ongoing CD job requires a deployed release. Enable `ZASP_PRODUCTION_CD_ENABLED=true` as a **repository** Actions variable after enrollment. A push to `main` or a manual dispatch on `main` then starts the pipeline.
+
+### Build the private evidence bundle
+
+The signed `candidate.json.deploymentTarget` uses `profile: vps-production`, `release: agentsec`, `namespace: agentsec` and the verified `context`, `clusterUID` and `installationID`. Keep actual installation identifiers and network addresses in private evidence. Put the site's merged infrastructure and operator settings in `production-values.yaml` beside `candidate.json`. Use references for runtime credentials.
+
+Generate the final image values from the build inventory as shown below. Supply the private render from this exact chart, values order, Helm version and source commit to the signer. The deployment wrapper independently reconstructs these values from the verified candidate.
+
+```sh
+jq '{global: {releaseCommit: .commit, productImages: (.productImages | {
+  web, agentsecApi: .api, agentsecWorker: .worker,
+  attackLabRunner: .["attack-lab-runner"], redTeamWorker: .["redteam-worker"],
+  eventIngest: .["event-ingest"], gatewayControl: .["gateway-control"],
+  runtimeGateway: .["runtime-gateway"], sensorAgent: .["sensor-agent"]
+})}}' private-build-inventory.json > candidate-images.json
+
+helm --kube-context "$ZASP_VPS_KUBE_CONTEXT" -n agentsec template agentsec deploy/staging/product \
+  -f "$ZASP_RELEASE_EVIDENCE_DIR/production-values.yaml" -f deploy/vps/production/values.yaml \
+  -f candidate-images.json > "$ZASP_RELEASE_EVIDENCE_DIR/rendered.yaml"
+```
+
+The installer verifies the cluster UID against the live `kube-system` object and verifies the owner label on `agentsec` immediately before applying. CD also verifies the calling ServiceAccount, checks that a recorded previous release commit is an ancestor of the new commit, and examines the previous manifest and hooks for resources that Helm could delete. The scoped release excludes the independent connector and search workloads. Readiness or admission failures stop the deployment and appear in the protected job log. [Signed Helm entry point](../../scripts/release-security/deploy.mjs)

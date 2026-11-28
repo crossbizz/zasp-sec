@@ -76,6 +76,17 @@ spec:
             - { name: ZASP_DEPLOYMENT_MODE, value: {{ $root.Values.global.deploymentMode | quote }} }
             - { name: ZASP_PUBLIC_ORIGIN, value: {{ required "global.publicOrigin is required" $root.Values.global.publicOrigin | quote }} }
             {{- if eq .name "agentsec-api" }}
+            {{- if $root.Values.deploymentAdmin.enabled }}
+            - { name: ZASP_DEPLOYMENT_ADMIN_ID, value: {{ required "deploymentAdmin.id must identify this installation" $root.Values.deploymentAdmin.id | quote }} }
+            - { name: ZASP_DEPLOYMENT_ADMIN_PASSWORD_FILE, value: "/var/run/secrets/zasp-deployment-admin/password" }
+            - { name: ZASP_DEPLOYMENT_ADMIN_DSN_FILE, value: "/var/run/secrets/zasp-deployment-admin/database-url" }
+            {{- $nango := dict "api_url" (printf "http://nango.%s.svc.cluster.local:3003" $root.Release.Namespace) }}
+            {{- with $root.Values.nango.externalNamespace }}
+            {{- $nango = dict "api_url" (printf "https://nango.%s.svc.cluster.local:8443" .) "dashboard_url" (printf "https://nango.%s.svc.cluster.local:18443" .) }}
+            {{- end }}
+            {{- $initial := dict "nango" $nango "opensearch" (dict "api_url" $root.Values.projectionSearch.endpoint) }}
+            - { name: ZASP_DEPLOYMENT_ADMIN_INITIAL_POINTERS, value: {{ mergeOverwrite $initial $root.Values.deploymentAdmin.initialPointers | toJson | quote }} }
+            {{- end }}
             {{- with $root.Values.studioInventory.bindingFile }}
             - { name: ZASP_STUDIO_INVENTORY_MCP_FILE, value: {{ . | quote }} }
             {{- end }}
@@ -139,6 +150,7 @@ spec:
             {{- include "zasp.auditExports.apiEnv" $root | nindent 12 }}
             {{- end }}
             - { name: ZASP_CONNECTOR_SECRET_PREFIX, value: {{ required "connectors.secretPrefix is required" $root.Values.connectors.secretPrefix | quote }} }
+            {{- include "zasp.searchTLS.env" $root | nindent 12 }}
             - { name: ZASP_POLICY_HISTORY_ENDPOINT, value: {{ required "runtime.openSearchEndpoint is required" $root.Values.runtime.openSearchEndpoint | quote }} }
             - { name: ZASP_POLICY_HISTORY_INDEX, value: "zasp-runtime-events-v1" }
             - { name: ZASP_RUNTIME_SESSION_INDEX, value: {{ ternary "zasp-runtime-sessions-v2" "zasp-runtime-sessions-v1" (has $root.Values.runtime.sessionSearchPhase (list "query" "precision-consumers" "precision-intake")) | quote }} }
@@ -166,6 +178,9 @@ spec:
             - { name: ZASP_DISCOVERY_GCP_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
             {{- if $root.Values.nango.externalNamespace }}
+            {{- if $.Values.nango.clientCAKey }}
+            - { name: SSL_CERT_DIR, value: "/etc/ssl/certs:/var/run/secrets/zasp-nango/ca" }
+            {{- end }}
             - { name: ZASP_NANGO_BASE_URL, value: {{ printf "https://nango.%s.svc.cluster.local:8443" $root.Values.nango.externalNamespace | quote }} }
             {{- else }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $root.Release.Namespace }}.svc.cluster.local:3003" }
@@ -194,6 +209,9 @@ spec:
               {{- end }}
               exec /app/agentsec-api
           volumeMounts:
+            {{- if $root.Values.deploymentAdmin.enabled }}
+            - { name: deployment-admin, mountPath: /var/run/secrets/zasp-deployment-admin, readOnly: true }
+            {{- end }}
             {{- if $apiBao }}
             {{- include "zasp.openbao.mount" . | nindent 12 }}
             {{- end }}
@@ -201,18 +219,36 @@ spec:
             {{- if include "zasp.schema.baseline" $root }}
             {{- include "zasp.approvalMaintenance.keyMount" $root | nindent 12 }}
             {{- end }}
+            {{- if $root.Values.searchTLS.enabled }}
+            {{- include "zasp.searchTLS.mount" . | nindent 12 }}
+            {{- end }}
             - { name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }
             - { name: connector-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
             - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
           {{- end }}
       {{- if eq .name "agentsec-api" }}
       volumes:
+        {{- if $root.Values.deploymentAdmin.enabled }}
+        - name: deployment-admin
+          secret:
+            secretName: {{ required "deploymentAdmin.existingSecret is required" $root.Values.deploymentAdmin.existingSecret | quote }}
+            defaultMode: 288
+            items:
+              - { key: password, path: password }
+              - { key: database-url, path: database-url }
+              {{- with $root.Values.deploymentAdmin.databaseCAKey }}
+              - { key: {{ . | quote }}, path: ca.crt }
+              {{- end }}
+        {{- end }}
         {{- if $apiBao }}
         {{- include "zasp.openbao.volumes" (dict "role" "api") | nindent 8 }}
         {{- end }}
         {{- include "zasp.runtimeServices.volume" $root | nindent 8 }}
         {{- if include "zasp.schema.baseline" $root }}
         {{- include "zasp.approvalMaintenance.keyVolumes" $root | nindent 8 }}
+        {{- end }}
+        {{- if $root.Values.searchTLS.enabled }}
+        {{- include "zasp.searchTLS.volume" "api" | nindent 8 }}
         {{- end }}
         - name: runtime-secrets
           csi:
@@ -228,7 +264,11 @@ spec:
           secret:
             secretName: {{ required "nango.storageSecretName is required" $root.Values.nango.storageSecretName | quote }}
             defaultMode: 288
-            items: [{ key: service-key, path: service-key, mode: 288 }]
+            items:
+              - { key: service-key, path: service-key, mode: 288 }
+              {{- if and $.Values.nango.externalNamespace $.Values.nango.clientCAKey }}
+              - { key: {{ $.Values.nango.clientCAKey | quote }}, path: ca/ca.crt, mode: 288 }
+              {{- end }}
       {{- end }}
 {{- end }}
 ---
@@ -653,6 +693,9 @@ spec:
             {{- with .Values.discovery.saasCollectorVersion }}
             - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- if $.Values.nango.externalNamespace }}
+            {{- if $.Values.nango.clientCAKey }}
+            - { name: SSL_CERT_DIR, value: "/etc/ssl/certs:/var/run/secrets/zasp-nango/ca" }
+            {{- end }}
             - { name: ZASP_NANGO_BASE_URL, value: {{ printf "https://nango.%s.svc.cluster.local:8443" $.Values.nango.externalNamespace | quote }} }
             {{- else }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $.Release.Namespace }}.svc.cluster.local:3003" }
@@ -690,7 +733,11 @@ spec:
           secret:
             secretName: {{ required "nango.storageSecretName is required" .Values.nango.storageSecretName | quote }}
             defaultMode: 288
-            items: [{ key: service-key, path: service-key, mode: 288 }]
+            items:
+              - { key: service-key, path: service-key, mode: 288 }
+              {{- if and $.Values.nango.externalNamespace $.Values.nango.clientCAKey }}
+              - { key: {{ $.Values.nango.clientCAKey | quote }}, path: ca/ca.crt, mode: 288 }
+              {{- end }}
         {{- end }}
         - name: discovery-worker-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.workerProviderClassName | quote }} } }
@@ -874,12 +921,19 @@ spec:
             - { name: ZASP_AWS_REGION, value: {{ required "projectionSearch.awsRegion is required" .Values.projectionSearch.awsRegion | quote }} }
             - { name: ZASP_PROJECTION_ROLE_ARN, value: {{ required "projectionSearch.roleArn is required" .Values.projectionSearch.roleArn | quote }} }
             - { name: ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE, value: {{ required "projectionSearch.webIdentityTokenFile is required" .Values.projectionSearch.webIdentityTokenFile | quote }} }
+            {{- include "zasp.searchTLS.env" . | nindent 12 }}
             - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "projectionSearch.endpoint is required" .Values.projectionSearch.endpoint | quote }} }
             - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "projectionSearch.index is required" .Values.projectionSearch.index | quote }} }
           volumeMounts:
+            {{- if .Values.searchTLS.enabled }}
+            {{- include "zasp.searchTLS.mount" . | nindent 12 }}
+            {{- end }}
             - { name: projection-search-secrets, mountPath: /var/run/secrets/zasp-projection-search, readOnly: true }
             - { name: projection-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
       volumes:
+        {{- if .Values.searchTLS.enabled }}
+        {{- include "zasp.searchTLS.volume" "inventory" | nindent 8 }}
+        {{- end }}
         - name: projection-search-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.projectionSearchProviderClassName | quote }} } }
         - name: projection-web-identity

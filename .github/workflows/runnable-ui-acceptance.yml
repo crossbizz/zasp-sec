@@ -1,9 +1,9 @@
 name: Runnable UI acceptance
 
-# The long acceptance suite. Run by hand: push and pull request checks are in
-# runnable-ui.yml.
+# The full suite also verifies the protected main commit before production promotion.
 "on":
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

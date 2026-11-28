@@ -1,0 +1,25 @@
+.deployment-admin { min-height: 100vh; background: var(--bg); color: var(--text); }
+.deployment-admin__bar { min-height: 64px; padding: 10px clamp(16px, 4vw, 52px); display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); }
+.deployment-admin__bar > div { display: flex; align-items: center; gap: 18px; }
+.deployment-admin__bar small { color: var(--muted); border-left: 1px solid var(--line); padding-left: 18px; font-size: 14px; }
+.deployment-admin__body { max-width: 850px; margin: 48px auto; padding: 0 24px; }
+.deployment-admin__login { max-width: 460px; margin-inline: auto; }
+.deployment-admin h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 36px); line-height: 1.16; letter-spacing: -.025em; }
+.deployment-admin h2 { margin: 0; font-size: 21px; }
+.deployment-admin p { color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+.deployment-admin__origin { display: inline-block; margin: 0 0 12px; font-size: 14px; font-weight: 500; color: var(--blue-text); overflow-wrap: anywhere; }
+.deployment-admin__panel { padding: clamp(18px, 3vw, 28px); border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--surface); margin-top: 20px; min-width: 0; }
+.deployment-admin__heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.deployment-admin__fields { display: grid; gap: 15px; margin-block: 20px; }
+.deployment-admin__fields input { min-width: 0; width: 100%; }
+.deployment-admin__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.deployment-admin__link { color: var(--blue-text); text-decoration: underline; text-underline-offset: 3px; }
+.deployment-admin [role="alert"] { color: var(--critical); }
+.deployment-admin [role="status"] { overflow-wrap: anywhere; }
+.deployment-admin__login .field { margin-block: 18px; }
+@media (max-width: 580px) { .deployment-admin__body { padding: 0 16px; margin-top: 28px; } .deployment-admin__bar small { display: none; } }
+
+.deployment-admin details { margin-top: 18px; }
+.deployment-admin summary { cursor: pointer; font-weight: 500; }
+.deployment-admin details li { line-height: 1.6; }
+.deployment-admin details code { overflow-wrap: anywhere; }

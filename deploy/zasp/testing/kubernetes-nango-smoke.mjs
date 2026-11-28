@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -45,8 +45,12 @@ function workload() {
   return docs.filter(doc => ["ConfigMap", "Secret", "NetworkPolicy", "Service", "StatefulSet"].includes(doc.kind));
 }
 
+let phase = "create kind cluster";
+
 async function dashboardRequest(path, options = {}) {
+  phase = (options.method ?? "GET") + " " + path;
   const response = await fetch(dashboard + path, { signal: AbortSignal.timeout(10000), redirect: "error", ...options });
+  phase += " HTTP " + response.status;
   assert.equal(response.status, 200, `${options.method ?? "GET"} ${path} returned ${response.status}`);
   return response;
 }
@@ -68,6 +72,7 @@ async function dashboardSetup() {
   assert.equal((await signup.json()).data.verified, false);
   // This isolated installation has no SMTP. Read the private verification
   // message into memory, exactly as an operator with local pod access would.
+  phase = "read local verification email";
   const logs = kubectl(["logs", release + "-0", "-c", "nango", "--tail=200"]);
   const token = logs.match(/http:\/\/127\.0\.0\.1:3003\/signup\/verification\/([A-Za-z0-9_-]+)/)?.[1];
   assert.ok(token, "the dashboard generated a loopback verification link");
@@ -99,9 +104,13 @@ assert.deepEqual((await response.json()).data, []);
 let tunnel;
 try {
   execFileSync("kind", ["create", "cluster", "--name", cluster, "--kubeconfig", kubeconfig, "--wait", "120s"], { stdio: "inherit", timeout: 300_000 });
+  phase = "create disposable namespace";
   kubectl(["create", "namespace", namespace]);
+  phase = "render and apply chart resources";
   kubectl(["apply", "-f", "-"], { input: JSON.stringify({ apiVersion: "v1", kind: "List", items: workload() }) });
+  phase = "wait for PostgreSQL and Nango readiness";
   kubectl(["rollout", "status", "statefulset/" + release, "--timeout=300s"]);
+  phase = "open dashboard port-forward";
   tunnel = spawn("kubectl", [...kubeArgs, "port-forward", "--address=127.0.0.1", "service/" + release + "-nango", "3003:3003"], { stdio: ["ignore", "pipe", "inherit"] });
   const lines = createInterface({ input: tunnel.stdout });
   const timer = new AbortController();
@@ -116,9 +125,14 @@ try {
     lines.close();
   }
   await dashboardSetup();
+  phase = "authenticated product inventory";
   kubectl(["exec", release + "-0", "-c", "client", "--", "node", "--input-type=module", "-e", inventoryProbe]);
   console.log("Nango migration, private dashboard, callback and authenticated integration inventory passed.");
 } catch (err) {
+  // Phases are assigned from static paths and HTTP status only. Credentials,
+  // signup messages, and the signed-in dashboard response stay out of summaries.
+  console.error("::error title=Nango Kubernetes smoke::" + phase);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, "failure=" + phase + "\n");
   // Pod status and Kubernetes events identify pull, mount and readiness errors;
   // Nango logs can contain account verification links.
   try { kubectl(["get", "pods", "-o", "wide"], { stdio: "inherit", timeout: 10000 }); } catch { /* Cluster may not have started. */ }

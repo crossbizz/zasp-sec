@@ -54,6 +54,26 @@ class Runtime(unittest.TestCase):
             with self.assertRaises(services.ServiceError):
                 services.run("install", "nango")
 
+    def test_nango_dashboard_tunnel_is_bound_to_managed_namespace_and_loopback(self):
+        origin = "https://nango.connectors.svc.cluster.local:18443"
+        env = [{"name": "NANGO_PUBLIC_SERVER_URL", "value": origin}]
+        workload = {"spec": {"template": {"spec": {"containers": [{"name": "nango", "env": env}]}}}}
+        with mock.patch.object(services.Service, "namespace", return_value=True), \
+                mock.patch.object(services, "owned_workload", return_value=workload), \
+                mock.patch.object(services.subprocess, "run", return_value=mock.Mock(returncode=0)) as process, \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            services.run("dashboard", "nango")
+            self.assertIn(origin + "/", output.getvalue())
+            process.assert_called_once_with(["kubectl", "--context", "named-target", "-n", "connectors", "port-forward",
+                                            "--address=127.0.0.1", "deployment/nango", "18443:9443"], check=False)
+            process.reset_mock()
+            env[0]["value"] = "https://zasp.example.test/api/v1/integrations"
+            with self.assertRaisesRegex(services.ServiceError, "configuration"):
+                services.run("dashboard", "nango")
+            process.assert_not_called()
+        with mock.patch.dict(os.environ, {"ZASP_VPS_NANGO_MODE": "existing"}), self.assertRaises(services.ServiceError):
+            services.run("dashboard", "nango")
+
     def test_installed_release_and_upgrade_never_rerun_migrations(self):
         s = services.Service("nango")
         with mock.patch.object(services, "command") as call, contextlib.redirect_stdout(io.StringIO()):

@@ -1,0 +1,5 @@
+_meta: {type: rolesmapping, config_version: 2}
+zasp_api: {users: [zasp-search-api]}
+zasp_inventory: {users: [zasp-search-inventory]}
+zasp_runtime: {users: [zasp-search-runtime]}
+zasp_schema: {users: [zasp-search-schema]}

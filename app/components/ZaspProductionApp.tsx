@@ -1,5 +1,6 @@
 "use client";
 
+import { DeploymentSignInLink } from "./DeploymentSignInLink";
 import { isSaaSCallback } from "../features/workflows/saasSignIn";
 import { AuthPage } from "./AuthPage";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -247,7 +248,7 @@ function ProductionAppContent() {
     return () => window.clearTimeout(timer);
   }, [authorizationPending, retrySession, session.status, pendingAttempt]);
   if (session.status === "loading") return <AuthPage><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></AuthPage>;
-  if (session.status === "unauthenticated") return <AuthPage><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></AuthPage>;
+  if (session.status === "unauthenticated") return <AuthPage><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button><p><DeploymentSignInLink /></p></AuthPage>;
   if (session.status === "forbidden") return <AuthPage><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></AuthPage>;
   if (session.status === "error") return <AuthPage><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. This usually takes a few seconds; the page retries on its own. You can also retry now.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</AuthPage>;
   if (session.status !== "authenticated") return null;

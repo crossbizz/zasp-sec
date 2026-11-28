@@ -144,7 +144,9 @@ kubernetes_secrets_init() {
         printf 'bootstrap:\n  organizationName: "%s"\n  organizationDomain: "%s"\n  adminEmail: "%s"\n' "${ZASP_ORGANIZATION_NAME:-}" "${ZASP_ORGANIZATION_DOMAIN:-}" "${ZASP_ADMIN_EMAIL:-}"
         printf 'securityAgent:\n  planner: %s\n' "$planner"
         printf 'nango:\n  enabled: %s\n' "$nango_enabled"
+        printf 'deploymentAdmin:\n  enabled: true\n'
         printf 'secrets:\n'
+        printf '  deploymentAdminPassword: "%s"\n' "$(random_hex 32)"
         printf '  nangoServiceKey: "%s"\n' "$(random_hex 32)"
         printf '  nangoAdminKey: "%s"\n' "$(random_hex 32)"
         printf '  nangoEncryptionKey: "%s"\n' "$(random_base64 32)"
@@ -178,7 +180,7 @@ kubernetes_secrets_init() {
   fi
   say "Generated, in $KUBE_VALUES under 'secrets':"
   for key in workflowSigningKey tokenRevealKey stytchWebhookSecret forwardSeedBase64 compensationSeedBase64 approvalDeliveryKeyBase64 openfgaToken \
-    neo4jAdminPassword neo4jWorkerPassword awsExternalId redTeamAdapterToken gatewaySigningKey gatewayPolicyKeysJson nangoServiceKey nangoAdminKey nangoEncryptionKey; do
+    neo4jAdminPassword neo4jWorkerPassword awsExternalId redTeamAdapterToken gatewaySigningKey gatewayPolicyKeysJson deploymentAdminPassword nangoServiceKey nangoAdminKey nangoEncryptionKey; do
     if kube_value_set "$key"; then state=present; else state=MISSING; fi
     case "$key" in
       workflowSigningKey) secret_row "$state" "$key" "signs workflow attestations and sessions (API)" ;;
@@ -192,6 +194,7 @@ kubernetes_secrets_init() {
       redTeamAdapterToken) secret_row "$state" "$key" "placeholder the Security Agent worker requires" ;;
       gatewaySigningKey|gatewayPolicyKeysJson) secret_row "$state" "$key" "gateway policy signing key and its verifier (Security Agent action worker)" ;;
       nangoServiceKey) secret_row "$state" "$key" "authenticates Zasp to the in-cluster Nango environment" ;;
+      deploymentAdminPassword) secret_row "$state" "$key" "signs in to the deployment operator console" ;;
       nangoAdminKey) secret_row "$state" "$key" "protects Nango dashboard sessions" ;;
       nangoEncryptionKey) secret_row "$state" "$key" "encrypts credentials in the Nango database" ;;
     esac

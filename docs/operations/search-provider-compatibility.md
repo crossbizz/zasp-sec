@@ -1,6 +1,6 @@
 # Search provider compatibility
 
-Production search currently requires an Amazon OpenSearch Service endpoint. Keep the API, index writers, and schema initializer on the same configured authority. The production endpoint validators require the AWS HTTPS hostname, and the clients sign requests with workload credentials. Plaintext loopback and synthetic credentials belong to evaluation configurations.
+Production search supports Amazon OpenSearch Service with SigV4 and the dedicated VPS OpenSearch service with mutual TLS. Use the same endpoint and index generations across the API, workers and schema initializer.
 
 | Workload | Current authority and dependency |
 | --- | --- |
@@ -9,4 +9,6 @@ Production search currently requires an Amazon OpenSearch Service endpoint. Keep
 | Policy replay and runtime session search | The API constructs the policy history reader, runtime-event schema reader, and configured session index from the same `ZASP_POLICY_HISTORY_ENDPOINT`. |
 | Raw events, sessions and schema initialization | The search initializer uses `ZASP_OPENSEARCH_ENDPOINT` to initialize and verify inventory, raw-event and configured session schemas. Writers, queries and readiness must agree on the index generations. |
 
-A self-hosted deployment needs an independently authenticated client on every participating writer, reader and initializer, verified TLS, workload-specific index permissions and a coordinated rebuild or migration. A new inventory writer endpoint alone cannot serve the current policy or session queries. Until a production self-hosted profile is qualified end to end, keep Amazon OpenSearch Service for production search. The local OpenSearch evaluation deployment remains available for synthetic data.
+The Production VPS overlay sets `ZASP_OPENSEARCH_AUTH_MODE=mtls` and pins the HTTPS endpoint to `opensearch.opensearch.svc.cluster.local:9200`. Each participating pod mounts its own `ca.crt`, `tls.crt` and `tls.key` at `/var/run/secrets/zasp-opensearch`. The client verifies the service hostname against that CA and reloads the client identity on each new TLS connection. Roll the consuming deployments to load a changed CA bundle. The API reader, inventory writer, runtime writer and initializer receive separate index permissions. [OpenSearch release](../../deploy/vps/opensearch/README.md)
+
+AWS deployments keep the default SigV4 mode. For migrations between providers, plan the index rebuild, check each schema version and verify indexed results against the authoritative records before switching all readers and writers.

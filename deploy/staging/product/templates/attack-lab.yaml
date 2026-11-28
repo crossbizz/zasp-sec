@@ -1,4 +1,4 @@
-{{- if ne .Values.profile "customer_edge" }}
+{{- if and (ne .Values.profile "customer_edge") .Values.attackLab.enabled }}
 ---
 apiVersion: v1
 kind: Namespace

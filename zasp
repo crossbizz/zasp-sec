@@ -39,7 +39,7 @@ Evaluating
   demo remove             Delete the demo data and the scopes created for it (needs --yes).
 
 Operating
-  nango dashboard         Open a loopback tunnel to this Kubernetes release's private Nango dashboard.
+  nango dashboard         Open a loopback tunnel to the private Kubernetes or VPS Nango dashboard.
   start                   Start the product.
   stop                    Stop the product and its dependencies. Data is kept.
   status                  One line per dependency and process.
@@ -123,7 +123,7 @@ export ZASP_PROFILE ZASP_DRY_RUN ZASP_YES
 
 case "$command_name" in
   doctor|install|up|start|stop|status|logs|upgrade|backup|restore|uninstall) ;;
-  nango) [ "$ZASP_PROFILE" = kubernetes ] || die "nango dashboard uses the kubernetes profile" ;;
+  nango) case "$ZASP_PROFILE" in kubernetes|vps) ;; *) die "nango dashboard uses the kubernetes or vps profile" ;; esac ;;
   bootstrap-admin) command_name=bootstrap_admin ;;
   demo)
     [ "${#rest[@]}" -ge 1 ] || die "usage: zasp demo seed --email <address> | status | remove --yes | help"

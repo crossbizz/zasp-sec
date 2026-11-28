@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: opensearch}
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: opensearch}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: agentsec}}
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [agentsec-api, agentsec-projection-search, agentsec-runtime-index, agentsec-runtime-session-index-v2, agentsec-projection-search-init]
+        - podSelector: {matchLabels: {app.kubernetes.io/name: opensearch-security-init}}
+      ports: [{protocol: TCP, port: 9200}]
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: opensearch-security-init}
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: opensearch-security-init}}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to: [{podSelector: {matchLabels: {app.kubernetes.io/name: opensearch}}}]
+      ports: [{protocol: TCP, port: 9200}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{protocol: TCP, port: 53}, {protocol: UDP, port: 53}]

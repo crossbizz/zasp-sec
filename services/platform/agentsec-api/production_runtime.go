@@ -22,6 +22,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/delegation/issuer"
+	"github.com/zasp-ai/zasp-sec/services/platform/deploymentadmin"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
@@ -656,6 +657,17 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	publicSurface, err = mountClaudeProvider(publicSurface, product, config.ClaudeEnterpriseHookFile, currentRequired(database))
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("claude-enterprise-hook", errRuntimeUnavailable)
+	}
+	var consoleCloser io.Closer
+	publicSurface, consoleCloser, err = deploymentadmin.Mount(ctx, config.DeploymentAdmin, publicSurface, func(r *http.Request) string {
+		client, _ := r.Context().Value(verifiedClientContextKey{}).(string)
+		return client
+	})
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("deployment-admin", errRuntimeUnavailable)
+	}
+	if consoleCloser != nil {
+		connectorResources = append(connectorResources, consoleCloser)
 	}
 	operational, err := newGatewayOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, config.HostedGatewayTimeout, exporter, publicSurface)
 	if err != nil {

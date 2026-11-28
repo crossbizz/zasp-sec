@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
+	"github.com/zasp-ai/zasp-sec/services/platform/opensearchaccess"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimesecret"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
@@ -146,6 +147,7 @@ type workerRuntimeConfig struct {
 	OktaClientSecretReference    string
 	ProviderTimeout              time.Duration
 	DiscoveryReadinessTimeout    time.Duration
+	OpenSearchAuthMode           opensearchaccess.Mode
 	OpenSearchURL                string
 	OpenSearchIndex              string
 	RuntimeSessionIndex          string
@@ -212,7 +214,7 @@ func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, 
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), AWSRegion: getenv("ZASP_AWS_REGION"),
 		RuntimeSessionIndex: getenv("ZASP_RUNTIME_SESSION_INDEX"),
 		ProjectionRoleARN:   getenv("ZASP_PROJECTION_INIT_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE"),
-		LeaseDuration: timeout, ShutdownTimeout: timeout, OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"),
+		LeaseDuration: timeout, ShutdownTimeout: timeout, OpenSearchAuthMode: opensearchaccess.Mode(getenv("ZASP_OPENSEARCH_AUTH_MODE")), OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"),
 		ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE"),
 	}
 	if err != nil || !validProjectionInitConfig(config) {
@@ -229,7 +231,7 @@ func validProjectionInitConfig(config workerRuntimeConfig) bool {
 		return false
 	}
 	if config.Mode == workerModeProjectionSearchInit {
-		return validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-inventory-v1"
+		return validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion, config.OpenSearchAuthMode) && config.OpenSearchIndex == "zasp-inventory-v1"
 	}
 	parsed, err := url.Parse(config.Neo4jURI)
 	return validProjectionSecretPrefix(config.ProjectionSecretPrefix) && err == nil && parsed.Scheme == "neo4j+s" && parsed.Hostname() != "" && parsed.Port() == "7687" && parsed.User == nil && parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == "" && validNeo4jReference(config.Neo4jCredential)
@@ -286,7 +288,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
-		OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
+		OpenSearchAuthMode: opensearchaccess.Mode(getenv("ZASP_OPENSEARCH_AUTH_MODE")), OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
 		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
@@ -463,7 +465,7 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	case workerModeDiscovery:
 		return validDiscoveryRuntimeAuthority(config)
 	case workerModeProjectionSearch:
-		return validProjectionAWSAuthority(config) && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-inventory-v1"
+		return validProjectionAWSAuthority(config) && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion, config.OpenSearchAuthMode) && config.OpenSearchIndex == "zasp-inventory-v1"
 	case workerModeProjectionGraph:
 		parsed, err := url.Parse(config.Neo4jURI)
 		return validProjectionAWSAuthority(config) && validProjectionSecretPrefix(config.ProjectionSecretPrefix) && err == nil && parsed.Scheme == "neo4j+s" && parsed.Hostname() != "" && parsed.Port() == "7687" && parsed.User == nil && parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == "" && validNeo4jReference(config.Neo4jCredential) && projectionPrincipalPattern.MatchString(config.Neo4jExpectedPrincipal) && projectionPrincipalPattern.MatchString(config.Neo4jExpectedRole)
@@ -494,7 +496,7 @@ func validRuntimeIndexAWSAuthority(config workerRuntimeConfig) bool {
 	}
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") && (config.RuntimeStageVersion == "runtime-index-v1" || config.RuntimeStageVersion == "runtime-index-v2" && config.RuntimeSessionIndex == "zasp-runtime-sessions-v2") && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-runtime-events-v1" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") && (config.RuntimeStageVersion == "runtime-index-v1" || config.RuntimeStageVersion == "runtime-index-v2" && config.RuntimeSessionIndex == "zasp-runtime-sessions-v2") && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion, config.OpenSearchAuthMode) && config.OpenSearchIndex == "zasp-runtime-events-v1" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeCorrelationAWSAuthority(config workerRuntimeConfig) bool {
@@ -687,7 +689,10 @@ func validProjectionAWSAuthority(config workerRuntimeConfig) bool {
 	return workerRegionPattern.MatchString(config.AWSRegion) && workerProjectionRolePattern.MatchString(config.ProjectionRoleARN) && config.ProjectionTokenFile == runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token")
 }
 
-func validOpenSearchEndpoint(value, region string) bool {
+func validOpenSearchEndpoint(value, region string, mode opensearchaccess.Mode) bool {
+	if mode != "" {
+		return mode.AllowsPrivateEndpoint(value, localcloud.Current().AllowsEndpoint(value))
+	}
 	// A development or test deployment with a local cloud endpoint may name a
 	// local search node; production never reaches this branch.
 	if localcloud.Current().AllowsEndpoint(value) {

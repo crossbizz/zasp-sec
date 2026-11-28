@@ -293,6 +293,8 @@ def service_status(component):
 
 
 def main(dry):
+    failed = []
+
     def check(label, operation, *, live=False):
         if dry and live:
             print("PLAN " + label + " (read-only check skipped)")
@@ -300,6 +302,7 @@ def main(dry):
         try:
             result = operation()
         except Exception:  # External tools and adapters may include secrets in errors. Emit only the check label.
+            failed.append(label)
             print("CHECK REQUIRED " + label)
             return None
         print("OK " + label)
@@ -372,8 +375,8 @@ def main(dry):
     else:
         print("UNVERIFIED offsite backup; an explicit local destination does not verify disaster recovery")
     print("UNVERIFIED independently held decryption keys, unseal shares and completed fresh-machine restore require a recorded recovery rehearsal")
-    print("BLOCKED full customer-pilot startup: complete self-hosted production search, graph, worker packaging and runtime verification are unavailable")
-    return 1
+    print("The signed application install verifies its candidate and rendered workloads. Check a deployed release with ./zasp --profile vps status application.")
+    return int(bool(failed))
 
 
 if __name__ == "__main__":

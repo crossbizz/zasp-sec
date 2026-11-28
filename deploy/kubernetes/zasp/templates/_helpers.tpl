@@ -35,6 +35,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- .Values.secrets.existingSecret | default (printf "%s-secrets" (include "zasp.name" .)) -}}
 {{- end -}}
 
+{{- define "zasp.consoleSecret" -}}{{ .Values.deploymentAdmin.existingSecret | default (printf "%s-deployment-admin" (include "zasp.name" .)) }}{{- end -}}
+
 {{- define "zasp.nangoName" -}}{{ printf "%s-nango" (include "zasp.name" .) }}{{- end -}}
 {{- define "zasp.nangoSecret" -}}{{ .Values.nango.existingSecret | default (include "zasp.nangoName" .) }}{{- end -}}
 {{- define "zasp.nangoURL" -}}{{ printf "http://%s.%s.svc.cluster.local:3003" (include "zasp.nangoName" .) .Release.Namespace }}{{- end -}}
@@ -52,12 +54,25 @@ Arguments: root, name, image, args (list).
   envFrom:
     - configMapRef: { name: {{ include "zasp.name" .root }}-settings }
   {{- $nangoClient := and .root.Values.nango.enabled (has .name (list "api" "worker-discovery")) }}
-  {{- if $nangoClient }}
+  {{- $console := and (eq .name "api") .root.Values.deploymentAdmin.enabled }}
+  {{- if or $nangoClient $console }}
   env:
+    {{- if $console }}
+    - { name: ZASP_DEPLOYMENT_ADMIN_ID, value: {{ .root.Values.deploymentAdmin.id | default (include "zasp.host" .root) | quote }} }
+    - { name: ZASP_DEPLOYMENT_ADMIN_PASSWORD_FILE, value: "/var/run/secrets/zasp-deployment-admin/password" }
+    - { name: ZASP_DEPLOYMENT_ADMIN_DSN, value: "postgres://zasp_console@127.0.0.1:5432/zasp_console?sslmode=disable" }
+    {{- $nango := dict }}
+    {{- if .root.Values.nango.enabled }}
+    {{- $nango = dict "api_url" (include "zasp.nangoURL" .root) "dashboard_url" "http://127.0.0.1:3003" }}
+    {{- end }}
+    - { name: ZASP_DEPLOYMENT_ADMIN_INITIAL_POINTERS, value: {{ dict "nango" $nango "opensearch" (dict "api_url" "http://127.0.0.1:9200") | toJson | quote }} }
+    {{- end }}
+    {{- if $nangoClient }}
     - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: "collector_v1" }
     - { name: ZASP_NANGO_BASE_URL, value: {{ include "zasp.nangoURL" .root | quote }} }
     - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
     - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
+    {{- end }}
   {{- end }}
   securityContext:
     allowPrivilegeEscalation: false
@@ -66,6 +81,9 @@ Arguments: root, name, image, args (list).
   resources: {{ toJson . }}
   {{- end }}
   volumeMounts:
+    {{- if $console }}
+    - { name: deployment-admin, mountPath: /var/run/secrets/zasp-deployment-admin, readOnly: true }
+    {{- end }}
     {{- if $nangoClient }}
     - { name: nango-client, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
     {{- end }}
