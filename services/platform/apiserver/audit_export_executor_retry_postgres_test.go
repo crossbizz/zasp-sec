@@ -35,18 +35,18 @@ func TestAuditExportWorkerPostgresRetrySDKFaultAgreement(t *testing.T) {
 	})
 	for _, name := range []string{"scheduled-retry-recovery", "committed-retry-response-loss", "five-attempt-saved-object", "direct-retry-zero"} {
 		t.Run(name, func(t *testing.T) {
-			caseCtx, stop := context.WithTimeout(ctx, 100*time.Second)
-			defer stop()
-			f := auditExportPGFixture(t, caseCtx)
-			f.register(t, caseCtx)
-			worker, _ := auditExportWorkerConnections(t, caseCtx, f)
+			setupCtx, stopSetup := context.WithTimeout(ctx, 100*time.Second)
+			defer stopSetup()
+			f := auditExportPGFixture(t, setupCtx)
+			f.register(t, setupCtx)
+			worker, _ := auditExportWorkerConnections(t, setupCtx, f)
 			args := f.createArgs()
 			var created json.RawMessage
-			if err := f.api.QueryRow(caseCtx, postgresAuditExportCreateSQL, args...).Scan(&created); err != nil {
+			if err := f.api.QueryRow(setupCtx, postgresAuditExportCreateSQL, args...).Scan(&created); err != nil {
 				t.Fatal("registered retry Create", err)
 			}
-			events, _ := auditExportPrepareWorkerSource(t, caseCtx, f, args)
-			p := newAuditExportProcessProvider(t, caseCtx, f, worker, args, events)
+			events, _ := auditExportPrepareWorkerSource(t, setupCtx, f, args)
+			p := newAuditExportProcessProvider(t, setupCtx, f, worker, args, events)
 			ca, token := filepath.Join(t.TempDir(), "ca.pem"), filepath.Join(t.TempDir(), "token")
 			if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: p.server.Certificate().Raw}), 0600); err != nil {
 				t.Fatal(err)
@@ -54,6 +54,9 @@ func TestAuditExportWorkerPostgresRetrySDKFaultAgreement(t *testing.T) {
 			if err := os.WriteFile(token, []byte(auditExportProcessToken), 0600); err != nil {
 				t.Fatal(err)
 			}
+			stopSetup()
+			caseCtx, stop := context.WithTimeout(ctx, 100*time.Second)
+			defer stop()
 			launcher.run(t, caseCtx, f, p, "audit-export-outbox", ca, token)
 			p.mu.Lock()
 			messageID := p.messages[0].ID

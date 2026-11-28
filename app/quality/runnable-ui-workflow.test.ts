@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { JSON_SCHEMA, load } from "js-yaml";
 import { describe, expect, it } from "vitest";
+import { stepsWithoutAcceptanceScheduling } from "../../scripts/acceptance-step-conditions.mjs";
 import { assertAuditSourceCoverage, readAuditSources, type AuditLane } from "./audit-ci-source-contract";
 
 type WorkflowStep = {
@@ -163,7 +164,12 @@ async function readWorkflow(): Promise<Workflow> {
     "utf8",
   );
 
-  return load(source, { schema: JSON_SCHEMA }) as Workflow;
+  const workflow = load(source, { schema: JSON_SCHEMA }) as Workflow;
+  const verify = workflow.jobs?.verify;
+  if (verify?.steps) {
+    verify.steps = stepsWithoutAcceptanceScheduling(verify.steps, "verify");
+  }
+  return workflow;
 }
 
 async function readPackageManifest(): Promise<PackageManifest> {
@@ -430,9 +436,10 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
   });
   it("accepts the source-inventory fixture before testing hostile source mutations", async () => {
     const inventory = assertAuditSourceCoverage(await readAuditSources(repositoryRoot), actualAuditLanes(validWorkflow()));
-    expect(inventory.declarations).toHaveLength(229);
-    expect(Object.keys(inventory.assignments)).toHaveLength(228);
+    expect(inventory.declarations).toHaveLength(233);
+    expect(Object.keys(inventory.assignments)).toHaveLength(232);
     expect(inventory.assignments.TestAuditExportRunContextConsumersPostgres).toBe("audit_a3");
+    expect(inventory.assignments.TestAuditExportProcessProviderExpectedArtifactsFollowSourceAndBinding).toBe("audit_a4");
     for (const name of [
       "TestAuditHTTPSizeExpectedMixedActualProducersPostgres",
       "TestAuditHTTPSizeExpectedMixedDuplicatePostgres",
@@ -440,6 +447,10 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
       "TestAuditHTTPSizeExpectedMixedMalformedPostgres",
       "TestAuditHTTPSizeExpectedMixedFamiliesScopePostgres",
       "TestAuditHTTPSizeExpectedMixedRawValidation",
+      "TestAuditHTTPSizeExpectedBoundaries",
+      "TestAuditHTTPSizeMemorySupervisor",
+      "TestAuditHTTPSizeProcessProtocolBoundedPhase",
+      "TestAuditHTTPSizeProcessProtocolIdentity",
       "TestAuditHTTPSizeProviderBrowserReaderSTSSelection",
       "TestAuditHTTPSizeProviderBrowserRejectsSizeReaderFallback",
       "TestAuditHTTPSizeProviderBrowserControlRejectsMalformedCommands",
@@ -487,6 +498,14 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
     ["lost LocalStack restart owner", "apiserver/audit_export_localstack_postgres_test.go", "exerciseAuditExportLocalStackRestart(t, release.version)", "missingLocalStackRestart(t, release.version)"],
     ["lost LocalStack child", "apiserver/audit_export_localstack_postgres_test.go", "owner.launch(", "owner.noLaunch("],
     ["lost child launch", "apiserver/audit_export_http_size_process_test.go", "-test.run=^TestAuditHTTPSizeAPIProcess$", "-test.run=^TestUnrelated$"],
+    ["lost measured RSS child", "apiserver/audit_export_http_size_supervisor_linux_test.go", "-test.run=^TestAuditHTTPSizeMemorySupervisor$", "-test.run=^TestUnrelated$"],
+    ["lost protocol identity child", "apiserver/audit_export_http_size_process_test.go", "^TestAuditHTTPSizeProcessProtocolIdentity$", "^TestUnrelated$"],
+    ["lost current-page oracle check", "apiserver/audit_export_http_size_expected_test.go", 't.Run("current-page-overlap",', 't.Run("unrelated",'],
+    ["lost fatal GET join check", "apiserver/audit_export_http_size_expected_test.go", 'range []string{"fatal-get", "canceled-phase"}', 'range []string{"canceled-phase"}'],
+    ["lost phase deadline check", "apiserver/audit_export_http_size_postgres_test.go", "auditHTTPSizeBoundedPhase(ctx, maximum)", "auditHTTPSizePhase(ctx, maximum)"],
+    ["lost bounded page traversal", "apiserver/audit_export_http_size_postgres_test.go", "auditHTTPSizeBoundedPhase(ctx, 3*time.Minute)", "auditHTTPSizePhase(ctx, 3*time.Minute)"],
+    ["lost bounded executor replay", "apiserver/audit_export_http_size_postgres_test.go", "auditHTTPSizeBoundedPhase(ctx, 8*time.Minute)", "auditHTTPSizePhase(ctx, 8*time.Minute)"],
+    ["lost current-page oracle ownership", "apiserver/audit_export_http_size_postgres_test.go", "auditHTTPSizeReadPage(phase, e.Next,", "otherPage(phase, e.Next,"],
     ["single control", "apiserver/audit_export_http_size_memory_test.go", '"api-retain", "worker-retain"', '"api-retain"'],
     ["N1 only", "apiserver/audit_export_http_size_memory_test.go", '"N1-off", "N2-off", "N3-on"', '"N1-off"'],
     ["missing race subcase", "apiserver/audit_export_http_size_memory_test.go", 't.Run("functional-race"', 't.Run("unrelated"'],
@@ -744,6 +763,15 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
     ]);
 
     assertRunnableUiWorkflow(workflow, packageManifest);
+  });
+
+  it("pins the audit subprocess build to the Go release installed by acceptance", async () => {
+    const workflow = await readWorkflow();
+    const setup = workflow.jobs?.verify.steps?.find(step => step.uses === setupGoAction);
+    const version = setup?.with?.["go-version"];
+    expect(version).toBeTypeOf("string");
+    const fixture = await readFile(resolve(repositoryRoot, "services/platform/apiserver/audit_export_http_size_memory_test.go"), "utf8");
+    expect(fixture).toContain(`const auditHTTPSizeGoVersion = "go${version}"`);
   });
 
   it("keeps the verification, the secret scanner and the Go packages on every push and pull request", async () => {

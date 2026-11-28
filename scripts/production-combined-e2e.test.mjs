@@ -12,6 +12,46 @@ import { createContext, runInContext, runInNewContext } from "node:vm";
 import { auditBrowserAPISettings, auditBrowserEnvironment, auditBrowserPolicyEnvironment } from "./audit-log-browser-proof.mjs";
 import { exportBrowserIdentity, exportBrowserRelease } from "./security-agent-export-mounted-browser.mjs";
 
+test("initial compliance evidence waits separately for the signed-in scope and three serial reads", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function waitForInitialComplianceEvidence(");
+  const end = source.indexOf("\nasync function waitForBrowserText(", start);
+  assert.ok(start >= 0 && end > start);
+  const scope = "org/workspace/environment";
+  for (const scenario of ["ready", "wrong scope", "wrong route", "missing link"]) {
+    let now = 0;
+    const location = new URL("https://console.example/compliance/evidence");
+    if (scenario === "wrong route") location.pathname = "/sign-in";
+    const link = {
+      href: "https://console.example/compliance/evidence?organization_id=org&workspace_id=workspace&environment_id=environment",
+      getAttribute: () => "Open policy policy-compliance-read-only version 3",
+    };
+    const page = createContext({location, URL, document: {
+      body: {innerText: ""},
+      querySelector: selector => {
+        assert.equal(selector, 'select[aria-label="Authorized scope"]');
+        return {value: now >= 9_000 && scenario !== "wrong scope" ? "workspace/environment" : "another/scope"};
+      },
+      querySelectorAll: () => now >= 36_000 && scenario !== "missing link" ? [link] : [],
+    }});
+    const wait = runInNewContext(`${source.slice(start, end)}\nwaitForInitialComplianceEvidence`, {
+      performance: {now: () => now}, delay: async ms => { now += ms; },
+      complianceResponseTrace: [], console: {error: () => {}},
+    });
+    const ready = wait({send: async (_method, {expression}) => ({result: {value: runInContext(expression, page)}})}, scope, 0);
+    if (scenario === "ready") {
+      await ready;
+      assert.equal(now, 36_000);
+    } else if (scenario === "missing link") {
+      await assert.rejects(ready, /read-only policy link/);
+      assert.equal(now, 9_000 + 3 * 10_000 + 2_000);
+    } else {
+      await assert.rejects(ready, /initial scope/);
+      assert.equal(now, 15_000);
+    }
+  }
+});
+
 test("compliance paging waits for both policy links in the selected scope and reports only bounded diagnostics", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf("async function waitForCompliancePagingLinks(");

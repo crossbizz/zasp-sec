@@ -355,7 +355,11 @@ func newAuditExportHTTPReaderFixture(t *testing.T, parent context.Context, scope
 			http.Error(w, "owned reader refused", http.StatusBadRequest)
 			return
 		}
-		chunk, chunkErr := audit.DecodeExportChunk(object.Body)
+		var chunk audit.ExportChunk
+		var chunkErr error
+		if fault == "missing version" || fault == "coherent corruption" || fault == "coherent manifest" {
+			chunk, chunkErr = audit.DecodeExportChunk(object.Body)
+		}
 		if (fault == "missing version" || fault == "coherent corruption") && (chunkErr != nil || chunk.Ordinal != 2) {
 			fault = "" // The manifest must complete before a selected-chunk fault.
 		}

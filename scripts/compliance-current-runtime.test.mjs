@@ -13,6 +13,23 @@ const signingKey="controlled-test-signing-key-32bytes";
 // Controlled command effects verify the actual orchestration source prefix.
 // No migration SQL, service, model or API readiness is exercised by this fixture.
 export function cases(sourceURL) {
+ test("current compliance API uses the deployed readiness cadence throughout the browser flow", () => {
+  const source = fs.readFileSync(sourceURL, "utf8");
+  const start = source.indexOf("  const apiEnvironment=", source.indexOf("async function exerciseComplianceBrowser("));
+  const end = source.indexOf("  const startAPI=", start);
+  assert.ok(start >= 0 && end > start);
+  const env = vm.runInNewContext(source.slice(start, end) + "\napiEnvironment", {
+   configuration: {currentRuntimeEnvironment: {}}, publicOrigin: "https://example.test", postgresPort: 15432,
+   object: "/tmp/fixture", process: {env: {}}, closedOwnedAmbientEnvironment,
+   combinedAPIEnvironment: () => ({ZASP_READINESS_INTERVAL: "100ms", ZASP_READINESS_MAX_INTERVAL: "1s"}),
+  });
+  const workloads = fs.readFileSync(new URL("../deploy/staging/product/templates/workloads.yaml", import.meta.url), "utf8");
+  for (const name of ["ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL"]) {
+   const configured = workloads.match(new RegExp('name: ' + name + ', value: "([^"]+)"'));
+   assert.ok(configured, name + " must be defined in the production chart");
+   assert.equal(env[name], configured[1]);
+  }
+ });
  test("actual owned compliance startup preserves release56 controls and installs and verifies the current baseline before API construction", async()=>{
   const text=fs.readFileSync(sourceURL,"utf8");
   const start=text.indexOf("async function exerciseComplianceBrowser(configuration) {");

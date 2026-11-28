@@ -26,6 +26,7 @@ type complianceHTTPDatabase struct {
 	failure        error
 	consumeFailure error
 	grantFormat    string
+	now            time.Time
 	artifact       artifactstore.Artifact
 	readDeadline   time.Time
 	createBody     string
@@ -57,7 +58,7 @@ func (d *complianceHTTPDatabase) QueryJSON(ctx context.Context, q string, a ...a
 			d.createBody = string(a[6].(json.RawMessage))
 		}
 		d.operations = append(d.operations, "job")
-		return json.Marshal(ComplianceExportJob{ExportID: complianceHTTPJobID, OrganizationID: d.identity.Scope.OrganizationID().String(), WorkspaceID: d.identity.Scope.WorkspaceID().String(), EnvironmentID: d.identity.Scope.EnvironmentID().String(), State: "completed", Phase: "terminal", CreatedAt: time.Now().Add(-time.Hour).UTC(), RetrievalExpiresAt: time.Now().Add(time.Hour).UTC(), MappingRevision: "product-evidence-v1"})
+		return json.Marshal(ComplianceExportJob{ExportID: complianceHTTPJobID, OrganizationID: d.identity.Scope.OrganizationID().String(), WorkspaceID: d.identity.Scope.WorkspaceID().String(), EnvironmentID: d.identity.Scope.EnvironmentID().String(), State: "completed", Phase: "terminal", CreatedAt: d.now.Add(-time.Hour), RetrievalExpiresAt: d.now.Add(time.Hour), MappingRevision: "product-evidence-v1"})
 	case postgresComplianceExportGrantSQL:
 		op := a[8].(string)
 		d.operations = append(d.operations, op)
@@ -71,7 +72,7 @@ func (d *complianceHTTPDatabase) QueryJSON(ctx context.Context, q string, a ...a
 		if op == "read" {
 			return json.Marshal(map[string]any{"reference": d.artifact.Reference.String(), "version": d.artifact.VersionID, "size": d.artifact.Size, "sha256": hex.EncodeToString(d.artifact.SHA256[:]), "renderer_revision": "compliance-envelope-v1", "read_expires_at": d.readDeadline})
 		}
-		return json.Marshal(map[string]any{"expires_at": time.Now().Add(time.Minute).UTC(), "consumed": op == "consume" || op == "integrity_failure"})
+		return json.Marshal(map[string]any{"expires_at": d.now.Add(time.Minute), "consumed": op == "consume" || op == "integrity_failure"})
 	case postgresComplianceReadSQL:
 		op := a[5].(string)
 		d.operations = append(d.operations, op)
@@ -124,6 +125,7 @@ func complianceHTTPFixture(t *testing.T) (http.Handler, *complianceHTTPDatabase,
 	body := []byte(`{"version":1,"id":"` + complianceHTTPJobID + `","json":[{"control":{"id":"old-control","framework":"SOC 2","name":"Old renderer","evidence_ids":[],"fresh_until":"2025-01-01T00:00:00Z"},"evidence":[],"freshness":"missing"}],"csv":"old,csv\n","human":"Persisted report from an older renderer."}`)
 	ref, _ := domain.ParseEvidenceRef(complianceHTTPJobID)
 	db := &complianceHTTPDatabase{t: t, identity: identity, artifact: artifactstore.Artifact{Locator: artifactstore.Locator{Scope: identity.Scope, Reference: ref, VersionID: "version-1"}, MediaType: "application/json", Body: body, Size: int64(len(body)), SHA256: sha256.Sum256(body)}, readDeadline: time.Now().Add(20 * time.Second).UTC()}
+	db.now = time.Now().In(time.FixedZone("database", -8*60*60))
 	source, err := NewComplianceRepository(db)
 	if err != nil {
 		t.Fatal(err)
@@ -156,6 +158,35 @@ func complianceHTTPRequest(t *testing.T, h http.Handler, identity RequestIdentit
 	h.ServeHTTP(w, r)
 	return w
 }
+func TestComplianceHTTPExportTimestampsUseUTC(t *testing.T) {
+	handler, db, _, identity := complianceHTTPFixture(t)
+	const collection = "/api/v1/compliance/exports"
+	const job = collection + "/" + complianceHTTPJobID
+	for _, tc := range []struct {
+		method, path, body string
+		status             int
+		fields             map[string]time.Time
+	}{
+		{"POST", collection, "{}", 201, map[string]time.Time{"created_at": db.now.Add(-time.Hour), "expires_at": db.now.Add(time.Hour)}},
+		{"GET", job, "", 200, map[string]time.Time{"created_at": db.now.Add(-time.Hour), "expires_at": db.now.Add(time.Hour)}},
+		{"POST", job + "/download-grants", `{"format":"json"}`, 201, map[string]time.Time{"expires_at": db.now.Add(time.Minute)}},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			response := complianceHTTPRequest(t, handler, *identity, tc.method, tc.path, tc.body, nil)
+			var body map[string]json.RawMessage
+			if response.Code != tc.status || json.Unmarshal(response.Body.Bytes(), &body) != nil {
+				t.Fatalf("invalid response with status %d", response.Code)
+			}
+			for field, instant := range tc.fields {
+				var actual string
+				if err := json.Unmarshal(body[field], &actual); err != nil || actual != instant.UTC().Format(time.RFC3339Nano) {
+					t.Errorf("%s must identify the same instant in UTC, got %q", field, actual)
+				}
+			}
+		})
+	}
+}
+
 func TestComplianceHTTPMountedPublicLifecycle(t *testing.T) {
 	for _, tc := range []struct {
 		method, path, body, want string

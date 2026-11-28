@@ -433,7 +433,7 @@ test("rejects coherent unreviewed syscall versions and manifest-only drift", asy
 test("accepts the reviewed repository dependency inventory", async () => {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const result = await validateRepository(root);
-  assert.deepEqual(result, { manifests: 15, dependencies: 55 });
+  assert.deepEqual(result, { manifests: 15, dependencies: 65 });
 });
 
 test("binds the exact ten AWS SDK product dependencies", async (t) => {

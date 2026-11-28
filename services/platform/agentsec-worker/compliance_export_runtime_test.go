@@ -99,6 +99,14 @@ func TestComplianceRuntimeConfiguration(t *testing.T) {
 		if _, err := loadWorkerRuntimeConfig(mapLookup(env)); err != nil {
 			t.Fatalf("dedicated mode rejected: %v", err)
 		}
+		for _, login := range []string{"zasp_svc_compliance_worker", "zasp_svc_compliance_cleanup", "zasp_svc_api", "zasp_operator", "zasp_compliance_worker", "zasp_compliance_cleanup", "zasp_svc_compliance_worker_extra"} {
+			candidate := cloneStringMap(env)
+			candidate["ZASP_POSTGRES_DSN"] = "postgres://" + login + "@postgres.internal/zasp?sslmode=verify-full"
+			want := !cleanup && login == "zasp_svc_compliance_worker" || cleanup && login == "zasp_svc_compliance_cleanup"
+			if _, err := loadWorkerRuntimeConfig(mapLookup(candidate)); (err == nil) != want {
+				t.Errorf("cleanup=%t login=%s: accepted=%t, want %t", cleanup, login, err == nil, want)
+			}
+		}
 		for key, value := range map[string]string{"ZASP_DATABASE_AUTHORITY": "zasp_audit_export_worker", "ZASP_LEASE_DURATION": "90s", "ZASP_PROVIDER_TIMEOUT": "0s", "ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER": "foreign", "ZASP_AUDIT_EXPORT_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/123456789012/audit", "ZASP_RUNTIME_ROLE_ARN": "arn:aws:iam::123456789012:role/runtime"} {
 			bad := cloneStringMap(env)
 			bad[key] = value

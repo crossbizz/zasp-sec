@@ -35,12 +35,9 @@ func CheckRevision(ctx context.Context, reader RevisionReader, checker Checker, 
 	if _, err := Map(request); err != nil {
 		return CheckedDecision{}, ErrInvalid
 	}
-	revision, err := reader.Revision(ctx, request.OrganizationID)
+	revision, err := CurrentRevision(ctx, reader, request.OrganizationID, storeID, modelID)
 	if err != nil {
-		return CheckedDecision{}, ErrUnavailable
-	}
-	if revision.validate() != nil || revision.OrganizationID != request.OrganizationID || revision.StoreID != storeID || revision.ModelID != modelID || revision.Desired != revision.Applied {
-		return CheckedDecision{}, ErrPending
+		return CheckedDecision{}, err
 	}
 	decision, err := checker.Check(ctx, request)
 	if err != nil {
@@ -76,12 +73,9 @@ func CheckRevisionAll(ctx context.Context, reader RevisionReader, checker Checke
 			return nil, ErrInvalid
 		}
 	}
-	revision, err := reader.Revision(ctx, organization)
+	revision, err := CurrentRevision(ctx, reader, organization, storeID, modelID)
 	if err != nil {
-		return nil, ErrUnavailable
-	}
-	if revision.validate() != nil || revision.OrganizationID != organization || revision.StoreID != storeID || revision.ModelID != modelID || revision.Desired != revision.Applied {
-		return nil, ErrPending
+		return nil, err
 	}
 	checked := make([]CheckedDecision, 0, len(requests))
 	for _, request := range requests {
@@ -102,6 +96,21 @@ func CheckRevisionAll(ctx context.Context, reader RevisionReader, checker Checke
 		return nil, ErrConflict
 	}
 	return checked, nil
+}
+
+// CurrentRevision reads the applied revision for one organization and model.
+func CurrentRevision(ctx context.Context, reader RevisionReader, organization, storeID, modelID string) (Revision, error) {
+	if ctx == nil || reader == nil {
+		return Revision{}, ErrInvalid
+	}
+	revision, err := reader.Revision(ctx, organization)
+	if err != nil {
+		return Revision{}, ErrUnavailable
+	}
+	if revision.validate() != nil || revision.OrganizationID != organization || revision.StoreID != storeID || revision.ModelID != modelID || revision.Desired != revision.Applied {
+		return Revision{}, ErrPending
+	}
+	return revision, nil
 }
 
 var projectionULID = regexp.MustCompile(`^[0-7][0-9A-HJKMNP-TV-Z]{25}$`)

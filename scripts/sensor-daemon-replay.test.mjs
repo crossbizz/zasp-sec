@@ -31,7 +31,7 @@ test("daemon proof selects the actual Docker host platform instead of a foreign 
 
 test("CI runs actual daemon proof and ownership regressions within a bounded step", async () => {
   const workflow = await readFile(new URL("../.github/workflows/runnable-ui-acceptance.yml", import.meta.url), "utf8");
-  assert.match(workflow, /- name: Verify actual daemon lost-success replay\n\s+timeout-minutes: 15\n\s+run: \|\n\s+node --test scripts\/sensor-daemon-replay.test.mjs\n\s+node scripts\/sensor-daemon-replay.mjs/);
+  assert.match(workflow, /- name: Verify actual daemon lost-success replay\n\s+if: .*?\n\s+timeout-minutes: 15\n\s+run: \|\n\s+node --test scripts\/sensor-daemon-replay.test.mjs\n\s+node scripts\/sensor-daemon-replay.mjs/);
 });
 const fixture = () => ({
   Id: id, Name: `/zasp-daemon-replay-${owner}`,

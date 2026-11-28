@@ -67,6 +67,8 @@ Produce `rendered.yaml` with `helm --kube-context CONTEXT -n NAMESPACE template 
 
 ## Continuous deployment to private k3s
 
+To verify a batch of CD fixes before merging, include `[verify-production-cd]` in the last commit message you push to the pull request branch. GitHub runs the production acceptance suite on hosted runners for that commit with read-only repository access. [Pre-merge acceptance workflow](../../.github/workflows/production-acceptance-pr.yml)
+
 Each merge to `crossbizz/zasp-sec` main starts the production workflow. Its hosted enrollment step sets `ZASP_PRODUCTION_CD_ENABLED=true` for that step and reports the candidate commit in the Actions summary. The protected deployment job upgrades the `agentsec` Helm release in the `zasp` namespace. It waits for the main push checks and full acceptance suite at the candidate commit, then runs the existing protected production promotion. The upgrade job rechecks the signed evidence, the branch head and the identity of the target cluster. It serializes upgrades and waits for the workloads and migration jobs. Helm can roll back a failed release. Database recovery follows the migration runbook. [Production CD workflow](../../.github/workflows/production-cd.yml)
 
 ### Enroll the installation

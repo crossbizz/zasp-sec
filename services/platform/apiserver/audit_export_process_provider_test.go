@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -147,6 +148,9 @@ type auditExportProcessProvider struct {
 	observer, worker                                            *pgx.Conn
 	args                                                        []any
 	events                                                      []json.RawMessage
+	expectedBinding                                             audit.ExportBinding
+	expectedEvents                                              []json.RawMessage
+	expectedObjects                                             map[string][]byte
 	objects                                                     map[string]auditExportProcessObject
 	messages                                                    []*auditExportProcessMessage
 	sends, receives, deletes, deleteAttempts, puts, heads, gets int
@@ -545,7 +549,7 @@ func (p *auditExportProcessProvider) storage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	binding := audit.ExportBinding{OrganizationID: p.args[0].(string), WorkspaceID: p.args[1].(string), EnvironmentID: p.args[2].(string), ExportID: p.args[7].(string), CaptureID: capture}
-	expected, err := auditExportProcessExpected(binding, p.events)
+	expected, err := p.expectedArtifacts(binding)
 	if err != nil {
 		p.refuse(w, "independent expected bytes")
 		return
@@ -650,6 +654,49 @@ func (p *auditExportProcessProvider) storage(w http.ResponseWriter, r *http.Requ
 // Opt-in recovery can discover only an existing object's immutable version.
 func auditExportRecoveryDiscovery(enabled, exists bool, r *http.Request) bool {
 	return enabled && exists && r.Method == http.MethodHead && r.URL.RawQuery == "" && r.Header.Get("X-Amz-Checksum-Mode") == "ENABLED"
+}
+
+// The S3 handler holds p.mu and reads the committed intent for every request.
+// Reuse only the independent encoding of the same source bytes and binding.
+func (p *auditExportProcessProvider) expectedArtifacts(binding audit.ExportBinding) (map[string][]byte, error) {
+	if p.expectedObjects != nil && p.expectedBinding == binding && reflect.DeepEqual(p.expectedEvents, p.events) {
+		return p.expectedObjects, nil
+	}
+	objects, err := auditExportProcessExpected(binding, p.events)
+	if err != nil {
+		return nil, err
+	}
+	p.expectedBinding, p.expectedObjects = binding, objects
+	p.expectedEvents = slices.Clone(p.events)
+	for i, event := range p.events {
+		p.expectedEvents[i] = bytes.Clone(event)
+	}
+	return objects, nil
+}
+
+func TestAuditExportProcessProviderExpectedArtifactsFollowSourceAndBinding(t *testing.T) {
+	binding := auditHTTPSizeTestBinding()
+	event := auditHTTPSizeTestRow(0).event
+	event.Ordinal, event.Outcome, event.OccurredAt = 1, "denied", "2026-09-12T13:14:15.000123Z"
+	event.Metadata = map[string]string{}
+	raw, err := audit.EncodeExportEvent(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &auditExportProcessProvider{events: []json.RawMessage{raw}}
+	original, err := p.expectedArtifacts(binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding.CaptureID = auditHTTPSizeTestID(6)
+	rebound, err := p.expectedArtifacts(binding)
+	if err != nil || bytes.Equal(original["manifest:0"], rebound["manifest:0"]) {
+		t.Fatal("reused the previous capture", err)
+	}
+	raw[0] = '!'
+	if _, err := p.expectedArtifacts(binding); err == nil {
+		t.Fatal("accepted the cached expectation after an in-place source mutation")
+	}
 }
 
 func auditExportProcessExpected(binding audit.ExportBinding, events []json.RawMessage) (map[string][]byte, error) {

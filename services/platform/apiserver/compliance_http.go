@@ -125,7 +125,7 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 				writeComplianceError(w, r, err)
 				return
 			}
-			writeJSONValue(w, r, http.StatusCreated, map[string]any{"token": token, "format": format, "expires_at": grant.ExpiresAt}, nil)
+			writeJSONValue(w, r, http.StatusCreated, map[string]any{"token": token, "format": format, "expires_at": grant.ExpiresAt.UTC()}, nil)
 			return
 		}
 		if json.Unmarshal(object["token"], &token) != nil || !validExistingTestPublicDigest(token) {
@@ -437,7 +437,7 @@ func (h *complianceHTTPHandler) publicPage(r *http.Request, values []any, next j
 	return compliancePublicPage(values, next)
 }
 func compliancePublicJob(j ComplianceExportJob) map[string]any {
-	return map[string]any{"id": j.ExportID, "status": j.State, "formats": []string{"json", "csv", "human"}, "created_at": j.CreatedAt, "expires_at": j.RetrievalExpiresAt, "failure_code": j.FailureCode, "mapping_revision": j.MappingRevision}
+	return map[string]any{"id": j.ExportID, "status": j.State, "formats": []string{"json", "csv", "human"}, "created_at": j.CreatedAt.UTC(), "expires_at": j.RetrievalExpiresAt.UTC(), "failure_code": j.FailureCode, "mapping_revision": j.MappingRevision}
 }
 func writeComplianceError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {

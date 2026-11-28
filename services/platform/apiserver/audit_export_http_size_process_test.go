@@ -112,7 +112,11 @@ func TestAuditHTTPSizeProcessPrivateFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 		case "public":
-			if err := os.WriteFile(path, []byte("ca"), 0644); err != nil {
+			if err := os.WriteFile(path, []byte("ca"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			// Set the mode after creation so the process umask cannot remove the read bits.
+			if err := os.Chmod(path, 0644); err != nil {
 				t.Fatal(err)
 			}
 		case "symlink":
@@ -158,6 +162,76 @@ func TestAuditHTTPSizeProcessStartFailure(t *testing.T) {
 	}
 	if err == nil || c == nil || c.result == nil || time.Since(started) > 5*time.Second {
 		t.Fatal("early runner failure did not close/join protocol readers", err)
+	}
+}
+
+func TestAuditHTTPSizeProcessProtocolIdentity(t *testing.T) {
+	const fixture = "pid-protocol-fixture"
+	if filepath.Base(os.Args[0]) == fixture {
+		mode := os.Getenv("ZASP_AUDIT_HTTP_SIZE_MODE")
+		wrongPhase := os.Getenv("ZASP_AUDIT_HTTP_SIZE_CA")
+		status := os.NewFile(3, "status")
+		defer status.Close()
+		record := func(phase, url string) {
+			pid := os.Getpid()
+			if phase == wrongPhase {
+				pid = os.Getppid()
+			}
+			if err := json.NewEncoder(status).Encode(auditHTTPSizeRecord{PID: pid, Mode: mode, URL: url}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if mode == "" {
+			mode = "api"
+			record("ready", "http://127.0.0.1:14443")
+			control := os.NewFile(4, "control")
+			defer control.Close()
+			if line, err := bufio.NewReader(control).ReadString('\n'); err != nil || line != "stop\n" {
+				t.Fatal("missing stop command", err)
+			}
+		}
+		record("terminal", "cleanup-complete")
+		return
+	}
+
+	root := t.TempDir()
+	auditHTTPSizeBuildSupervisor(t, root)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(exe, filepath.Join(root, fixture)); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, "target")
+	script := "#!/bin/sh\nexec \"${0%/*}/" + fixture + "\" -test.run='^TestAuditHTTPSizeProcessProtocolIdentity$'\n"
+	if err := os.WriteFile(target, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ mode, wrongPhase string }{
+		{"api", "ready"}, {"api", "terminal"}, {"audit-export", "terminal"}, {"audit-export-outbox", "terminal"},
+	} {
+		t.Run(tc.mode+"/"+tc.wrongPhase, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			var result auditHTTPSizeChildResult
+			var err error
+			if tc.mode == "api" {
+				api, startErr := startAuditHTTPSizeAPI(ctx, target, "postgres://invocation_discovery_api@127.0.0.1:1/zasp?sslmode=disable", "127.0.0.1:14443", tc.wrongPhase, "")
+				if startErr != nil {
+					if api != nil {
+						_, _ = api.Stop(ctx)
+					}
+					t.Fatal(startErr)
+				}
+				result, err = api.Stop(ctx)
+			} else {
+				result, err = runAuditHTTPSizeWorker(ctx, target, "", tc.mode, "", tc.wrongPhase, "", "")
+			}
+			if !result.Joined || result.PID <= 0 || result.PeakRSSBytes <= 0 || err == nil || !strings.Contains(err.Error(), "terminal") {
+				t.Fatal("expected joined kernel measurement and refused application PID", result, err)
+			}
+		})
 	}
 }
 
@@ -857,14 +931,19 @@ type auditHTTPSizeRunResult struct {
 	output []byte
 	err    error
 }
+type auditHTTPSizeAPIRunResult struct {
+	auditHTTPSizeRunResult
+	pid            int
+	peakRSSBytes   int64
+	measurementErr error
+}
 type auditHTTPSizeAPIChild struct {
 	joined          bool
-	command         *exec.Cmd
 	status, control *os.File
 	reader          *bufio.Reader
-	run             chan auditHTTPSizeRunResult
+	run             chan auditHTTPSizeAPIRunResult
 	ready           auditHTTPSizeRecord
-	result          *auditHTTPSizeRunResult
+	result          *auditHTTPSizeAPIRunResult
 	cancel          context.CancelFunc
 	stopped         bool
 }
@@ -892,15 +971,24 @@ func startAuditHTTPSizeAPIWithRunner(ctx context.Context, binary, dsn, address, 
 		statusW.Close()
 		return nil, err
 	}
-	runCtx, cancel := context.WithCancel(ctx)
 	cmd := exec.Command(binary, "-test.run=^TestAuditHTTPSizeAPIProcess$", "-test.v", "-test.count=1", "-test.timeout=12m")
 	cmd.Env = append(auditHTTPSizeEnvironment(), "ZASP_AUDIT_HTTP_SIZE_DSN="+dsn, "ZASP_AUDIT_HTTP_SIZE_ADDRESS="+address, "ZASP_AUDIT_HTTP_SIZE_CA="+ca, "ZASP_AUDIT_HTTP_SIZE_CONTROL="+control, "ZASP_AUDIT_HTTP_SIZE_DEADLINE="+deadline.Format(time.RFC3339Nano))
 	cmd.ExtraFiles = []*os.File{statusW, controlR}
-	c := &auditHTTPSizeAPIChild{command: cmd, status: statusR, control: controlW, reader: bufio.NewReaderSize(statusR, 4096), run: make(chan auditHTTPSizeRunResult, 1), cancel: cancel}
+	measurement, err := auditHTTPSizeSupervise(cmd)
+	if err != nil {
+		return nil, errors.Join(err, statusR.Close(), statusW.Close(), controlR.Close(), controlW.Close())
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	c := &auditHTTPSizeAPIChild{status: statusR, control: controlW, reader: bufio.NewReaderSize(statusR, 4096), run: make(chan auditHTTPSizeAPIRunResult, 1), cancel: cancel}
 	go func() {
-		out, e := run(runCtx, cmd)
-		e = errors.Join(e, statusW.Close(), controlR.Close())
-		c.run <- auditHTTPSizeRunResult{out, e}
+		var result auditHTTPSizeAPIRunResult
+		result.output, result.err = run(runCtx, cmd)
+		result.err = errors.Join(result.err, statusW.Close(), controlR.Close())
+		if result.err == nil {
+			result.pid, result.peakRSSBytes, result.measurementErr = measurement.Complete(cmd)
+		}
+		measurement.Close()
+		c.run <- result
 	}()
 	type recordResult struct {
 		record auditHTTPSizeRecord
@@ -971,16 +1059,12 @@ func (c *auditHTTPSizeAPIChild) Stop(ctx context.Context) (auditHTTPSizeChildRes
 	}
 	c.joined = true
 	terminal, recordErr := auditHTTPSizeReadTerminal(c.reader, "api")
-	result := auditHTTPSizeChildResult{Mode: "api", Output: c.result.output, Joined: true}
-	if c.command.Process != nil {
-		result.PID = c.command.Process.Pid
-	}
-	err := errors.Join(writeErr, c.result.err, recordErr)
-	if terminal.PID != result.PID || c.ready.PID != result.PID || bytes.Contains(result.Output, []byte("--- SKIP:")) || c.command.ProcessState == nil || !c.command.ProcessState.Success() {
+	result := auditHTTPSizeChildResult{Mode: "api", Output: c.result.output, Joined: true, PID: c.result.pid, PeakRSSBytes: c.result.peakRSSBytes}
+	err := errors.Join(writeErr, c.result.measurementErr, recordErr)
+	if terminal.PID != result.PID || c.ready.PID != result.PID || bytes.Contains(result.Output, []byte("--- SKIP:")) {
 		err = errors.Join(err, fmt.Errorf("API terminal identity/exit/protocol refused: %s", result.Output))
 	}
 	if err == nil {
-		result.PeakRSSBytes, err = auditHTTPSizePeak(c.command.ProcessState)
 		result.RetainedBytes, result.SelfRSSBytes = terminal.RetainedBytes, terminal.SelfRSSBytes
 		if result.SelfRSSBytes > result.PeakRSSBytes {
 			err = errors.New("self RSS exceeds final kernel peak")

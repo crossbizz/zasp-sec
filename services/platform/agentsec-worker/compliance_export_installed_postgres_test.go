@@ -342,6 +342,23 @@ func TestComplianceExportOnInstalledBaselinePostgres(t *testing.T) {
 	if err := authority.Ready(ctx, "execute"); err != nil {
 		t.Fatalf("the compliance worker login is not ready on the baseline: %v", err)
 	}
+	if err := authority.Ready(ctx, "cleanup"); err == nil {
+		t.Fatal("the writer login admitted a cleanup operation")
+	}
+	cleanupConfig := config.Copy()
+	cleanupConfig.ConnConfig.User = "zasp_svc_compliance_cleanup"
+	cleanupPool, err := pgxpool.NewWithConfig(ctx, cleanupConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupPool.Close()
+	var cleanupCandidates json.RawMessage
+	for _, lane := range []string{"reconcile", "cleanup", "execute"} {
+		err := cleanupPool.QueryRow(ctx, complianceCandidatesSQL, lane, 1, checksum, fingerprint).Scan(&cleanupCandidates)
+		if accepted, want := err == nil, lane != "execute"; accepted != want {
+			t.Fatalf("cleanup login, lane %s: accepted=%t, want %t", lane, accepted, want)
+		}
+	}
 	// The API login is not a worker.
 	var notWorker json.RawMessage
 	if err := api.QueryRow(ctx, complianceCandidatesSQL, "execute", 10, checksum, fingerprint).Scan(&notWorker); err == nil {

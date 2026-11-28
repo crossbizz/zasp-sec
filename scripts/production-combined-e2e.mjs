@@ -2328,7 +2328,13 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   if (complianceBrowserMode) compliancePhase = "policy-history-startup";
   policyHistory=await startPolicyHistoryServer(policyHistoryPort);
   if (complianceBrowserMode) compliancePhase = "api-startup";
-  const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)}), ...configuration.currentRuntimeEnvironment, ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
+  const apiEnvironment={
+    ...combinedAPIEnvironment({...configuration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)}),
+    ...configuration.currentRuntimeEnvironment,
+    // The current API keeps checking the complete installation after startup.
+    // Exercise the same probe cadence as the deployed product during evidence reads.
+    ZASP_READINESS_INTERVAL:"5s", ZASP_READINESS_MAX_INTERVAL:"1m",
+    ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
     ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
   const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForOwnedAPIStartup({target:`http://127.0.0.1:${healthPort}/readyz`,child:api});}catch(e){if(complianceBrowserMode)emitComplianceAPIChildFailure(api.output(),message=>console.error(message),e);throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
   await startAPI(false);
@@ -2342,6 +2348,7 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   if (complianceBrowserMode) compliancePhase = "proxy-startup";
   proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
   if (complianceBrowserMode) compliancePhase = "browser-startup";
+  const initialTraceStart=complianceResponseTrace.length;
   browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
   const cdp=browser.cdp;
   if (complianceBrowserMode) compliancePhase = "browser-assertions";
@@ -2368,8 +2375,7 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
     }
   };
   const initialScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
-  await waitForBrowserText(cdp,/policy-compliance-read-only/);
-  assert.ok(await browserHasAriaLabel(cdp,'Open policy policy-compliance-read-only version 3'));
+  await waitForInitialComplianceEvidence(cdp,initialScope,initialTraceStart);
   const readOnlyEvidence=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?framework=soc2_security&limit=100",{"X-Zasp-Expected-Scope":initialScope});
   assert.equal(readOnlyEvidence.status,200);
   assert.ok(readOnlyEvidence.body.items.some(control=>control.evidence.some(item=>item.target?.source_id==='policy-compliance-read-only'&&item.target?.source_version===3)));
@@ -6888,7 +6894,25 @@ async function assertResponsiveRiskLayout(cdp, heading) {
   await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 }
 
-async function waitForCompliancePagingLinks(cdp, label, scope, traceStart) {
+async function waitForInitialComplianceEvidence(cdp, scope, traceStart) {
+  const [, workspace, environment] = scope.split("/");
+  const expression = `location.pathname === "/compliance/evidence" &&
+    document.querySelector('select[aria-label="Authorized scope"]')?.value === ${JSON.stringify(`${workspace}/${environment}`)}`;
+  const loginDeadline = performance.now() + 15_000;
+  while (performance.now() < loginDeadline) {
+    const result = await cdp.send("Runtime.evaluate", {expression, returnByValue: true});
+    if (result.result?.value === true) {
+      // The initial scope has one controls page and one evidence page per framework.
+      await waitForCompliancePagingLinks(cdp, "Open policy policy-compliance-read-only version 3", scope, traceStart,
+        {pagesPerFramework: 1, requireBothFrameworks: false});
+      return;
+    }
+    await delay(50);
+  }
+  throw new Error("Signed-in compliance page did not select the initial scope");
+}
+
+async function waitForCompliancePagingLinks(cdp, label, scope, traceStart, {pagesPerFramework = 2, requireBothFrameworks = true} = {}) {
   const expression = `(() => {
     const links = [...document.querySelectorAll('a[href]')].filter(link => {
       if (link.getAttribute('aria-label') !== ${JSON.stringify(label)}) return false;
@@ -6902,14 +6926,14 @@ async function waitForCompliancePagingLinks(cdp, label, scope, traceStart) {
       ["No product capabilities", "no-access"], ["Switching authorized scope", "switching"], ["Evidence controls", "evidence"]];
     return {links: links.length, onEvidence: location.pathname === "/compliance/evidence", state: states.find(([message]) => text.includes(message))?.[1] ?? "other"};
   })()`;
-  // Controls load first, then SOC 2 and HIPAA each read two pages in order.
-  // Each request has the production client's 10-second bound.
-  const deadline = performance.now() + 5 * 10_000 + 2_000;
+  // Controls load first, then SOC 2 and HIPAA load their pages in order.
+  // The API bounds each request to 10 seconds.
+  const deadline = performance.now() + (1 + 2 * pagesPerFramework) * 10_000 + 2_000;
   let last;
   while (performance.now() < deadline) {
     const result = await cdp.send("Runtime.evaluate", {expression, returnByValue: true});
     last = result.result?.value;
-    if (last?.links === 2) return;
+    if (requireBothFrameworks ? last?.links === 2 : last?.links > 0) return;
     await delay(50);
   }
   const evidencePaths = new Map([["/api/v1/compliance/evidence","evidence"],["/api/v1/compliance/controls","controls"]]);
@@ -6925,7 +6949,7 @@ async function waitForCompliancePagingLinks(cdp, label, scope, traceStart) {
   const state = ["loading","forbidden","unavailable","read-error","sign-in","pending","session-error","no-access","switching","evidence"].includes(last?.state) ? last.state : "other";
   const links = last?.links === 0 || last?.links === 1 ? last.links : "other";
   console.error(`ZASP_COMPLIANCE_PAGING=ui-${state}-links-${links}-route-${last?.onEvidence ? "evidence" : "other"} ${[...observations].slice(-12).join(" ")}`);
-  throw new Error("Expected both frameworks to render the final policy link");
+  throw new Error(requireBothFrameworks ? "Expected both frameworks to render the final policy link" : "Expected the initial scope to render the read-only policy link");
 }
 
 async function waitForBrowserText(cdp, pattern) {

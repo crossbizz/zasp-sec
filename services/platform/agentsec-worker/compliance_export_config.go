@@ -35,7 +35,14 @@ func validComplianceExportConfiguration(c workerRuntimeConfig) bool {
 		return false
 	}
 	u, err := url.Parse(c.PostgresDSN)
-	if err != nil || u.User == nil || !regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`).MatchString(u.User.Username()) || strings.HasPrefix(u.User.Username(), "zasp_") {
+	if err != nil || u.User == nil || !regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`).MatchString(u.User.Username()) {
+		return false
+	}
+	installedLogin := "zasp_svc_compliance_worker"
+	if c.Mode == workerModeComplianceCleanup {
+		installedLogin = "zasp_svc_compliance_cleanup"
+	}
+	if login := u.User.Username(); strings.HasPrefix(login, "zasp_") && login != installedLogin {
 		return false
 	}
 	for _, s := range []string{c.DiscoveryQueueURL, c.RuntimeQueueURL, c.RedTeamQueueURL, c.AttackLabQueueURL, c.RecoveryQueueURL, c.RecoveryRoleARN, c.RecoveryTokenFile, c.RuntimeRoleARN, c.RuntimeTokenFile, c.RuntimeStageRoleARN, c.RuntimeStageTokenFile, c.DiscoveryRoleARN, c.DiscoveryTokenFile, c.ProjectionRoleARN, c.ProjectionTokenFile, c.OutboxRoleARN, c.OutboxTokenFile, c.RedTeamRoleARN, c.RedTeamTokenFile, c.AttackLabRoleARN, c.AttackLabTokenFile, c.EvidenceBucket, c.EvidenceOwner, c.EvidenceKMSKeyARN, c.GatewaySigningPrivateFile, c.SecurityAgentPlannerToken, c.RecoveryKubernetesToken, c.AttackLabKubernetesToken, c.TestReconcilerRoleARN, c.TestReconcilerTokenFile} {

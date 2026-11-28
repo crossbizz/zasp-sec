@@ -281,6 +281,75 @@ describe("current compliance UI", () => {
     expect(screen.queryByRole("button", { name: "Download JSON" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open policy/ })).toBeVisible(); sessionStorage.clear();
   });
+  it.each(["pending", "denied"])("keeps a refreshed export completed when its earlier deep-link read returns %s", async earlier => {
+    let release!: (result: Response) => void;
+    let original: Request | undefined;
+    const client = complianceClient(async request => {
+      if (!new URL(request.url).pathname.endsWith(`/exports/${job.id}`) || original) return undefined;
+      original = request;
+      return new Promise(resolve => { release = resolve; });
+    });
+    const props = { surface: "compliance" as const, client, complianceBoundary: boundary, onNavigate: vi.fn() };
+    const view = render(<SessionsComplianceView {...props} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Create evidence export" }));
+    await screen.findByText("Export queued");
+    view.rerender(<SessionsComplianceView {...props} selectedExport={job.id} />);
+    await waitFor(() => expect(original).toBeDefined());
+    await userEvent.click(screen.getByRole("button", { name: "Refresh export status" }));
+    await screen.findByText("Export completed");
+    expect(original!.signal.aborted).toBe(true);
+    await act(async () => release(earlier === "pending" ? response(job) :
+      response({ code: "request_forbidden", message: "Request forbidden", correlation_id: principal, retryable: false }, 403)));
+    expect(screen.getByRole("button", { name: "Download JSON" })).toBeEnabled();
+    expect(screen.queryByText("Export queued")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("hides a prior export while opening another and removes downloads when a refresh is denied", async () => {
+    const otherJob = environment;
+    let release!: (result: Response) => void;
+    const denied = () => response({ code: "request_forbidden", message: "Request forbidden", correlation_id: principal, retryable: false }, 403);
+    let refuseStatus = false;
+    const client = complianceClient(async request => {
+      const url = new URL(request.url);
+      if (url.pathname.endsWith(`/exports/${otherJob}`)) return new Promise(resolve => { release = resolve; });
+      if (refuseStatus && url.pathname.endsWith(`/exports/${job.id}`)) return denied();
+      return undefined;
+    });
+    const props = { surface: "compliance" as const, client, complianceBoundary: boundary };
+    const view = render(<SessionsComplianceView {...props} selectedExport={job.id} />);
+    await screen.findByRole("button", { name: "Download JSON" });
+    view.rerender(<SessionsComplianceView {...props} selectedExport={otherJob} />);
+    expect(screen.queryByRole("region", { name: "Compliance export status" })).not.toBeInTheDocument();
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    await act(async () => release(denied()));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Access denied");
+    expect(screen.queryByRole("button", { name: "Download JSON" })).not.toBeInTheDocument();
+    view.rerender(<SessionsComplianceView {...props} selectedExport={job.id} />);
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    refuseStatus = true;
+    await userEvent.click(screen.getByRole("button", { name: "Refresh export status" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Access denied");
+    expect(screen.queryByRole("button", { name: "Download JSON" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open policy/ })).toBeVisible();
+  });
+  it("cancels a manual status read on unmount", async () => {
+    let original: Request | undefined;
+    let hold = false;
+    let release!: (result: Response) => void;
+    const client = complianceClient(async request => {
+      if (!hold || !new URL(request.url).pathname.endsWith(`/exports/${job.id}`)) return undefined;
+      original = request;
+      return new Promise(resolve => { release = resolve; });
+    });
+    const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} selectedExport={job.id} />);
+    await screen.findByRole("button", { name: "Download JSON" });
+    hold = true;
+    await userEvent.click(screen.getByRole("button", { name: "Refresh export status" }));
+    expect(original!.signal.aborted).toBe(false);
+    view.unmount();
+    expect(original!.signal.aborted).toBe(true);
+    await act(async () => release(response(job)));
+  });
   it("drops late evidence responses on a changed principal and hides revoked authority immediately", async () => {
     let finish!: (value: Response) => void;
     const client = complianceClient(async request => new URL(request.url).pathname.endsWith("/evidence") ? new Promise(resolve => { finish = resolve; }) : undefined);

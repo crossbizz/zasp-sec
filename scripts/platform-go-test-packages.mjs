@@ -34,6 +34,7 @@ export const apiserverFeatureTestFiles = [
   "agent_evidence_pack_test.go",
   "agent_action_analysis_test.go",
   "agent_purpose_test.go",
+  "authorization_concurrent_checks_test.go",
   "authorization_missing_object_test.go",
   "authorization_product_statement_test.go",
   "authorization_security_agent_activity_statement_test.go",
