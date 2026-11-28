@@ -73,19 +73,20 @@ describe("production scoped activity navigation", () => {
     expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
   });
   it.each([
+    { manage: true, readSettings: false, mode: "extended", worker: null, expected: "Drop a skill ZIP here" },
     { manage: false, mode: "extended", worker: null, expected: "Private uploads require a data-controls administrator" },
     { manage: true, mode: "metadata_only", worker: "encrypted_24h", expected: "This Environment uses metadata-only collection" },
     { manage: true, mode: "extended", worker: "unconfigured", expected: "This Environment has no private scan worker" },
     { manage: true, mode: "extended", worker: "memory_only", expected: "Drop a skill ZIP here" },
     { manage: true, mode: "extended", worker: "encrypted_24h", expected: "Drop a skill ZIP here" },
     { manage: true, mode: "extended", worker: null, expected: "Drop a skill ZIP here" },
-  ])("opens the skill scanner with unavailable inventory (administrator $manage, $mode, worker $worker)", async ({ manage, mode, worker, expected }) => {
+  ])("opens the skill scanner with unavailable inventory (administrator $manage, $mode, worker $worker)", async ({ manage, readSettings = true, mode, worker, expected }) => {
     window.history.replaceState({}, "", "/inventory/tools");
     const reads: string[] = [];
     vi.stubGlobal("fetch", async (request: Request) => {
       const path = new URL(request.url).pathname;
       reads.push(path);
-      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), capabilities: ["inventory.read", ...(manage ? ["data-controls.manage"] : [])] });
+      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), permissions: ["view", ...(readSettings ? ["view_compliance"] : []), ...(manage ? ["manage_data_controls"] : [])], capabilities: ["inventory.read", ...(manage ? ["data-controls.manage"] : [])] });
       if (path === "/api/v1/settings/data-controls") {
         const response = json({ environment_id: environment, environment_class: "development", collection_mode: mode, retention_days: 30, deletion_enabled: true, version: 1 });
         if (worker) response.headers.set("X-Zasp-Private-Scan", worker);
@@ -100,7 +101,7 @@ describe("production scoped activity navigation", () => {
     await userEvent.click(tab);
     expect(await screen.findByText(new RegExp(expected))).toBeVisible();
     expect(screen.getByText("Scan this device")).toBeVisible();
-    expect(reads.includes("/api/v1/settings/data-controls")).toBe(manage);
+    expect(reads.includes("/api/v1/settings/data-controls")).toBe(manage && readSettings);
     expect(screen.queryByRole("checkbox", { name: /Retain an encrypted/ }) !== null)
       .toBe(manage && mode === "extended" && worker === "encrypted_24h");
     expect(reads).not.toContain("/api/v1/addon-scan-uploads");
