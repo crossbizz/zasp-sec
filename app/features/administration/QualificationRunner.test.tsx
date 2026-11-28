@@ -19,7 +19,7 @@ it("runs a pinned job, follows its saved status and refreshes qualified models",
     } else expect(new URL(request.url).pathname).toBe("/api/v1/ai/qualifications/runs/" + ids[3]);
     return new Response(JSON.stringify({ ...row, status: request.method === "POST" ? "queued" : "passed", finished_at: request.method === "POST" ? null : "2026-11-01T12:01:00Z" }), { headers: { "Content-Type": "application/json" } });
   } });
-  const environment = { environment_id: ids[2], effective_mode: "zasp_vpc_slm", tier2_profile: "local-profile" } as AISettings["environment"];
+  const environment = { environment_id: ids[2], effective_mode: "zasp_vpc_slm", tier2_profile: "local-profile", monthly_budget_nano_credits: 100 } as AISettings["environment"];
   render(<QualificationRunner client={client} expectedScope={expectedScope} environment={environment} canEdit fresh refreshQualifications={refreshQualifications} />);
   await userEvent.click(screen.getByRole("button", { name: "Run qualification" }));
   expect(await screen.findByText(/Qualification queued/)).toBeVisible();

@@ -46,7 +46,7 @@ go run -C services/platform ./cmd/zasp-model-qualify \
   -corpus qualification.jsonl
 ```
 
-The command records the measured model, purpose, deployment digest, evidence digest and expiry. Schema adherence, latency and case outcomes appear on stdout. A failed measured run records a failed qualification. The **AI & Models** page lists the result.
+The command records the measured model, purpose, deployment digest, evidence digest and expiry. Schema adherence, latency and case outcomes appear on stdout. A failed measured run records a failed qualification. The **AI & Models** page lists the result. In **Environment AI controls**, choose the hosting mode and the private model profile you qualified. Each capability requires a current passing qualification for its own job in that environment. Select the capabilities you want and save the environment settings.
 
 ## Measure the optional BYOC safeguard candidate
 

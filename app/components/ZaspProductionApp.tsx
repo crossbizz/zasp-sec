@@ -33,7 +33,6 @@ import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
-import { PrivateAddonScan } from "../features/tools/PrivateAddonScan";
 import { Button, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 import { enrollSensorLocation, parseActivityLink } from "../domain/activity-links";
@@ -132,11 +131,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     getScopeStaleGeneration,
   }} />;
   }
-  const inventory = <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
-  if (path === "/inventory/tools" && session.hasCapability("data-controls.manage")) {
-    return <>{inventory}<PrivateAddonScan key={JSON.stringify([queryScopeKey, queryGeneration])} client={client} environment={session.environmentID} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} /></>;
-  }
-  return inventory;
+  return <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
 function IdentityAdministration({ client, session }: { client: APIClient; session: SessionContextValue }) {

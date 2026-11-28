@@ -4,10 +4,12 @@ import { addonVersionLink, scanReceiptLink } from "../../domain/addon-links";
 
 import { useEffect, useRef, useState } from "react";
 import {
+  APIProductError,
   requireAPIData,
   uploadPrivateAddonArchive,
   type APIClient,
 } from "../../../apps/web/api/client";
+import { decodeFindings } from "../../../apps/web/api/addon-reviews";
 import { Button } from "../../components/ui";
 
 type Retention = "memory_only" | "encrypted_24h";
@@ -24,9 +26,6 @@ type Grant = {
 };
 const productID =
   /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const safeRule =
-  /^(dependency\.unpinned|instruction\.hidden_text|mcp\.remote_endpoint|mcp\.unpinned_launcher|script\.network_access|script\.shell_execution)$/;
-
 function decodeGrant(value: unknown): Grant {
   if (!value || typeof value !== "object") throw Error();
   const g = value as Partial<Grant>;
@@ -153,30 +152,43 @@ export function PrivateAddonScan({
   environment,
   fresh,
   reauthenticate,
+  allowRetention = true,
 }: {
   client: APIClient;
   environment: string;
   fresh: boolean;
   reauthenticate: () => void;
+  allowRetention?: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [retention, setRetention] = useState<Retention>("memory_only");
   const [grant, setGrant] = useState<Grant | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [findings, setFindings] = useState<ReturnType<typeof decodeFindings> | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const [review, setReview] = useState("");
   const [scanID, setScanID] = useState("");
   const current = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => current.current?.abort(), []);
+  function selectFile(next: File | null) {
+    if (busy) return;
+    setGrant(null);
+    setReview("");
+    setScanID("");
+    setFindings(null);
+    setRetention("memory_only");
+    const valid = next && /\.zip$/i.test(next.name) && next.size > 0 && next.size <= 8 * 1024 * 1024;
+    setFile(valid ? next : null);
+    setMessage(next && !valid ? "Choose a .zip file between 1 byte and 8 MiB." : "");
+  }
   async function prepare() {
     if (!file || busy) return;
     setGrant(null);
     setReview("");
     setScanID("");
-    if (file.size <= 0 || file.size > 8 * 1024 * 1024) {
-      setMessage("Choose a ZIP between 1 byte and 8 MiB.");
-      return;
-    }
+    setFindings(null);
     current.current?.abort();
     const work = new AbortController();
     current.current = work;
@@ -214,13 +226,17 @@ export function PrivateAddonScan({
         file.size,
       );
       if (!work.signal.aborted) setGrant(approved);
-    } catch {
-      if (!work.signal.aborted)
-        setMessage(
-          retention === "encrypted_24h"
-            ? "Could not prepare a retained scan. Check that encrypted retention is enabled for this Environment, or choose a memory-only scan."
-            : "Could not prepare a grant. Verify extended collection, worker configuration, and fresh authorization.",
-        );
+    } catch (error) {
+      if (!work.signal.aborted) {
+        if (error instanceof APIProductError && error.status === 403)
+          setMessage("Upload authorization was denied. Verify your identity and check the Environment's data controls.");
+        else if (error instanceof APIProductError && error.status === 503)
+          setMessage(retention === "encrypted_24h"
+            ? "Encrypted upload is unavailable. Try an in-memory scan or scan on this device."
+            : "The private scan service is unavailable. Retry the upload review or scan on this device.");
+        else
+          setMessage("Could not verify the upload authorization. Retry the upload review or scan on this device.");
+      }
     } finally {
       if (!work.signal.aborted) setBusy(false);
     }
@@ -229,7 +245,7 @@ export function PrivateAddonScan({
     if (!file || !grant || busy) return;
     if (Date.parse(grant.expires_at) <= Date.now()) {
       setGrant(null);
-      setMessage("Grant expired. Prepare a new private scan.");
+      setMessage("Upload authorization expired. Review the upload again.");
       return;
     }
     current.current?.abort();
@@ -250,25 +266,13 @@ export function PrivateAddonScan({
         !counts
       )
         throw Error();
-      const rows = Object.entries(counts);
-      if (
-        rows.some(
-          ([rule, n]) =>
-            !safeRule.test(rule) ||
-            typeof n !== "number" ||
-            !Number.isInteger(n) ||
-            n < 1 ||
-            n > 1024,
-        )
-      )
-        throw Error();
-      const text = rows.length
-        ? rows.map(([rule, n]) => `${rule} (${n})`).join(", ") + "."
-        : "No findings from this scan.";
-      const partial =
-        result.status === "partial"
-          ? " Some members could not be inspected. No exact version is available."
-          : "";
+      if (result.ruleset !== "zasp-static.v1" && result.ruleset !== "zasp-static.v2") throw Error();
+      const rows = decodeFindings(Object.entries(counts).map(([rule_id, count]) => ({ rule_id, count })), result.ruleset);
+      const total = rows.reduce((sum, row) => sum + row.count, 0);
+      const skipped = object(result.skipped_counts);
+      const partial = result.status !== "partial" ? ""
+        : skipped?.missing_entry ? " The ZIP needs a readable SKILL.md at its root. No exact version is available."
+        : " Some files could not be inspected. No exact version is available.";
       let storage = "";
       if (grant.retention === "encrypted_24h") {
         const saved = object(data.retention);
@@ -330,14 +334,13 @@ export function PrivateAddonScan({
         )
           throw Error();
         receiptID = receipt.scan_id;
-        delivery = " Findings recorded under " + receiptID + ".";
+        delivery = " Findings recorded in the Environment registry.";
       }
       if (!work.signal.aborted) {
         setReview(reviewPath);
         setScanID(receiptID);
-        setMessage(
-          `Scan ${result.status}. ${text}${partial}${delivery}${storage}`,
-        );
+        setFindings(rows);
+        setMessage(`Scan ${result.status}. ${total} static finding${total === 1 ? "" : "s"}.${partial}${delivery}${storage}`);
       }
     } catch {
       if (!work.signal.aborted)
@@ -355,77 +358,64 @@ export function PrivateAddonScan({
     }
   }
   return (
-    <details className="card">
-      <summary>Scan a private skill ZIP</summary>
-      <p>
-        Environment {environment}. The dedicated worker reads the archive in
-        memory and returns static finding counts. Choose a ZIP up to 8 MiB with
-        SKILL.md at its root.
-      </p>
-      <label>
-        Skill ZIP{" "}
-        <input
-          type="file"
-          accept=".zip,application/zip"
-          disabled={busy}
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setRetention("memory_only");
-            setGrant(null);
-            setMessage("");
-            setReview("");
-            setScanID("");
-          }}
+    <div className="skill-scan">
+      <p>Check a skill for risky instructions, scripts and dependencies. The worker inspects files without running them.</p>
+      <div
+        className={`skill-scan__drop${dragging ? " skill-scan__drop--active" : ""}`}
+        onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={event => {
+          event.preventDefault();
+          setDragging(false);
+          if (busy) return;
+          const files = event.dataTransfer.files;
+          if (files.length === 1) selectFile(files[0]);
+          else { selectFile(null); setMessage("Choose one skill ZIP at a time."); }
+        }}
+      >
+        <strong>{file ? file.name : "Drop a skill ZIP here"}</strong>
+        <p id="skill-zip-hint">Up to 8 MiB, with SKILL.md at the root.</p>
+        <input hidden ref={input} type="file" aria-label="Skill ZIP" accept=".zip,application/zip" disabled={busy}
+          onChange={event => { selectFile(event.target.files?.[0] ?? null); event.target.value = ""; }}
         />
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={retention === "encrypted_24h"}
-          disabled={busy || !file}
-          onChange={(event) => {
-            setRetention(
-              event.target.checked ? "encrypted_24h" : "memory_only",
-            );
-            setGrant(null);
-            setMessage("");
-            setReview("");
-            setScanID("");
-          }}
-        />{" "}
-        Retain an encrypted copy of this ZIP for up to 24 hours
-      </label>
-      <p>
-        Optional retention requires a configured private store. The default scan
-        processes the ZIP in memory.
-      </p>
-      {grant?.retention === "encrypted_24h" && (
-        <p>
-          Approved encrypted archive retention through{" "}
-          <time dateTime={grant.retain_until}>{grant.retain_until}</time>.
-        </p>
-      )}
-      {grant && (
-        <p>
-          {grant.result_delivery === "registry"
-            ? "This worker records finding counts and the exact version, when available, in the Environment’s review registry."
-            : "This worker returns its findings to this browser only."}
-        </p>
-      )}
+        <Button type="button" aria-describedby="skill-zip-hint" disabled={busy} onClick={() => input.current?.click()}>
+          {file ? "Choose another ZIP" : "Choose ZIP"}
+        </Button>
+      </div>
+      <p>The worker processes your ZIP in memory. You’ll review the recipient before sending the file.</p>
+      {allowRetention && <label className="skill-scan__retention">
+        <input type="checkbox" checked={retention === "encrypted_24h"} disabled={busy || !file} onChange={event => {
+          setRetention(event.target.checked ? "encrypted_24h" : "memory_only");
+          setGrant(null);
+          setMessage("");
+          setReview("");
+          setScanID("");
+          setFindings(null);
+        }} /> Retain an encrypted copy of this ZIP for up to 24 hours
+      </label>}
+      {grant && <div className="skill-scan__recipient">
+        <strong>Upload to {new URL(grant.upload_url).host}</strong>
+        <p>{grant.result_delivery === "registry"
+          ? "The worker records finding counts and the exact version, when available, in this Environment’s review registry."
+          : "The worker returns findings to this browser only."}</p>
+        {grant.retention === "encrypted_24h" && <p>Encrypted ZIP retained until <time dateTime={grant.retain_until}>{grant.retain_until}</time>.</p>}
+      </div>}
       {!fresh ? (
-        <Button onClick={reauthenticate}>Verify identity</Button>
+        <Button variant="primary" onClick={reauthenticate}>Verify identity to scan</Button>
       ) : grant ? (
-        <Button disabled={busy} onClick={() => void upload()}>
-          Send ZIP to {new URL(grant.upload_url).host}
-        </Button>
+        <Button variant="primary" disabled={busy} onClick={() => void upload()}>Scan on {new URL(grant.upload_url).host}</Button>
       ) : (
-        <Button disabled={busy || !file} onClick={() => void prepare()}>
-          Prepare private scan
-        </Button>
+        <Button variant="primary" disabled={busy || !file} onClick={() => void prepare()}>Review upload</Button>
       )}
-      {message && <p role="status">{message}</p>}
-      {scanID && <p><a href={scanReceiptLink(scanID, environment)}>Open scan receipt</a></p>}
-      {review && <a href={review}>Open version review</a>}
-    </details>
+      <div role="status" aria-live="polite">
+        {busy ? (grant ? "Uploading and scanning the ZIP…" : "Checking the file and authorizing the upload…") : message}
+      </div>
+      {findings && findings.length > 0 && <ul aria-label="Findings by rule">{findings.map(row =>
+        <li key={row.rule_id}><code>{row.rule_id}</code> · {row.count}</li>)}</ul>}
+      {(scanID || review) && <div className="page-actions">
+        {scanID && <a href={scanReceiptLink(scanID, environment)}>Open scan receipt</a>}
+        {review && <a href={review}>Open version review</a>}
+      </div>}
+    </div>
   );
 }

@@ -5136,7 +5136,7 @@ paths:
           BrowserExpectedScope: []
       summary: Get environment data controls
       responses:
-        '200': { description: Environment data controls., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
+        '200': { description: Environment data controls., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Zasp-Private-Scan: { description: Private scanner transfer configuration for this environment. Uploads also require extended collection and fresh authorization., schema: { type: string, enum: [unconfigured, memory_only, encrypted_24h] } } }, content: { application/json: { schema: { $ref: '#/components/schemas/DataControls' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     patch:

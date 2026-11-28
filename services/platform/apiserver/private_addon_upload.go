@@ -40,6 +40,30 @@ func privateWorkerOrigin(raw string) bool {
 	return err == nil && u.Scheme == "https" && u.Hostname() != "" && u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == "" && u.Path == "" && raw == u.Scheme+"://"+u.Host
 }
 
+type privateScanConfiguration struct {
+	mode     string
+	origin   string
+	reporter string
+	repo     *PostgresRepository
+}
+
+// The settings read advertises configured transfer modes. Grant issuance still
+// checks the caller, the collection policy, and the selected archive.
+func (h *identityHTTPHandler) privateScanConfig(partition string) privateScanConfiguration {
+	repo, postgres := h.repository.(*PostgresRepository)
+	origin := os.Getenv("ZASP_PRIVATE_ADDON_WORKER_ORIGIN")
+	reporter := os.Getenv("ZASP_PRIVATE_ADDON_RESULT_CREDENTIAL")
+	if !postgres || len(h.tokenRevealKey) != 32 || !privateWorkerOrigin(origin) ||
+		partition != os.Getenv("ZASP_PRIVATE_ADDON_WORKER_SCOPE") || (reporter != "" && !validProductID(reporter)) {
+		return privateScanConfiguration{mode: "unconfigured"}
+	}
+	mode := "memory_only"
+	if partition == os.Getenv("ZASP_PRIVATE_ADDON_RETAINED_SCOPE") {
+		mode = "encrypted_24h"
+	}
+	return privateScanConfiguration{mode: mode, origin: origin, reporter: reporter, repo: repo}
+}
+
 func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	id, ok := IdentityFromRequest(r)
@@ -50,9 +74,8 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 	scope := id.Scope
 	o, ws, e := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
 	partition := o + "/" + ws + "/" + e
-	origin := os.Getenv("ZASP_PRIVATE_ADDON_WORKER_ORIGIN")
-	repo, ok := h.repository.(*PostgresRepository)
-	if !ok || len(h.tokenRevealKey) != 32 || !privateWorkerOrigin(origin) || partition != os.Getenv("ZASP_PRIVATE_ADDON_WORKER_SCOPE") {
+	config := h.privateScanConfig(partition)
+	if config.mode == "unconfigured" {
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
@@ -67,7 +90,7 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		writeProductionError(w, r, ErrRepositoryOperation)
 		return
 	}
-	if in.Retention == "encrypted_24h" && os.Getenv("ZASP_PRIVATE_ADDON_RETAINED_SCOPE") != partition {
+	if in.Retention == "encrypted_24h" && config.mode != "encrypted_24h" {
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
@@ -76,12 +99,7 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
-	reporter := os.Getenv("ZASP_PRIVATE_ADDON_RESULT_CREDENTIAL")
-	if reporter != "" && !validProductID(reporter) {
-		writeProductionError(w, r, ErrRepositoryUnavailable)
-		return
-	}
-	raw, err := repo.database.QueryJSON(r.Context(), privateAddonUploadSQL, o, ws, e, id.PrincipalID.String(), key[0], candidate, in.Digest, in.Size, reporter, in.Retention)
+	raw, err := config.repo.database.QueryJSON(r.Context(), privateAddonUploadSQL, o, ws, e, id.PrincipalID.String(), key[0], candidate, in.Digest, in.Size, config.reporter, in.Retention)
 	if securityAgentStatementRefused(err, "extended collection required") {
 		writeWorkflowMutationError(w, r, ErrRepositoryAuthorization)
 		return
@@ -107,7 +125,7 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 		writeProductionError(w, r, ErrRepositoryUnavailable)
 		return
 	}
-	claim := privateArchiveGrant{Version: "private-addon-upload.v1", Audience: origin, Scope: partition, Actor: id.PrincipalID.String(), ID: result.ID, SHA256: in.Digest, Size: in.Size, Expires: result.Expires.Unix(), Registry: reporter != ""}
+	claim := privateArchiveGrant{Version: "private-addon-upload.v1", Audience: config.origin, Scope: partition, Actor: id.PrincipalID.String(), ID: result.ID, SHA256: in.Digest, Size: in.Size, Expires: result.Expires.Unix(), Registry: config.reporter != ""}
 	if in.Retention == "encrypted_24h" {
 		if result.RetainUntil == nil || !result.RetainUntil.Equal(result.Expires.Add(24*time.Hour-5*time.Minute)) {
 			writeProductionError(w, r, ErrRepositoryUnavailable)
@@ -121,10 +139,10 @@ func (h *identityHTTPHandler) servePrivateAddonUpload(w http.ResponseWriter, r *
 	sig := ed25519.Sign(signer, append([]byte("zasp-private-addon-upload.v1\x00"), payload...))
 	token := strings.Join([]string{base64.RawURLEncoding.EncodeToString(payload), base64.RawURLEncoding.EncodeToString(sig)}, ".")
 	delivery := "browser_only"
-	if reporter != "" {
+	if config.reporter != "" {
 		delivery = "registry"
 	}
-	response := map[string]any{"id": result.ID, "upload_url": origin + "/v1/uploads/" + result.ID, "upload_grant": token, "expires_at": result.Expires, "retention": in.Retention, "result_delivery": delivery, "verification_key": base64.RawURLEncoding.EncodeToString(signer.Public().(ed25519.PublicKey))}
+	response := map[string]any{"id": result.ID, "upload_url": config.origin + "/v1/uploads/" + result.ID, "upload_grant": token, "expires_at": result.Expires, "retention": in.Retention, "result_delivery": delivery, "verification_key": base64.RawURLEncoding.EncodeToString(signer.Public().(ed25519.PublicKey))}
 	if result.RetainUntil != nil {
 		response["retain_until"] = result.RetainUntil
 	}

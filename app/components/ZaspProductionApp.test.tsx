@@ -72,6 +72,39 @@ describe("production scoped activity navigation", () => {
     view.unmount(); render(<ZaspProductionApp />);
     expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
   });
+  it.each([
+    { manage: false, mode: "extended", worker: null, expected: "Private uploads require a data-controls administrator" },
+    { manage: true, mode: "metadata_only", worker: "encrypted_24h", expected: "This Environment uses metadata-only collection" },
+    { manage: true, mode: "extended", worker: "unconfigured", expected: "This Environment has no private scan worker" },
+    { manage: true, mode: "extended", worker: "memory_only", expected: "Drop a skill ZIP here" },
+    { manage: true, mode: "extended", worker: "encrypted_24h", expected: "Drop a skill ZIP here" },
+    { manage: true, mode: "extended", worker: null, expected: "Drop a skill ZIP here" },
+  ])("opens the skill scanner with unavailable inventory (administrator $manage, $mode, worker $worker)", async ({ manage, mode, worker, expected }) => {
+    window.history.replaceState({}, "", "/inventory/tools");
+    const reads: string[] = [];
+    vi.stubGlobal("fetch", async (request: Request) => {
+      const path = new URL(request.url).pathname;
+      reads.push(path);
+      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), capabilities: ["inventory.read", ...(manage ? ["data-controls.manage"] : [])] });
+      if (path === "/api/v1/settings/data-controls") {
+        const response = json({ environment_id: environment, environment_class: "development", collection_mode: mode, retention_days: 30, deletion_enabled: true, version: 1 });
+        if (worker) response.headers.set("X-Zasp-Private-Scan", worker);
+        return response;
+      }
+      if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
+      return json({ code: "unavailable", message: "Unavailable", correlation_id: principal, retryable: false }, 502);
+    });
+    render(<ZaspProductionApp />);
+    const tab = await screen.findByRole("tab", { name: "Skill scanner" });
+    expect(reads).not.toContain("/api/v1/settings/data-controls");
+    await userEvent.click(tab);
+    expect(await screen.findByText(new RegExp(expected))).toBeVisible();
+    expect(screen.getByText("Scan this device")).toBeVisible();
+    expect(reads.includes("/api/v1/settings/data-controls")).toBe(manage);
+    expect(screen.queryByRole("checkbox", { name: /Retain an encrypted/ }) !== null)
+      .toBe(manage && mode === "extended" && worker === "encrypted_24h");
+    expect(reads).not.toContain("/api/v1/addon-scan-uploads");
+  });
   const inventoryRoutes = [
     ["/discovery/assets", "agents", "agent", "Support agent"],
     ["/inventory/tools", "tools", "tool", "Support tool"],

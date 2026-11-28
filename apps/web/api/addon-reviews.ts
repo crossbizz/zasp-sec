@@ -49,7 +49,7 @@ function record(value: unknown): Record<string, unknown> {
     return invalid();
   return value as Record<string, unknown>;
 }
-function decodeFindings(items: unknown, ruleset: AddonVersion["ruleset"]) {
+export function decodeFindings(items: unknown, ruleset: AddonVersion["ruleset"]) {
   if (!Array.isArray(items) || items.length > rules.length) return invalid();
   const seen = new Set<string>();
   return items.map((item) => {

@@ -18559,6 +18559,8 @@ export interface operations {
             readonly 200: {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
+                    /** @description Private scanner transfer configuration for this environment. Uploads also require extended collection and fresh authorization. */
+                    readonly "X-Zasp-Private-Scan"?: "unconfigured" | "memory_only" | "encrypted_24h";
                     readonly [name: string]: unknown;
                 };
                 content: {

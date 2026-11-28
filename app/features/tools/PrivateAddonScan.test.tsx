@@ -64,6 +64,7 @@ function result(retainedUntil?: string) {
     },
     result: {
       schema_version: "zasp-private-scan.v1",
+      ruleset: "zasp-static.v2",
       status: "complete",
       manifest_digest: manifest,
       rule_counts: { "dependency.unpinned": 2 },
@@ -98,7 +99,6 @@ async function start(g: ReturnType<typeof grant>, reply: unknown) {
       reauthenticate={vi.fn()}
     />,
   );
-  await user.click(screen.getByText("Scan a private skill ZIP"));
   const file = new File([archive], "fixture.zip", { type: "application/zip" });
   Object.defineProperty(file, "arrayBuffer", {
     value: () => Promise.resolve(new TextEncoder().encode(archive).buffer),
@@ -118,10 +118,10 @@ describe("private ZIP scan", () => {
     const g = grant("memory_only");
     const { user, post, send, file } = await start(g, result());
     await user.click(
-      screen.getByRole("button", { name: "Prepare private scan" }),
+      screen.getByRole("button", { name: "Review upload" }),
     );
     const confirm = await screen.findByRole("button", {
-      name: "Send ZIP to worker.test.invalid",
+      name: "Scan on worker.test.invalid",
     });
     expect(post).toHaveBeenCalledWith(
       "/api/v1/addon-scan-uploads",
@@ -132,7 +132,7 @@ describe("private ZIP scan", () => {
     expect(send).not.toHaveBeenCalled();
     await user.click(confirm);
     await screen.findByText(
-      /Scan complete. dependency.unpinned \(2\). Findings recorded/,
+      /Scan complete. 2 static findings. Findings recorded/,
     );
     expect(
       screen.getByRole("link", { name: "Open version review" }),
@@ -148,13 +148,42 @@ describe("private ZIP scan", () => {
       }),
     );
   });
+  it("accepts current rule counts from the private worker and displays them", async () => {
+    const reply = result();
+    const rule_counts = { "instruction.override": 1, "mcp.unpinned_exec": 1, "script.credential_path_access": 1, "script.remote_exec_pipe": 1 };
+    const { user } = await start(grant("memory_only"), { ...reply, result: { ...reply.result, rule_counts } });
+    await user.click(screen.getByRole("button", { name: "Review upload" }));
+    await user.click(await screen.findByRole("button", { name: /Scan on/ }));
+    expect(await screen.findByText(/Scan complete. 4 static findings/)).toBeVisible();
+    for (const rule of Object.keys(rule_counts)) expect(screen.getByText(rule)).toBeVisible();
+  });
+  it.each([["zasp-static.v1", "instruction.override"], ["zasp-static.v2", "unknown.rule"]])(
+    "rejects findings outside %s (%s)", async (ruleset, rule) => {
+      const reply = result();
+      const { user } = await start(grant("memory_only"), { ...reply, result: { ...reply.result, ruleset, rule_counts: { [rule]: 1 } } });
+      await user.click(screen.getByRole("button", { name: "Review upload" }));
+      await user.click(await screen.findByRole("button", { name: /Scan on/ }));
+      expect(await screen.findByText(/worker could not confirm/)).toBeVisible();
+      expect(screen.queryByRole("link", { name: "Open version review" })).toBeNull();
+    },
+  );
+  it("clears a prepared upload when a replacement drop is invalid", async () => {
+    const { user, send, post } = await start(grant("memory_only"), result());
+    await user.click(screen.getByRole("button", { name: "Review upload" }));
+    await screen.findByRole("button", { name: /Scan on/ });
+    fireEvent.drop(screen.getByLabelText("Skill ZIP").parentElement!, { dataTransfer: { files: [new File(["hello"], "wrong.txt")] } });
+    expect(screen.getByRole("status")).toHaveTextContent("Choose a .zip file");
+    expect(screen.getByRole("button", { name: "Review upload" })).toBeDisabled();
+    expect(send).not.toHaveBeenCalled();
+    expect(post).toHaveBeenCalledTimes(1);
+  });
   it("links the recorded partial receipt to the selected Environment with no version action", async () => {
     const original = result();
     const partial = { ...original, receipt: {...original.receipt, completeness: "partial", version_id: null, manifest_digest: null, review_path: null},
       result: {...original.result, status: "partial", manifest_digest: null} };
     const {user} = await start(grant("memory_only"),partial);
-    await user.click(screen.getByRole("button",{name:"Prepare private scan"}));
-    await user.click(await screen.findByRole("button",{name:"Send ZIP to worker.test.invalid"}));
+    await user.click(screen.getByRole("button",{name:"Review upload"}));
+    await user.click(await screen.findByRole("button",{name:"Scan on worker.test.invalid"}));
     expect(await screen.findByRole("link",{name:"Open scan receipt"})).toHaveAttribute("href","/inventory/tools?scan=" + id + "&environment_id=" + id);
     expect(screen.queryByRole("link",{name:"Open version review"})).toBeNull();
   });
@@ -166,19 +195,19 @@ describe("private ZIP scan", () => {
     );
     await user.click(retention);
     await user.click(
-      screen.getByRole("button", { name: "Prepare private scan" }),
+      screen.getByRole("button", { name: "Review upload" }),
     );
-    await screen.findByRole("button", { name: /Send ZIP to/ });
+    await screen.findByRole("button", { name: /Scan on/ });
     expect(await screen.findByText(g.retain_until!)).toBeVisible();
     expect(send).not.toHaveBeenCalled();
     await user.click(retention);
-    expect(screen.queryByRole("button", { name: /Send ZIP to/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Scan on/ })).toBeNull();
     await user.click(retention);
     await user.click(
-      screen.getByRole("button", { name: "Prepare private scan" }),
+      screen.getByRole("button", { name: "Review upload" }),
     );
     await user.click(
-      await screen.findByRole("button", { name: /Send ZIP to/ }),
+      await screen.findByRole("button", { name: /Scan on/ }),
     );
     expect(post).toHaveBeenNthCalledWith(
       2,
@@ -202,11 +231,11 @@ describe("private ZIP scan", () => {
       );
       if (outer === "encrypted_24h") await user.click(retention);
       await user.click(
-        screen.getByRole("button", { name: "Prepare private scan" }),
+        screen.getByRole("button", { name: "Review upload" }),
       );
-      await screen.findByText(/Could not prepare/);
+      await screen.findByText(/Could not verify/);
       expect(send).not.toHaveBeenCalled();
-      expect(screen.queryByRole("button", { name: /Send ZIP to/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Scan on/ })).toBeNull();
     },
   );
   it("rejects a damaged grant signature before making the direct upload available", async () => {
@@ -216,19 +245,19 @@ describe("private ZIP scan", () => {
       raw + "." + (signature[0] === "A" ? "B" : "A") + signature.slice(1);
     const { user, send } = await start(g, result());
     await user.click(
-      screen.getByRole("button", { name: "Prepare private scan" }),
+      screen.getByRole("button", { name: "Review upload" }),
     );
-    await screen.findByText(/Could not prepare/);
+    await screen.findByText(/Could not verify/);
     expect(send).not.toHaveBeenCalled();
   });
   it("does not claim retained storage without a worker readback", async () => {
     const { user, retention } = await start(grant("encrypted_24h"), result());
     await user.click(retention);
     await user.click(
-      screen.getByRole("button", { name: "Prepare private scan" }),
+      screen.getByRole("button", { name: "Review upload" }),
     );
     await user.click(
-      await screen.findByRole("button", { name: /Send ZIP to/ }),
+      await screen.findByRole("button", { name: /Scan on/ }),
     );
     await screen.findByText(/encrypted ZIP may already be stored/);
     expect(

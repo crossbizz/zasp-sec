@@ -946,3 +946,12 @@ a { color: var(--blue-text); }
 .search-results-inline li > a { display: block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
 .search-results-inline li:last-child { border: 0; }
 .search-results-inline small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+
+.skill-scan { display: grid; gap: 14px; max-width: 44rem; }
+.skill-scan > .button, .skill-scan__drop > .button { justify-self: start; }
+.skill-scan p { margin: 0; }
+.skill-scan__drop { display: grid; gap: 8px; padding: 22px; border: 1px dashed var(--muted); border-radius: var(--radius); overflow-wrap: anywhere; }
+.skill-scan__drop--active { border-color: var(--brand); background: var(--hover); }
+.skill-scan__retention { display: flex; align-items: baseline; gap: 8px; }
+.skill-scan__recipient { display: grid; gap: 4px; }
+.skill-scan > [role="status"]:empty { display: none; }
