@@ -1,0 +1,130 @@
+name: Check production deployment regressions
+'on':
+  push:
+    branches:
+    - fix/production-cd-retry
+permissions:
+  contents: read
+jobs:
+  compliance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      GOTOOLCHAIN: local
+    outputs:
+      phase: ${{ steps.browser.outputs.phase }}
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        fetch-depth: 0
+    - name: Set up Node
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version: 22.23.1
+        cache: npm
+    - name: Set up Go
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+      with:
+        go-version: 1.26.8
+        cache: true
+        cache-dependency-path: services/platform/go.sum
+    - name: Pin npm
+      run: npm install --global npm@10.9.8
+    - name: Install locked dependencies
+      run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+    - name: Install PostgreSQL 18 reference fixture tools
+      run: "fixture_pg_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-pgdg.XXXXXX\")\ncurl --fail --location --retry 3 --max-time 60 --output \"$fixture_pg_dir/pgdg.asc\" https://www.postgresql.org/media/keys/ACCC4CF8.asc\nprintf '%s  %s\\n' 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 \"$fixture_pg_dir/pgdg.asc\" | sha256sum --check -\nsudo install -m 0644 \"$fixture_pg_dir/pgdg.asc\" /usr/share/keyrings/zasp-ci-pgdg.asc\nprintf '%s\\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/zasp-ci-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/zasp-ci-pgdg.list > /dev/null\nsudo apt-get update\nsudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18\nfixture_pg_bin=/usr/lib/postgresql/18/bin\nfor fixture_tool in initdb postgres pg_isready pg_ctl pg_config; do\n  test -x \"$fixture_pg_bin/$fixture_tool\"\ndone\ncase \"$(\"$fixture_pg_bin/postgres\" --version)\" in\n  \"postgres (PostgreSQL) 18.\"*) ;;\n  *) exit 1 ;;\nesac\n\"$fixture_pg_bin/postgres\" --version\nprintf '%s\\n' \"$fixture_pg_bin\" >> \"$GITHUB_PATH\"\n"
+    - name: Prime platform full-MVS metadata for offline release contracts
+      timeout-minutes: 5
+      run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null
+    - name: Prime native migration compilation cache for compliance browser
+      timeout-minutes: 5
+      run: 'umask 077
+
+        task_migration_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-migration-cache.XXXXXX")
+
+        trap ''rm -rf -- "$task_migration_dir"'' EXIT
+
+        cd services/platform
+
+        GOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go build -mod=readonly -o "$task_migration_dir/agentsec-migrate" ./agentsec-migrate
+
+        '
+    - name: Build the web client
+      run: npm run build
+    - name: Provision isolated compliance browser prerequisites
+      timeout-minutes: 10
+      run: '# This populates the exact cache entry consumed with --pull=never.
+
+        compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+
+        docker pull "$compliance_postgres_image"
+
+        docker image inspect "$compliance_postgres_image" --format ''{{json .RepoDigests}}'' | node --input-type=module -e ''import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");'' "$compliance_postgres_image"
+
+        node --input-type=module <<''NODE''
+
+        import { execFileSync } from "node:child_process";
+
+        import { appendFileSync } from "node:fs";
+
+        import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
+
+        const chrome = selectBrowserExecutable();
+
+        console.log(`Hosted compliance browser: ${chrome}`);
+
+        console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
+
+        appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
+
+        NODE
+
+        '
+    - name: Provision pinned owned authorization runtime tools
+      timeout-minutes: 5
+      run: 'node scripts/hosted-runtime-tool-intake.mjs
+
+        '
+    - name: Verify current compliance browser acceptance
+      timeout-minutes: 15
+      env:
+        ZASP_COMBINED_E2E_COMPLIANCE: 'true'
+      run: 'set -eu -o pipefail
+
+        node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
+
+        log="$RUNNER_TEMP/compliance.log"
+
+        if node scripts/production-combined-e2e.mjs > "$log" 2>&1; then exit 0; fi
+
+        python3 - "$log" <<''DIAG'' >> "$GITHUB_OUTPUT"
+
+        import sys,re
+
+        data=open(sys.argv[1],errors="replace").read()
+
+        codes=re.findall(r"^::error title=[^\n]*?::Observed (?:phase|child stage|command class|dependency phase|readiness reason|branch|subphase|class|step): ([a-z][a-z0-9-]{1,65})\.?$",data,re.M)
+
+        lines=re.findall(r"([a-z0-9-]+\.mjs):(\d+):\d+",data)
+
+        where=[f"{f}:{l}" for f,l in lines if f in {"production-combined-e2e.mjs","compliance-browser-bytes.mjs","browser-e2e-helpers.mjs","browser-command-failure.mjs","owned-current80-composition.mjs","ownership-rehearsal.mjs","owned-command.mjs"}]
+
+        states=re.findall(r"SQLSTATE (\d[A-Z0-9]{4})",data)
+
+        print("phase="+(" ".join(dict.fromkeys(codes+states+where))[:235] or "see compliance log"))
+
+        DIAG
+
+        exit 1'
+      id: browser
+  result:
+    needs: compliance
+    if: failure() && needs.compliance.outputs.phase != ''
+    name: "Compliance \xB7 ${{ needs.compliance.outputs.phase }}"
+    runs-on: ubuntu-24.04
+    steps:
+    - run: echo "See the compliance job."
