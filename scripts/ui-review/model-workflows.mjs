@@ -44,7 +44,7 @@ export async function reviewQualification(page, open, capture, fixture) {
   let passed = false;
   const reads = (route, patch) => route.fulfill({ json: { ...fixture(new URL(route.request().url())), ...patch }, headers: { 'Cache-Control': 'no-store' } });
   await page.route(group, route => reads(route, { ai_enabled:true, allowed_residency:'us_eu', allowed_modes:['deterministic_only',provider] }));
-  await page.route(controls, route => reads(route, {mode:provider,effective_mode:provider,tier2_profile:model}));
+  await page.route(controls, route => reads(route, {mode:provider,effective_mode:provider,tier2_profile:model,monthly_budget_nano_credits:1000}));
   await page.route(jobs, async route => {
     const request = route.request(), path = new URL(request.url()).pathname;
     if (request.method() === 'POST' && path.endsWith('/run')) {
