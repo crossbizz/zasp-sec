@@ -303,6 +303,11 @@ jobs:
         for(const m of text.matchAll(/"event":"readiness_refused","service":"agentsec-api","check":"([a-z-]+)"/g)) {
           if(readinessChecks.has(m[1])) labels.push('refused-'+m[1]);
         }
+        const firstApiCleanup=log.indexOf('combined E2E: cleanup api');
+        const readinessDeadline=log.indexOf('Observed readiness reason: deadline.');
+        if(firstApiCleanup!==-1 && readinessDeadline!==-1) {
+          labels.unshift(firstApiCleanup<readinessDeadline?'cleanup-before-deadline':'deadline-before-cleanup');
+        }
         const frames=[];
         for(const m of text.matchAll(/(?:^|[\s(/])((?:scripts|app|apps|services|fern)\/[A-Za-z0-9_./-]+\.(?:mjs|ts|tsx|go|java)):(\d{1,6})(?:[,:]\d+)?/gm)) {
           if(tracked.has(m[1])) frames.push(path.basename(m[1])+':'+Number(m[2]));

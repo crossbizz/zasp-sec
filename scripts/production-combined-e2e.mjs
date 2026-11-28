@@ -210,6 +210,7 @@ const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 if (auditExportBrowserMode) installAuditBrowserFatalCleanup(()=>cleanupController.run());
 
 let compliancePhase = "services";
+let harnessFailure;
 try {
   if (complianceBrowserMode) complianceOwnedRuntimeInputs(process.env);
   if (automaticDiscoveryMode) automaticDiscoverySourceHashes = await hashAutomaticDiscoveryInputs();
@@ -1355,11 +1356,20 @@ try {
   }
   }
 } catch (error) {
+  harnessFailure = error;
   if (complianceBrowserMode) emitComplianceBrowserPhaseFailure(compliancePhase,message=>console.error(message));
   throw error;
 } finally {
-	await cleanupController.run();
-	cleanupController.dispose();
+  try {
+    await cleanupController.run();
+  } catch (cleanupError) {
+    if (harnessFailure) {
+      throw new AggregateError([harnessFailure, cleanupError], "Browser harness and owned cleanup failed", { cause: harnessFailure });
+    }
+    throw cleanupError;
+  } finally {
+    cleanupController.dispose();
+  }
 }
 
 async function exerciseSecurityAgentSimulationBrowser(configuration) {

@@ -11,6 +11,30 @@ import { runInNewContext } from "node:vm";
 import { auditBrowserAPISettings, auditBrowserEnvironment, auditBrowserPolicyEnvironment } from "./audit-log-browser-proof.mjs";
 import { exportBrowserIdentity, exportBrowserRelease } from "./security-agent-export-mounted-browser.mjs";
 
+test("a failed cleanup retains the original browser harness failure and disposes handlers", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.lastIndexOf("} catch (error) {", source.indexOf("  harnessFailure = error;"));
+  const end = source.indexOf("\nasync function exerciseSecurityAgentSimulationBrowser", start);
+  assert.ok(start > 0 && end > start);
+  const startup = Error("startup"), cleanup = Error("cleanup");
+  for (const [primary, finalization] of [[startup, cleanup], [startup, null], [null, cleanup], [null, null]]) {
+    const calls = [];
+    const operation = runInNewContext(
+      `(async () => { let harnessFailure; try { if (primary) throw primary; ${source.slice(start, end)} })()`,
+      {primary, complianceBrowserMode: false, cleanupController: {
+        run: async () => { calls.push("join"); if (finalization) throw finalization; },
+        dispose: () => calls.push("dispose"),
+      }},
+    );
+    if (primary && finalization) {
+      await assert.rejects(operation, err => err.cause === primary && err.errors[0] === primary && err.errors[1] === finalization);
+    } else if (primary || finalization) {
+      await assert.rejects(operation, err => err === (primary ?? finalization));
+    } else await operation;
+    assert.deepEqual(calls, ["join", "dispose"]);
+  }
+});
+
 const discoveryRelease60 = {
   version: 60,
   checksum: "37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab",
