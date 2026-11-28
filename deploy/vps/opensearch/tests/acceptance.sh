@@ -90,9 +90,10 @@ request() {
   shift 4
   phase="$cert-$method-${path%%\?*}"
   detail=''
-  local code
+  local code media_type=application/json
+  if [[ ${path%%\?*} == */_bulk ]]; then media_type=application/x-ndjson; fi
   code=$("${tls[@]}" --cert "$scratch/zasp-search-$cert.crt" --key "$scratch/zasp-search-$cert.key" \
-    -X "$method" -H 'Content-Type: application/json' -o "$scratch/response" -w '%{http_code}' "$endpoint/$path" "$@")
+    -X "$method" -H "Content-Type: $media_type" -o "$scratch/response" -w '%{http_code}' "$endpoint/$path" "$@")
   detail="expected-$expected-actual-$code"
   if [[ $code != "$expected" ]]; then
     local forbidden
@@ -105,12 +106,14 @@ request() {
 }
 request 200 schema PUT zasp-runtime-events-v1 -d '{"settings":{"number_of_replicas":0},"mappings":{"properties":{"fixture":{"type":"keyword"}}}}'
 request 200 schema PUT zasp-inventory-v1 -d '{"settings":{"number_of_replicas":0},"mappings":{"properties":{"fixture":{"type":"keyword"}}}}'
+request 201 schema PUT 'zasp-runtime-events-v1/_doc/schema-marker?op_type=create&refresh=wait_for' -d '{"fixture":"schema"}'
+request 200 schema GET 'zasp-runtime-events-v1/_mapping'
 request 201 runtime PUT 'zasp-runtime-events-v1/_doc/event?refresh=true' -d '{"fixture":"runtime"}'
 request 200 api GET 'zasp-runtime-events-v1/_doc/event'
 grep -q '"fixture":"runtime"' "$scratch/response"
 request 201 inventory PUT 'zasp-inventory-v1/_doc/entry' -d '{"fixture":"inventory"}'
-request 200 runtime POST 'zasp-runtime-events-v1/_bulk' -H 'Content-Type: application/x-ndjson' \
-  --data-binary $'{"index":{"_id":"second"}}\n{"fixture":"bulk"}\n'
+request 200 runtime POST 'zasp-runtime-events-v1/_bulk?refresh=wait_for&timeout=10s' \
+  --data-binary $'{"create":{"_index":"zasp-runtime-events-v1","_id":"second"}}\n{"fixture":"bulk"}\n'
 grep -q '"errors":false' "$scratch/response"
 request 200 runtime POST 'zasp-runtime-events-v1/_mget' -d '{"ids":["second"]}'
 grep -q '"fixture":"bulk"' "$scratch/response"

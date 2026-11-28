@@ -21,6 +21,8 @@ done
 
 On retry inspect both existing namespaces' ownership before resuming. A namespace, managed resource or Helm release owned by another installation must be resolved independently. Ingress grants are additive. The installer rejects unexpected ingress policies in these two dedicated namespaces.
 
+The runtime ingress policies select the product API and discovery pods in `ZASP_VPS_APP_NAMESPACE`, which defaults to `zasp`. OpenFGA also accepts the authorization projector so it can synchronize role changes. On an existing installation the installer can update its two original runtime policies after verifying their installation label, fingerprint and live rules. Set the application namespace explicitly to `agentsec` for installations that still run the product there.
+
 ## Issue and deliver credentials
 
 In a private, operator-owned directory on encrypted storage, place your internal CA's **public** trust bundles as `database-ca.crt` and `runtime-ca.crt`. Supply one operator-issued PEM leaf certificate and its matching unencrypted private key per row. The filename stem receives the suffixes `.crt` and `.key`. Protect the directory with mode 0700 and the keys with mode 0600. Use a trust bundle that allows OpenSSL to validate the leaf certificates. Keep CA signing keys in the issuing system.

@@ -54,6 +54,27 @@ Run `./zasp --profile vps install namespaces` with the reviewed installation con
 | `opensearch` | Independent search service, PVC, certificate identities and index permissions. |
 | `staging` | Reserved for future use. The installer creates the namespace only. |
 
+```mermaid
+flowchart LR
+    CD[GitHub CD] -->|Helm release agentsec| App
+    subgraph App["zasp namespace"]
+        Web[Zasp web and deployment console] --> API[API]
+        Workers[Schedulers, discovery and projectors]
+    end
+    API --> Nango["connectors · Nango"]
+    Workers --> Nango
+    Nango --> Providers[SaaS providers]
+    API --> Search["opensearch · OpenSearch"]
+    Workers --> Search
+    App --> ProductDB[(Product PostgreSQL)]
+    API --> FGA["zasp-runtime · OpenFGA"]
+    Workers --> Temporal["zasp-runtime · Temporal"]
+    FGA --> FgaDB[("zasp-data · OpenFGA database")]
+    Temporal --> TemporalDB[("zasp-data · Temporal databases")]
+```
+
+The boxes for OpenFGA and Temporal represent separate Helm releases and pods. Nango uses its own PostgreSQL database. The site supplies the product database, graph, object store and queues through its private release values. The existing evaluation pod belongs to the separate release `zasp`.
+
 1. Create the required namespaces, TLS certificates, protected Secret objects and database identities using the linked component procedures. Label the dedicated managed namespaces `zasp.io/installation=<your-installation-id>`; verify ownership before operating on existing resources. The runtime dependency unit installs separate PostgreSQL clusters for OpenFGA, Temporal persistence and Temporal visibility. Provision a separate persistent Nango database and role. Keep its encryption key and an independently recoverable copy of that key. [Dependency setup and certificates](../../deploy/vps/dependencies/README.md) · [Independent service setup](vps-independent-services.md) · [Nango database and TLS](independent-nango.md)
 2. Set `ZASP_VPS_OPENBAO_VALUES_FILE` and `ZASP_VPS_NANGO_VALUES_FILE` to reviewed absolute paths. Prepare the trusted CAs and scoped operator credentials in the file locations named by the config. Preview each install with `--dry-run`, then run the selected steps:
 

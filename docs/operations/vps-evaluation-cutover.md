@@ -4,6 +4,8 @@ Keep the existing Helm release `zasp` in namespace `zasp`. Install the productio
 
 ## Identify the source
 
+Check the target node's allocatable memory, CPU, and storage against both releases while they coexist. The production chart's scheduling rules use the node label `topology.kubernetes.io/zone`. On bare k3s, set it to the site's actual failure domain if it is absent. The production chart also uses the Secrets Store CSI driver and AWS provider for workload credentials. Install their CRDs and validate a workload's identity and Secret mount on this cluster. If monitoring is enabled, supply the Prometheus Operator CRDs selected by the chart.
+
 Use the context for the existing installation. These commands show ownership and storage without reading Secret contents.
 
 ```sh

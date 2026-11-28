@@ -16,4 +16,4 @@ zasp_runtime:
 zasp_schema:
   index_permissions:
     - index_patterns: [zasp-inventory-v1, zasp-runtime-events-v1, zasp-runtime-sessions-v1, zasp-runtime-sessions-v2]
-      allowed_actions: ["indices:admin/create", "indices:admin/mappings/get*", "indices:data/read/get*", "indices:data/write/index*"]
+      allowed_actions: ["indices:admin/create", "indices:admin/mapping/put", "indices:admin/mappings/get*", "indices:data/read/get*", "indices:data/write/index*"]
