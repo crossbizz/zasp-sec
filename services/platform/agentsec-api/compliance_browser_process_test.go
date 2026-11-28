@@ -68,6 +68,44 @@ func (h complianceBrowserReadTransport) RoundTrip(r *http.Request) (*http.Respon
 	return &http.Response{StatusCode: 200, Header: object.Headers.Clone(), Body: io.NopCloser(bytes.NewReader(body)), Request: r}, nil
 }
 
+func complianceBrowserProcessInputs(config RuntimeConfig, port string) error {
+	if auditBrowserProcessInputs(config, port) == nil {
+		return nil
+	}
+	suffix := "@127.0.0.1:" + port + "/postgres?sslmode=disable"
+	if config.PostgresDSN != "postgres://zasp_svc_api"+suffix || config.SecurityAgentPostgresDSN != "postgres://zasp_svc_security_agent_api"+suffix {
+		return errRuntimeUnavailable
+	}
+	return browserProcessDatabaseInputs(config, port, "zasp_svc_api", "zasp_svc_security_agent_api")
+}
+
+func TestComplianceBrowserDatabaseIdentity(t *testing.T) {
+	suffix := "@127.0.0.1:15432/postgres?sslmode=disable"
+	baseline := RuntimeConfig{PostgresDSN: "postgres://zasp_svc_api" + suffix, SecurityAgentPostgresDSN: "postgres://zasp_svc_security_agent_api" + suffix}
+	historical := RuntimeConfig{PostgresDSN: "postgres://zasp_e2e_api" + suffix, SecurityAgentPostgresDSN: "postgres://zasp_e2e_security_agent_api" + suffix}
+	if complianceBrowserProcessInputs(baseline, "15432") != nil || complianceBrowserProcessInputs(historical, "15432") != nil {
+		t.Fatal("owned role pair rejected")
+	}
+	if auditBrowserProcessInputs(baseline, "15432") == nil {
+		t.Fatal("historical browser guard admitted a baseline connection")
+	}
+	for _, dsn := range []string{historical.PostgresDSN, baseline.SecurityAgentPostgresDSN, "postgres://zasp_operator" + suffix,
+		strings.Replace(baseline.PostgresDSN, "127.0.0.1", "192.0.2.1", 1), strings.Replace(baseline.PostgresDSN, ":15432", ":15433", 1),
+		strings.Replace(baseline.PostgresDSN, "/postgres?", "/other?", 1), strings.Replace(baseline.PostgresDSN, "@127", ":password@127", 1),
+		baseline.PostgresDSN + "&options=-c%20role%3Dzasp_operator"} {
+		candidate := baseline
+		candidate.PostgresDSN = dsn
+		if complianceBrowserProcessInputs(candidate, "15432") == nil {
+			t.Fatal("unowned product connection admitted")
+		}
+	}
+	mixed := baseline
+	mixed.SecurityAgentPostgresDSN = historical.SecurityAgentPostgresDSN
+	if complianceBrowserProcessInputs(mixed, "15432") == nil || complianceBrowserProcessInputs(baseline, "015432") == nil {
+		t.Fatal("mixed authorities or noncanonical port admitted")
+	}
+}
+
 func TestComplianceBrowserAPIProcess(t *testing.T) {
 	if os.Getenv("ZASP_COMPLIANCE_BROWSER_API") != "true" {
 		t.Skip("owned browser fixture not selected")
@@ -78,7 +116,7 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	legacy := os.Getenv("ZASP_COMPLIANCE_BROWSER_LEGACY") == "true"
-	if auditBrowserProcessInputs(config, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT")) != nil || (config.ComplianceExports == nil) != legacy {
+	if complianceBrowserProcessInputs(config, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT")) != nil || (config.ComplianceExports == nil) != legacy {
 		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserOwnedInputs))
 		t.Fatal("owned database/config refused")
 	}

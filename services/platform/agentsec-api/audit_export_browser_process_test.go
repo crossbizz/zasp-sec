@@ -18,11 +18,15 @@ import (
 )
 
 func auditBrowserProcessInputs(config RuntimeConfig, port string) error {
+	return browserProcessDatabaseInputs(config, port, "zasp_e2e_api", "zasp_e2e_security_agent_api")
+}
+
+func browserProcessDatabaseInputs(config RuntimeConfig, port, productUser, securityAgentUser string) error {
 	number, err := strconv.Atoi(port)
 	if err != nil || number < 1024 || number > 65535 || strconv.Itoa(number) != port {
 		return errRuntimeUnavailable
 	}
-	for _, pair := range [][2]string{{config.PostgresDSN, "zasp_e2e_api"}, {config.SecurityAgentPostgresDSN, "zasp_e2e_security_agent_api"}} {
+	for _, pair := range [][2]string{{config.PostgresDSN, productUser}, {config.SecurityAgentPostgresDSN, securityAgentUser}} {
 		parsed, err := pgx.ParseConfig(pair[0])
 		if err != nil || parsed.Host != "127.0.0.1" || parsed.Port != uint16(number) || parsed.Database != "postgres" || parsed.User != pair[1] || parsed.Password != "" || len(parsed.Fallbacks) != 0 || parsed.TLSConfig != nil {
 			return errRuntimeUnavailable

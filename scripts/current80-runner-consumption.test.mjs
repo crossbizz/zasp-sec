@@ -8,14 +8,20 @@ function declaration(name){let result;function visit(node){if(ts.isFunctionDecla
 function variable(parent,name){let result;function visit(node){if(ts.isVariableDeclaration(node)&&node.name.getText(ast)===name)result=node.initializer;ts.forEachChild(node,visit);}visit(parent);assert.ok(result);return result.getText(ast);}
 function builder(){return new Function('auditBrowserEnvironment','auditBrowserMode','auditBrowserAPISettings','stytchWebhookSecret',`return (${declaration('combinedAPIEnvironment').getText(ast)});`)(value=>value,false,()=>({}),'fixture-binding');}
 test('actual parsed environment builder receives closed owned ambient inputs',()=>{const build=builder();const value=build({apiDSN:'postgres://zasp_e2e_api@127.0.0.1:32100/postgres?sslmode=disable',postgresPort:32100,identityPort:32101,policyHistoryPort:32102,apiPort:32103,healthPort:32104,publicOrigin:'https://fixture.invalid:32105',ownedAmbient:closedOwnedAmbientEnvironment({PATH:'/usr/bin',ZASP_COMPLIANCE_EXPORT_ROLE_ARN:'ambient',ZASP_ORGANIZATION_ID:'ambient'})});assert.equal(Object.hasOwn(value,'ZASP_COMPLIANCE_EXPORT_ROLE_ARN'),false);assert.equal(value.ZASP_ORGANIZATION_ID,'');assert.match(value.ZASP_SECURITY_AGENT_POSTGRES_DSN,/:32100\/postgres\?/);});
-test('actual parsed initial legacy and enabled restart preserve same real runtime/model and both database identities',async()=>{
+test('actual parsed initial legacy and enabled restart preserve the same runtime, model, and maintenance credentials',async()=>{
  const body=declaration('exerciseComplianceBrowser'),envExpression=variable(body,'apiEnvironment'),startExpression=variable(body,'startAPI');
- const launches=[],runtime={ZASP_RUNTIME_SERVICES_ENABLED:'true',ZASP_TEMPORAL_NAMESPACE:'owned-current',ZASP_OPENFGA_STORE_ID:'owned-store',ZASP_OPENFGA_MODEL_ID:'owned-model'};
+ const launches=[],runtime={ZASP_RUNTIME_SERVICES_ENABLED:'true',ZASP_TEMPORAL_NAMESPACE:'owned-current',ZASP_OPENFGA_STORE_ID:'owned-store',ZASP_OPENFGA_MODEL_ID:'owned-model',
+  ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN:'postgres://zasp_e2e_approval@127.0.0.1:32100/postgres?sslmode=disable',
+  ZASP_APPROVAL_MAINTENANCE_KEY_FILE:'/owned/approval.seed',ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM:'a'.repeat(64)};
  const config={apiDSN:'postgres://zasp_e2e_api@127.0.0.1:32100/postgres?sslmode=disable',postgresPort:32100,identityPort:32101,policyHistoryPort:32102,apiPort:32103,healthPort:32104,currentRuntimeEnvironment:runtime};
  const execute=new Function('configuration','combinedAPIEnvironment','closedOwnedAmbientEnvironment','startChild','waitForOwnedAPIStartup','emitComplianceAPIChildFailure',`let compliancePhase='fixture',api;const complianceBrowserMode=true,publicOrigin='https://fixture.invalid:32105',postgresPort=32100,healthPort=32104,apiBinary='/owned/api',object='/tmp/zasp-compliance-browser-control/object';const apiEnvironment=${envExpression};const startAPI=${startExpression};return startAPI;`);
  const start=execute(config,builder(),closedOwnedAmbientEnvironment,(_binary,_args,options)=>{launches.push(options.env);return {output:()=>''};},async({target,child})=>{assert.equal(target,'http://127.0.0.1:32104/readyz');assert.equal(typeof child.output,'function');},()=>assert.fail('no failure expected'));
  await start(false);await start(true);await start(true);assert.equal(launches.length,3);
- for(const env of launches){assert.equal(env.ZASP_RUNTIME_SERVICES_ENABLED,'true');assert.equal(env.ZASP_TEMPORAL_NAMESPACE,'owned-current');assert.equal(env.ZASP_OPENFGA_STORE_ID,'owned-store');assert.equal(env.ZASP_OPENFGA_MODEL_ID,'owned-model');assert.equal(env.ZASP_POSTGRES_DSN,config.apiDSN);assert.match(env.ZASP_SECURITY_AGENT_POSTGRES_DSN,/:32100\/postgres\?/);}
+ for (const environment of launches) {
+  for (const [key, value] of Object.entries(runtime)) assert.equal(environment[key], value, key);
+  assert.equal(environment.ZASP_POSTGRES_DSN, config.apiDSN);
+  assert.match(environment.ZASP_SECURITY_AGENT_POSTGRES_DSN, /:32100\/postgres\?/);
+ }
  assert.equal(Object.keys(launches[0]).some(key=>key.startsWith('ZASP_COMPLIANCE_EXPORT_')),false);assert.equal(launches[0].ZASP_COMPLIANCE_BROWSER_LEGACY,'true');assert.equal(Object.hasOwn(launches[1],'ZASP_COMPLIANCE_BROWSER_LEGACY'),false);assert.ok(Object.hasOwn(launches[1],'ZASP_COMPLIANCE_EXPORT_BUCKET'));
 });
 test('actual command cancellation awaits stop finalization after early child completion',async()=>{

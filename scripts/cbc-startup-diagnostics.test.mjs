@@ -31,21 +31,59 @@ test('startup reasons are typed closed and unknown errors disclose only unavaila
  for(const options of [{mode:false},{emitterFails:true}]){const h=apiHarness(new OwnedAPIStartupError('deadline'),options);const r=await h.result;assert.equal(r.error,h.wrappers[0]);assert.deepEqual(h.annotations,[]);}
 });
 const prepare=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='prepareOwnedCurrentComplianceRuntime');
-const tryBlock=prepare.body.statements.find(ts.isTryStatement);
-const stop=tryBlock.tryBlock.statements.find(n=>n.getText(tree).startsWith('const publicOrigin='));assert.ok(stop);
-const preparePrefix=source.slice(prepare.getStart(tree),stop.getStart(tree))+'\n} finally { finishPreparation(); }\n}';
+const prepareSource=prepare.getText(tree);
 function fixtureHarness(fail,mode=true){
- const calls=[],owned=Error('CANARY_DSN_SQL_SECRET'),annotations=[];const call=name=>{calls.push(name);if(name===fail)throw owned;};
+ const calls=[],owned=Error('CANARY_DSN_SQL_SECRET');
+ const call=name=>{calls.push(name);if(name===fail)throw owned;};
+ const operatorDSN='postgres://zasp_operator@127.0.0.1:54321/postgres?sslmode=disable';
  const env={ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:'/owned/archive',ZASP_BROWSER_RUNTIME_RAW_ROOT:'/owned/raw'};
- const deps={path,assert,process:{env},complianceBrowserMode:mode,mkdtemp:async()=>{call('state');return '/owned/state';},rm:async()=>{},randomBytes:()=>({toString:()=> 'fixed'}),withOwnedRuntimeStartupDiagnostics:async f=>f(),recordOwnedRuntimeStartupFailure:e=>e,
- startRetainedOwnedRuntimeLifetime:async()=>{call('services');return {environment:{},completed:new Promise(()=>{})};},complianceRuntimeBindings:()=>{},reservePort:async()=>54321,createOwnedBrowserPostgres:()=>({start:async()=>{call('postgres');}}),provisionPostgresPrincipals:async()=>{call('principals');},closedOwnedAmbientEnvironment:()=>({}),seedPostgres:async dsn=>{assert.equal(dsn,'postgres://zasp_e2e@127.0.0.1:54321/postgres?sslmode=disable');call('seed');},postgresBin:'/owned/pg',command:async(executable,args,options)=>{if(executable==='/owned/migrate'){assert.deepEqual(args,['up-to-56']);assert.equal(options.timeout,300000);call('schema');}else if(args.at(-1)==='CANARY_FIXTURE_SQL'){assert.deepEqual(args.slice(1),['-X','-v','ON_ERROR_STOP=1','-c','CANARY_FIXTURE_SQL']);call('fixture-sql');}else call('roles');return {};},cleanupController:{run:async()=>{}},emitComplianceBrowserPhaseFailure,Error};
- const run=new Function(...Object.keys(deps),`return(async()=>{let ownedResourceCleanupStarted=false,currentComplianceClosing=false,currentComplianceServices,currentComplianceStateRoot,currentComplianceRuntimeStartup,currentCompliancePreparation,currentCompliancePostgres,currentComplianceFailure;let compliancePhase='services';${preparePrefix}try{await prepareOwnedCurrentComplianceRuntime({migrate:'/owned/migrate',migrationEnvironment:{},proxyPort:7},'CANARY_FIXTURE_SQL');return {phase:compliancePhase};}catch(error){return {error,phase:compliancePhase};}finally{await currentCompliancePreparation;}})();`);
- return {calls,owned,annotations,result:run(...Object.values(deps))};
+ const deps={
+  path,assert,process:{env},complianceBrowserMode:mode,productHostname:'browser.test',postgresBin:'/owned/pg',temporaryRoot:'/owned',platform:'/owned/platform',
+  mkdtemp:async()=>{call('state');return '/owned/state';},randomBytes:size=>Buffer.alloc(size),
+  withOwnedRuntimeStartupDiagnostics:async action=>action(),
+  startRetainedOwnedRuntimeLifetime:async()=>{call('services');return {environment:{},completed:new Promise(()=>{})};},
+  complianceRuntimeBindings:()=>{},reservePort:async()=>54321,createOwnedBrowserPostgres:()=>({start:async()=>call('postgres')}),
+  closedOwnedAmbientEnvironment:()=>({}),combinedAPIEnvironment:()=>({}),
+  writeFile:async file=>call(path.basename(file)),
+  seedCurrentComplianceIdentity:async dsn=>{assert.equal(dsn,operatorDSN);call('seed');},
+  command:async(executable,args)=>{
+   if(executable==='go'){call('reconcile-build');return;}
+   assert.equal(executable,'/owned/pg/psql');
+   assert.deepEqual(args,[operatorDSN,'-X','-v','ON_ERROR_STOP=1','-c','CANARY_FIXTURE_SQL']);
+   call('fixture-sql');
+  },
+  installOwnedCurrent80:async({seedCurrent})=>{
+   call('install');
+   await seedCurrent(operatorDSN);
+   call('seed-complete');
+   return {environment:{},apiDSN:'owned-api-dsn'};
+  },
+  runOwnedProjectionLoop:()=>{call('projection');return new Promise(()=>{});},
+  AbortController,
+ };
+ const run=new Function(...Object.keys(deps),`return(async()=>{
+  let ownedResourceCleanupStarted=false,currentComplianceClosing=false,currentComplianceServices,currentComplianceStateRoot,currentComplianceRuntimeStartup,currentCompliancePreparation,currentCompliancePostgres,currentComplianceFailure,currentComplianceProjectionController,currentComplianceProjectionLoop;
+  let compliancePhase='services';
+  ${prepareSource}
+  try {
+   const {configuration}=await prepareOwnedCurrentComplianceRuntime({migrate:'/owned/migrate',proxyPort:7},'CANARY_FIXTURE_SQL');
+   return {phase:compliancePhase,dsn:configuration.dsn};
+  }catch(error){return {error,phase:compliancePhase};}finally{await currentCompliancePreparation;}
+ })();`);
+ return {calls,owned,operatorDSN,result:run(...Object.values(deps))};
 }
-test('actual current fixture prefix identifies seed and SQL refusal with original calls intact',async()=>{
- const order=['state','services','postgres','principals','roles','schema','seed','fixture-sql'];
- for(const fail of ['seed','fixture-sql']){const h=fixtureHarness(fail);const r=await h.result;assert.equal(r.error,h.owned);assert.deepEqual(h.calls,order.slice(0,order.indexOf(fail)+1));assert.equal(r.phase,fail==='seed'?'compliance-current-seed':'compliance-current-fixture-sql');const emitted=[];emitComplianceBrowserPhaseFailure(r.phase,x=>emitted.push(x));assert.deepEqual(emitted,[`::error title=Compliance browser phase failed::Observed phase: ${r.phase}.`]);assert.doesNotMatch(emitted.join(''),/CANARY|DSN|SQL_SECRET/);}
- const h=fixtureHarness();assert.equal((await h.result).phase,'compliance-current-fixture');assert.deepEqual(h.calls,order);
+test('actual current fixture identifies seed and SQL refusal in the baseline installation',async()=>{
+ const order=['state','services','postgres','forward.seed','compensation.seed','approval.seed','reconcile-build','install','seed','fixture-sql','seed-complete','projection'];
+ for(const [fail,phase] of [['seed','compliance-current-seed'],['fixture-sql','compliance-current-fixture-sql']]){
+  const h=fixtureHarness(fail);const r=await h.result;
+  assert.equal(r.error,h.owned);assert.deepEqual(h.calls,order.slice(0,order.indexOf(fail)+1));assert.equal(r.phase,phase);
+  const emitted=[];emitComplianceBrowserPhaseFailure(r.phase,x=>emitted.push(x));
+  assert.deepEqual(emitted,[`::error title=Compliance browser phase failed::Observed phase: ${phase}.`]);
+  assert.doesNotMatch(emitted.join(''),/CANARY|DSN|SQL_SECRET/);
+ }
+ const h=fixtureHarness();
+ assert.deepEqual(await h.result,{phase:'compliance-fixture-provisioning',dsn:h.operatorDSN});
+ assert.deepEqual(h.calls,order);
  const ordinary=fixtureHarness('fixture-sql',false);assert.equal((await ordinary.result).phase,'services');assert.equal((await ordinary.result).error,ordinary.owned);
 });
 test('new fixture labels remain exact and diagnostic emitter faults are contained',()=>{

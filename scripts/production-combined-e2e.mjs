@@ -19,7 +19,7 @@ import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 import { spawnOwnedCommand } from "./owned-command.mjs";
 import { createOwnedBrowserPostgres } from "./owned-browser-postgres.mjs";
 import { withBrowserPrerequisites } from "./browser-prerequisites.mjs";
-import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
+import { readComplianceSourceDetail, reloadBrowserPage, revealComplianceExport } from "./browser-e2e-helpers.mjs";
 import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
 import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
@@ -2232,7 +2232,7 @@ async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixt
   let finishPreparation;
   currentCompliancePreparation=new Promise(resolve=>{finishPreparation=resolve;});
   try {
-  const {migrate,migrationEnvironment,proxyPort}=configuration;
+  const {migrate,proxyPort}=configuration;
   const archiveRoot=process.env.ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT,rawRoot=process.env.ZASP_BROWSER_RUNTIME_RAW_ROOT;
   assert.ok(typeof archiveRoot==='string'&&typeof rawRoot==='string','owned pinned runtime archive/raw inputs required');
   if (complianceBrowserMode) compliancePhase = 'compliance-runtime-services';
@@ -2247,36 +2247,41 @@ async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixt
   complianceRuntimeBindings(currentComplianceServices.environment);
   void currentComplianceServices.completed.then(()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime service exited');void cleanupController.run().catch(()=>{process.exitCode=1;});}},()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime resource refused');void cleanupController.run().catch(()=>{process.exitCode=1;});}});
   if (complianceBrowserMode) compliancePhase = 'compliance-current-postgres';
-  const port=await reservePort(),dsn=`postgres://zasp_e2e@127.0.0.1:${port}/postgres?sslmode=disable`;
+  const port=await reservePort();
   if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
   currentCompliancePostgres=createOwnedBrowserPostgres({port});await currentCompliancePostgres.start();
-  if (complianceBrowserMode) compliancePhase = 'compliance-current-principals';
-  await provisionPostgresPrincipals(dsn);
-  await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c','CREATE ROLE zasp_e2e_temporal_executor LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE zasp_e2e_temporal_compensation LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;']);
-  const migration={...closedOwnedAmbientEnvironment(migrationEnvironment),...Object.fromEntries(Object.entries(migrationEnvironment).filter(([key])=>key.endsWith('_DB_PRINCIPAL'))),ZASP_POSTGRES_DSN:dsn,ZASP_MIGRATION_TIMEOUT:'5m'};
-  if (complianceBrowserMode) compliancePhase = 'compliance-current-schema';
-  await command(migrate,['up-to-56'],{env:migration,timeout:300000});
-  if (complianceBrowserMode) compliancePhase = 'compliance-current-seed';
-  await seedPostgres(dsn);
-  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture-sql';
-  await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c',complianceFixtureSQL]);
-  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture';
-  const publicOrigin=`https://${productHostname}:${proxyPort}`,apiDSN=`postgres://zasp_e2e_api@127.0.0.1:${port}/postgres?sslmode=disable`;
-  const currentConfiguration={...configuration,dsn,apiDSN,postgresPort:port};
+  const publicOrigin=`https://${productHostname}:${proxyPort}`;
+  const apiDSN=`postgres://zasp_svc_api@127.0.0.1:${port}/postgres?sslmode=disable`;
+  const currentConfiguration={...configuration,postgresPort:port,apiDSN};
   const identityEnvironment=combinedAPIEnvironment({...currentConfiguration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)});
+  let fixtureDSN;
+  const seedCurrent=async operatorDSN=>{
+    fixtureDSN=operatorDSN;
+    if (complianceBrowserMode) compliancePhase='compliance-current-seed';
+    await seedCurrentComplianceIdentity(operatorDSN);
+    if (complianceBrowserMode) compliancePhase='compliance-current-fixture-sql';
+    await command(path.join(postgresBin,'psql'),[operatorDSN,'-X','-v','ON_ERROR_STOP=1','-c',complianceFixtureSQL]);
+    if (complianceBrowserMode) compliancePhase='compliance-current-profile';
+  };
   if (complianceBrowserMode) compliancePhase = 'compliance-current-keys';
-  const forward=path.join(currentComplianceStateRoot,'forward.seed'),compensation=path.join(currentComplianceStateRoot,'compensation.seed');
-  await writeFile(forward,randomBytes(32),{flag:'wx',mode:0o400});await writeFile(compensation,randomBytes(32),{flag:'wx',mode:0o400});
+  const keyFiles = {
+    forward: path.join(currentComplianceStateRoot, 'forward.seed'),
+    compensation: path.join(currentComplianceStateRoot, 'compensation.seed'),
+    approval: path.join(currentComplianceStateRoot, 'approval.seed'),
+  };
+  for (const file of Object.values(keyFiles)) {
+    await writeFile(file, randomBytes(32), {flag: 'wx', mode: 0o400});
+  }
   if (complianceBrowserMode) compliancePhase = 'compliance-reconcile-build';
   const reconcile=path.join(temporaryRoot,'zasp-authorization-reconcile');await command('go',['build','-o',reconcile,'./cmd/zasp-authorization-reconcile'],{cwd:platform,timeout:120000});
   if (complianceBrowserMode) compliancePhase = 'compliance-current-profile';
-  const projection=await installOwnedCurrent80({command,migrate,reconcile,psql:path.join(postgresBin,'psql'),port,organization:'pid_10000001-0000-4000-8000-000000000001',identityEnvironment,runtimeEnvironment:currentComplianceServices.environment,keyFiles:{forward,compensation}});
+  const projection=await installOwnedCurrent80({command,migrate,reconcile,psql:path.join(postgresBin,'psql'),port,organization:'pid_10000001-0000-4000-8000-000000000001',foreignOrganization:'pid_90000001-0000-4000-8000-000000000001',identityEnvironment,runtimeEnvironment:currentComplianceServices.environment,keyFiles,seedCurrent});
   if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
   complianceRuntimeBindings(projection.environment);
   currentComplianceProjectionController=new AbortController();
   currentComplianceProjectionLoop=runOwnedProjectionLoop(projection,currentComplianceProjectionController.signal,()=>{currentComplianceFailure=new Error('owned authorization projection refused');void cleanupController.run().catch(()=>{process.exitCode=1;});});void currentComplianceProjectionLoop.catch(()=>{});
   if (complianceBrowserMode) compliancePhase = 'compliance-fixture-provisioning';
-  return {configuration:{...currentConfiguration,currentRuntimeEnvironment:projection.environment},projection};
+  return {configuration:{...currentConfiguration,dsn:fixtureDSN,apiDSN:projection.apiDSN,currentRuntimeEnvironment:projection.environment},projection};
   } finally { finishPreparation(); }
 }
 
@@ -2290,12 +2295,22 @@ async function exerciseComplianceBrowser(configuration) {
   const pagingPrefix="policy-"+"a".repeat(118);
   const pagingLast=pagingPrefix+"101";
   assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
-  const complianceFixtureSQL=`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
-SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));
-UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
+  const complianceFixtureSQL=`UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','policy','policy-compliance-read-only',3,'{}','2020-01-01');
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`;
-  await sql(complianceFixtureSQL);
+  const historicalRegistrationsSQL=`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
+SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));`;
+  await sql(historicalRegistrationsSQL+complianceFixtureSQL);
+  const historical=await command("go",["test","-json","-count=1","-timeout=90s","-run","^TestHistoricalRelease56ComplianceHTTP$","./apiserver"],{
+    cwd:platform,timeout:120_000,
+    env:{...closedOwnedAmbientEnvironment(process.env),ZASP_LEGACY_COMPLIANCE_PG_PORT:String(postgresPort)},
+  });
+  const historicalOutcomes=historical.stdout.trim().split(/\r?\n/).filter(Boolean)
+    .map(line=>JSON.parse(line))
+    .filter(event=>event.Package==="github.com/zasp-ai/zasp-sec/services/platform/apiserver" &&
+      event.Test==="TestHistoricalRelease56ComplianceHTTP" && ["skip","fail","pass"].includes(event.Action));
+  assert.deepEqual(historicalOutcomes.map(event=>event.Action),["pass"],"historical release56 HTTP test must pass");
   const current=await prepareOwnedCurrentComplianceRuntime(configuration,complianceFixtureSQL);
   configuration={...configuration,...current.configuration};dsn=configuration.dsn;postgresPort=configuration.postgresPort;currentProjection=current.projection;
 
@@ -2348,20 +2363,23 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
       assert.equal(state.exportAction,true,label+" export action not mounted");
     }
   };
-  const legacyText=await waitForBrowserText(cdp,/evidence-membership/).catch(async error=>{await writeFile(path.join(storage,"legacy-failure-trace.json"),JSON.stringify(complianceResponseTrace,null,2));console.log("legacy failure trace: "+JSON.stringify(complianceResponseTrace));throw error;});
-  assert.match(legacyText,/Legacy evidence \(current freshness unavailable\)/);
-  assert.match(legacyText,/product-membership/);
-  assert.doesNotMatch(legacyText,/Create evidence export/);
-  const legacyRequests=complianceResponseTrace.filter(entry=>entry.path==="/api/v1/compliance/evidence");
-  assert.ok(legacyRequests.length>0,"retained legacy evidence was not read");
-  assert.ok(legacyRequests.every(entry=>!entry.framework&&entry.status===200),"legacy adapter sent unsupported framework filters");
-  const legacyScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
-  const legacyWire=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=100",{"X-Zasp-Expected-Scope":legacyScope});
-  assert.equal(legacyWire.status,200);assert.match(legacyWire.body.items[0].evidence[0].at,/[+-]\d{2}:\d{2}$/);
-  const legacyFiltered=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=100&framework=soc2_security",{"X-Zasp-Expected-Scope":legacyScope});
-  assert.equal(legacyFiltered.status,400,"legacy query allowlist must remain strict");
-  const legacyCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-legacy.png"),Buffer.from(legacyCapture.data,"base64"));
-  await continuity("legacy disabled service readable",legacyScope);
+  const initialScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
+  await waitForBrowserText(cdp,/policy-compliance-read-only/);
+  assert.ok(await browserHasAriaLabel(cdp,'Open policy policy-compliance-read-only version 3'));
+  const readOnlyEvidence=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?framework=soc2_security&limit=100",{"X-Zasp-Expected-Scope":initialScope});
+  assert.equal(readOnlyEvidence.status,200);
+  assert.ok(readOnlyEvidence.body.items.some(control=>control.evidence.some(item=>item.target?.source_id==='policy-compliance-read-only'&&item.target?.source_version===3)));
+  const bootstrap=await browserFetchJSON(cdp,"/api/v1/session/bootstrap",{});
+  assert.equal(bootstrap.status,200);
+  const unavailable=await browserFetchJSON(cdp,"/api/v1/compliance/exports",{
+    "Content-Type":"application/json","X-Zasp-Expected-Scope":initialScope,"X-CSRF-Token":bootstrap.body.csrf_token,
+    "X-Zasp-Fresh-Auth":"confirmed","Idempotency-Key":"compliance-readonly-browser",
+  },{method:"POST",body:JSON.stringify({framework:"soc2_security"})});
+  assert.equal(unavailable.status,404);
+  assert.equal(unavailable.body.code,"not_found");
+  assert.equal(await sql("SELECT count(*) FROM zasp_compliance_export_jobs"),"0");
+  const initialCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-read-only.png"),Buffer.from(initialCapture.data,"base64"));
+  await continuity("current storage-free evidence readable",initialScope);
   await stopChild(api);await startAPI();
   await reloadBrowser(cdp);
   await waitForBrowserText(cdp,/Create evidence export/);
@@ -2377,7 +2395,16 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   await selectBrowserOption(cdp,"Framework","HIPAA");
   await selectBrowserOption(cdp,"Control","Policy definitions");
   await clickBrowserAria(cdp,`Open policy ${pagingLast} version 7`);
-  assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
+  const assertStaleSourceDetail = async id => {
+    await waitForBrowserText(cdp, /Evidence source/);
+    const probe = await cdp.send("Runtime.evaluate", {expression: `(${readComplianceSourceDetail})(document)`, returnByValue: true});
+    const detail = probe.result.value;
+    assert.equal(detail?.id, id);
+    assert.equal(detail.version, "7");
+    assert.equal(Date.parse(detail.recorded), Date.UTC(2020, 0, 1), "source detail must preserve the exact recorded instant");
+    assert.equal(detail.freshness, "stale");
+  };
+  await assertStaleSourceDetail(pagingLast);
   const hipaaURL=new URL(await browserCurrentURL(cdp));
   assert.equal(hipaaURL.searchParams.get("source_id"),pagingLast);assert.equal(hipaaURL.searchParams.get("source_version"),"7");
   const hipaaCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-hipaa-detail.png"),Buffer.from(hipaaCapture.data,"base64"));
@@ -2386,7 +2413,7 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   await selectBrowserOption(cdp,"Framework","SOC 2 Security");
   const sourceLocation=`/compliance/evidence?source_kind=policy&source_id=policy-compliance-browser&source_version=7&organization_id=${org}&workspace_id=${workspace}&environment_id=${environment}`;
   await clickBrowserAria(cdp,"Open policy policy-compliance-browser version 7");
-  assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
+  await assertStaleSourceDetail("policy-compliance-browser");
   assert.equal(new URL(await browserCurrentURL(cdp)).pathname+new URL(await browserCurrentURL(cdp)).search,sourceLocation);
   await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
   await selectBrowserOption(cdp,"Framework","SOC 2 Security");
@@ -2394,7 +2421,15 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   await clickBrowserText(cdp,"Create evidence export");
   await waitForBrowserText(cdp,/Export queued/);
   const jobID=await sql("SELECT export_id FROM zasp_compliance_export_jobs ORDER BY created_at DESC LIMIT 1");assert.match(jobID,/^pid_[a-f0-9-]{36}$/);
-  const worker=async phase=>{const result=await command(workerE2EBinary,["-test.run=^TestComplianceRuntimeProcess$","-test.v","-test.timeout=20s"],{timeout:25_000,env:{...auditBrowserEnvironment(process.env),ZASP_COMPLIANCE_RUNTIME_DSN:dsn,ZASP_COMPLIANCE_RUNTIME_PHASE:phase,ZASP_COMPLIANCE_RUNTIME_OBJECT:object}});console.log(result.stdout);};
+  const worker=async phase=>{
+    const login=phase==="reconcile"||phase.startsWith("cleanup")?"zasp_svc_compliance_cleanup":"zasp_svc_compliance_worker";
+    const workerDSN=`postgres://${login}@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
+    const result=await command(workerE2EBinary,["-test.run=^TestComplianceRuntimeProcess$","-test.v","-test.timeout=20s"],{
+      timeout:25_000,env:{...auditBrowserEnvironment(process.env),ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort),
+        ZASP_COMPLIANCE_RUNTIME_DSN:workerDSN,ZASP_COMPLIANCE_RUNTIME_PHASE:phase,ZASP_COMPLIANCE_RUNTIME_OBJECT:object},
+    });
+    console.log(result.stdout);
+  };
   await worker("interrupt");
   assert.equal(await sql(`SELECT state||'|'||storage_state FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`),"pending|unknown");
   const pinned=await sql(`SELECT encode(digest(package,'sha256'),'hex') FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`);
@@ -2447,10 +2482,34 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   const siblingScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
   await waitForBrowserScope(cdp,siblingScope);
   await continuity("sibling selected",siblingScope);
-  for(const route of [`/api/v1/compliance/exports/${jobID}`,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8"]){const result=await browserFetchJSON(cdp,route,{"X-Zasp-Expected-Scope":siblingScope});assert.equal(result.status,404);await continuity("after sibling denial "+route.split("?")[0],siblingScope);}
+  // Current authorization resolves compliance objects only within the authenticated
+  // scope. Both a foreign object and a nonexistent object are refused identically.
+  const assertHiddenComplianceResource = response => {
+    assert.equal(response.status, 403);
+    assert.equal(response.body?.code, "request_forbidden");
+    assert.equal(response.body?.message, "Request forbidden");
+    assert.equal(response.body?.retryable, false);
+    assert.deepEqual(Object.keys(response.body).sort(), ["code", "correlation_id", "message", "retryable"]);
+    const responseText = JSON.stringify(response.body);
+    assert.ok(!responseText.includes(jobID));
+    assert.doesNotMatch(responseText, /policy-compliance-browser|NEVER_EXPORT_BROWSER|compliance-process-v1/);
+  };
+  for (const route of [`/api/v1/compliance/exports/${jobID}`, "/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8"]) {
+    const result = await browserFetchJSON(cdp, route, {"X-Zasp-Expected-Scope": siblingScope});
+    assertHiddenComplianceResource(result);
+    await continuity("after sibling denial " + route.split("?")[0], siblingScope);
+  }
   // Independent authenticated foreign-tenant session, created only in this owned fixture.
   await sql(`INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,authenticated_at) VALUES(digest('compliance-foreign-browser','sha256'),repeat('c',32),'session-compliance-foreign-browser','pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","view_audit","view_compliance"]',clock_timestamp()+interval '1 hour',clock_timestamp());UPDATE zasp_authorized_scopes SET permissions=permissions||'["view_audit","view_compliance"]'::jsonb WHERE principal_id='pid_90000004-0000-4000-8000-000000000004';`);
-  const denied=await requestHTTPSJSON(`${publicOrigin}/api/v1/compliance/exports/${jobID}`,{method:"GET",headers:{cookie:"__Host-zasp_session=compliance-foreign-browser","X-Zasp-Expected-Scope":"pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003"}});assert.equal(denied.status,404);
+  await currentProjection.refresh(undefined, 'pid_90000001-0000-4000-8000-000000000001');
+  const foreignScope = "pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003";
+  const foreignRequest = {method: "GET", headers: {cookie: "__Host-zasp_session=compliance-foreign-browser", "X-Zasp-Expected-Scope": foreignScope}};
+  const foreignBootstrap = await requestHTTPSJSON(`${publicOrigin}/api/v1/session/bootstrap`, foreignRequest);
+  assert.equal(foreignBootstrap.status, 200, "foreign session bootstrap");
+  assert.equal(foreignBootstrap.body.principal.id, "pid_90000004-0000-4000-8000-000000000004");
+  assert.equal([foreignBootstrap.body.organization_id, foreignBootstrap.body.workspace_id, foreignBootstrap.body.environment_id].join("/"), foreignScope);
+  const denied = await requestHTTPSJSON(`${publicOrigin}/api/v1/compliance/exports/${jobID}`, foreignRequest);
+  assertHiddenComplianceResource(denied);
   await continuity("after foreign denial",siblingScope);
   const authorized=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=1",{"X-Zasp-Expected-Scope":siblingScope});
   assert.equal(authorized.status,200,"authorized sibling evidence after denials");
@@ -2465,13 +2524,13 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   await selectBrowserOption(cdp,"Control","Policy definitions");
   await cdp.send("Emulation.setDeviceMetricsOverride",{width:1200,height:900,deviceScaleFactor:1,mobile:false});
   await continuity("final mounted primary",selectedScope,true);
-  const visibleExport=await cdp.send("Runtime.evaluate",{expression:"(()=>{const button=[...document.querySelectorAll('button')].find(e=>e.textContent==='Create evidence export');const box=button?.getBoundingClientRect();return !!box&&box.top>=0&&box.bottom<=innerHeight;})()",returnByValue:true});
+  const visibleExport=await cdp.send("Runtime.evaluate",{expression:`(${revealComplianceExport})(document, innerHeight)`,returnByValue:true});
   assert.equal(visibleExport.result.value,true,"final screenshot must include the export action");
   assert.doesNotMatch(await browserStorageAndHistoryText(cdp),/compliance-process-v1|NEVER_EXPORT_BROWSER|"token"|arn:aws/);
   const capture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-final.png"),Buffer.from(capture.data,"base64"));
-  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),legacyDisabledReads:true,legacyStrictQuery:true,disabledToEnabledReload:true,hipaaSourceDetail:true,maximumIDPaging:true,pagingRecordsRemovedBeforeExport:101,grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
+  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),currentStorageFreeReads:true,currentStorageFreeExportsUnavailable:true,disabledToEnabledReload:true,hipaaSourceDetail:true,maximumIDPaging:true,pagingRecordsRemovedBeforeExport:101,grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
   assert.equal(proxyFailure,undefined);
-  console.log("compliance release56 browser acceptance: real session/API/worker/versioned artifact; source change, exact JSON/CSV/readable, worker/API restart, scope denial and grant replay passed; live AWS NOT RUN");
+  console.log("compliance release56 HTTP and current browser acceptance: real session/API/worker/versioned artifact; source change, exact JSON/CSV/readable, worker/API restart, scope denial and grant replay passed; live AWS NOT RUN");
 }
 
 function assertAutomaticDiscoveryInventory(before,after,name,existingID) {
@@ -3436,7 +3495,7 @@ FROM zasp_risk_attack_paths p WHERE (p.organization_id,p.workspace_id,p.environm
   }
 }
 
-async function seedPostgres(dsn) {
+async function seedCurrentComplianceIdentity(dsn) {
   const sql = `
 INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows","manage_findings"]'::jsonb,true),
@@ -3465,6 +3524,13 @@ INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,envir
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','production','metadata_only',30,true,false),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','staging','metadata_only',30,true,false),
 ('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','production','metadata_only',30,true,false);
+`;
+  await command(path.join(postgresBin, "psql"), [dsn, "-X", "-v", "ON_ERROR_STOP=1"], { input: sql });
+}
+
+async function seedPostgres(dsn) {
+  await seedCurrentComplianceIdentity(dsn);
+  const sql = `
 INSERT INTO zasp_compliance_controls(organization_id,id,framework,name,fresh_until) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','access-control','SOC 2','Logical access controls',transaction_timestamp()+interval '24 hours');
 INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,source,at) VALUES
@@ -7049,9 +7115,9 @@ async function browserConnectorAuthorizeRejection(cdp, target, expectedScope) {
   return evaluated.result.value;
 }
 
-async function browserFetchJSON(cdp, target, headers) {
+async function browserFetchJSON(cdp, target, headers, options = {}) {
   const evaluated = await cdp.send("Runtime.evaluate", {
-    expression: `(async () => { const response = await fetch(${JSON.stringify(target)}, { headers: ${JSON.stringify(headers)} }); return { status: response.status, body: await response.json() }; })()`,
+    expression: `(async () => { const response = await fetch(${JSON.stringify(target)}, ${JSON.stringify({ ...options, headers })}); return { status: response.status, body: await response.json() }; })()`,
     awaitPromise: true,
     returnByValue: true,
   });
