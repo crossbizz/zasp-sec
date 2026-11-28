@@ -93,11 +93,7 @@ func (executor *auditExportExecutor) Execute(ctx context.Context, scope domain.S
 			return executor.retry(ctx, *lease)
 		}
 		*lease = renewed
-		page, err := executor.authority.ReadFrozenPage(ctx, *lease, capture)
-		if err != nil {
-			return executor.retry(ctx, *lease)
-		}
-		intent, err := executor.authority.PrepareChunk(ctx, *lease, page.Body)
+		page, intent, err := executor.authority.readAndPrepareFrozenChunk(ctx, *lease, capture)
 		if err != nil {
 			return executor.retry(ctx, *lease)
 		}

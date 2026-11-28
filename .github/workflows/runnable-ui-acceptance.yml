@@ -33,11 +33,15 @@ jobs:
       - name: Pin npm
         run: npm install --global npm@10.9.8
       - name: Install locked dependencies
+        id: dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
       # Reference validation only. Older-major compatibility remains an open
       # release gate in docs/internal/implementation_status_v1.5.md.
+      # Independent checks continue after a failure when their own setup succeeded.
       - name: Install PostgreSQL 18 reference fixture tools
-        run: |
+        id: postgres
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: &install_postgres_18 |
           fixture_pg_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-pgdg.XXXXXX")
           curl --fail --location --retry 3 --max-time 60 --output "$fixture_pg_dir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
           printf '%s  %s\n' 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 "$fixture_pg_dir/pgdg.asc" | sha256sum --check -
@@ -56,17 +60,25 @@ jobs:
           "$fixture_pg_bin/postgres" --version
           printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
       - name: Install pinned secret scanner
+        id: secret_scanner
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
       - name: Verify implementation status ledger
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm run implementation:status:check
       - name: Prime platform full-MVS metadata for offline release contracts
+        id: platform_metadata
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 5
         run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null
       - name: Verify approval maintenance signed notification delivery
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           go test -C services/platform -race -p 1 -count=1 -timeout=5m -json -run '^TestMaintenanceBoundary(DeliversOriginalSignedPayloadOverTLS|UnsafeDeliveryDoesNotReachHTTP|RetainsActualProviderFailure)$' ./apiserver
       - name: Verify runnable UI
+        id: ui_verify
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' && steps.secret_scanner.outcome == 'success' && steps.platform_metadata.outcome == 'success' }}
         run: |-
           task_verify_log=$(mktemp "${RUNNER_TEMP}/zasp-npm-verify.XXXXXX")
           set +e
@@ -79,6 +91,8 @@ jobs:
           rm -f -- "$task_verify_log" || true
           exit "$task_verify_status"
       - name: Prime native migration compilation cache for compliance browser
+        id: migration_cache
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           umask 077
@@ -87,11 +101,14 @@ jobs:
           cd services/platform
           GOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go build -mod=readonly -o "$task_migration_dir/agentsec-migrate" ./agentsec-migrate
       - name: Verify current runtime profile inner diagnostic tests
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' && steps.migration_cache.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           node --test scripts/observe-current-profile-inner-diagnostics.test.mjs
           node scripts/observe-current-profile-inner-diagnostics.mjs
       - name: Provision isolated compliance browser prerequisites
+        id: browser_prerequisites
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           # This populates the exact cache entry consumed with --pull=never.
@@ -108,10 +125,13 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
           NODE
       - name: Provision pinned owned authorization runtime tools
+        id: authorization_tools
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           node scripts/hosted-runtime-tool-intake.mjs
       - name: Verify current compliance browser acceptance
+        if: ${{ !cancelled() && steps.ui_verify.outcome == 'success' && steps.migration_cache.outcome == 'success' && steps.browser_prerequisites.outcome == 'success' && steps.authorization_tools.outcome == 'success' }}
         timeout-minutes: 15
         env:
           ZASP_COMBINED_E2E_COMPLIANCE: "true"
@@ -119,6 +139,7 @@ jobs:
           node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\n' "$status"; exit "$status"; }
           node scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\n' "$status"; exit "$status"; }
       - name: Verify Red Team runtime and ledger regressions
+        if: ${{ !cancelled() && steps.ui_verify.outcome == 'success' && steps.browser_prerequisites.outcome == 'success' }}
         run: |
           node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
           go test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'
@@ -129,6 +150,7 @@ jobs:
         continue-on-error: true
         run: npm run production:release:gate
       - name: Verify session search IAM policies
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           task_tf_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-terraform.XXXXXX")
@@ -143,6 +165,7 @@ jobs:
           node --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan "$task_tf_dir/iam-policy-union.jsonl"
           node deploy/staging/iam-policy-union-v1.mjs --plan "$task_tf_dir/iam-policy-union.jsonl"
       - name: Verify reconciliation maintenance alerts
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: |
           task_prom_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-promtool.XXXXXX")
           curl --fail --location --retry 3 --max-time 120 --output "$task_prom_dir/prometheus.tar.gz" https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz
@@ -150,17 +173,21 @@ jobs:
           tar -xzf "$task_prom_dir/prometheus.tar.gz" -C "$task_prom_dir" prometheus-3.14.0.linux-amd64/promtool
           ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" node --test deploy/production/reconciliation-maintenance-alerts.test.mjs deploy/production/audit-export-alerts.test.mjs deploy/production/test-reconciler-alerts.test.mjs
           ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" go test -C services/platform -race -count=1 ./agentsec-api -run '^TestReconciliationMaintenancePrometheusExposition$'
-      - name: Verify durable runtime sessions, enrollment pairing and candidate authority
+      - name: Verify migrations and runtime infrastructure packages
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         run: |
           test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent ./internal/testprocess ./internal/sandboxcutover
+          go test -C services/platform -race -count=1 ./migrations ./runtimeevent ./internal/testprocess ./internal/sandboxcutover
+      - name: Verify API and worker packages
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
+        run: |
           go test -C services/platform -race -count=1 ./agentsec-api ./agentsec-worker
+      - name: Verify runtime metadata, lineage and search packages
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
+        run: |
           go test -C services/platform -race -count=1 ./runtimemetadata ./runtimelineage ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
-          task_reconciler_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-reconciler.XXXXXX")
-          go test -C services/platform -race -c -o "$task_reconciler_dir/worker-tests" ./agentsec-worker
-          export ZASP_RECONCILE_CLIENT_BINARY="$task_reconciler_dir/worker-tests"
-          go test -C services/platform -race -count=1 -timeout=30m ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes|Test.*SecurityAgent)'
       - name: Require audit fixture toolchains and pinned LocalStack image
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         id: audit_prerequisites
         timeout-minutes: 35
         run: |
@@ -175,6 +202,7 @@ jobs:
           docker info --format '{{.ServerVersion}}'
           docker pull localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c
       - name: Verify audit codec, configuration and artifact stores
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         id: audit_packages
         timeout-minutes: 35
         run: |
@@ -183,6 +211,7 @@ jobs:
           go test -C services/platform -race -count=1 -timeout=30m ./audit ./auditexportconfig ./artifactstore/...
       # Sequential bounds are failure deadlines, not hosted timing evidence.
       - name: Verify audit PostgreSQL authority A-M
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         id: audit_a1
         timeout-minutes: 35
         run: |
@@ -190,6 +219,7 @@ jobs:
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExportPostgres[A-M]'
       - name: Verify audit PostgreSQL authority N-Z
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         id: audit_a2
         timeout-minutes: 35
         run: |
@@ -197,6 +227,7 @@ jobs:
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExportPostgres[N-Z]'
       - name: Verify audit public, worker and compatibility acceptance
+        if: ${{ !cancelled() && steps.audit_prerequisites.outcome == 'success' }}
         id: audit_a3
         timeout-minutes: 35
         env:
@@ -206,6 +237,7 @@ jobs:
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExport(Public|Identity|Worker|RunContext|s)'
       - name: Verify audit immutable retrieval and provider contracts
+        if: ${{ !cancelled() && steps.audit_prerequisites.outcome == 'success' }}
         id: audit_a4
         timeout-minutes: 35
         run: |
@@ -213,76 +245,28 @@ jobs:
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExport(Artifact|Composition|Contents|Cursor|Descriptor|HTTP(Create|Get|PostWorker|Rejects)|Localstack|LocalStack|Policy|Process|Production|Read|Recovery|Repository)'
       - name: Verify audit HTTP memory, provider and lifetime helpers
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         id: audit_helpers
         timeout-minutes: 35
         run: |
           export PATH="$(pg_config --bindir):$PATH"
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^(TestAuditHTTP(Size(Expected|Memory|Oracle|PostgresStop|Process(Inputs|Protocol|TerminalTail|PrivateFiles|Environment|StartFailure|BackgroundOwnership)|Provider|Shutdown)|Fixture)|TestDisposablePostgresCleanup)'
-      - name: Verify audit HTTP process composition and controlled zero source
-        id: audit_composition
-        timeout-minutes: 37
-        run: |
-          export PATH="$(pg_config --bindir):$PATH"
-          test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 -v -timeout=32m ./apiserver -run '^TestAuditHTTPSizeProcessCompositionPostgres$'
-      - name: Verify audit full-size functional race children
-        id: audit_race
-        timeout-minutes: 37
-        env:
-          ZASP_AUDIT_HTTP_SIZE_BUILD: "race"
-        run: |
-          export PATH="$(pg_config --bindir):$PATH"
-          test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 -v -timeout=32m ./apiserver -run '^TestAuditExportHTTPSizeProcessPostgres$'
-      - name: Verify both audit full-size memory sensitivity controls
-        id: audit_controls
-        timeout-minutes: 45
-        env:
-          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
-        run: |
-          export PATH="$(pg_config --bindir):$PATH"
-          test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 -v -timeout=40m ./apiserver -run '^TestAuditExportHTTPSizeMemorySensitivityPostgres$'
-      - name: Verify three serial audit full-size normal memory pairs
-        id: audit_normal
-        timeout-minutes: 45
-        env:
-          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
-        run: |
-          export PATH="$(pg_config --bindir):$PATH"
-          test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 -v -timeout=40m ./apiserver -run '^TestAuditExportHTTPSizeProcessPostgres$'
-      - name: Verify full-size orderly API restart with numeric children
-        id: audit_orderly
-        timeout-minutes: 25
-        env:
-          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
-        run: |
-          export PATH="$(pg_config --bindir):$PATH"
-          test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 -v -timeout=20m ./apiserver -run '^TestAuditExportHTTPOrderlyRestartPostgres$'
-      - name: Verify full-size orderly API restart with race children
-        id: audit_orderly_race
-        timeout-minutes: 25
-        env:
-          ZASP_AUDIT_HTTP_SIZE_BUILD: "race"
-        run: |
-          export PATH="$(pg_config --bindir):$PATH"
-          test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 -v -timeout=20m ./apiserver -run '^TestAuditExportHTTPOrderlyRestartPostgres$'
       - name: Verify sensor lineage and authenticated replay
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         run: |
           export PATH="$(pg_config --bindir):$PATH"
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/sensor-agent -race -count=1 ./...
           go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntimeAcceptance|TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance)'
       - name: Verify actual daemon lost-success replay
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         timeout-minutes: 15
         run: |
           node --test scripts/sensor-daemon-replay.test.mjs
           node scripts/sensor-daemon-replay.mjs
       - name: Verify bounded Attack Lab network enforcement
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...
           go test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab
@@ -322,7 +306,7 @@ jobs:
           sudo install -m 0644 "$fixture_pg_dir/pgdg.asc" /usr/share/keyrings/zasp-ci-pgdg.asc
           printf '%s\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/zasp-ci-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/zasp-ci-pgdg.list > /dev/null
           sudo apt-get update
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18 python3-yaml
           fixture_pg_bin=/usr/lib/postgresql/18/bin
           for fixture_tool in initdb postgres pg_isready pg_ctl pg_config; do
             test -x "$fixture_pg_bin/$fixture_tool"
@@ -333,6 +317,7 @@ jobs:
           esac
           printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
       - name: Verify the platform package selection
+        id: selection
         run: node --test scripts/platform-go-test-packages.test.mjs
       - name: Verify platform packages no other step runs
         timeout-minutes: 30
@@ -344,6 +329,216 @@ jobs:
           # Latency budgets are skipped under -race; measure them without it.
           go test -C services/platform -count=1 -run 'IsFast$' ./guardrail
       - name: Verify the apiserver feature tests
+        if: ${{ !cancelled() && steps.selection.outcome == 'success' }}
         timeout-minutes: 20
         run: |
           go test -C services/platform -race -count=1 -timeout=15m -run "$(node scripts/platform-go-test-packages.mjs --apiserver-features)" ./apiserver
+
+  audit-full-size:
+    name: Full-size audit (${{ matrix.lane }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [audit_composition, audit_race, audit_controls, audit_normal, audit_orderly, audit_orderly_race]
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: true
+          cache-dependency-path: services/platform/go.sum
+      - name: Install PostgreSQL 18 reference fixture tools
+        run: *install_postgres_18
+      # The measured parents rebuild their own API/worker children with a three-minute cap.
+      # Fresh runners prime the selected compilation mode before starting that clock.
+      - name: Prime audit child compilation
+        timeout-minutes: 30
+        env:
+          AUDIT_CHILD_MODE: ${{ (matrix.lane == 'audit_composition' || matrix.lane == 'audit_race' || matrix.lane == 'audit_orderly_race') && 'race' || 'normal' }}
+        run: |
+          task_build_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-audit-build.XXXXXX")
+          trap 'rm -rf -- "$task_build_dir"' EXIT
+          flags=()
+          if [[ "$AUDIT_CHILD_MODE" == race ]]; then flags=(-race); fi
+          for package in apiserver agentsec-worker; do
+            GOENV=off GOTOOLCHAIN=local GOGC=100 GOMEMLIMIT=off GOMAXPROCS=2 go test -C services/platform "${flags[@]}" -c -o "$task_build_dir/$package.test" "./$package"
+          done
+      - name: Verify audit HTTP process composition and controlled zero source
+        if: matrix.lane == 'audit_composition'
+        id: audit_composition
+        timeout-minutes: 37
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=32m ./apiserver -run '^TestAuditHTTPSizeProcessCompositionPostgres$'
+      - name: Verify audit full-size functional race children
+        if: matrix.lane == 'audit_race'
+        id: audit_race
+        timeout-minutes: 37
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: "race"
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=32m ./apiserver -run '^TestAuditExportHTTPSizeProcessPostgres$'
+      - name: Verify both audit full-size memory sensitivity controls
+        if: matrix.lane == 'audit_controls'
+        id: audit_controls
+        timeout-minutes: 45
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=40m ./apiserver -run '^TestAuditExportHTTPSizeMemorySensitivityPostgres$'
+      - name: Verify three serial audit full-size normal memory pairs
+        if: matrix.lane == 'audit_normal'
+        id: audit_normal
+        timeout-minutes: 45
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=40m ./apiserver -run '^TestAuditExportHTTPSizeProcessPostgres$'
+      - name: Verify full-size orderly API restart with numeric children
+        if: matrix.lane == 'audit_orderly'
+        id: audit_orderly
+        timeout-minutes: 25
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=20m ./apiserver -run '^TestAuditExportHTTPOrderlyRestartPostgres$'
+      - name: Verify full-size orderly API restart with race children
+        if: matrix.lane == 'audit_orderly_race'
+        id: audit_orderly_race
+        timeout-minutes: 25
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: "race"
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=20m ./apiserver -run '^TestAuditExportHTTPOrderlyRestartPostgres$'
+
+  migration-tests:
+    name: Migration commands (${{ matrix.lane }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [continuation, discovery-long, discovery, remaining]
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: true
+          cache-dependency-path: services/platform/go.sum
+      - name: Install PostgreSQL 18 reference fixture tools
+        run: *install_postgres_18
+      # The fixtures compile their own binaries while PostgreSQL and Temporal deadlines run.
+      - name: Prime compilation for migration fixture subprocesses
+        timeout-minutes: 30
+        run: |
+          task_build_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-migration-build.XXXXXX")
+          trap 'rm -rf -- "$task_build_dir"' EXIT
+          for package in agentsec-worker apiserver authorization; do
+            go test -C services/platform -c -o "$task_build_dir/$package.test" "./$package"
+          done
+          go build -C services/platform -o "$task_build_dir/migrate" ./agentsec-migrate
+          go build -C services/platform -race -o "$task_build_dir/migrate-race" ./agentsec-migrate
+      - name: Provision pinned owned authorization runtime tools
+        timeout-minutes: 5
+        run: node scripts/hosted-runtime-tool-intake.mjs
+      - name: Verify migration test partition
+        if: matrix.lane == 'remaining'
+        timeout-minutes: 20
+        run: |
+          node --test scripts/owned-migration-tests.test.mjs
+          node scripts/migration-test-partition.mjs
+      - name: Run continuation migration tests
+        if: matrix.lane == 'continuation'
+        timeout-minutes: 80
+        run: |
+          node scripts/owned-migration-tests.mjs -- \
+            go test -C services/platform -race -count=1 -timeout=70m -run '^TestTemporalDiscoveryContinuationPostgres$' ./agentsec-migrate
+      - name: Run discovery-long migration tests
+        if: matrix.lane == 'discovery-long'
+        timeout-minutes: 55
+        run: |
+          node scripts/owned-migration-tests.mjs -- \
+            go test -C services/platform -race -count=1 -timeout=45m -run '^TestTemporalDiscovery(ShippedRuntime|TenantIsolation)Postgres$' ./agentsec-migrate
+      - name: Run discovery migration tests
+        if: matrix.lane == 'discovery'
+        timeout-minutes: 75
+        run: |
+          node scripts/owned-migration-tests.mjs -- \
+            go test -C services/platform -race -count=1 -timeout=65m -run '^TestTemporalDiscovery' -skip '^TestTemporalDiscovery(Continuation|ShippedRuntime|TenantIsolation)Postgres$' ./agentsec-migrate
+      - name: Run remaining migration tests
+        if: matrix.lane == 'remaining'
+        timeout-minutes: 100
+        run: |
+          node scripts/owned-migration-tests.mjs -- \
+            go test -C services/platform -race -count=1 -timeout=90m -skip '^TestTemporalDiscovery' ./agentsec-migrate
+
+  durable-apiserver:
+    name: Durable API server (${{ matrix.shard }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: true
+          cache-dependency-path: services/platform/go.sum
+      - name: Install PostgreSQL 18 reference fixture tools
+        run: *install_postgres_18
+      - name: Test durable API server partition
+        if: matrix.shard == 0
+        run: node --test scripts/durable-apiserver-shard.test.mjs
+      - name: Verify runtime sessions, enrollment pairing and candidate authority
+        timeout-minutes: 70
+        env:
+          DURABLE_SHARD: ${{ matrix.shard }}
+        run: |
+          task_reconciler_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-reconciler.XXXXXX")
+          go test -C services/platform -race -c -o "$task_reconciler_dir/worker-tests" ./agentsec-worker
+          export ZASP_RECONCILE_CLIENT_BINARY="$task_reconciler_dir/worker-tests"
+          export ZASP_ATTACK_LAB_TASK2_WORKER_BINARY="$ZASP_RECONCILE_CLIENT_BINARY"
+          go test -C services/platform -race -count=1 ./apiserver -list '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes|Test.*SecurityAgent)' > "$task_reconciler_dir/tests"
+          selection=$(node scripts/durable-apiserver-shard.mjs "$task_reconciler_dir/tests" "$DURABLE_SHARD")
+          go test -C services/platform -race -count=1 -timeout=60m ./apiserver -run "$selection"

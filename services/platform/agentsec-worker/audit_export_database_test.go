@@ -117,6 +117,74 @@ func TestAuditExportWorkerCaptureAndFrozenPagePreserveCanonicalPlan(t *testing.T
 	}
 }
 
+func TestAuditExportWorkerFrozenPreparationPreservesAdmission(t *testing.T) {
+	for _, mode := range []string{"canonical", "changed frozen event", "lost readiness", "changed intent"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newAuditExportExecutionFixture(t, false)
+			ctx := context.Background()
+			authority, err := newPostgresAuditExportAuthorityContext(ctx, f.db, f.config.Policy.Configuration)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lease := f.lease
+			lease.Captured = true
+			capture := auditExportCaptureFromWire(lease, f.progress)
+			if mode == "lost readiness" {
+				f.change = "after page drift"
+			}
+			f.db.queries = nil
+			f.db.respond = func(ctx context.Context, sql string, args ...any) (json.RawMessage, error) {
+				result, err := f.query(ctx, sql, args...)
+				if sql == auditExportWorkerFrozenPageSQL && mode == "changed frozen event" {
+					return bytes.Replace(result, []byte(`"actor_id":`), []byte(`"Actor_id":`), 1), err
+				}
+				if sql == auditExportWorkerPrepareChunkSQL {
+					// The transport only owns the SQL argument copy.
+					args[13].([]byte)[0] = '!'
+					if mode == "changed intent" {
+						return bytes.Replace(result, []byte(`"ordinal":1`), []byte(`"ordinal":2`), 1), err
+					}
+				}
+				return result, err
+			}
+			page, intent, err := authority.readAndPrepareFrozenChunk(ctx, lease, capture)
+			wantQueries := []string{auditExportWorkerReadySQL, auditExportWorkerFrozenPageSQL}
+			if mode != "changed frozen event" {
+				wantQueries = append(wantQueries, auditExportWorkerReadySQL)
+				if mode != "lost readiness" {
+					wantQueries = append(wantQueries, auditExportWorkerPrepareChunkSQL)
+				}
+			}
+			var gotQueries []string
+			for _, query := range f.db.queries {
+				gotQueries = append(gotQueries, query.SQL)
+			}
+			if !reflect.DeepEqual(gotQueries, wantQueries) {
+				t.Fatal("frozen preparation changed SQL authority checks", gotQueries)
+			}
+			if mode != "canonical" {
+				if err == nil || len(page.Body) != 0 || intent != (auditExportIntent{}) {
+					t.Fatal("unconfirmed page or intent escaped", err)
+				}
+				return
+			}
+			if err != nil || !bytes.Equal(page.Body, f.chunk) {
+				t.Fatal("prepared page lost its independently encoded bytes", err)
+			}
+			replay, err := authority.PrepareChunk(ctx, lease, page.Body)
+			if err != nil || replay != intent {
+				t.Fatal("detached canonical body did not produce the same intent", err)
+			}
+			// A page loses its provenance as soon as it leaves the paired operation.
+			f.db.queries = nil
+			page.Body[0] = '!'
+			if _, err := authority.PrepareChunk(ctx, lease, page.Body); err == nil || len(f.db.queries) != 0 {
+				t.Fatal("mutated detached bytes reached SQL")
+			}
+		})
+	}
+}
+
 func TestAuditExportWorkerCaptureAcceptsEmptyCompletedAndStableFailure(t *testing.T) {
 	for _, kind := range []string{"empty", "completed", "capacity_exceeded", "invalid_source"} {
 		t.Run(kind, func(t *testing.T) {

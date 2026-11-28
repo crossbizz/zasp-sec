@@ -159,7 +159,11 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 			return failed()
 		}
 		enterStartupStage("discovery-product")
-		product, err := newTemporalDiscoveryProduct(db, factory)
+		var productDatabase apiserver.JSONDatabase = db
+		if observer := external.temporalDiagnostic; observer != nil && observer.database != nil {
+			productDatabase = observer.database(productDatabase)
+		}
+		product, err := newTemporalDiscoveryProduct(productDatabase, factory)
 		if err != nil {
 			return failed()
 		}

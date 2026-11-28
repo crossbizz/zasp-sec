@@ -110,6 +110,13 @@ export function assertAuditSourceCoverage(sources: AuditSources, lanes: AuditLan
   contains(composition, /"controlled-zero-source"/);
   contains(composition, /Rows: 1000, Empty: empty/);
   contains("auditHTTPSizeCompositionCase", /range \[\]string\{"audit-export-outbox", "audit-export"\}/);
+  calls("auditHTTPSizeCompositionCase", "auditHTTPSizeReadPage");
+  contains("auditHTTPSizeCompositionCase", /auditHTTPSizeBoundedPhase\(ctx, 3\*time\.Minute\)/);
+  contains("auditHTTPSizeCompositionCase", /auditHTTPSizeBoundedPhase\(ctx, 8\*time\.Minute\)/);
+  calls("TestAuditHTTPSizeProcessProtocolBoundedPhase", "auditHTTPSizeBoundedPhase");
+  const pageChecks = "TestAuditHTTPSizeExpectedBoundaries";
+  contains(pageChecks, /t\.Run\("current-page-overlap",/);
+  contains(pageChecks, /range \[\]string\{"fatal-get", "canceled-phase"\}\s*\{\s*t\.Run\(mode\+"-joins-source",/);
   const recovery = "TestAuditExportWorkerPostgresRecoveryProcessBatch";
   contains(recovery, /range \[\]string\{"capture", "receipt", "stale", "manifest", "finish"\}/);
   contains(recovery, /t\.Run\(phase,/);
@@ -126,6 +133,7 @@ export function assertAuditSourceCoverage(sources: AuditSources, lanes: AuditLan
   // Explicit parent -> launcher paths. Reaching a skipped child from an
   // unfiltered worker package alone never supplies execution credit.
   const ownership: Array<{ child: string; parent: string; chain: string[]; launcherFile?: string }> = [
+    ...["TestAuditHTTPSizeMemorySupervisor", "TestAuditHTTPSizeProcessProtocolIdentity"].map(parent => ({ child: parent, parent, chain: [] })),
     { child: "TestAuditExportAuthorityPostgres", parent: "TestAuditExportWorkerPostgresClaimHeartbeatRoundTrip", chain: [] },
     ...[
       ["TestAuditExportAuthorityCapturePostgres", "TestAuditExportWorkerPostgresCaptureFrozenPagesResume"],
@@ -149,7 +157,7 @@ export function assertAuditSourceCoverage(sources: AuditSources, lanes: AuditLan
     for (let i = 0; i < path.length - 1; i++) calls(path[i], path[i + 1], owner.launcherFile);
     const launcher = get(path.at(-1)!, owner.launcherFile);
     requireEvidence(launcher.body.includes(owner.child), `missing child launch ${owner.parent} -> ${owner.child}`);
-    const target = owner.child === "TestAuditHTTPSizeAPIProcess" ? api : worker;
+    const target = owner.child === owner.parent || owner.child === "TestAuditHTTPSizeAPIProcess" ? api : worker;
     requireEvidence(target.filter(fn => fn.name === owner.child).length === 1, `missing/ambiguous child declaration ${owner.child}`);
   }
   const children = new Set(ownership.map(owner => owner.child));

@@ -5,11 +5,171 @@ import { once } from "node:events";
 import { mkdtemp, readFile, readdir, rm, rmdir } from "node:fs/promises";
 import os from "node:os";
 import http from "node:http";
+import https from "node:https";
 import path from "node:path";
 import test from "node:test";
-import { runInNewContext } from "node:vm";
+import { createContext, runInContext, runInNewContext } from "node:vm";
 import { auditBrowserAPISettings, auditBrowserEnvironment, auditBrowserPolicyEnvironment } from "./audit-log-browser-proof.mjs";
 import { exportBrowserIdentity, exportBrowserRelease } from "./security-agent-export-mounted-browser.mjs";
+
+test("initial compliance evidence waits separately for the signed-in scope and three serial reads", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function waitForInitialComplianceEvidence(");
+  const end = source.indexOf("\nasync function waitForBrowserText(", start);
+  assert.ok(start >= 0 && end > start);
+  const scope = "org/workspace/environment";
+  for (const scenario of ["ready", "wrong scope", "wrong route", "missing link"]) {
+    let now = 0;
+    const location = new URL("https://console.example/compliance/evidence");
+    if (scenario === "wrong route") location.pathname = "/sign-in";
+    const link = {
+      href: "https://console.example/compliance/evidence?organization_id=org&workspace_id=workspace&environment_id=environment",
+      getAttribute: () => "Open policy policy-compliance-read-only version 3",
+    };
+    const page = createContext({location, URL, document: {
+      body: {innerText: ""},
+      querySelector: selector => {
+        assert.equal(selector, 'select[aria-label="Authorized scope"]');
+        return {value: now >= 9_000 && scenario !== "wrong scope" ? "workspace/environment" : "another/scope"};
+      },
+      querySelectorAll: () => now >= 36_000 && scenario !== "missing link" ? [link] : [],
+    }});
+    const wait = runInNewContext(`${source.slice(start, end)}\nwaitForInitialComplianceEvidence`, {
+      performance: {now: () => now}, delay: async ms => { now += ms; },
+      complianceResponseTrace: [], console: {error: () => {}},
+    });
+    const ready = wait({send: async (_method, {expression}) => ({result: {value: runInContext(expression, page)}})}, scope, 0);
+    if (scenario === "ready") {
+      await ready;
+      assert.equal(now, 36_000);
+    } else if (scenario === "missing link") {
+      await assert.rejects(ready, /read-only policy link/);
+      assert.equal(now, 9_000 + 3 * 10_000 + 2_000);
+    } else {
+      await assert.rejects(ready, /initial scope/);
+      assert.equal(now, 15_000);
+    }
+  }
+});
+
+test("compliance paging waits for both policy links in the selected scope and reports only bounded diagnostics", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function waitForCompliancePagingLinks(");
+  const end = source.indexOf("\nasync function waitForBrowserText(", start);
+  assert.ok(start >= 0 && end > start);
+  const scope = "selected-org/selected-workspace/selected-env", label = "Open policy fixture version 7";
+  const location = new URL("https://console.example/compliance/evidence");
+  const link = (origin, environment) => ({
+    href: origin + "/compliance/evidence?organization_id=selected-org&workspace_id=selected-workspace&environment_id=" + environment,
+    getAttribute: name => name === "aria-label" ? label : null,
+  });
+  const good = link(location.origin, "selected-env"), different = link(location.origin, "private-env");
+  let links = [good, different, link("https://different.example", "selected-env")];
+  let now = 0;
+  const messages = [];
+  const trace = {method: "GET", path: "/api/v1/compliance/evidence", framework: "hipaa", scope, cursor: true, cursorLength: 836, status: 200, duration: "9to11s"};
+  const wait = runInNewContext(`(${source.slice(start, end)})`, {
+    performance: {now: () => now}, delay: async milliseconds => { now += milliseconds; },
+    console: {error: message => messages.push(message)},
+    complianceResponseTrace: [
+      {...trace, status: 429}, trace, trace, {...trace, path: "/api/v1/compliance/controls", framework: null, cursor: false, scope: "private-env", duration: "private-value"},
+      {...trace, path: "/private/secret"}, {...trace, status: 998},
+    ],
+  });
+  const document = {body: {innerText: "Compliance request failed. private-env secret"}, querySelectorAll: selector => {
+    assert.equal(selector, "a[href]"); return links;
+  }};
+  const page = createContext({document, location, URL});
+  const browser = {send: async (method, {expression}) => {
+    assert.equal(method, "Runtime.evaluate");
+    return {result: {value: runInContext(expression, page)}};
+  }};
+  await assert.rejects(wait(browser, label, scope, 1), /both frameworks/);
+  assert.equal(now, 52_000);
+  assert.deepEqual(messages, ["ZASP_COMPLIANCE_PAGING=ui-read-error-links-1-route-evidence evidence-hipaa-selected-long-200-9to11s controls-all-other-first-200-unknown"]);
+  // Five valid serial responses may outlast the generic 15-second UI wait.
+  const startedAt = now;
+  document.querySelectorAll = () => now - startedAt >= 38_000 ? [good, good] : links;
+  await wait(browser, label, scope, 1);
+  assert.equal(now - startedAt, 38_000);
+  assert.equal(messages.length, 1);
+});
+
+test("the TLS compliance proxy cancels abandoned reads and preserves completed reads and upstream failures", async t => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function startProxy(");
+  const end = source.indexOf("\nfunction captureDelayedFirstTabBootstrap(", start);
+  assert.ok(start > 0 && end > start);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "zasp-proxy-tls-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const key = path.join(directory, "key.pem"), cert = path.join(directory, "cert.pem");
+  const signed = spawnSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+    "-nodes", "-days", "1", "-subj", "/CN=localhost", "-keyout", key, "-out", cert]);
+  assert.equal(signed.status, 0);
+  const trace = [];
+  const startProxy = runInNewContext(`(${source.slice(start, end)})`, {
+    http, https, readFile, once, URL, performance, recoveryHostname: "unused.invalid", auditBrowserMode: false,
+    auditExportBrowserMode: false, securityAgentExportMode: false, complianceBrowserMode: true,
+    productAPIRequests: [], administrationRequests: [], complianceResponseTrace: trace, scopeOverlapProof: { events: [] },
+  });
+  const api = http.createServer();
+  api.listen(0, "127.0.0.1");
+  await once(api, "listening");
+  const stop = server => {
+    server.closeAllConnections();
+    return new Promise(resolve => server.close(resolve));
+  };
+  t.after(() => stop(api));
+  const proxy = await startProxy(0, api.address().port, 0, key, cert);
+  t.after(() => stop(proxy));
+  const url = `https://127.0.0.1:${proxy.address().port}/api/v1/compliance/controls`;
+  const options = { rejectUnauthorized: false, agent: false };
+  const waitForRequest = once(api, "request", { signal: AbortSignal.timeout(3000) });
+  const abandoned = https.get(url, options);
+  abandoned.on("error", error => assert.equal(error.code, "ECONNRESET"));
+  const [, pending] = await waitForRequest;
+  const upstreamClosed = once(pending, "close", { signal: AbortSignal.timeout(3000) });
+  abandoned.destroy();
+  await upstreamClosed;
+
+  const fetchThroughProxy = () => new Promise((resolve, reject) => {
+    https.get(url, options, async reply => {
+      const chunks = [];
+      for await (const chunk of reply) chunks.push(chunk);
+      resolve([reply.statusCode, Buffer.concat(chunks).toString()]);
+    }).once("error", reject);
+  });
+  api.once("request", (_request, response) => response.end("completed"));
+  assert.deepEqual(await fetchThroughProxy(), [200, "completed"]);
+  api.once("request", (request) => request.socket.destroy());
+  assert.deepEqual(await fetchThroughProxy(), [502, "upstream unavailable"]);
+  assert.deepEqual(trace.map(entry => entry.status), [200, 502]);
+  assert.ok(trace.every(entry => ["lt1s","1to5s","5to9s","9to11s","ge11s"].includes(entry.duration)));
+});
+
+test("a failed cleanup retains the original browser harness failure and disposes handlers", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.lastIndexOf("} catch (error) {", source.indexOf("  harnessFailure = error;"));
+  const end = source.indexOf("\nasync function exerciseSecurityAgentSimulationBrowser", start);
+  assert.ok(start > 0 && end > start);
+  const startup = Error("startup"), cleanup = Error("cleanup");
+  for (const [primary, finalization] of [[startup, cleanup], [startup, null], [null, cleanup], [null, null]]) {
+    const calls = [];
+    const operation = runInNewContext(
+      `(async () => { let harnessFailure; try { if (primary) throw primary; ${source.slice(start, end)} })()`,
+      {primary, complianceBrowserMode: false, cleanupController: {
+        run: async () => { calls.push("join"); if (finalization) throw finalization; },
+        dispose: () => calls.push("dispose"),
+      }},
+    );
+    if (primary && finalization) {
+      await assert.rejects(operation, err => err.cause === primary && err.errors[0] === primary && err.errors[1] === finalization);
+    } else if (primary || finalization) {
+      await assert.rejects(operation, err => err === (primary ?? finalization));
+    } else await operation;
+    assert.deepEqual(calls, ["join", "dispose"]);
+  }
+});
 
 const discoveryRelease60 = {
   version: 60,
@@ -2058,3 +2218,94 @@ test("current runtime startup arriving during cleanup is joined before file remo
   assert.equal(loops,0,"late installation started an unowned projection loop");assert.equal(closes,1);assert.equal(removed,true);
   assert.match((await boot).error?.message??"",/current runtime startup after cleanup refused/);
  });
+
+test("CDP rejects closed connections immediately and never includes parameters in timeout diagnostics", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function connectCDP(");
+  const end = source.indexOf("\nfunction startChild(", start);
+  const timers = new Set();
+  class Socket extends EventTarget {
+    static OPEN = 1;
+    static instances = [];
+    readyState = Socket.OPEN;
+    sent = [];
+    constructor() { super(); Socket.instances.push(this); queueMicrotask(() => this.dispatchEvent(new Event("open"))); }
+    send(message) { this.sent.push(message); }
+    close() { this.readyState = 3; this.dispatchEvent(new Event("close")); }
+  }
+  const connect = runInNewContext(`(${source.slice(start, end)})`, {
+    WebSocket: Socket, browserStage: "navigate:https://fixture.invalid/private-scope",
+    setTimeout(callback) { timers.add(callback); return callback; }, clearTimeout(callback) { timers.delete(callback); },
+  });
+  for (const peerClosed of [false, true]) {
+    const cdp = await connect("local");
+    const socket = Socket.instances.at(-1);
+    const pending = cdp.send("Runtime.evaluate", { expression: "private-credential" });
+    const rejects = assert.rejects(pending, { message: "CDP connection closed" });
+    if (peerClosed) socket.close(); else cdp.close();
+    await rejects;
+    await assert.rejects(cdp.send("Runtime.evaluate"), { message: "CDP connection closed" });
+    assert.equal(timers.size, 0);
+    assert.equal(socket.sent.length, 1);
+  }
+  const cdp = await connect("local");
+  const socket = Socket.instances.at(-1);
+  socket.readyState = 2;
+  await assert.rejects(cdp.send("Runtime.evaluate"), { message: "CDP connection closed" });
+  assert.equal(socket.sent.length, 0);
+  socket.readyState = Socket.OPEN;
+  const pending = cdp.send("Runtime.evaluate", { expression: "private-credential", awaitPromise: true });
+  const timedOut = assert.rejects(pending, { message: "CDP request timed out: navigation browser-fetch" });
+  for (const timer of timers) timer();
+  await timedOut;
+  cdp.close();
+});
+
+test("the mounted controls proof recognizes the real Framework label and explicit ARIA labels", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("function findLabeledSelect(");
+  const end = source.indexOf("\nasync function selectBrowserOption(", start);
+  const find = runInNewContext(`(${source.slice(start, end)})`);
+  const { JSDOM } = await import("jsdom");
+  const page = new JSDOM('<label><span>Framework</span><span><select id="framework"><option>HIPAA</option></select></span></label><select aria-label="Authorized scope" id="scope"></select><label for="control">Control</label><select id="control"></select><span>Other</span><select></select>');
+  try {
+    const document = page.window.document;
+    assert.equal(find(document, "Framework")?.id, "framework");
+    assert.equal(find(document, "Authorized scope")?.id, "scope");
+    assert.equal(find(document, "Control")?.id, "control");
+    assert.equal(find(document, "Other"), undefined);
+  } finally { page.window.close(); }
+});
+
+test("the compliance download replay uses four separate CDP requests and resubmits exactly the original grant", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function verifyComplianceDownloadReplay(");
+  const end = source.indexOf("\nasync function browserHarnessDirectIntegrationDeleteReplay(", start);
+  const verify = runInNewContext(source.slice(start, end) + "\nverifyComplianceDownloadReplay", { assert });
+  const requests = [];
+  let sends = 0;
+  const csv = 'source,"value"\r\npolicy,7\r\n';
+  const fetch = async (path, options) => {
+    requests.push({ path, options });
+    const result = [{ status: 200, json: async () => ({ csrf_token: "fixture-csrf" }) },
+      { status: 201, json: async () => ({ token: "a".repeat(64) }) },
+      { status: 200, text: async () => csv }, { status: 401, text: async () => JSON.stringify({code:"authentication_required"}) }];
+    return result[requests.length - 1];
+  };
+  const cdp = { async send(method, { expression, awaitPromise }) {
+    assert.equal(method, "Runtime.evaluate"); assert.equal(awaitPromise, true);
+    sends++;
+    const before = requests.length;
+    const value = await runInNewContext(expression, { fetch });
+    assert.equal(requests.length - before, 1);
+    return { result: { value } };
+  } };
+  await verify(cdp, "export-fixture", "scoped-fixture", csv);
+  assert.equal(sends, 4);
+  assert.deepEqual(requests.map(request => request.path), ["/api/v1/session/bootstrap", "/api/v1/compliance/exports/export-fixture/download-grants",
+    "/api/v1/compliance/exports/export-fixture/download", "/api/v1/compliance/exports/export-fixture/download"]);
+  assert.deepEqual(JSON.parse(requests[2].options.body), { format: "csv", token: "a".repeat(64) });
+  assert.equal(requests[2].options.headers["X-Zasp-Expected-Scope"], "scoped-fixture");
+  assert.equal(requests[2].options.headers["X-CSRF-Token"], "fixture-csrf");
+  assert.equal(JSON.stringify(requests[2].options), JSON.stringify(requests[3].options));
+});

@@ -598,8 +598,8 @@ func (p *auditHTTPSizeProvider) storage(r *http.Request, binding audit.ExportBin
 			return fail("manifest skipped source chunks")
 		}
 	}
-	if err != nil || ctx.Err() != nil || !bytes.Equal(body, wanted) {
-		return fail("body differs from original source")
+	if reason := auditHTTPSizeSourceComparison(ctx.Err(), err, body, wanted); reason != "" {
+		return fail(reason)
 	}
 	headers := make(http.Header)
 	for key, values := range r.Header {
@@ -619,6 +619,42 @@ func (p *auditHTTPSizeProvider) storage(r *http.Request, binding audit.ExportBin
 		p.manifest = true
 	}
 	return object, http.StatusOK, nil
+}
+
+func auditHTTPSizeSourceComparison(contextErr, sourceErr error, received, expected []byte) string {
+	switch {
+	case errors.Is(contextErr, context.DeadlineExceeded) || errors.Is(sourceErr, context.DeadlineExceeded):
+		return "original source comparison deadline exceeded"
+	case errors.Is(contextErr, context.Canceled) || errors.Is(sourceErr, context.Canceled):
+		return "original source comparison canceled"
+	case contextErr != nil || sourceErr != nil:
+		return "original source oracle failed"
+	case !bytes.Equal(received, expected):
+		return "body differs from original source"
+	default:
+		return ""
+	}
+}
+
+func TestAuditHTTPSizeProviderSourceComparison(t *testing.T) {
+	for _, tc := range []struct {
+		name, expected, reason string
+		contextErr, sourceErr  error
+	}{
+		{name: "verified", expected: "private fixture body"},
+		{name: "different bytes", expected: "different private body", reason: "body differs from original source"},
+		{name: "request deadline", contextErr: context.DeadlineExceeded, reason: "original source comparison deadline exceeded"},
+		{name: "source deadline", sourceErr: fmt.Errorf("private oracle detail: %w", context.DeadlineExceeded), reason: "original source comparison deadline exceeded"},
+		{name: "request canceled", contextErr: context.Canceled, reason: "original source comparison canceled"},
+		{name: "source canceled", sourceErr: context.Canceled, reason: "original source comparison canceled"},
+		{name: "oracle failure", sourceErr: errors.New("private source error"), reason: "original source oracle failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := auditHTTPSizeSourceComparison(tc.contextErr, tc.sourceErr, []byte("private fixture body"), []byte(tc.expected)); got != tc.reason {
+				t.Fatalf("unexpected provider refusal %q", got)
+			}
+		})
+	}
 }
 
 func auditHTTPSizeSDK(t *testing.T, front *httptest.Server, role string) *s3.Client {

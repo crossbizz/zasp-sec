@@ -128,12 +128,12 @@ func TestAuditExportCompletedProviderRenewalContract(t *testing.T) {
 // This observer never supplies SQL responses. It records returned, committed
 // intent authority so the owned provider can reject writes before preparation.
 type auditExportCompletedDatabase struct {
-	base                        recoveryJSONDatabase
-	mu                          sync.Mutex
-	intents                     map[string]auditExportIntent
-	finish                      json.RawMessage
-	records, prepares, finishes int
-	queries, inFlight           int
+	base                                     recoveryJSONDatabase
+	mu                                       sync.Mutex
+	intents                                  map[string]auditExportIntent
+	finish                                   json.RawMessage
+	frozenPages, records, prepares, finishes int
+	queries, inFlight                        int
 }
 
 func (d *auditExportCompletedDatabase) SecurityAgentRunContextAvailable(ctx context.Context) (bool, error) {
@@ -162,6 +162,8 @@ func (d *auditExportCompletedDatabase) QueryJSON(ctx context.Context, query stri
 		return body, err
 	}
 	switch query {
+	case auditExportWorkerFrozenPageSQL:
+		d.frozenPages++
 	case auditExportWorkerPrepareChunkSQL, auditExportWorkerPrepareManifestSQL:
 		var wire struct {
 			Binding    audit.ExportBinding `json:"binding"`
@@ -509,10 +511,10 @@ func TestAuditExportCompletedWorkerPostgres(t *testing.T) {
 		deliveryCount, renewalCount, deliveryRenewalCount, pending := receives, renewals, deliveryRenewals, active
 		mu.Unlock()
 		database.mu.Lock()
-		prepares, records, finishes := database.prepares, database.records, database.finishes
+		pages, prepares, records, finishes := database.frozenPages, database.prepares, database.records, database.finishes
 		database.mu.Unlock()
-		if count != 3 || acks != iteration+1 || writes != 3 || fault != "" || prepares != 3 || records != 2 || finishes != 1 {
-			t.Fatal("completion/replay changed durable or provider effects", count, acks, writes, prepares, records, finishes, fault)
+		if count != 3 || acks != iteration+1 || writes != 3 || fault != "" || pages != 2 || prepares != 3 || records != 2 || finishes != 1 {
+			t.Fatal("completion/replay changed durable or provider effects", count, acks, writes, pages, prepares, records, finishes, fault)
 		}
 		if deliveryCount != iteration+1 || deliveryRenewalCount < 2 || renewalCount < 2*(iteration+1) || pending {
 			t.Fatal("completion/replay lost per-delivery renewal ownership", deliveryCount, deliveryRenewalCount, renewalCount, pending)

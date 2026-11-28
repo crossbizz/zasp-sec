@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -232,6 +233,88 @@ func TestServeRuntimeSplitsProductAndInternalListeners(t *testing.T) {
 		if !bytes.Contains(output.Bytes(), []byte(event)) {
 			t.Fatalf("lifecycle log missing %s: %s", event, output.String())
 		}
+	}
+}
+
+func TestServeRuntimeHonorsWholeRequestTimeout(t *testing.T) {
+	config := fixtureRuntimeConfig()
+	config.ProviderTimeout = 100 * time.Millisecond
+	config.RequestTimeout = time.Second
+	deadlineExpired := make(chan error, 1)
+	work := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/wait" {
+			<-r.Context().Done()
+			deadlineExpired <- r.Context().Err()
+			return
+		}
+		// Each operation fits the provider budget. Together they need longer.
+		for range 3 {
+			operation, cancel := context.WithTimeout(r.Context(), config.ProviderTimeout)
+			select {
+			case <-operation.Done():
+				cancel()
+				http.Error(w, "operation timed out", http.StatusGatewayTimeout)
+				return
+			case <-time.After(50 * time.Millisecond):
+				cancel()
+			}
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	deps := fixtureRuntimeDependencies()
+	var err error
+	deps.ProductHandler, err = newOperationalMiddleware(io.Discard, newOperationalMetrics(), newRequestLimiter(10, 10, 10, time.Now), config.RequestTimeout, newStructuredSpanExporter(io.Discard), work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	product := make(chan string, 1)
+	listen := func(network, address string) (net.Listener, error) {
+		ln, err := net.Listen(network, "127.0.0.1:0")
+		if err == nil && address == config.ProductListenAddress {
+			product <- "http://" + ln.Addr().String()
+		}
+		return ln, err
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- serveRuntime(ctx, io.Discard, "1.2.3", config, deps, listen) }()
+	defer cancel()
+	var url string
+	select {
+	case url = <-product:
+	case err := <-done:
+		t.Fatalf("starting API: %v", err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("product listener did not start")
+	}
+	t.Cleanup(func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("stopping API: %v", err)
+		}
+	})
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 3 * time.Second}
+	resp, err := client.Get(url + "/work")
+	if err != nil {
+		t.Fatalf("multi-operation response: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("multi-operation status: %s", resp.Status)
+	}
+	// At the request deadline the socket can close before an error body is sent.
+	// The server-side work must observe the request timeout in either case.
+	resp, _ = client.Get(url + "/wait")
+	if resp != nil {
+		resp.Body.Close()
+	}
+	select {
+	case cause := <-deadlineExpired:
+		if !errors.Is(cause, context.DeadlineExceeded) {
+			t.Fatalf("request ended with %v", cause)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("request continued past its deadline")
 	}
 }
 

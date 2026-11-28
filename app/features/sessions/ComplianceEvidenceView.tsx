@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { APIProductError, type APIClient } from "../../../apps/web/api/client";
 import type { ComplianceControl, ComplianceDownloadFormat, ComplianceEvidence, ComplianceEvidenceDetail, ComplianceEvidenceTarget, ComplianceExport, ComplianceExportInput } from "../../../apps/web/api/generated";
 import type { ActivityScope } from "../../domain/activity-links";
@@ -58,12 +58,16 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
   const [exportError, setExportError] = useState<string | null>(null);
   const [framework, setFramework] = useState<"" | FrameworkID>("");
   const [controlID, setControlID] = useState("");
-  const [job, setJob] = useState<ComplianceExport | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [storedJob, setJob] = useState<ComplianceExport | null>(null);
+  const job = selectedExport && storedJob?.id !== selectedExport ? null : storedJob;
+  const [actionBusy, setBusy] = useState(false);
+  const [refreshingExport, setRefreshingExport] = useState<{ id: string; route?: string } | null>(null);
+  const busy = actionBusy || (job !== null && refreshingExport?.id === job.id && refreshingExport.route === selectedExport);
   const [notice, setNotice] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [clock, setClock] = useState(Date.now);
   const lifetime = useRef<AbortController | null>(null);
+  const statusRequest = useRef<AbortController | null>(null);
   const retryIntent = useRef<{ input: ComplianceExportInput; key: string } | null>(null);
   const permitted = !boundary || boundary.permitted && boundary.isCurrent();
   const current = () => !lifetime.current?.signal.aborted && (!boundary || boundary.permitted && boundary.isCurrent());
@@ -102,22 +106,38 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, 
     });
     return () => { active = false; controller.abort(); };
   }, [api, remote, boundary, sourceKey, selectedSource, revision, showCatalog]);
-  useEffect(() => {
+  const readJobStatus = useCallback(async (id: string) => {
     if (!remote || !boundary?.permitted) return;
-    let active = true; const controller = new AbortController();
-    if (selectedExport) void remote.status(selectedExport, controller.signal).then(value => { if (active && boundary.isCurrent()) setJob(value); }).catch(e => { if (active && boundary.isCurrent()) { setExportError(message(e)); } });
-    return () => { active = false; controller.abort(); };
-  }, [remote, selectedExport, boundary]);
+    statusRequest.current?.abort();
+    const controller = new AbortController();
+    statusRequest.current = controller;
+    const valid = () => !controller.signal.aborted && boundary.isCurrent();
+    try {
+      const value = await remote.status(id, controller.signal);
+      if (valid()) { setJob(value); setExportError(null); }
+    } catch (e) {
+      if (valid()) {
+        if (e instanceof APIProductError && [401, 403, 404, 410].includes(e.status)) setJob(null);
+        setExportError(message(e));
+      }
+    } finally {
+      if (valid()) setRefreshingExport(null);
+    }
+  }, [remote, boundary]);
+  useEffect(() => {
+    let active = true;
+    if (selectedExport) queueMicrotask(() => { if (active) void readJobStatus(selectedExport); });
+    return () => { active = false; statusRequest.current?.abort(); };
+  }, [selectedExport, readJobStatus]);
   const registered = controls.length > 0 && controls.every(control => control.freshness !== undefined);
-  async function refreshJob() {
+  function refreshJob() {
     if (!remote || !job || !current() || busy) return;
-    setBusy(true); setExportError(null);
-    try { const value = await remote.status(job.id, lifetime.current!.signal); if (current()) setJob(value); }
-    catch (e) { if (current()) setExportError(message(e)); }
-    finally { if (current()) setBusy(false); }
+    setRefreshingExport({ id: job.id, route: selectedExport }); setExportError(null);
+    void readJobStatus(job.id);
   }
   async function createJob(pilot?: ComplianceExportInput) {
     if (!remote || (!registered && !pilot) || !boundary?.fresh || !current() || busy) return;
+    statusRequest.current?.abort();
     const input: ComplianceExportInput = pilot ?? { ...(framework ? { framework } : {}), ...(controlID ? { control_id: controlID } : {}) };
     if (!retryIntent.current || JSON.stringify(retryIntent.current.input) !== JSON.stringify(input)) retryIntent.current = { input, key: `compliance-${crypto.randomUUID()}` };
     setBusy(true); setExportError(null); setNotice(null);

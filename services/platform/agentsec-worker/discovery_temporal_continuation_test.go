@@ -77,7 +77,9 @@ func TestProductDiscoveryShippedContinuation(t *testing.T) {
 		t.Skip("requires owned72 parent")
 	}
 	began := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	// The test covers 268 durable pages and a cold worker restart. The parent
+	// separately watches checkpoint progress throughout this whole-run ceiling.
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Minute)
 	defer cancel()
 	var start orchestration.DiscoveryStart
 	if json.Unmarshal([]byte(os.Getenv("ZASP_P4B_START")), &start) != nil || start.Continuation == nil {
@@ -94,7 +96,7 @@ func TestProductDiscoveryShippedContinuation(t *testing.T) {
 	}
 	defer deleteOwnedDiscoveryNamespace(t, c, namespace)
 
-	var pages atomic.Int32
+	var pages, configMapProbes, serviceProbes atomic.Int32
 	provider := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodGet || r.Host != "example.com" {
@@ -107,6 +109,23 @@ func TestProductDiscoveryShippedContinuation(t *testing.T) {
 		}
 		if r.Header.Get("Authorization") != "Bearer owned-kubernetes-credential-0001" {
 			http.Error(w, "credential refused", 403)
+			return
+		}
+		query := r.URL.Query()
+		if r.URL.Path == "/api/v1/configmaps" {
+			if query.Get("limit") != "1" || query.Get("labelSelector") != "zasp.ai/egress-observations=v1" || len(query) != 2 || pages.Load() != 1 || configMapProbes.Add(1) != 1 {
+				http.Error(w, "unexpected ConfigMap capability probe", http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`{"apiVersion":"v1","kind":"ConfigMapList","items":[]}`))
+			return
+		}
+		if r.URL.Path == "/api/v1/services" && query.Get("limit") == "1" {
+			if len(query) != 1 || pages.Load() != 1 || serviceProbes.Add(1) != 1 {
+				http.Error(w, "unexpected Service capability probe", http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`{"apiVersion":"v1","kind":"ServiceList","items":[]}`))
 			return
 		}
 		n := pages.Add(1)
@@ -134,6 +153,12 @@ func TestProductDiscoveryShippedContinuation(t *testing.T) {
 				next = "page-" + strconv.Itoa(page+1)
 			}
 			items = fmt.Sprintf(`[{"apiVersion":"v1","kind":"Namespace","metadata":{"uid":"ns-%03d","name":"ns-%03d"}}]`, page, page)
+		case "/api/v1/services":
+			if n != 268 || len(query) != 1 || query.Get("limit") != "200" {
+				http.Error(w, "unexpected MCP link collection page", http.StatusBadRequest)
+				return
+			}
+			version, kind = "v1", "Service"
 		case "/api/v1/serviceaccounts":
 			version, kind = "v1", "ServiceAccount"
 		case "/apis/rbac.authorization.k8s.io/v1/roles":
@@ -292,7 +317,10 @@ func TestProductDiscoveryShippedContinuation(t *testing.T) {
 	if result.err != nil || result.result.Outcome != "succeeded" {
 		t.Fatal("continued sync", result.result, pages.Load(), result.err)
 	}
-	if pages.Load() != 267 || storage.writes != 534 {
+	if configMapProbes.Load() != 1 || serviceProbes.Load() != 1 {
+		t.Fatal("expected one of each capability probe", configMapProbes.Load(), serviceProbes.Load())
+	}
+	if pages.Load() != 268 || storage.writes != 536 {
 		t.Fatal("fresh page or artifact replay", pages.Load(), storage.writes)
 	}
 	history := c.GetWorkflowHistory(ctx, id, firstRun, false, enumspb.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)

@@ -62,11 +62,13 @@ func TestTemporalDiscoveryRelationshipMappingPostgres(t *testing.T) {
 func capacityRelationshipCompatibility(t *testing.T, f scheduleReplayFixture, worker *pgx.Conn, historical bool) {
 	t.Helper()
 	var valid bool
-	if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM zasp_inventory_entities WHERE state='active')=2 AND (SELECT count(*) FROM zasp_inventory_relationships WHERE state='present')=2 AND (SELECT count(DISTINCT id) FROM zasp_inventory_relationships)=2 AND NOT EXISTS(SELECT 1 FROM zasp_discovery_snapshot_projection_items p JOIN zasp_discovery_snapshot_inputs s ON(s.organization_id,s.workspace_id,s.environment_id,s.snapshot_id)=(p.organization_id,p.workspace_id,p.environment_id,p.snapshot_id) WHERE p.section='relationships' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(s.relationships) item WHERE item=p.payload))`).Scan(&valid); err != nil || !valid {
+	// Both AWS integrations see the same account and four services. Each
+	// integration owns its own four account-to-service relationships.
+	if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM zasp_inventory_entities WHERE state='active')=5 AND (SELECT count(*) FROM zasp_inventory_relationships WHERE state='present')=8 AND (SELECT count(DISTINCT id) FROM zasp_inventory_relationships)=8 AND NOT EXISTS(SELECT 1 FROM zasp_discovery_snapshot_projection_items p JOIN zasp_discovery_snapshot_inputs s ON(s.organization_id,s.workspace_id,s.environment_id,s.snapshot_id)=(p.organization_id,p.workspace_id,p.environment_id,p.snapshot_id) WHERE p.section='relationships' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(s.relationships) item WHERE item=p.payload))`).Scan(&valid); err != nil || !valid {
 		t.Fatal("shared entities/scoped edges/projection identity", valid, err)
 	}
 	if historical {
-		if err := f.owner.QueryRow(f.ctx, `SELECT id<>zasp_discovery_relationship_id(organization_id,workspace_id,environment_id,integration_id,source,kind,source_native_id) FROM zasp_inventory_relationships WHERE integration_id=$1`, capacityIntegration).Scan(&valid); err != nil || !valid {
+		if err := f.owner.QueryRow(f.ctx, `SELECT count(*)=4 AND bool_and(id<>zasp_discovery_relationship_id(organization_id,workspace_id,environment_id,integration_id,source,kind,source_native_id)) FROM zasp_inventory_relationships WHERE integration_id=$1`, capacityIntegration).Scan(&valid); err != nil || !valid {
 			t.Fatal("pre-upgrade edge was renamed", valid, err)
 		}
 	}
@@ -76,9 +78,9 @@ func capacityRelationshipCompatibility(t *testing.T, f scheduleReplayFixture, wo
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tx.Exec(f.ctx, `UPDATE zasp_inventory_relationships SET id=zasp_discovery_relationship_id(organization_id,workspace_id,environment_id,$1,source,kind,'new-colliding-native') WHERE integration_id=$2`, replayIntegration, capacityIntegration); err != nil {
+	if tag, err := tx.Exec(f.ctx, `UPDATE zasp_inventory_relationships SET id=zasp_discovery_relationship_id(organization_id,workspace_id,environment_id,$1,source,kind,'new-colliding-native') WHERE integration_id=$2 AND source='aws' AND kind='contains' AND source_native_id='123456789012|contains|aws:ec2'`, replayIntegration, capacityIntegration); err != nil || tag.RowsAffected() != 1 {
 		tx.Rollback(f.ctx)
-		t.Fatal(err)
+		t.Fatal("seed a single foreign collision", tag.RowsAffected(), err)
 	}
 	var collision []byte
 	if err := tx.QueryRow(f.ctx, `SELECT zasp_temporal72.normalize_relationships($1,$2,$3,$4,'aws',jsonb_build_array(jsonb_build_object('id','pid_72910001-0000-4000-8000-000000000001','kind','contains','source_native_id','new-colliding-native','from_entity_id','pid_72910002-0000-4000-8000-000000000002','to_entity_id','pid_72910003-0000-4000-8000-000000000003','attributes','{}'::jsonb)))`, replayOrg, replayWorkspace, replayEnvironment, replayIntegration).Scan(&collision); err == nil {
@@ -149,12 +151,12 @@ func capacityRelationshipCompatibility(t *testing.T, f scheduleReplayFixture, wo
 	if err := worker.QueryRow(f.ctx, `SELECT zasp_temporal72.settle($1,$2,$3,$4,$5,$6,$7,'succeeded',$8)`, replayOrg, replayWorkspace, replayEnvironment, job, replayIntegration, start.InputDigest, deadline, result.ReceiptDigest).Scan(&raw); err != nil {
 		t.Fatal("removal settlement", err)
 	}
-	if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM zasp_inventory_relationships WHERE integration_id=$1 AND state='removed')=1 AND (SELECT count(*) FROM zasp_inventory_relationships WHERE integration_id=$2 AND state='present')=1 AND (SELECT count(*) FROM zasp_inventory_entities WHERE state='active')=2 AND (SELECT count(*) FROM zasp_projection_work)=9`, replayIntegration, capacityIntegration).Scan(&valid); err != nil || !valid {
+	if err := f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*) FROM zasp_inventory_relationships WHERE integration_id=$1 AND state='removed')=4 AND (SELECT count(*) FROM zasp_inventory_relationships WHERE integration_id=$2 AND state='present')=4 AND (SELECT count(*) FROM zasp_inventory_entities WHERE state='active')=5 AND (SELECT count(*) FROM zasp_projection_work)=9`, replayIntegration, capacityIntegration).Scan(&valid); err != nil || !valid {
 		t.Fatal("removal crossed connector boundary", valid, err)
 	}
 	var mapped []byte
 	if err := f.owner.QueryRow(f.ctx, `SELECT zasp_temporal72.normalize_relationships($1,$2,$3,$4,'aws',$5::jsonb)`, replayOrg, replayWorkspace, replayEnvironment, replayIntegration, string(before)).Scan(&mapped); err != nil || string(mapped) != string(before) {
 		t.Fatal("removed edge identity lost", string(mapped), string(before), err)
 	}
-	t.Log("two connectors shared two entities with separate persisted edges; historical identity/replay preserved; empty domain snapshot removed only its connector edge")
+	t.Log("both connectors retained the shared entities and distinct edge IDs; the empty snapshot removed its four edges")
 }

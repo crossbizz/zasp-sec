@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"net/url"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations/baseline"
 )
 
 // The scheduler releases abandoned discovery runs on a timer: once per
@@ -190,5 +194,64 @@ func TestGatewayMaintenanceInstalledScheduleSource(t *testing.T) {
 	p := &temporalDiscoveryScheduleProcessor{source: source, limit: 25, gatewayRetentionDays: 30}
 	if err := p.maintainDue(ctx); err != nil || p.lastMaintain.IsZero() {
 		t.Fatalf("the processor's pass: %v", err)
+	}
+}
+
+// A current baseline must not accept a missing sweep, a missing dependency
+// inside the installed sweep, or a scheduler whose execute grant was revoked.
+func TestScheduleReleaseSweepRefusesBrokenBaselinePostgres(t *testing.T) {
+	adminDSN := startSingleRecoveryScalarPostgres(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+	admin, err := pgx.Connect(ctx, adminDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close(context.Background())
+	if _, err := admin.Exec(ctx, "CREATE ROLE zasp_operator LOGIN CREATEROLE BYPASSRLS"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, "CREATE DATABASE sweep_fixture OWNER zasp_operator TEMPLATE template0"); err != nil {
+		t.Fatal(err)
+	}
+	address, err := url.Parse(adminDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address.Path = "/sweep_fixture"
+	migrationDSN := *address
+	migrationDSN.User = url.User("zasp_operator")
+	operator, err := pgx.Connect(ctx, migrationDSN.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer operator.Close(context.Background())
+	if err := baseline.Install(ctx, operator); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := pgx.Connect(ctx, address.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close(context.Background())
+	address.User = url.User("zasp_svc_scheduler")
+	source := temporalDiscoveryScheduleSource{dsn: address.String(), timeout: 10 * time.Second}
+	if released, err := source.releaseAbandoned(ctx, 1); err != nil || released != 0 {
+		t.Fatalf("intact release sweep: released=%d err=%v", released, err)
+	}
+	for _, fault := range []struct{ name, statement string }{
+		{"revoked_grant", "REVOKE EXECUTE ON FUNCTION zasp_temporal72.release_abandoned_due(integer) FROM zasp_discovery_scheduler"},
+		{"missing_dependency", `GRANT EXECUTE ON FUNCTION zasp_temporal72.release_abandoned_due(integer) TO zasp_discovery_scheduler;
+CREATE OR REPLACE FUNCTION zasp_temporal72.release_abandoned_due(limit_value integer) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN RETURN zasp_temporal72.uninstalled_sweep_dependency(); END $$`},
+		{"missing_sweep", "DROP FUNCTION zasp_temporal72.release_abandoned_due(integer)"},
+	} {
+		t.Run(fault.name, func(t *testing.T) {
+			if _, err := owner.Exec(ctx, fault.statement); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := source.releaseAbandoned(ctx, 1); !errors.Is(err, errWorkerExecution) {
+				t.Fatalf("damaged baseline accepted by the scheduler: %v", err)
+			}
+		})
 	}
 }

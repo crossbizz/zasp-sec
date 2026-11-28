@@ -138,16 +138,43 @@ func auditExportDescriptorBinding(descriptor audit.ExportDescriptor, binding aud
 	return descriptor.ID == binding.ExportID && descriptor.OrganizationID == binding.OrganizationID && descriptor.WorkspaceID == binding.WorkspaceID && descriptor.EnvironmentID == binding.EnvironmentID
 }
 
+func (authority *postgresAuditExportAuthority) admitsChunk(lease auditExportLease, size int) bool {
+	_, valid := authority.validLease(lease)
+	return valid && lease.Captured && int64(size) <= lease.Policy.MaximumExportBytes
+}
+
+func auditExportChunkIntent(chunk audit.ExportChunk, policy auditExportStoragePolicy) auditExportIntent {
+	return auditExportIntent{Binding: chunk.Binding, Policy: policy, Kind: "chunk", Ordinal: chunk.Ordinal, FirstEvent: chunk.FirstEvent, EventCount: chunk.EventCount, PreviousDigest: chunk.PreviousDigest}
+}
+
 func (authority *postgresAuditExportAuthority) PrepareChunk(ctx context.Context, lease auditExportLease, body []byte) (auditExportIntent, error) {
-	if _, ok := authority.validLease(lease); !ok || !lease.Captured || int64(len(body)) > lease.Policy.MaximumExportBytes {
+	if !authority.admitsChunk(lease, len(body)) {
 		return auditExportIntent{}, errWorkerExecution
 	}
 	chunk, err := audit.DecodeExportChunk(body)
 	if err != nil || chunk.Binding != lease.Binding {
 		return auditExportIntent{}, errWorkerExecution
 	}
-	return authority.prepareIntent(ctx, lease, body, auditExportIntent{Binding: chunk.Binding, Policy: lease.Policy, Kind: "chunk", Ordinal: chunk.Ordinal, FirstEvent: chunk.FirstEvent, EventCount: chunk.EventCount, PreviousDigest: chunk.PreviousDigest})
+	return authority.prepareIntent(ctx, lease, body, auditExportChunkIntent(chunk, lease.Policy))
 }
+
+// ReadFrozenPage produces fresh canonical bytes and validates their event range,
+// binding and capture chain. Keep the page private until SQL confirms its intent.
+func (authority *postgresAuditExportAuthority) readAndPrepareFrozenChunk(ctx context.Context, lease auditExportLease, capture auditExportCapture) (auditExportFrozenPage, auditExportIntent, error) {
+	page, err := authority.ReadFrozenPage(ctx, lease, capture)
+	if err != nil {
+		return auditExportFrozenPage{}, auditExportIntent{}, err
+	}
+	if !authority.admitsChunk(lease, len(page.Body)) || page.Chunk.Binding != lease.Binding {
+		return auditExportFrozenPage{}, auditExportIntent{}, errWorkerExecution
+	}
+	intent, err := authority.prepareIntent(ctx, lease, page.Body, auditExportChunkIntent(page.Chunk, lease.Policy))
+	if err != nil {
+		return auditExportFrozenPage{}, auditExportIntent{}, err
+	}
+	return page, intent, nil
+}
+
 func (authority *postgresAuditExportAuthority) PrepareManifest(ctx context.Context, lease auditExportLease, body []byte) (auditExportIntent, error) {
 	if _, ok := authority.validLease(lease); !ok || !lease.Captured {
 		return auditExportIntent{}, errWorkerExecution

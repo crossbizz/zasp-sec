@@ -54,19 +54,15 @@ func TestAuditExportAuthorityChunksPostgres(t *testing.T) {
 	progress := capture
 	progress.NextChunk, progress.NextEvent, progress.RecordedChunkCount, progress.RecordedChunkBytes, progress.PreviousDigest = 1, 1, 0, 0, audit.ExportZeroDigest
 	for ordinal := int64(1); ordinal <= 2; ordinal++ {
-		page, err := authority.ReadFrozenPage(ctx, *lease, progress)
+		page, intent, err := authority.readAndPrepareFrozenChunk(ctx, *lease, progress)
 		if err != nil {
-			t.Fatal("real frozen page refused", err)
+			t.Fatal("real frozen page preparation refused", err)
 		}
 		for i, event := range page.Chunk.Events {
 			encoded, err := audit.EncodeExportEvent(event)
 			if err != nil || !bytes.Equal(encoded, expected[progress.NextEvent-1+int64(i)]) {
 				t.Fatal("chunk changed frozen source")
 			}
-		}
-		intent, err := authority.PrepareChunk(ctx, *lease, page.Body)
-		if err != nil {
-			t.Fatal("actual Go PrepareChunk refused", err)
 		}
 		digest := sha256.Sum256(page.Body)
 		if intent.Binding != lease.Binding || intent.Kind != "chunk" || intent.Ordinal != ordinal || intent.FirstEvent != progress.NextEvent || intent.EventCount != page.Chunk.EventCount || intent.PreviousDigest != progress.PreviousDigest || intent.SizeBytes != int64(len(page.Body)) || intent.SHA256 != hex.EncodeToString(digest[:]) {
@@ -75,6 +71,12 @@ func TestAuditExportAuthorityChunksPostgres(t *testing.T) {
 		replay, err := authority.PrepareChunk(ctx, *lease, page.Body)
 		if err != nil || replay != intent {
 			t.Fatal("exact prepared intent replay changed", err)
+		}
+		foreignLease, foreignProgress := *lease, progress
+		foreignLease.Binding.CaptureID = "pid_54000002-0000-4000-8000-000000000002"
+		foreignProgress.Manifest.Binding = foreignLease.Binding
+		if foreignPage, foreignIntent, err := authority.readAndPrepareFrozenChunk(ctx, foreignLease, foreignProgress); err == nil || len(foreignPage.Body) != 0 || foreignIntent != (auditExportIntent{}) {
+			t.Fatal("paired preparation accepted another capture")
 		}
 		receipt := auditExportArtifactReceipt{VersionID: fmt.Sprintf("owned-sql-only-chunk-version-%d", ordinal), SHA256: digest, SizeBytes: int64(len(page.Body))}
 		for _, kind := range []string{"worker", "token", "generation", "attempt", "organization"} {

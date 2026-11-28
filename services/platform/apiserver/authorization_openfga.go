@@ -137,6 +137,15 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 	// then read in target order, so the grant and its allowed set are exactly
 	// those of checking one target after another, and a failure of any
 	// target refuses the request.
+	concurrent := targets.Collection && len(targets.Targets) > authorizationCheckConcurrency
+	if concurrent {
+		// The final real revision read below closes this interval before signing.
+		// Revision and generation only advance, including after a grant is restored.
+		grant.Revision, err = authorization.CurrentRevision(ctx, a.Reader, identity.Scope.OrganizationID().String(), a.StoreID, a.ModelID)
+		if err != nil {
+			return RequestAuthorization{}, err
+		}
+	}
 	checks := make([]authorizationTargetCheck, len(targets.Targets))
 	checkTarget := func(n int) {
 		target := targets.Targets[n]
@@ -147,6 +156,10 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 		requests := make([]authorization.CheckRequest, 0, len(permissions))
 		for _, permission := range permissions {
 			requests = append(requests, authorization.CheckRequest{PrincipalKind: "user", PrincipalID: identity.PrincipalID.String(), OrganizationID: target.Scope.OrganizationID().String(), WorkspaceID: target.Scope.WorkspaceID().String(), EnvironmentID: target.Scope.EnvironmentID().String(), ResourceType: target.Kind, ResourceID: target.ID, Permission: permission})
+		}
+		if concurrent {
+			checks[n].decisions, checks[n].err = checkCollectionTarget(ctx, a.Checker, grant.Revision, requests)
+			return
 		}
 		if len(requests) > 1 {
 			// The permissions of one target share one pair of revision reads.
@@ -162,7 +175,6 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 			checks[n].decisions = append(checks[n].decisions, checked)
 		}
 	}
-	concurrent := targets.Collection && len(targets.Targets) > authorizationCheckConcurrency
 	if concurrent {
 		var next atomic.Int64
 		var failed atomic.Bool
@@ -256,13 +268,36 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 		}
 	}
 	current, err := a.Reader.Revision(ctx, identity.Scope.OrganizationID().String())
-	if err != nil {
+	if err != nil || (concurrent && ctx.Err() != nil) {
 		return RequestAuthorization{}, authorization.ErrUnavailable
 	}
 	if current != grant.Revision {
 		return RequestAuthorization{}, authorization.ErrConflict
 	}
 	return attestAuthorization(grant, a.AttestationKey, time.Now().UTC())
+}
+
+// The collection authorizer compares its real beginning and ending revisions
+// before any decision leaves the request. Each target retains its own checks.
+func checkCollectionTarget(ctx context.Context, checker authorization.Checker, revision authorization.Revision, requests []authorization.CheckRequest) ([]authorization.CheckedDecision, error) {
+	decisions := make([]authorization.CheckedDecision, 0, len(requests))
+	for _, request := range requests {
+		if _, err := authorization.Map(request); err != nil || request.OrganizationID != revision.OrganizationID {
+			return nil, authorization.ErrInvalid
+		}
+		if ctx.Err() != nil {
+			return nil, authorization.ErrUnavailable
+		}
+		decision, err := checker.Check(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if decision.ModelID != revision.ModelID {
+			return nil, authorization.ErrConflict
+		}
+		decisions = append(decisions, authorization.CheckedDecision{Request: request, Decision: decision, Revision: revision})
+	}
+	return decisions, nil
 }
 
 // Session detail and event readers have an established hidden-or-missing 404

@@ -166,6 +166,66 @@ func (d *complianceProcessDB) QueryJSON(ctx context.Context, q string, args ...a
 	return raw, err
 }
 
+func complianceProcessPoolConfig(dsn, browserPort string, cleanup bool) (*pgxpool.Config, error) {
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, err
+	}
+	if browserPort == "" {
+		if strings.HasPrefix(cfg.ConnConfig.User, "zasp_svc_") {
+			return nil, errors.New("baseline worker fixture requires an owned port")
+		}
+		// Historical PostgreSQL process tests pass their owned fixture connection
+		// and connect as one of the two logins registered in that fixture.
+		cfg.ConnConfig.User = "compliance_executor"
+		if cleanup {
+			cfg.ConnConfig.User = "compliance_cleanup"
+		}
+	} else {
+		user := "zasp_svc_compliance_worker"
+		if cleanup {
+			user = "zasp_svc_compliance_cleanup"
+		}
+		port, err := strconv.Atoi(browserPort)
+		expected := "postgres://" + user + "@127.0.0.1:" + browserPort + "/postgres?sslmode=disable"
+		if err != nil || port < 1024 || port > 65535 || strconv.Itoa(port) != browserPort || dsn != expected ||
+			cfg.ConnConfig.Password != "" || cfg.ConnConfig.TLSConfig != nil || len(cfg.ConnConfig.Fallbacks) != 0 {
+			return nil, errors.New("baseline worker fixture connection refused")
+		}
+	}
+	cfg.MaxConns = 3
+	return cfg, nil
+}
+
+func TestComplianceWorkerDatabaseIdentity(t *testing.T) {
+	const suffix = "@127.0.0.1:15432/postgres?sslmode=disable"
+	worker := "postgres://zasp_svc_compliance_worker" + suffix
+	cleanup := "postgres://zasp_svc_compliance_cleanup" + suffix
+	for _, fixture := range []struct {
+		dsn, port, user string
+		cleanup         bool
+	}{{worker, "15432", "zasp_svc_compliance_worker", false}, {cleanup, "15432", "zasp_svc_compliance_cleanup", true},
+		{"postgres://historical_fixture" + suffix, "", "compliance_executor", false}, {"postgres://historical_fixture" + suffix, "", "compliance_cleanup", true}} {
+		cfg, err := complianceProcessPoolConfig(fixture.dsn, fixture.port, fixture.cleanup)
+		if err != nil || cfg.ConnConfig.User != fixture.user || cfg.MaxConns != 3 {
+			t.Fatal("owned compliance worker connection rejected")
+		}
+	}
+	for _, dsn := range []string{cleanup, "postgres://zasp_operator" + suffix,
+		strings.Replace(worker, "127.0.0.1", "192.0.2.1", 1), strings.Replace(worker, ":15432", ":15433", 1),
+		strings.Replace(worker, "/postgres?", "/other?", 1), strings.Replace(worker, "@127", ":password@127", 1),
+		worker + "&host=other", worker + "&options=-c%20role%3Dzasp_operator"} {
+		if _, err := complianceProcessPoolConfig(dsn, "15432", false); err == nil {
+			t.Fatal("unowned worker connection admitted")
+		}
+	}
+	for _, port := range []string{"", "0", "015432", "65536"} {
+		if _, err := complianceProcessPoolConfig(worker, port, false); err == nil {
+			t.Fatal("invalid browser port admitted")
+		}
+	}
+}
+
 func TestComplianceRuntimeProcess(t *testing.T) {
 	dsn := os.Getenv("ZASP_COMPLIANCE_RUNTIME_DSN")
 	if dsn == "" {
@@ -182,19 +242,15 @@ func TestComplianceRuntimeProcess(t *testing.T) {
 	defer deadline()
 	env := complianceRuntimeEnvironment()
 	cleanup := phase == "reconcile" || strings.HasPrefix(phase, "cleanup")
-	user := "compliance_executor"
 	if cleanup {
-		user = "compliance_cleanup"
 		env["ZASP_WORKER_MODE"] = "compliance-export-cleanup"
 		env["ZASP_DATABASE_AUTHORITY"] = "zasp_compliance_cleanup"
 		env["ZASP_COMPLIANCE_EXPORT_ROLE_ARN"] = "arn:aws:iam::123456789012:role/compliance-export-cleanup"
 	}
-	cfg, err := pgxpool.ParseConfig(dsn)
+	cfg, err := complianceProcessPoolConfig(dsn, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT"), cleanup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg.ConnConfig.User = user
-	cfg.MaxConns = 3
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -204,7 +260,7 @@ func TestComplianceRuntimeProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	env["ZASP_POSTGRES_DSN"] = "postgres://" + user + "@postgres.internal/zasp?sslmode=verify-full"
+	env["ZASP_POSTGRES_DSN"] = "postgres://" + cfg.ConnConfig.User + "@postgres.internal/zasp?sslmode=verify-full"
 	env["ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"] = "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111"
 	config, err := loadWorkerRuntimeConfig(mapLookup(env))
 	if err != nil {

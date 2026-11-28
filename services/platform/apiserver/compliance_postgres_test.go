@@ -6,6 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +20,121 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
+
+// The browser harness invokes this before creating the separate current database.
+// Exercise the legacy HTTP surface with the historical API login and an actual
+// membership-derived session, as it was served without export storage.
+func TestHistoricalRelease56ComplianceHTTP(t *testing.T) {
+	port := os.Getenv("ZASP_LEGACY_COMPLIANCE_PG_PORT")
+	if port == "" {
+		t.Skip("requires the browser harness's owned release56 database")
+	}
+	number, err := strconv.Atoi(port)
+	if err != nil || number < 1024 || number > 65535 || strconv.Itoa(number) != port {
+		t.Fatal("invalid owned release56 port")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	config, err := pgx.ParseConfig("postgres://zasp_e2e_api@127.0.0.1:" + port + "/postgres?sslmode=disable")
+	if err != nil || config.Password != "" || config.TLSConfig != nil || len(config.Fallbacks) != 0 {
+		t.Fatal("invalid historical API connection")
+	}
+	conn, err := pgx.ConnectConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(ctx)
+	var pinned bool
+	err = conn.QueryRow(ctx, `SELECT current_database()='postgres' AND current_user='zasp_e2e_api'
+		AND zasp_discovery_principal_ready('zasp_discovery_api')
+		AND (SELECT max(version) FROM zasp_schema_versions)=56
+		AND EXISTS (SELECT 1 FROM zasp_schema_versions WHERE version=56 AND checksum=$1)
+		AND EXISTS (SELECT 1 FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint' AND value=$2)`,
+		migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&pinned)
+	if err != nil || !pinned {
+		t.Fatalf("historical release or API principal refused: %v", err)
+	}
+	db, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: conn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := repository.ResolveIdentity(ctx, stytchExternalPrincipal(t, time.Now().UTC().Truncate(time.Millisecond).Add(time.Hour)))
+	if err != nil {
+		t.Fatalf("resolve historical membership: %v", err)
+	}
+	token, err := repository.CreateSession(ctx, grant)
+	if err != nil {
+		t.Fatalf("create historical session: %v", err)
+	}
+	identity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: token})
+	if err != nil || identity.Scope != grant.Scope || !stringIn("view_compliance", identity.Permissions...) {
+		t.Fatalf("authenticate historical compliance session: %v", err)
+	}
+	defer func() {
+		if err := repository.Revoke(ctx, identity, token); err != nil {
+			t.Errorf("revoke historical session: %v", err)
+		}
+	}()
+	composition, err := NewComposition(Dependencies{
+		Identity: &identityHTTPHandler{repository: repository, administration: repository, signingKey: make([]byte, 32), now: time.Now},
+		Session:  http.NewServeMux(), Inventory: http.NewServeMux(), Risk: http.NewServeMux(), Workflow: http.NewServeMux(), Connector: http.NewServeMux(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://fixture.example", MaximumBodyBytes: 16 * 1024,
+		Authenticate: repository.Authenticate, GenerateCorrelationID: func() string { return testCorrelationID }}, composition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := func(path, cookie string, want int, result any) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "https://fixture.example/api/v1/compliance/"+path, nil).WithContext(ctx)
+		req.Header.Set(expectedScopeHeader, expectedScopeValue(grant.Scope))
+		if cookie != "" {
+			req.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: cookie})
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Fatalf("historical %s status %d, want %d", path, rec.Code, want)
+		}
+		if result != nil {
+			if err := json.Unmarshal(rec.Body.Bytes(), result); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	var controls struct {
+		Items []struct{ ID, Framework string }
+	}
+	request("controls?limit=100", token, http.StatusOK, &controls)
+	if len(controls.Items) != 1 || controls.Items[0].ID != "access-control" || controls.Items[0].Framework != "SOC 2" {
+		t.Fatal("expected release56 control missing")
+	}
+	var evidence struct {
+		Items []struct {
+			Control  struct{ ID string }
+			Evidence []struct{ ID, Source, At string }
+		}
+	}
+	request("evidence?limit=100", token, http.StatusOK, &evidence)
+	if len(evidence.Items) != 1 || evidence.Items[0].Control.ID != "access-control" || len(evidence.Items[0].Evidence) != 1 {
+		t.Fatal("expected release56 evidence row missing")
+	}
+	item := evidence.Items[0].Evidence[0]
+	_, err = time.Parse(time.RFC3339Nano, item.At)
+	if item.ID != "evidence-membership" || item.Source != "product-membership" || err != nil || !regexp.MustCompile(`[+-]\d\d:\d\d$`).MatchString(item.At) {
+		t.Fatal("historical evidence identity or offset timestamp changed")
+	}
+	request("evidence?limit=100&framework=soc2_security", token, http.StatusBadRequest, nil)
+	request("evidence", "", http.StatusUnauthorized, nil)
+	request("evidence", "webhook-member-session-e2e", http.StatusForbidden, nil)
+}
 
 // Catch an unregistered release, a broken exact predecessor upgrade or missing
 // source authority through the real canonical migration chain.

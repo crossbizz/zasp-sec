@@ -24,6 +24,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/internal/testprocess"
 )
 
+const auditHTTPSizeGoVersion = "go1.26.8"
+
 // Dropping either gate or accepting a missing kernel sample must fail these
 // literal cases; expected values don't reuse the normalization/gate logic.
 func TestAuditHTTPSizeMemoryGate(t *testing.T) {
@@ -104,20 +106,22 @@ func TestAuditHTTPSizeMemoryKernelExit(t *testing.T) {
 }
 func TestAuditHTTPSizeMemoryBuildIdentity(t *testing.T) {
 	for _, mode := range []string{"", "race"} {
-		info := &debug.BuildInfo{GoVersion: "go1.25.6", Settings: []debug.BuildSetting{{Key: "GOOS", Value: runtime.GOOS}, {Key: "GOARCH", Value: runtime.GOARCH}}}
+		info := &debug.BuildInfo{GoVersion: auditHTTPSizeGoVersion, Settings: []debug.BuildSetting{{Key: "GOOS", Value: runtime.GOOS}, {Key: "GOARCH", Value: runtime.GOARCH}}}
 		if mode == "race" {
 			info.Settings = append(info.Settings, debug.BuildSetting{Key: "-race", Value: "true"})
 		}
 		if err := auditHTTPSizeBuildIdentity(info, mode); err != nil {
 			t.Fatal(err)
 		}
-		info.GoVersion = "go1.25.5"
-		if auditHTTPSizeBuildIdentity(info, mode) == nil {
-			t.Fatal("unpinned build accepted")
+		for _, version := range []string{"go1.25.6", "go1.26.7", "go1.26.9"} {
+			info.GoVersion = version
+			if auditHTTPSizeBuildIdentity(info, mode) == nil {
+				t.Fatalf("unpinned %s build accepted in %q mode", version, mode)
+			}
 		}
 	}
 	for _, c := range []struct{ mode, key, value string }{{"", "-race", "true"}, {"race", "-race", "false"}, {"", "GOOS", "wrong"}, {"", "GOARCH", "wrong"}, {"bad", "GOOS", runtime.GOOS}} {
-		info := &debug.BuildInfo{GoVersion: "go1.25.6", Settings: []debug.BuildSetting{{Key: "GOOS", Value: runtime.GOOS}, {Key: "GOARCH", Value: runtime.GOARCH}, {Key: c.key, Value: c.value}}}
+		info := &debug.BuildInfo{GoVersion: auditHTTPSizeGoVersion, Settings: []debug.BuildSetting{{Key: "GOOS", Value: runtime.GOOS}, {Key: "GOARCH", Value: runtime.GOARCH}, {Key: c.key, Value: c.value}}}
 		if auditHTTPSizeBuildIdentity(info, c.mode) == nil {
 			t.Fatal("build mismatch accepted", c)
 		}
@@ -162,7 +166,7 @@ func auditHTTPSizePeak(state *os.ProcessState) (int64, error) {
 	return auditHTTPSizeNormalizeRSS(runtime.GOOS, usage.Maxrss)
 }
 func auditHTTPSizeBuildIdentity(info *debug.BuildInfo, mode string) error {
-	if info == nil || info.GoVersion != "go1.25.6" || mode != "" && mode != "race" {
+	if info == nil || info.GoVersion != auditHTTPSizeGoVersion || mode != "" && mode != "race" {
 		return errors.New("unpinned build/mode")
 	}
 	settings := map[string]string{}
@@ -197,8 +201,11 @@ func auditHTTPSizeToolchain(ctx context.Context) (string, error) {
 	cmd := exec.Command(binary, "env", "GOVERSION", "GOOS", "GOARCH")
 	cmd.Env = auditHTTPSizeBuildEnvironment()
 	out, err := testprocess.Run(ctx, cmd)
-	if err != nil || string(bytes.TrimSpace(out)) != "go1.25.6\n"+runtime.GOOS+"\n"+runtime.GOARCH {
-		return "", fmt.Errorf("available Go is not pinned go1.25.6 %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
+	if err != nil {
+		return "", fmt.Errorf("checking audit export Go toolchain: %w", err)
+	}
+	if string(bytes.TrimSpace(out)) != auditHTTPSizeGoVersion+"\n"+runtime.GOOS+"\n"+runtime.GOARCH {
+		return "", fmt.Errorf("audit export requires %s for %s/%s", auditHTTPSizeGoVersion, runtime.GOOS, runtime.GOARCH)
 	}
 	return binary, nil
 }

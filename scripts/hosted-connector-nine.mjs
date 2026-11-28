@@ -27,7 +27,8 @@ const helperPins={
  "scripts/official-held-tools.mjs": "451dad7212561fc02e1f5b03280672c9d900a5ac644a665c022deafa9f72dfdd",
  "scripts/owned-listener.mjs": "3e5a4357fb53a412d0c38ab608c49543cf1bf74b2bb624022791a8bb6d1a43de",
  "services/platform/apiserver/postgres_integration_test.go": "57db0bc08eb0ce8de21b72da7fd4f500bc2f56fbeda6cde6e62712e509760270",
- "services/platform/apiserver/approval_maintenance_owned_fga_test.go": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647"
+ "services/platform/apiserver/approval_maintenance_owned_fga_test.go": "1212c4da07fe60e1c54d6cd540b87495ad8ee26c8d091e31b4dcebfd12eef11d",
+ "services/platform/internal/testopenfga/credentials.go": "dfec1ad636bf2cd248149b76a956436387018f2f91bf9993264f6bd728e41124"
 };
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const root=process.cwd();const selfSHA256=hash(await readFile(new URL(import.meta.url)));

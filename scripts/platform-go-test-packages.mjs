@@ -3,7 +3,7 @@
 // runs in full, so the "Platform Go packages" job can run them.
 //
 // A package counts as covered when a `go test -C services/platform ...`
-// command without -run names it (or a `./dir/...` pattern containing it),
+// command without a test filter names it (or a `./dir/...` pattern containing it),
 // either in a GitHub Actions workflow or in an npm script reachable from
 // `npm run verify`. apiserver is never listed: CI runs it in named slices,
 // and this job runs the tests of apiserverFeatureTestFiles.
@@ -15,9 +15,11 @@
 // A new package with tests is therefore picked up without editing CI.
 
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { assertMigrationScheduling } from "./acceptance-step-conditions.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const modulePath = "github.com/zasp-ai/zasp-sec/services/platform";
@@ -34,6 +36,7 @@ export const apiserverFeatureTestFiles = [
   "agent_evidence_pack_test.go",
   "agent_action_analysis_test.go",
   "agent_purpose_test.go",
+  "authorization_concurrent_checks_test.go",
   "authorization_missing_object_test.go",
   "authorization_product_statement_test.go",
   "authorization_security_agent_activity_statement_test.go",
@@ -114,12 +117,12 @@ export function platformGoTestCommands(text) {
 }
 
 // Returns the package patterns ("dir" or "dir/...") that commands run in
-// full. A command with -run selects a subset and covers nothing.
+// full. A filtered, compile-only or list-only command cannot claim coverage.
 export function fullyRunPatterns(commands) {
   const patterns = new Set();
   for (const command of commands) {
     const words = command.split(/\s+/);
-    if (words.some((word) => word === "-run" || word.startsWith("-run=") || word === "-c")) continue;
+    if (words.some((word) => /^-{1,2}(?:test\.)?(?:run|skip|list)(?:=|$)/.test(word) || word === "-c")) continue;
     for (const word of words) {
       const match = /^\.\/([A-Za-z0-9_./-]+?)\/?$/.exec(word.replace(/^["']|["']$/g, ""));
       if (match) patterns.add(match[1]);
@@ -154,8 +157,21 @@ export function reachableScripts(scripts, name) {
   return texts;
 }
 
-export function uncoveredPackages(packagesWithTests, sources) {
+export function verifiedMigrationCoverage(source) {
+  if (existsSync(join(repositoryRoot, "node_modules/js-yaml"))) {
+    const yaml = createRequire(import.meta.url)("js-yaml");
+    return assertMigrationScheduling(yaml.load(source, {schema: yaml.JSON_SCHEMA}).jobs).slice(2);
+  }
+  // Fresh platform-go runners install the distro YAML parser alongside PostgreSQL.
+  const parsed = execFileSync("/usr/bin/python3", ["-c",
+    "import json,sys,yaml; print(json.dumps(yaml.safe_load(sys.stdin)['jobs']))",
+  ], {input: source, encoding: "utf8", maxBuffer: 2 * 1024 * 1024});
+  return assertMigrationScheduling(JSON.parse(parsed)).slice(2);
+}
+
+export function uncoveredPackages(packagesWithTests, sources, shardedPackages = []) {
   const patterns = fullyRunPatterns(sources.flatMap(platformGoTestCommands));
+  for (const pkg of shardedPackages) patterns.add(pkg);
   return packagesWithTests.filter((pkg) => pkg !== "apiserver" && !coveredBy(patterns, pkg)).sort();
 }
 
@@ -177,7 +193,8 @@ function packagesWithTests(root) {
 
 export function main(argv, root = repositoryRoot) {
   if (argv.includes("--apiserver-features")) return apiserverFeatureRun(root);
-  const packages = uncoveredPackages(packagesWithTests(root), ciSources(root));
+  const workflow = readFileSync(join(root, ".github/workflows/runnable-ui-acceptance.yml"), "utf8");
+  const packages = uncoveredPackages(packagesWithTests(root), ciSources(root), [verifiedMigrationCoverage(workflow)]);
   if (packages.length === 0) throw new Error("no platform packages left to test; the job would test nothing");
   return packages.map((pkg) => `./${pkg}`).join("\n");
 }

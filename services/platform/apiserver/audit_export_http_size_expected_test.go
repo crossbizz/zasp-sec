@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -311,6 +312,38 @@ func (e *auditHTTPSizeExpected) Manifest() ([]byte, auditHTTPSizeSummary, error)
 	summary.ManifestSHA256 = hex.EncodeToString(sum[:])
 	return body, summary, nil
 }
+
+// Run only the current page's independent snapshot read alongside its GET.
+// The GET stays with its test goroutine; a fatal HTTP assertion still joins SQL.
+func auditHTTPSizeReadPage(ctx context.Context, next func(context.Context) ([]byte, error), get func(context.Context) []byte) ([]byte, []byte, error) {
+	pageCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	var expected []byte
+	var err error
+	go func() {
+		defer close(done)
+		expected, err = next(pageCtx)
+	}()
+	defer func() {
+		cancel()
+		<-done
+	}()
+	body := get(pageCtx)
+	<-done
+	return body, expected, err
+}
+
+func (e *auditHTTPSizeExpected) checkPageChunk(ordinal int64, expected, body []byte, digest string) error {
+	// Next validated and encoded this ordinal from the original snapshot.
+	if ordinal != e.summary.Chunks || !bytes.Equal(body, expected) {
+		return errors.New("page ordinal or canonical chunk bytes mismatch")
+	}
+	sum := sha256.Sum256(expected)
+	if digest != hex.EncodeToString(sum[:]) {
+		return errors.New("chunk SHA mismatch")
+	}
+	return nil
+}
 func (e *auditHTTPSizeExpected) Close(ctx context.Context) error {
 	if e.closed {
 		return nil
@@ -353,6 +386,129 @@ func auditHTTPSizeTestOracle(t *testing.T, count int, row func(int) auditHTTPSiz
 // Catches empty-source loss, count/digit growth mistakes, byte overflow,
 // cross-chunk order loss, and projection drift using original source fields.
 func TestAuditHTTPSizeExpectedBoundaries(t *testing.T) {
+	t.Run("current-page-overlap", func(t *testing.T) {
+		var prior context.Context
+		for _, cursor := range []string{"first", "second"} {
+			phase, stop := context.WithTimeout(context.Background(), 3*time.Second)
+			sourceStarted, getStarted := make(chan struct{}), make(chan struct{})
+			var sourceCtx, getCtx context.Context
+			page, expected, err := auditHTTPSizeReadPage(phase, func(ctx context.Context) ([]byte, error) {
+				sourceCtx = ctx
+				close(sourceStarted)
+				select {
+				case <-getStarted:
+					return []byte(cursor), nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}, func(ctx context.Context) []byte {
+				getCtx = ctx
+				close(getStarted)
+				select {
+				case <-sourceStarted:
+					return []byte(cursor)
+				case <-ctx.Done():
+					return nil
+				}
+			})
+			closed := getCtx != nil && getCtx.Err() == context.Canceled
+			stop()
+			if err != nil || string(page) != cursor || !bytes.Equal(page, expected) || sourceCtx != getCtx || getCtx == prior || !closed {
+				t.Fatal("page and original snapshot did not share one bounded current request", cursor, err)
+			}
+			prior = getCtx
+		}
+	})
+	for _, mode := range []string{"fatal-get", "canceled-phase"} {
+		t.Run(mode+"-joins-source", func(t *testing.T) {
+			phase, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			started, stopping, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			exited, joined := make(chan struct{}), make(chan struct{})
+			var readErr error
+			go func() {
+				defer close(exited)
+				_, _, readErr = auditHTTPSizeReadPage(phase, func(ctx context.Context) ([]byte, error) {
+					close(started)
+					<-ctx.Done()
+					close(stopping)
+					<-release
+					close(joined)
+					return nil, ctx.Err()
+				}, func(context.Context) []byte {
+					<-started
+					if mode == "fatal-get" {
+						runtime.Goexit() // t.Fatal on the request goroutine.
+					}
+					cancel()
+					return nil
+				})
+			}()
+			select {
+			case <-stopping:
+			case <-time.After(3 * time.Second):
+				cancel()
+				close(release)
+				t.Fatal("original snapshot query was not canceled")
+			}
+			select {
+			case <-exited:
+				close(release)
+				t.Fatal("request returned while its snapshot query was still active")
+			default:
+			}
+			close(release)
+			select {
+			case <-exited:
+			case <-time.After(3 * time.Second):
+				t.Fatal("request did not finish after its snapshot query joined")
+			}
+			select {
+			case <-joined:
+			default:
+				t.Fatal("snapshot query not joined")
+			}
+			if mode == "canceled-phase" && !errors.Is(readErr, context.Canceled) {
+				t.Fatal("canceled snapshot supplied a successful page", readErr)
+			}
+		})
+	}
+	t.Run("returned-page", func(t *testing.T) {
+		ctx := context.Background()
+		body, err := auditHTTPSizeTestOracle(t, 1, auditHTTPSizeTestRow).Next(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		binding := auditHTTPSizeTestBinding()
+		for _, tc := range []struct {
+			name    string
+			ordinal int64
+			body    []byte
+		}{
+			{"valid", 1, body},
+			{"malformed", 1, body[:len(body)-1]},
+			{"different capture", 1, bytes.Replace(body, []byte(binding.CaptureID), []byte(auditHTTPSizeTestID(99)), 1)},
+			{"different encoded ordinal", 1, bytes.Replace(body, []byte(`"ordinal":1`), []byte(`"ordinal":2`), 1)},
+			{"different requested ordinal", 2, body},
+			{"wrong digest", 1, body},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				digest := sha256.Sum256(tc.body)
+				if tc.name == "wrong digest" {
+					digest[0] ^= 1
+				}
+				oracle := auditHTTPSizeTestOracle(t, 1, auditHTTPSizeTestRow)
+				expected, err := oracle.Next(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = oracle.checkPageChunk(tc.ordinal, expected, tc.body, hex.EncodeToString(digest[:]))
+				if (err == nil) != (tc.name == "valid") {
+					t.Fatalf("page check: %v", err)
+				}
+			})
+		}
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	for _, count := range []int{0, 1, 1001} {

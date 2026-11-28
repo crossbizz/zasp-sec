@@ -250,3 +250,94 @@ it.each([
   await waitFor(() => expect(window.location.pathname + window.location.search + window.location.hash).toBe(route));
   expect(reads.some(path => path === "/api/v1/agents" || path.startsWith("/api/v1/agents/") || path === "/api/v1/home/summary")).toBe(false);
 });
+
+it.each([true, false])("rechecks a pending scope projection without resubmitting the switch (applied %s)", async applied => {
+  let scopeWrites = 0;
+  let switchedBootstrapReads = 0;
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === "/api/v1/session/scope") {
+      expect(request.method).toBe("PUT");
+      expect(await request.json()).toEqual({ workspace_id: workspace, environment_id: second });
+      scopeWrites++;
+      return new Response(null, { status: 204 });
+    }
+    if (pathname === "/api/v1/session/bootstrap") {
+      if (scopeWrites && ++switchedBootstrapReads === 1) {
+        return json({ code: "authorization_pending", message: "Projection pending", correlation_id: principal, retryable: true }, 409);
+      }
+      return json(bootstrap(["scope.switch"], scopeWrites && applied ? second : environment));
+    }
+    if (pathname === "/api/v1/session/scopes") return json({ items: [
+      { organization_id: org, workspace_id: workspace, environment_id: environment, label: "Production" },
+      { organization_id: org, workspace_id: workspace, environment_id: second, label: "Staging" },
+    ] });
+    throw Error("Unexpected endpoint in scope reconciliation");
+  });
+  render(<ZaspProductionApp />);
+  await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Authorized scope" }), `${workspace}/${second}`);
+  expect(await screen.findByRole("heading", { name: "Authorization pending" })).toBeVisible();
+  expect(screen.queryByRole("combobox", { name: "Authorized scope" })).not.toBeInTheDocument();
+  const selected = await screen.findByRole("combobox", { name: "Authorized scope" }, { timeout: 5_000 });
+  expect(selected).toHaveValue(`${workspace}/${applied ? second : environment}`);
+  if (!applied) expect(screen.getByRole("alert")).toHaveTextContent("Scope switch failed");
+  expect(selected).toBeEnabled();
+  expect(scopeWrites).toBe(1);
+  expect(switchedBootstrapReads).toBe(2);
+});
+
+it("keeps one compliance controls read per scope through shell renders and cancels the previous scope", async () => {
+  window.history.replaceState({}, "", "/compliance/evidence");
+  const firstScope = [org, workspace, environment].join("/");
+  const secondScope = [org, workspace, second].join("/");
+  let activeEnvironment = environment;
+  let releaseControls!: () => void;
+  const controlsGate = new Promise<void>(resolve => { releaseControls = resolve; });
+  const reads: { scope: string | null; signal: AbortSignal }[] = [];
+  const evidence: { scope: string | null; framework: string | null }[] = [];
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const url = new URL(request.url);
+    const scope = request.headers.get("X-Zasp-Expected-Scope");
+    if (url.pathname === "/api/v1/session/bootstrap") return json({
+      ...bootstrap(["scope.switch", "compliance.read"], activeEnvironment), permissions: ["view", "view_audit", "view_compliance"],
+    });
+    if (url.pathname === "/api/v1/session/scopes") return json({ items: [
+      { organization_id: org, workspace_id: workspace, environment_id: environment, label: "Production" },
+      { organization_id: org, workspace_id: workspace, environment_id: second, label: "Staging" },
+    ] });
+    if (url.pathname === "/api/v1/session/scope") {
+      expect(request.method).toBe("PUT");
+      expect(await request.json()).toEqual({ workspace_id: workspace, environment_id: second });
+      activeEnvironment = second;
+      return new Response(null, { status: 204 });
+    }
+    if (url.pathname === "/api/v1/compliance/controls") {
+      reads.push({ scope, signal: request.signal });
+      await controlsGate;
+      return json({ items: [{
+        id: "soc2_security-policies", framework: "SOC 2", name: "Policy definitions", freshness: "missing",
+        evidence_ids: [], fresh_until: "2026-11-01T00:00:00Z",
+      }], page_info: { has_more: false, next_cursor: null } });
+    }
+    if (url.pathname === "/api/v1/compliance/evidence") {
+      evidence.push({ scope, framework: url.searchParams.get("framework") });
+      return emptyPage();
+    }
+    return json({ items: [] });
+  });
+
+  render(<ZaspProductionApp />);
+  await waitFor(() => expect(reads.some(read => read.scope === firstScope)).toBe(true));
+  await userEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+  expect(reads.map(read => read.scope)).toEqual([firstScope]);
+  expect(reads[0].signal.aborted).toBe(false);
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Authorized scope" }), `${workspace}/${second}`);
+  await waitFor(() => expect(reads.some(read => read.scope === secondScope)).toBe(true));
+  await userEvent.click(screen.getByRole("button", { name: "Close navigation" }));
+  expect(reads.map(read => read.scope)).toEqual([firstScope, secondScope]);
+  expect(reads.map(read => read.signal.aborted)).toEqual([true, false]);
+
+  releaseControls();
+  expect(await screen.findByRole("button", { name: "Create evidence export" })).toBeVisible();
+  expect(evidence).toEqual([{ scope: secondScope, framework: "soc2_security" }, { scope: secondScope, framework: "hipaa" }]);
+});

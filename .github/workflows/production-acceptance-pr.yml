@@ -1,0 +1,13 @@
+name: Verify production acceptance before merge
+
+on:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    if: contains(github.event.head_commit.message, '[verify-production-cd]')
+    uses: ./.github/workflows/runnable-ui-acceptance.yml

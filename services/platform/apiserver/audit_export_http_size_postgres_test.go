@@ -37,6 +37,70 @@ func auditHTTPSizePhase(ctx context.Context, budget time.Duration) (context.Cont
 	return c, cancel, nil
 }
 
+func auditHTTPSizeBoundedPhase(ctx context.Context, maximum time.Duration) (context.Context, context.CancelFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	fixtureDeadline, ok := ctx.Deadline()
+	if !ok {
+		return nil, nil, errors.New("missing fixture deadline")
+	}
+	now := time.Now()
+	cutoff := fixtureDeadline.Add(-20 * time.Second)
+	if limit := now.Add(maximum); limit.Before(cutoff) {
+		cutoff = limit
+	}
+	if !cutoff.After(now) {
+		return nil, nil, errors.New("no phase time before fixture cleanup")
+	}
+	phase, stop := context.WithDeadline(ctx, cutoff)
+	return phase, stop, nil
+}
+
+func TestAuditHTTPSizeProcessProtocolBoundedPhase(t *testing.T) {
+	const maximum = 3 * time.Minute
+	for _, tc := range []struct {
+		name      string
+		remaining time.Duration
+	}{
+		{"full", 5 * time.Minute}, {"shorter", time.Minute},
+		{"cleanup reserve exhausted", 20 * time.Second}, {"no deadline", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			fixtureDeadline := time.Now().Add(tc.remaining)
+			if tc.remaining > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, fixtureDeadline)
+				defer cancel()
+			}
+			before := time.Now()
+			phase, stop, err := auditHTTPSizeBoundedPhase(ctx, maximum)
+			if tc.remaining <= 20*time.Second {
+				if err == nil || phase != nil || stop != nil {
+					t.Fatal("admitted phase without available fixture time")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stop()
+			deadline, ok := phase.Deadline()
+			if !ok {
+				t.Fatal("phase has no deadline")
+			}
+			if tc.remaining < maximum {
+				if !deadline.Equal(fixtureDeadline.Add(-20 * time.Second)) {
+					t.Fatal("phase consumed cleanup reserve", deadline)
+				}
+			} else if deadline.Before(before.Add(maximum)) || deadline.After(time.Now().Add(maximum)) {
+				t.Fatal("phase did not receive exactly its maximum budget", deadline)
+			}
+		})
+	}
+}
+
 func runAuditHTTPSizeWorker(ctx context.Context, binary, dsn, mode, address, ca, token, control string) (auditHTTPSizeChildResult, error) {
 	result := auditHTTPSizeChildResult{Mode: mode}
 	if control != "" && control != "diagnostics" && (control != "worker-retain" || mode != "audit-export") || mode != "audit-export" && mode != "audit-export-outbox" {
@@ -54,6 +118,11 @@ func runAuditHTTPSizeWorker(ctx context.Context, binary, dsn, mode, address, ca,
 	cmd := exec.Command(binary, "-test.run=^TestAuditHTTPSizeWorkerProcess$", "-test.v", "-test.count=1", "-test.timeout=9m")
 	cmd.Env = append(auditHTTPSizeEnvironment(), "ZASP_AUDIT_HTTP_SIZE_DSN="+dsn, "ZASP_AUDIT_HTTP_SIZE_MODE="+mode, "ZASP_AUDIT_HTTP_SIZE_ADDRESS="+address, "ZASP_AUDIT_HTTP_SIZE_CA="+ca, "ZASP_AUDIT_HTTP_SIZE_TOKEN="+token, "ZASP_AUDIT_HTTP_SIZE_CONTROL="+control, "ZASP_AUDIT_HTTP_SIZE_DEADLINE="+deadline.Format(time.RFC3339Nano))
 	cmd.ExtraFiles = []*os.File{w}
+	measurement, err := auditHTTPSizeSupervise(cmd)
+	if err != nil {
+		return result, errors.Join(err, w.Close())
+	}
+	defer measurement.Close()
 	output, runErr := testprocess.Run(ctx, cmd)
 	closeErr := w.Close()
 	result.Output = output
@@ -61,16 +130,13 @@ func runAuditHTTPSizeWorker(ctx context.Context, binary, dsn, mode, address, ca,
 		return result, errors.Join(runErr, closeErr)
 	}
 	result.Joined = true
-	if cmd.Process != nil {
-		result.PID = cmd.Process.Pid
-	}
+	result.PID, result.PeakRSSBytes, err = measurement.Complete(cmd)
 	record, recordErr := auditHTTPSizeReadTerminal(r, mode)
-	err = errors.Join(runErr, closeErr, recordErr)
-	if record.PID != result.PID || cmd.ProcessState == nil || !cmd.ProcessState.Success() || bytes.Contains(output, []byte("--- SKIP:")) {
+	err = errors.Join(err, closeErr, recordErr)
+	if record.PID != result.PID || bytes.Contains(output, []byte("--- SKIP:")) {
 		err = errors.Join(err, fmt.Errorf("worker terminal refused: %s", output))
 	}
 	if err == nil {
-		result.PeakRSSBytes, err = auditHTTPSizePeak(cmd.ProcessState)
 		result.RetainedBytes, result.SelfRSSBytes = record.RetainedBytes, record.SelfRSSBytes
 		if result.SelfRSSBytes > result.PeakRSSBytes {
 			err = errors.New("worker self RSS exceeds kernel final peak")
@@ -126,6 +192,7 @@ func auditHTTPSizeBuildChildren(t *testing.T, mode string) (string, map[string]s
 			t.Error(err)
 		}
 	})
+	auditHTTPSizeBuildSupervisor(t, root)
 	binaries := map[string]string{}
 	for _, target := range []string{"apiserver", "agentsec-worker"} {
 		started := time.Now()
@@ -458,13 +525,16 @@ func auditHTTPSizeCompositionCase(t *testing.T, binaries map[string]string, root
 	}
 	restarted, membershipChecked := false, false
 	traverse := func() auditHTTPSizeSummary {
-		started := time.Now()
-		defer func() { t.Logf("complete traversal elapsed=%s budget=3m", time.Since(started)) }()
-		phase, stop, err := auditHTTPSizePhase(ctx, 3*time.Minute)
+		phase, stop, err := auditHTTPSizeBoundedPhase(ctx, 3*time.Minute)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer stop()
+		started := time.Now()
+		deadline, _ := phase.Deadline()
+		defer func() {
+			t.Logf("traversal elapsed=%s effective_budget=%s maximum=3m fixture_cleanup_reserve=20s", time.Since(started), deadline.Sub(started))
+		}()
 		e := oracles[1]
 		if err := e.Reset(phase, binding); err != nil {
 			t.Fatal(err)
@@ -478,11 +548,14 @@ func auditHTTPSizeCompositionCase(t *testing.T, binaries map[string]string, root
 			if cursor != "" {
 				path += "?cursor=" + url.QueryEscape(cursor)
 			}
-			raw := pendingPage
-			pendingPage = nil
-			if raw == nil {
-				raw = invoke(phase, http.MethodGet, path, 200)
-			}
+			raw, expected, nextErr := auditHTTPSizeReadPage(phase, e.Next, func(pageCtx context.Context) []byte {
+				if pendingPage != nil {
+					page := pendingPage
+					pendingPage = nil
+					return page
+				}
+				return invoke(pageCtx, http.MethodGet, path, 200)
+			})
 			var page struct {
 				Export   json.RawMessage `json:"export"`
 				Contents *struct {
@@ -517,23 +590,14 @@ func auditHTTPSizeCompositionCase(t *testing.T, binaries map[string]string, root
 			} else if !bytes.Equal(savedManifest, contents.Manifest) {
 				t.Fatal("manifest changed between pages")
 			}
-			expected, nextErr := e.Next(phase)
 			if empty {
 				if nextErr != io.EOF || string(contents.Chunk) != "null" || contents.SHA != "" || manifest.EventCount != 0 {
 					t.Fatal("zero page contains a chunk")
 				}
-			} else {
-				if nextErr != nil || !bytes.Equal(expected, contents.Chunk) {
-					t.Fatal("original canonical chunk differs", ordinal, nextErr)
-				}
-				chunk, err := audit.DecodeExportChunk(contents.Chunk)
-				if err != nil || chunk.Ordinal != ordinal {
-					t.Fatal("chunk ordinal")
-				}
-				sum := sha256.Sum256(expected)
-				if contents.SHA != hex.EncodeToString(sum[:]) {
-					t.Fatal("chunk SHA mismatch")
-				}
+			} else if nextErr != nil {
+				t.Fatal("original canonical chunk unavailable", ordinal, nextErr)
+			} else if err := e.checkPageChunk(ordinal, expected, contents.Chunk, contents.SHA); err != nil {
+				t.Fatal("original canonical chunk differs", ordinal, err)
 			}
 			if contents.Page.More {
 				if contents.Page.Next == nil || *contents.Page.Next == "" || empty {
@@ -639,6 +703,9 @@ func auditHTTPSizeCompositionCase(t *testing.T, binaries map[string]string, root
 				t.Fatal("full fixture not strictly greater than 64 MiB", summary)
 			}
 			auditHTTPSizeCompletion(t, phase, f, args, provider, manifestBytes, summary)
+			if !time.Now().Before(deadline) || phase.Err() != nil {
+				t.Fatal("verified traversal exceeded its deadline", phase.Err())
+			}
 			return summary
 		}
 	}
@@ -667,13 +734,12 @@ func auditHTTPSizeCompositionCase(t *testing.T, binaries map[string]string, root
 		process.redeliver(t)
 		// Preserve the fixture's absolute cleanup reserve. A late ready replay
 		// gets less than eight minutes; it never extends this fixture's life.
-		deadline, _ := ctx.Deadline()
-		replayDeadline := time.Now().Add(8 * time.Minute)
-		if last := deadline.Add(-20 * time.Second); last.Before(replayDeadline) {
-			replayDeadline = last
+		replayCtx, stop, err := auditHTTPSizeBoundedPhase(ctx, 8*time.Minute)
+		if err != nil {
+			t.Fatal(err)
 		}
-		replayCtx, stop := context.WithDeadline(ctx, replayDeadline)
 		replayStarted := time.Now()
+		replayDeadline, _ := replayCtx.Deadline()
 		t.Logf("ready replay effective_budget=%s maximum=8m fixture_cleanup_reserve=20s", time.Until(replayDeadline))
 		caseResult.Replay, err = runAuditHTTPSizeWorker(replayCtx, binaries["agentsec-worker"], auditHTTPSizeDSN(t, f, "audit_export_worker_fixture"), "audit-export", front.Listener.Addr().String(), caPath, tokenPath, "")
 		stop()

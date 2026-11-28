@@ -37,25 +37,50 @@ jobs:
         run: npm install --global npm@10.9.8
       - name: Install locked dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Test the compliance browser fixture
+        env:
+          ZASP_COMBINED_E2E_COMPLIANCE: "true"
+        run: node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
       - name: Install pinned Python SDK test dependencies
         run: |
           sdk_venv="$RUNNER_TEMP/zasp-sdk-python"
           python3 -m venv "$sdk_venv"
           "$sdk_venv/bin/python" -m pip install 'httpx==0.28.1' 'pydantic==2.14.4' 'pytest==9.2.0'
+      - name: Restore Java SDK dependencies
+        id: sdk-maven-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/zasp-sdk-m2
+          key: sdk-maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdks/java/pom.xml') }}
       - name: Compile and exercise all four generated SDKs
         id: sdks
+        timeout-minutes: 12
+        env:
+          MAVEN_ARGS: -Dmaven.repo.local=${{ runner.temp }}/zasp-sdk-m2
         run: |
           set -o pipefail
           sdk_venv="$RUNNER_TEMP/zasp-sdk-python"
           log="$RUNNER_TEMP/zasp-sdk-test.log"
+          node --test fern/scripts/java-failure.test.mjs
+          mvn --version
           if PATH="$sdk_venv/bin:$PATH" npm run sdk:test -- --python --java 2>&1 | tee "$log"; then
             exit 0
           fi
           # The SDK runner prints its failed steps on a single line. Publish only known step names.
           failed=$(sed -n 's/^Failed: //p' "$log" | tail -1 | tr ',' '\n' | sed 's/^ *//' |
             awk '/^(typescript: (compile|smoke test)|go: (build|vet|test)|python: (compile|smoke test)|java: compile and test)$/ {print}' | paste -sd,)
+          if [[ "$failed" == *"java: compile and test"* ]]; then
+            java_detail=$(node fern/scripts/java-failure.mjs "$log")
+            failed="$failed ($java_detail)"
+          fi
           echo "failure=SDK checks: ${failed:-see SDK log}" >> "$GITHUB_OUTPUT"
           exit 1
+      - name: Save verified Java SDK dependencies
+        if: steps.sdk-maven-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/zasp-sdk-m2
+          key: ${{ steps.sdk-maven-cache.outputs.cache-primary-key }}
       # Reference validation only. Older-major compatibility remains an open
       # release gate in docs/internal/implementation_status_v1.5.md.
       - name: Install PostgreSQL 18 reference fixture tools
@@ -168,7 +193,7 @@ jobs:
           sudo install -m 0644 "$fixture_pg_dir/pgdg.asc" /usr/share/keyrings/zasp-ci-pgdg.asc
           printf '%s\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/zasp-ci-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/zasp-ci-pgdg.list > /dev/null
           sudo apt-get update
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18 python3-yaml
           fixture_pg_bin=/usr/lib/postgresql/18/bin
           for fixture_tool in initdb postgres pg_isready pg_ctl pg_config; do
             test -x "$fixture_pg_bin/$fixture_tool"

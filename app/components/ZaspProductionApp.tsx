@@ -71,25 +71,41 @@ const productionRoutes = [
   { path: "/administration/system-health", label: "System Health", capability: "system.read", group: "Settings" },
 ] as const;
 
+function ProductionComplianceSurface({ session, location, navigate }: {
+  session: Extract<SessionContextValue, { status: "authenticated" }>;
+  location: string;
+  navigate(path: string): void;
+}) {
+  const { client, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
+  const { organizationID, workspaceID, environmentID, isFreshAuthenticated, reauthenticate } = session;
+  const principalID = session.principal.id;
+  const permitted = queryScopeKey === `${organizationID}/${workspaceID}/${environmentID}` && session.hasCapability("compliance.read") &&
+    ["view", "view_audit", "view_compliance"].every(permission => session.permissions.includes(permission));
+  const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
+  // Evidence requests restart when their authority changes. Keep an unrelated
+  // shell render from cancelling a read that still belongs to this scope.
+  const boundary = useMemo(() => ({
+    principalID, organizationID, workspaceID, environmentID, generation: queryGeneration, permitted,
+    fresh: isFreshAuthenticated, reauthenticate,
+    isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration(),
+  }), [principalID, organizationID, workspaceID, environmentID, queryGeneration, permitted, isFreshAuthenticated,
+    reauthenticate, expiry, stale, getSessionInvalidationGeneration, getScopeStaleGeneration]);
+  const catalog = useMemo(() => parseCatalogLink(location, boundary), [location, boundary]);
+  const compliance = useMemo(() => catalog.state === "selected" ? { state: "none" as const } : parseComplianceLink(location, boundary), [catalog, location, boundary]);
+  if (catalog.state === "scope_mismatch") return <div className="page" role="alert">This catalog link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
+  if (catalog.state === "invalid") return <div className="page" role="alert">This catalog link is invalid. Open the framework in Compliance.</div>;
+  if (compliance.state === "scope_mismatch") return <div className="page" role="alert">This compliance link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
+  if (compliance.state === "invalid") return <div className="page" role="alert">This compliance link is invalid. Open evidence from the authorized list.</div>;
+  return <SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} onNavigate={navigate}
+    selectedExport={compliance.state === "export" ? compliance.id : undefined} selectedCatalog={catalog.state === "selected" ? catalog.target : undefined}
+    selectedSource={compliance.state === "selected" ? compliance.target : undefined} />;
+}
+
 function ProductionRouteSurface({ path, location, navigate }: { path: string; location: string; navigate(path: string): void }) {
   const session = useSession();
   const { client, auditExports, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
   if (session.status !== "authenticated") return null;
-  if (path === "/compliance/evidence") {
-    const catalog = parseCatalogLink(location, session);
-    if (catalog.state === "scope_mismatch") return <div className="page" role="alert">This catalog link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
-    if (catalog.state === "invalid") return <div className="page" role="alert">This catalog link is invalid. Open the framework in Compliance.</div>;
-    const compliance = catalog.state === "selected" ? { state: "none" as const } : parseComplianceLink(location, { ...session, principalID: session.principal.id });
-    if (compliance.state === "scope_mismatch") return <div className="page" role="alert">This compliance link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
-    if (compliance.state === "invalid") return <div className="page" role="alert">This compliance link is invalid. Open evidence from the authorized list.</div>;
-    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
-    return <SessionsComplianceView surface="compliance" client={client} selectedExport={compliance.state === "export" ? compliance.id : undefined} selectedCatalog={catalog.state === "selected" ? catalog.target : undefined} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
-      principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID, generation: queryGeneration,
-      permitted: queryScopeKey !== null && session.hasCapability("compliance.read") && ["view", "view_audit", "view_compliance"].every(permission => session.permissions.includes(permission)),
-      fresh: session.isFreshAuthenticated, reauthenticate: session.reauthenticate,
-      isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration(),
-    }} />;
-  }
+  if (path === "/compliance/evidence") return <ProductionComplianceSurface session={session} location={location} navigate={navigate} />;
   if (path === "/connectors" && isSaaSCallback(location)) return <ProductionIntegrationsView canWrite={false} location={location} />;
   const activity = parseActivityLink(location, { ...session, principalID: session.principal.id });
   if (activity.state === "scope_mismatch") return <div className="page" role="alert">This activity link belongs to a different organization, workspace or environment. Select the authorized scope explicitly before opening it.</div>;
@@ -234,11 +250,12 @@ function ProductionAppContent() {
     window.addEventListener("popstate", onPopState);
     return () => { mounted = false; window.removeEventListener("popstate", onPopState); };
   }, [routes, session]);
-  // Right after sign-in or a role change the authorization projection can lag
-  // for a few seconds. Reload the session a bounded number of times instead of
-  // leaving the person on a manual retry screen.
-  const authorizationPending = session.status === "error" && session.authorizationStatus === "pending" && session.scopeSwitch.status !== "error";
-  const retrySession = session.retry;
+  // A scope switch can advance the authorization revision. Retry the active
+  // scope reconciliation only while its authorization projection is pending.
+  const reconcileScope = session.scopeSwitch.status === "error" && session.scopeSwitch.error?.code === "scope_reconciliation_failed";
+  const authorizationPending = session.status === "error" && session.authorizationStatus === "pending" &&
+    (session.scopeSwitch.status === "idle" || reconcileScope);
+  const retrySession = reconcileScope ? session.scopeSwitch.retry : session.retry;
   const pendingRetries = useRef(0);
   const [pendingAttempt, setPendingAttempt] = useState(0);
   useEffect(() => {

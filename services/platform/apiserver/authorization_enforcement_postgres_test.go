@@ -68,9 +68,13 @@ func migrateP7Authorization(t *testing.T, ctx context.Context, conn *pgx.Conn) *
 		runner.UpProductionAttackLabExecution, runner.UpProductionRecovery, runner.UpProductionPolicyDeployment, runner.UpProductionHomeAttention, runner.UpProductionApprovalNotification, runner.UpProductionWorkflowCompatibility, runner.UpProductionSecurityAgentPlanner, runner.UpProductionSecurityAgentAttackPath, runner.UpProductionIntegrationSetup, runner.UpProductionIntegrationWebhook, runner.UpProductionRuntimeQueueReplay, runner.UpProductionRedTeamSafety, runner.UpProductionRedTeamInvocation, runner.UpProductionRedTeamArtifacts, runner.UpProductionRuntimeSessions, runner.UpProductionRuntimeSessionReads, runner.UpProductionRuntimeSessionSearch, runner.UpProductionRuntimeSessionQuery, runner.UpProductionRuntimeSessionEvidence, runner.UpProductionRuntimeEnrollmentPairing, runner.UpProductionReconciliationLanePlan, runner.UpProductionRuntimeCandidateAuthority, runner.UpProductionRuntimeAcceptance, runner.UpProductionRuntimeCorrelationRouting, runner.UpProductionRuntimeSandboxBinding, runner.UpProductionRuntimePrecision, runner.UpProductionAuditExports, runner.UpProductionSecurityAgentBudgets, runner.UpProductionSecurityAgentRunContext, runner.UpProductionSecurityAgentExistingTests, runner.UpProductionCompliance, runner.UpProductionSecurityAgentAttackLab, runner.UpProductionSecurityAgentExports, runner.UpProductionSecurityAgentWebhooks, runner.UpProductionDiscoveryScheduleReplay, runner.UpProductionSecurityAgentMultistep,
 		runner.UpProductionAuthorizationProjection, installAuthorization} {
 		if err := up(ctx); err != nil {
-			version, _ := runner.Version(ctx)
-			t.Logf("failed after canonical version %d", version)
-			tx, _ := conn.Begin(ctx)
+			if version, versionErr := runner.Version(ctx); versionErr == nil {
+				t.Logf("failed after canonical version %d", version)
+			}
+			tx, beginErr := conn.Begin(ctx)
+			if beginErr != nil {
+				t.Fatalf("authorization install: %v (could not start diagnostic transaction: %v)", err, beginErr)
+			}
 			_, detail := tx.Exec(ctx, migrations.ProductionAuthorizationEnforcement().UpSQL())
 			_ = tx.Rollback(ctx)
 			t.Logf("installation diagnostic: %v", detail)
@@ -96,15 +100,19 @@ func migrateP7Authorization(t *testing.T, ctx context.Context, conn *pgx.Conn) *
 }
 
 func TestP7AuthorizationPostgres(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
+	setupCtx, stopSetup := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer stopSetup()
 	dsn := startDisposablePostgresAs(t, "zasp_e2e")
-	conn, err := pgx.Connect(ctx, dsn)
+	conn, err := pgx.Connect(setupCtx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close(context.Background())
-	runner := migrateP7Authorization(t, ctx, conn)
+	runner := migrateP7Authorization(t, setupCtx, conn)
+	stopSetup()
+	// Give the native authorization checks their own bounded execution window.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 	exec := func(q string, args ...any) {
 		t.Helper()
 		if _, err := conn.Exec(ctx, q, args...); err != nil {
@@ -250,7 +258,6 @@ func TestP7AuthorizationPostgres(t *testing.T) {
 	if err != nil || item.ID != ids[1] {
 		t.Fatalf("parent-filtered compliance detail: %+v %v", item, err)
 	}
-	exerciseP7FoundationReadContracts(t, ctx, conn, api, database, authorizer, identity, binding, projection, ids, policyIDs)
 	// Authentication evidence cannot survive a changed browser CSRF binding,
 	// even when membership, FGA tuples and the product version are unchanged.
 	exec(`UPDATE zasp_product_sessions SET csrf_token=repeat('y',32) WHERE session_id=$1`, binding.ID)
@@ -258,6 +265,7 @@ func TestP7AuthorizationPostgres(t *testing.T) {
 		t.Fatalf("stale browser CSRF binding used: %v", err)
 	}
 	exec(`UPDATE zasp_product_sessions SET csrf_token=repeat('x',32) WHERE session_id=$1`, binding.ID)
+	exerciseP7FoundationReadContracts(t, ctx, conn, api, database, authorizer, identity, binding, projection, ids, policyIDs)
 	// A product version changes without a permission change. The commit fence
 	// still rejects the old decision before a second statement can affect data.
 	grant, err = authorizer.Authorize(ctx, identity, binding, RoutedOperation{OperationID: "updateFinding", PathParameters: map[string]string{"id": ids[1]}})

@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -28,6 +27,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/internal/testopenfga"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -132,7 +132,7 @@ func discovery72MachineFixture(t *testing.T, mode string) {
 		Deadline                                                                time.Time
 	}
 	var raw map[string]json.RawMessage
-	if json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_FGA_CONFIG")), &pins) != nil || pins.FGAURL != "http://127.0.0.1:8088" || json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_REQUEST")), &raw) != nil {
+	if json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_FGA_CONFIG")), &pins) != nil || json.Unmarshal([]byte(os.Getenv("ZASP_P7_DISCOVERY_REQUEST")), &raw) != nil {
 		t.Fatal("owned consumer inputs required")
 	}
 	for k, dst := range map[string]*string{"organization_id": &q.Organization, "workspace_id": &q.Workspace, "environment_id": &q.Environment, "job_id": &q.Job, "integration_id": &q.Integration, "input_digest": &q.Digest, "grantor_id": &q.Grantor} {
@@ -170,28 +170,15 @@ func discovery72MachineFixture(t *testing.T, mode string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := exec.CommandContext(ctx, "docker", "inspect", "zasp-runtime-services-openfga-1").Output()
+	token, err := testopenfga.ConsumerToken(ctx, pins.FGAURL, pins.FGATokenFile)
 	if err != nil {
-		t.Fatal("owned FGA unavailable")
-	}
-	var containers []struct{ Config struct{ Env []string } }
-	if json.Unmarshal(data, &containers) != nil || len(containers) != 1 {
-		t.Fatal("owned FGA configuration")
-	}
-	token := ""
-	for _, entry := range containers[0].Config.Env {
-		if strings.HasPrefix(entry, "OPENFGA_AUTHN_PRESHARED_KEYS=") {
-			token = strings.TrimPrefix(entry, "OPENFGA_AUTHN_PRESHARED_KEYS=")
-		}
-	}
-	if token == "" || strings.Contains(token, ",") {
-		t.Fatal("owned FGA credential")
+		t.Fatal(err)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	defer transport.CloseIdleConnections()
 	fgaTransport := &workerNativeFGATransport{base: transport}
-	client, err := fga.NewSdkClient(&fga.ClientConfiguration{ApiUrl: pins.FGAURL, Credentials: &credentials.Credentials{Method: credentials.CredentialsMethodApiToken, Config: &credentials.Config{ApiToken: token}}, HTTPClient: &http.Client{Transport: fgaTransport, Timeout: 5 * time.Second}})
+	client, err := fga.NewSdkClient(&fga.ClientConfiguration{ApiUrl: pins.FGAURL, Credentials: &credentials.Credentials{Method: credentials.CredentialsMethodApiToken, Config: &credentials.Config{ApiToken: token}}, HTTPClient: &http.Client{Transport: fgaTransport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
 	if err != nil {
 		t.Fatal(err)
 	}

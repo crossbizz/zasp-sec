@@ -170,6 +170,18 @@ test('the first install and each upgrade bind scoped resources, full image diges
   await assert.rejects(run({hook:hook.replace('agentsec-migrate','substituted')}),/differs/);
 });
 
+test('a marked branch commit runs the same hosted acceptance as production CD', () => {
+  const workflow = name => load(readFileSync(new URL('../../.github/workflows/' + name, import.meta.url), 'utf8'));
+  const preview = workflow('production-acceptance-pr.yml');
+  const production = workflow('production-cd.yml');
+  assert.deepEqual(preview.on, {push: {'branches-ignore': ['main']}});
+  assert.deepEqual(preview.permissions, {contents: 'read'});
+  assert.deepEqual(preview.jobs, {acceptance: {
+    if: "contains(github.event.head_commit.message, '[verify-production-cd]')",
+    uses: production.jobs.acceptance.uses,
+  }});
+});
+
 test('CD requires protected acceptance and promotion, serializes upgrades and limits cluster permissions to named read-only identity checks', () => {
   const file = path => readFileSync(new URL('../../' + path, import.meta.url),'utf8');
   const workflow = load(file('.github/workflows/production-cd.yml'));

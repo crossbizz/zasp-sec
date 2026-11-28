@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { startOwnedRuntimeServices } from './owned-runtime-services.mjs';
+import { startOwnedRuntimeServices, startOwnedMigrationRuntimeServices } from './owned-runtime-services.mjs';
 const product=JSON.parse(readFileSync(new URL('./product-model.json',import.meta.url)));
 const store='01K00000000000000000000001', model='01K00000000000000000000002';
 function harness(failure) {
@@ -106,3 +106,12 @@ test('every descriptor default path rejects a nondefault and reverses cleanup',a
 test('default projection preserves unknown, oneof, condition, type, relationship, identity and order refusals',async()=>{const cases=[v=>{v.conditions.task_bound.expression='false';},v=>{v.conditions.task_bound.parameters.task.type_name='TYPE_NAME_INT';},v=>{v.conditions.task_bound.parameters.task.extra=null;},v=>{v.conditions.extra={};},v=>{v.type_definitions[0].extra=null;},v=>{v.type_definitions.reverse();},v=>{v.schema_version='1.0';},v=>{v.id='01K00000000000000000000003';},v=>{v.type_definitions[0].type='unexpected';},v=>{v.type_definitions[3].relations={};}];for(const mutate of cases)await modelReadback(v=>{for(const row of protobufDefaults)putDefault(v,row.segments,row.default);mutate(v);},false);const references=protobufDefaults.filter(r=>r.segments.at(-1)==='condition');assert.ok(references.length);const r=references[0];for(const field of ['relation','wildcard'])await modelReadback(v=>putDefault(v,r.segments.slice(0,-1).concat(field),field==='relation'?'':null),false);await modelReadback(v=>{for(const t of v.type_definitions)for(const m of Object.values(t.metadata?.relations??{}))for(const r of m.directly_related_user_types??[])if(r.condition)r.condition='';},false);});
 
 test('each optional message default refuses object metadata including unknown keys',async()=>{for(const row of protobufDefaults.filter(r=>r.default===null))for(const invalid of [{},{unknown:null}])await modelReadback(v=>putDefault(v,row.segments,invalid),false);});
+
+test('migration proof requires ownership of the native clients fixed Temporal listener', async () => {
+ const h=harness();const requested=[];const reserve=h.adapters.reservePort;
+ h.adapters.reservePort=async(port=0)=>{requested.push(port);return port||reserve();};
+ const services=await startOwnedMigrationRuntimeServices(h.config,h.adapters);
+ try{assert.deepEqual(requested,[7233,0,0]);assert.equal(services.environment.ZASP_TEMPORAL_ADDRESS,'127.0.0.1:7233');}finally{await services.close();}
+ const wrong=harness();await assert.rejects(startOwnedMigrationRuntimeServices(wrong.config,wrong.adapters));
+ assert.equal(wrong.calls.some(x=>Array.isArray(x)&&x[0]==='start'),false);
+});

@@ -3,6 +3,9 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -98,13 +102,43 @@ func TestP7Discovery72CurrentAPIAndWorker(t *testing.T) {
 	if schedulePhase != "" && schedulePhase != "1" && schedulePhase != "2" {
 		t.Fatal("unknown owned schedule phase")
 	}
-	sessionToken, sessionID := "discovery72-owned-session", "session-discovery72-owned"
-	if schedulePhase != "" {
-		sessionToken += "-schedule-" + schedulePhase
-		sessionID += "-schedule-" + schedulePhase
-	}
-	if _, err = owner.Exec(ctx, `INSERT INTO zasp_product_sessions(token_digest,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,authenticated_at,expires_at) VALUES(digest($5::text,'sha256'),$6,$1,$2,$3,$4,'[]',repeat('x',32),clock_timestamp(),clock_timestamp()+interval '1 hour')`, p, o, w, e, sessionToken, sessionID); err != nil {
+	// All three discovery mutations admit a human PAT with manage_workflows.
+	// The registered temporal identity profile authenticates this scoped token
+	// in the same database in which the discovered job is authorized.
+	audience := sha256.Sum256([]byte("https://console.example"))
+	sessionKey, err := authorization.NewIdentitySessionKey(bytes.Repeat([]byte{37}, 32))
+	if err != nil {
 		t.Fatal(err)
+	}
+	webhookKey, err := authorization.NewIdentityWebhookKey(bytes.Repeat([]byte{71}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for statement, key := range map[string][2]any{
+		"SELECT zasp_authorization80_identity.register_session($1,$2,$3,$4,$5,$6)": {sessionKey.Version(), sessionKey.Verifier()},
+		"SELECT zasp_authorization80_identity.register_webhook($1,$2,$3,$4,$5,$6)": {webhookKey.Version(), webhookKey.Verifier()},
+	} {
+		if _, err := owner.Exec(ctx, statement, key[0], key[1], hex.EncodeToString(audience[:]), "project-test-discovery", apiLogin, ""); err != nil {
+			t.Fatal("registered discovery identity verifier", err)
+		}
+	}
+	var seed [32]byte
+	if _, err := rand.Read(seed[:]); err != nil {
+		t.Fatal(err)
+	}
+	token := hex.EncodeToString(seed[:])
+	id, err := newWorkflowProductID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	revokedID, err := newWorkflowProductID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := owner.Exec(ctx, `INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,revoked_at)
+SELECT digest(raw,'sha256'),id,'Discovery proof',$1,$2,$3,$4,'["manage_workflows"]',clock_timestamp()+interval '1 hour',revoked
+FROM (VALUES ($5::text,$6::text,NULL::timestamptz),('revoked-' || $5,$7::text,clock_timestamp())) AS credentials(raw,id,revoked)`, p, o, w, e, token, id, revokedID); err != nil {
+		t.Fatal("seed scoped discovery credentials", err)
 	}
 	apiCfg := cfg.Copy()
 	apiCfg.User = apiLogin
@@ -125,9 +159,15 @@ func TestP7Discovery72CurrentAPIAndWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err := repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: sessionToken})
+	if _, err := repo.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: "revoked-" + token}); !errors.Is(err, ErrRepositoryAuthentication) {
+		t.Fatal("revoked discovery token was not rejected")
+	}
+	identity, err := repo.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: token})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if identity.CredentialKind != CredentialBearerToken || identity.credentialBinding.ID != id || len(identity.credentialBinding.PATCeiling) != 1 || identity.credentialBinding.PATCeiling[0] != "manage_workflows" || identity.Scope.OrganizationID().String() != o || identity.Scope.WorkspaceID().String() != w || identity.Scope.EnvironmentID().String() != e {
+		t.Fatal("authenticated discovery token has wrong scope, ID or ceiling")
 	}
 	discovery, err := NewDiscoveryRepositoryForAuthority(db, DiscoveryDatabaseAuthorityAPI)
 	if err != nil {
@@ -144,7 +184,10 @@ func TestP7Discovery72CurrentAPIAndWorker(t *testing.T) {
 	var operations []Operation
 	for _, id := range []string{"syncIntegration", "putIntegrationSchedule", "deleteIntegrationSchedule"} {
 		policy, _ := authorization.LookupOperation(id)
-		operations = append(operations, Operation{Method: policy.Method, Pattern: policy.Path, OperationID: id, Permission: policy.Permission, Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: true, Handler: handler})
+		if !slices.Equal(policy.Security, []string{"BrowserSession", "ProductAPIToken"}) {
+			t.Fatalf("unexpected discovery route credentials for %s", id)
+		}
+		operations = append(operations, Operation{Method: policy.Method, Pattern: policy.Path, OperationID: id, Permission: policy.Permission, Security: []CredentialKind{CredentialBrowserSession, CredentialBearerToken}, RequireCSRF: true, Handler: handler})
 	}
 	router, err := NewRouter(operations)
 	if err != nil {
@@ -161,8 +204,7 @@ func TestP7Discovery72CurrentAPIAndWorker(t *testing.T) {
 		r.Header.Set("If-Match", fmt.Sprintf(`"%d"`, version))
 		r.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
 		r.Header.Set("Origin", "https://console.example")
-		r.Header.Set("X-CSRF-Token", identity.CSRFToken)
-		r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: sessionToken})
+		r.Header.Set("Authorization", "Bearer "+token)
 		current := context.WithValue(ctx, identityContextKey{}, identity)
 		current = context.WithValue(current, browserSecurityContextKey{}, browserSecurityContext{publicOrigin: "https://console.example"})
 		current = context.WithValue(current, correlationContextKey{}, integrationClientCorrelation(key))
