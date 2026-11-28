@@ -2296,9 +2296,9 @@ async function exerciseComplianceBrowser(configuration) {
   const pagingLast=pagingPrefix+"101";
   assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
   const complianceFixtureSQL=`UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
-INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','policy','policy-compliance-read-only',3,'{}','2020-01-01');
-INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');
-INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`;
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','policy','policy-compliance-read-only',3,'{}','2020-01-01T00:00:00Z');
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01T00:00:00Z');
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01T00:00:00Z' FROM generate_series(1,101) n;`;
   const historicalRegistrationsSQL=`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
 SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));`;
   await sql(historicalRegistrationsSQL+complianceFixtureSQL);
@@ -2383,15 +2383,14 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   await stopChild(api);await startAPI();
   await reloadBrowser(cdp);
   await waitForBrowserText(cdp,/Create evidence export/);
+  const pagingStart=complianceResponseTrace.length;
   await selectBrowserOption(cdp,"Authorized scope","Staging");
   await waitForBrowserScope(cdp,selectedScope);
   // Both mounted chains must traverse an actual >512-character SQL/HTTP cursor.
   // These owned paging records are removed before export, whose 100-record cap
   // and original single-record byte assertions stay unchanged.
-  await waitForBrowserText(cdp,new RegExp(pagingLast));
-  const pagingLinks=await cdp.send("Runtime.evaluate",{expression:`[...document.querySelectorAll('a')].filter(e=>e.getAttribute('aria-label')==='Open policy ${pagingLast} version 7').length`,returnByValue:true});
-  assert.equal(pagingLinks.result.value,2,"all frameworks must include the last maximum-ID policy");
-  for(const framework of ["soc2_security","hipaa"]) assert.ok(complianceResponseTrace.some(entry=>entry.path==="/api/v1/compliance/evidence"&&entry.scope===selectedScope&&entry.framework===framework&&entry.cursorLength>512&&entry.status===200),framework+" mounted long-cursor continuation missing");
+  await waitForCompliancePagingLinks(cdp,`Open policy ${pagingLast} version 7`,selectedScope,pagingStart);
+  for(const framework of ["soc2_security","hipaa"]) assert.ok(complianceResponseTrace.slice(pagingStart).some(entry=>entry.path==="/api/v1/compliance/evidence"&&entry.scope===selectedScope&&entry.framework===framework&&entry.cursorLength>512&&entry.status===200),framework+" mounted long-cursor continuation missing");
   await selectBrowserOption(cdp,"Framework","HIPAA");
   await selectBrowserOption(cdp,"Control","Policy definitions");
   await clickBrowserAria(cdp,`Open policy ${pagingLast} version 7`);
@@ -2421,6 +2420,11 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   await clickBrowserText(cdp,"Create evidence export");
   await waitForBrowserText(cdp,/Export queued/);
   const jobID=await sql("SELECT export_id FROM zasp_compliance_export_jobs ORDER BY created_at DESC LIMIT 1");assert.match(jobID,/^pid_[a-f0-9-]{36}$/);
+  const exportURL = await browserCurrentURL(cdp);
+  const exportQuery = new URLSearchParams({
+    export_id: jobID, principal_id: actor, organization_id: org, workspace_id: workspace, environment_id: environment,
+  });
+  assert.equal(exportURL, `${publicOrigin}/compliance/evidence?${exportQuery}`);
   const worker=async phase=>{
     const login=phase==="reconcile"||phase.startsWith("cleanup")?"zasp_svc_compliance_cleanup":"zasp_svc_compliance_worker";
     const workerDSN=`postgres://${login}@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
@@ -2454,11 +2458,10 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   for(const text of [saved.toString(),envelope.csv,envelope.human]) assert.doesNotMatch(text,/certified|certification achieved|compliance (?:passed|certified)|HIPAA compliant|SOC 2 compliant/i);
   assert.match(envelope.human,/does not attest compliance/);
   assert.match(saved.toString(),/policy-compliance-browser/);assert.match(saved.toString(),/"source_version":7/);assert.doesNotMatch(saved.toString(),/NEVER_EXPORT_BROWSER/);
-  // Stay in the user's tab so sessionStorage reload recovery is genuinely exercised.
   await cdp.send("Page.navigate",{url:`${publicOrigin}${sourceLocation}`}); await waitForBrowserText(cdp,/Source changed/);
-  // API restart and page reload resolve the durable job, without in-memory worker state.
+  // Reopen the user's scoped export link after the API and document restart.
   await stopChild(api); await startAPI();
-  await cdp.send("Page.navigate",{url:`${publicOrigin}/compliance/evidence`});
+  await cdp.send("Page.navigate",{url:exportURL});
   await waitForBrowserText(cdp,/Export completed/);
   const beforeReload=await cdp.send("Runtime.evaluate",{expression:"performance.timeOrigin",returnByValue:true});
   await reloadBrowser(cdp);
@@ -6242,6 +6245,14 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       "x-forwarded-proto": "https",
     };
     delete upstreamHeaders["x-zasp-e2e-tab"];
+    function observeCompliance(status) {
+      if (!complianceBrowserMode || !target.pathname.startsWith("/api/v1/")) return;
+      const expectedScope=String(request.headers["x-zasp-expected-scope"]??"");
+      const framework=target.searchParams.get("framework");
+      const entry={method:request.method,path:target.pathname,status,cursor:target.searchParams.has("cursor"),cursorLength:(target.searchParams.get("cursor")??"").length,framework:["soc2_security","hipaa"].includes(framework)?framework:null,scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
+      complianceResponseTrace.push(entry);
+      return entry;
+    }
 		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
       if (securityAgentExportMode && /^\/api\/v1\/security-agent/.test(target.pathname)) {
         assert.ok(exportBrowserTrace.length<1000,"export browser trace bound exceeded");
@@ -6249,11 +6260,8 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
         const version=String(upstreamResponse.headers.etag??"");
         exportBrowserTrace.push({method:request.method,path:target.pathname,status:upstreamResponse.statusCode,expectedScope:String(request.headers["x-zasp-expected-scope"]??""),origin:String(request.headers.origin??""),csrfPresent:typeof request.headers["x-csrf-token"]==="string",freshConfirmed:request.headers["x-zasp-fresh-auth"]==="confirmed",idempotencyHash:request.headers["idempotency-key"]?createHash("sha256").update(String(request.headers["idempotency-key"])).digest("hex"):null,receiptID:headerID("x-mutation-receipt-id"),auditID:headerID("x-audit-id"),correlationID:headerID("x-correlation-id"),etag:/^"[0-9]+"$/.test(version)?version:null});
       }
-      if (complianceBrowserMode && target.pathname.startsWith("/api/v1/")) {
-        const expectedScope=String(request.headers["x-zasp-expected-scope"]??"");
-        const framework=target.searchParams.get("framework");
-        const entry={method:request.method,path:target.pathname,status:upstreamResponse.statusCode,cursor:target.searchParams.has("cursor"),cursorLength:(target.searchParams.get("cursor")??"").length,framework:["soc2_security","hipaa"].includes(framework)?framework:null,scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
-        complianceResponseTrace.push(entry);
+      const entry = observeCompliance(upstreamResponse.statusCode);
+      if (entry) {
         // Only product error codes leave memory; never retain bodies, headers or tokens.
         if (entry.status >= 400) {
           let errorJSON="";
@@ -6433,7 +6441,13 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
       upstreamResponse.pipe(response);
     });
-    upstream.on("error", () => { response.writeHead(502); response.end("upstream unavailable"); });
+    upstream.on("error", () => {
+      if (!response.headersSent) {
+        observeCompliance(502);
+        response.writeHead(502);
+      }
+      response.end("upstream unavailable");
+    });
       request.pipe(upstream);
   });
   server.listen(port, "127.0.0.1");
@@ -6860,6 +6874,45 @@ async function assertResponsiveRiskLayout(cdp, heading) {
     assert.equal(state.focusedVisible, true, `${heading} focus target was not visible at ${viewport.width}x${viewport.height}`);
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+}
+
+async function waitForCompliancePagingLinks(cdp, label, scope, traceStart) {
+  const expression = `(() => {
+    const links = [...document.querySelectorAll('a[href]')].filter(link => {
+      if (link.getAttribute('aria-label') !== ${JSON.stringify(label)}) return false;
+      const url = new URL(link.href);
+      const selected = ['organization_id','workspace_id','environment_id'].map(key => url.searchParams.get(key)).join('/');
+      return url.origin === location.origin && url.pathname === '/compliance/evidence' && selected === ${JSON.stringify(scope)};
+    });
+    const text = document.body.innerText;
+    const states = [["Loading compliance evidence", "loading"], ["Access denied", "forbidden"], ["Source unavailable", "unavailable"],
+      ["Compliance request failed", "read-error"], ["Sign in to Zasp", "sign-in"], ["Authorization pending", "pending"], ["Session unavailable", "session-error"],
+      ["No product capabilities", "no-access"], ["Switching authorized scope", "switching"], ["Evidence controls", "evidence"]];
+    return {links: links.length, onEvidence: location.pathname === "/compliance/evidence", state: states.find(([message]) => text.includes(message))?.[1] ?? "other"};
+  })()`;
+  // Controls load first, then SOC 2 and HIPAA each read two pages in order.
+  // Each request has the production client's 10-second bound.
+  const deadline = performance.now() + 5 * 10_000 + 2_000;
+  let last;
+  while (performance.now() < deadline) {
+    const result = await cdp.send("Runtime.evaluate", {expression, returnByValue: true});
+    last = result.result?.value;
+    if (last?.links === 2) return;
+    await delay(50);
+  }
+  const evidencePaths = new Map([["/api/v1/compliance/evidence","evidence"],["/api/v1/compliance/controls","controls"]]);
+  const observations = new Set();
+  for (const response of complianceResponseTrace.slice(traceStart)) {
+    const route = evidencePaths.get(response.path);
+    if (!route || response.method !== "GET" || !Number.isInteger(response.status) || response.status < 100 || response.status > 599) continue;
+    const framework = response.framework === "soc2_security" ? "soc2" : response.framework === "hipaa" ? "hipaa" : "all";
+    const cursor = response.cursor ? response.cursorLength > 512 ? "long" : "short" : "first";
+    observations.add([route,framework,response.scope===scope?"selected":"other",cursor,response.status].join("-"));
+  }
+  const state = ["loading","forbidden","unavailable","read-error","sign-in","pending","session-error","no-access","switching","evidence"].includes(last?.state) ? last.state : "other";
+  const links = last?.links === 0 || last?.links === 1 ? last.links : "other";
+  console.error(`ZASP_COMPLIANCE_PAGING=ui-${state}-links-${links}-route-${last?.onEvidence ? "evidence" : "other"} ${[...observations].slice(-12).join(" ")}`);
+  throw new Error("Expected both frameworks to render the final policy link");
 }
 
 async function waitForBrowserText(cdp, pattern) {
