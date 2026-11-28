@@ -133,7 +133,7 @@ func TestHistoricalRelease56ComplianceHTTP(t *testing.T) {
 	}
 	request("evidence?limit=100&framework=soc2_security", token, http.StatusBadRequest, nil)
 	request("evidence", "", http.StatusUnauthorized, nil)
-	request("evidence", "target-role-session", http.StatusForbidden, nil)
+	request("evidence", "webhook-member-session-e2e", http.StatusForbidden, nil)
 }
 
 // Catch an unregistered release, a broken exact predecessor upgrade or missing
