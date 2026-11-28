@@ -47,8 +47,10 @@ export function cases(sourceURL) {
    }
    assert.equal(executable,"/owned/psql");const statement=args.at(-1);
    if(statement.includes("zasp_authorization79.revision")){
-    const target=statement.match(/zasp_authorization79\.revision\('([^']+)'\)/)[1];
-    return {status:0,signal:null,stdout:JSON.stringify({...revision,organization_id:target})};
+    assert.match(statement,/zasp_authorization79\.revision\(id\).*FROM \(VALUES /);
+    const ids=[...statement.matchAll(/\('(pid_[0-9a-f-]+)'\)/g)].map(match=>match[1]);
+    assert.ok(ids.length>0);
+    return {status:0,signal:null,stdout:ids.map(id=>JSON.stringify({...revision,organization_id:id})).join("\n")};
    }
    if(statement==="SELECT max(version) FROM zasp_schema_versions"){assert.equal(args[0],"controlled-owner-dsn");return {status:0,signal:null,stdout:"56"};}
    if(statement.includes("activate_projection"))return {status:0,signal:null,stdout:"t\n"};

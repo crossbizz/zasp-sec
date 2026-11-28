@@ -2178,3 +2178,94 @@ test("current runtime startup arriving during cleanup is joined before file remo
   assert.equal(loops,0,"late installation started an unowned projection loop");assert.equal(closes,1);assert.equal(removed,true);
   assert.match((await boot).error?.message??"",/current runtime startup after cleanup refused/);
  });
+
+test("CDP rejects closed connections immediately and never includes parameters in timeout diagnostics", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function connectCDP(");
+  const end = source.indexOf("\nfunction startChild(", start);
+  const timers = new Set();
+  class Socket extends EventTarget {
+    static OPEN = 1;
+    static instances = [];
+    readyState = Socket.OPEN;
+    sent = [];
+    constructor() { super(); Socket.instances.push(this); queueMicrotask(() => this.dispatchEvent(new Event("open"))); }
+    send(message) { this.sent.push(message); }
+    close() { this.readyState = 3; this.dispatchEvent(new Event("close")); }
+  }
+  const connect = runInNewContext(`(${source.slice(start, end)})`, {
+    WebSocket: Socket, browserStage: "navigate:https://fixture.invalid/private-scope",
+    setTimeout(callback) { timers.add(callback); return callback; }, clearTimeout(callback) { timers.delete(callback); },
+  });
+  for (const peerClosed of [false, true]) {
+    const cdp = await connect("local");
+    const socket = Socket.instances.at(-1);
+    const pending = cdp.send("Runtime.evaluate", { expression: "private-credential" });
+    const rejects = assert.rejects(pending, { message: "CDP connection closed" });
+    if (peerClosed) socket.close(); else cdp.close();
+    await rejects;
+    await assert.rejects(cdp.send("Runtime.evaluate"), { message: "CDP connection closed" });
+    assert.equal(timers.size, 0);
+    assert.equal(socket.sent.length, 1);
+  }
+  const cdp = await connect("local");
+  const socket = Socket.instances.at(-1);
+  socket.readyState = 2;
+  await assert.rejects(cdp.send("Runtime.evaluate"), { message: "CDP connection closed" });
+  assert.equal(socket.sent.length, 0);
+  socket.readyState = Socket.OPEN;
+  const pending = cdp.send("Runtime.evaluate", { expression: "private-credential", awaitPromise: true });
+  const timedOut = assert.rejects(pending, { message: "CDP request timed out: navigation browser-fetch" });
+  for (const timer of timers) timer();
+  await timedOut;
+  cdp.close();
+});
+
+test("the mounted controls proof recognizes the real Framework label and explicit ARIA labels", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("function findLabeledSelect(");
+  const end = source.indexOf("\nasync function selectBrowserOption(", start);
+  const find = runInNewContext(`(${source.slice(start, end)})`);
+  const { JSDOM } = await import("jsdom");
+  const page = new JSDOM('<label><span>Framework</span><span><select id="framework"><option>HIPAA</option></select></span></label><select aria-label="Authorized scope" id="scope"></select><label for="control">Control</label><select id="control"></select><span>Other</span><select></select>');
+  try {
+    const document = page.window.document;
+    assert.equal(find(document, "Framework")?.id, "framework");
+    assert.equal(find(document, "Authorized scope")?.id, "scope");
+    assert.equal(find(document, "Control")?.id, "control");
+    assert.equal(find(document, "Other"), undefined);
+  } finally { page.window.close(); }
+});
+
+test("the compliance download replay uses four separate CDP requests and resubmits exactly the original grant", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function verifyComplianceDownloadReplay(");
+  const end = source.indexOf("\nasync function browserHarnessDirectIntegrationDeleteReplay(", start);
+  const verify = runInNewContext(source.slice(start, end) + "\nverifyComplianceDownloadReplay", { assert });
+  const requests = [];
+  let sends = 0;
+  const csv = 'source,"value"\r\npolicy,7\r\n';
+  const fetch = async (path, options) => {
+    requests.push({ path, options });
+    const result = [{ status: 200, json: async () => ({ csrf_token: "fixture-csrf" }) },
+      { status: 201, json: async () => ({ token: "a".repeat(64) }) },
+      { status: 200, text: async () => csv }, { status: 401, text: async () => JSON.stringify({code:"authentication_required"}) }];
+    return result[requests.length - 1];
+  };
+  const cdp = { async send(method, { expression, awaitPromise }) {
+    assert.equal(method, "Runtime.evaluate"); assert.equal(awaitPromise, true);
+    sends++;
+    const before = requests.length;
+    const value = await runInNewContext(expression, { fetch });
+    assert.equal(requests.length - before, 1);
+    return { result: { value } };
+  } };
+  await verify(cdp, "export-fixture", "scoped-fixture", csv);
+  assert.equal(sends, 4);
+  assert.deepEqual(requests.map(request => request.path), ["/api/v1/session/bootstrap", "/api/v1/compliance/exports/export-fixture/download-grants",
+    "/api/v1/compliance/exports/export-fixture/download", "/api/v1/compliance/exports/export-fixture/download"]);
+  assert.deepEqual(JSON.parse(requests[2].options.body), { format: "csv", token: "a".repeat(64) });
+  assert.equal(requests[2].options.headers["X-Zasp-Expected-Scope"], "scoped-fixture");
+  assert.equal(requests[2].options.headers["X-CSRF-Token"], "fixture-csrf");
+  assert.equal(JSON.stringify(requests[2].options), JSON.stringify(requests[3].options));
+});

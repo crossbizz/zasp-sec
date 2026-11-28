@@ -1360,15 +1360,19 @@ try {
   if (complianceBrowserMode) emitComplianceBrowserPhaseFailure(compliancePhase,message=>console.error(message));
   throw error;
 } finally {
+  await finishBrowserHarness(cleanupController, harnessFailure);
+}
+
+async function finishBrowserHarness(cleanup, failure) {
   try {
-    await cleanupController.run();
+    await cleanup.run();
   } catch (cleanupError) {
-    if (harnessFailure) {
-      throw new AggregateError([harnessFailure, cleanupError], "Browser harness and owned cleanup failed", { cause: harnessFailure });
+    if (failure) {
+      throw new AggregateError([failure, cleanupError], "Browser harness and owned cleanup failed", { cause: failure });
     }
     throw cleanupError;
   } finally {
-    cleanupController.dispose();
+    cleanup.dispose();
   }
 }
 
@@ -2345,7 +2349,7 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   let previousTraceCount=0;
   const continuity = async (label, scope, mounted = false) => {
     const evaluated = await cdp.send("Runtime.evaluate", {
-      expression: `(async()=>{const r=await fetch('/api/v1/session/bootstrap',{cache:'no-store'});const b=await r.json();return {status:r.status,code:typeof b.code==='string'?b.code:null,principal:b.principal?.id??null,scope:b.organization_id?[b.organization_id,b.workspace_id,b.environment_id].join('/'):null,finalURL:location.origin+location.pathname,signIn:document.body.innerText.includes('Sign in to Zasp'),controls:!!document.querySelector('select[aria-label="Framework"]'),exportAction:[...document.querySelectorAll('button')].some(e=>e.textContent==='Create evidence export')};})()`,
+      expression: `(async()=>{const r=await fetch('/api/v1/session/bootstrap',{cache:'no-store'});const b=await r.json();return {status:r.status,code:typeof b.code==='string'?b.code:null,principal:b.principal?.id??null,scope:b.organization_id?[b.organization_id,b.workspace_id,b.environment_id].join('/'):null,finalURL:location.origin+location.pathname,signIn:document.body.innerText.includes('Sign in to Zasp'),controls:!!(${findLabeledSelect})(document, "Framework"),exportAction:[...document.querySelectorAll('button')].some(e=>e.textContent==='Create evidence export')};})()`,
       awaitPromise:true,returnByValue:true,
     });
     const state=evaluated.result.value;
@@ -2476,8 +2480,7 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
   let csv;
   for(let attempt=0;attempt<100;attempt++){try{csv=await readFile(path.join(downloads,`compliance-${jobID}.csv`),"utf8");break;}catch{await delay(100);}}
   assert.equal(csv,envelope.csv,"native CSV differs from persisted format");
-  const replay=await cdp.send("Runtime.evaluate",{expression:`(async()=>{const b=await fetch('/api/v1/session/bootstrap').then(r=>r.json());const headers={'Content-Type':'application/json','X-CSRF-Token':b.csrf_token,'X-Zasp-Expected-Scope':${JSON.stringify(selectedScope)}};const g=await fetch('/api/v1/compliance/exports/${jobID}/download-grants',{method:'POST',headers,body:JSON.stringify({format:'csv'})}).then(r=>r.json());const body=JSON.stringify({format:'csv',token:g.token});const first=await fetch('/api/v1/compliance/exports/${jobID}/download',{method:'POST',headers,body});const bytes=await first.text();const again=await fetch('/api/v1/compliance/exports/${jobID}/download',{method:'POST',headers,body});return {first:first.status,again:again.status,bytes};})()`,awaitPromise:true,returnByValue:true});
-  assert.equal(replay.result.value.first,200);assert.notEqual(replay.result.value.again,200);assert.equal(replay.result.value.bytes,envelope.csv);
+  await verifyComplianceDownloadReplay(cdp, jobID, selectedScope, envelope.csv);
   const foreignLocation=sourceLocation.replace(workspace,"pid_10000002-0000-4000-8000-000000000002");
   await navigateBrowser(cdp,`${publicOrigin}${foreignLocation}`);await waitForBrowserText(cdp,/different organization, workspace or environment/);await waitForBrowserScope(cdp,selectedScope);
   await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
@@ -6996,12 +6999,21 @@ async function waitForBrowserControlDisabled(cdp, text, expected) {
   return expected;
 }
 
+function findLabeledSelect(document, label) {
+  return [...document.querySelectorAll("select")].find(select =>
+    select.getAttribute("aria-label") === label ||
+    [...select.labels].some(field =>
+      [...field.childNodes].some(node => node.nodeType === 3 && node.textContent.trim() === label) ||
+      [...field.querySelectorAll("span")].some(span => span.textContent.trim() === label)),
+  );
+}
+
 async function selectBrowserOption(cdp, label, text) {
-  await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); const option = select && [...select.options].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)}); if (!select || !option || select.disabled) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, option.value); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitForBrowserAction(cdp, `(() => { const select = (${findLabeledSelect})(document, ${JSON.stringify(label)}); const option = select && [...select.options].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(text)}); if (!select || !option || select.disabled) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, option.value); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
 }
 
 async function waitForBrowserSelectedOption(cdp, label, text) {
-  await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); return Boolean(select && select.options[select.selectedIndex]?.textContent?.trim() === ${JSON.stringify(text)} && !select.disabled); })()`);
+  await waitForBrowserAction(cdp, `(() => { const select = (${findLabeledSelect})(document, ${JSON.stringify(label)}); return Boolean(select && select.options[select.selectedIndex]?.textContent?.trim() === ${JSON.stringify(text)} && !select.disabled); })()`);
 }
 
 async function browserSelectedOptionValue(cdp, label) {
@@ -7178,6 +7190,27 @@ async function browserConnectorAuthorizeRejection(cdp, target, expectedScope) {
   return evaluated.result.value;
 }
 
+async function verifyComplianceDownloadReplay(cdp, jobID, scope, expectedCSV) {
+  const bootstrap = await browserFetchJSON(cdp, "/api/v1/session/bootstrap", {});
+  assert.equal(bootstrap.status, 200);
+  const headers = { "Content-Type": "application/json", "X-CSRF-Token": bootstrap.body.csrf_token, "X-Zasp-Expected-Scope": scope };
+  const path = `/api/v1/compliance/exports/${jobID}`;
+  const grant = await browserFetchJSON(cdp, path + "/download-grants", headers, { method: "POST", body: JSON.stringify({ format: "csv" }) });
+  assert.equal(grant.status, 201);
+  assert.ok(/^[a-f0-9]{64}$/.test(grant.body.token), "invalid download grant");
+  const options = { method: "POST", headers, body: JSON.stringify({ format: "csv", token: grant.body.token }) };
+  const request = () => cdp.send("Runtime.evaluate", {
+    expression: `(async () => { const response = await fetch(${JSON.stringify(path + "/download")}, ${JSON.stringify(options)}); return { status: response.status, bytes: await response.text() }; })()`,
+    awaitPromise: true, returnByValue: true,
+  });
+  const first = (await request()).result.value;
+  assert.equal(first.status, 200);
+  assert.equal(first.bytes, expectedCSV);
+  const replay = (await request()).result.value;
+  assert.equal(replay.status, 401);
+  assert.equal(JSON.parse(replay.bytes).code, "authentication_required");
+}
+
 async function browserFetchJSON(cdp, target, headers, options = {}) {
   const evaluated = await cdp.send("Runtime.evaluate", {
     expression: `(async () => { const response = await fetch(${JSON.stringify(target)}, ${JSON.stringify({ ...options, headers })}); return { status: response.status, body: await response.json() }; })()`,
@@ -7271,21 +7304,36 @@ async function connectCDP(target) {
     clearTimeout(timeout);
     if (message.error) reject(new Error(message.error.message)); else resolve(message.result);
   });
-  socket.addEventListener("close", () => { if (!closed) rejectPending("CDP connection closed"); });
+  const markClosed = () => {
+    closed = true;
+    rejectPending("CDP connection closed");
+  };
+  socket.addEventListener("close", markClosed);
   return {
     on(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     send(method, params = {}, sessionId) {
+      if (closed || socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error("CDP connection closed"));
       const id = ++nextID;
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           pending.delete(id);
-          reject(new Error(`CDP request timed out at ${browserStage}: ${method} ${JSON.stringify(params)}`));
+          const stage = browserStage.startsWith("navigate:") ? "navigation" : browserStage === "reload" ? "reload" : "startup";
+          const kind = method === "Runtime.evaluate" ? (params.awaitPromise ? "browser-fetch" : "dom-read")
+            : method === "Page.captureScreenshot" ? "screenshot" : method.startsWith("Page.") ? "page-command"
+            : method.startsWith("Target.") ? "target-command" : method.startsWith("Browser.") ? "browser-command" : "other-command";
+          reject(new Error(`CDP request timed out: ${stage} ${kind}`));
         }, 20_000);
         pending.set(id, { resolve, reject, timeout });
-        socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+        try {
+          socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+        } catch (error) {
+          pending.delete(id);
+          clearTimeout(timeout);
+          reject(error);
+        }
       });
     },
-    close() { closed = true; rejectPending("CDP connection closed"); socket.close(); },
+    close() { if (!closed) { markClosed(); socket.close(); } },
   };
 }
 
