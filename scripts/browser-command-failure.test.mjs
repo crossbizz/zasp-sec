@@ -42,13 +42,15 @@ import ts from 'typescript';
 
 const parsed=ts.createSourceFile('runner.mjs',src,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const mainTry=parsed.statements.find(n=>ts.isTryStatement(n));
+const cleanupSource = parsed.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "finishBrowserHarness").getText(parsed);
 assert.ok(mainTry?.finallyBlock);
 function fatalHarness({phase='services',mode=true,emitterFails=false,cleanupError}={}){
  assert.ok(mainTry.catchClause,'actual fatal catch is required');
  const annotations=[],events=[];
  const emit=x=>{if(emitterFails)throw Error('CANARY_EMITTER');annotations.push(x);};
  const cleanupController={run:async()=>{events.push('cleanup');if(cleanupError)throw cleanupError;},dispose:()=>events.push('dispose')};
- const run=new Function('body','events','cleanupController','complianceBrowserMode','compliancePhase','emitComplianceBrowserPhaseFailure','console',`return (async()=>{let harnessFailure;try{await body();events.push('after');}${mainTry.catchClause.getText(parsed)}finally${mainTry.finallyBlock.getText(parsed)}})();`);
+ const run=new Function('body','events','cleanupController','complianceBrowserMode','compliancePhase','emitComplianceBrowserPhaseFailure','console',`return (async()=>{${cleanupSource}
+let harnessFailure;try{await body();events.push('after');}${mainTry.catchClause.getText(parsed)}finally${mainTry.finallyBlock.getText(parsed)}})();`);
  return {annotations,events,run:body=>run(body,events,cleanupController,mode,phase,phaseHelpers.emitComplianceBrowserPhaseFailure,{error:emit})};
 }
 test('actual fatal catch uses four fixed phases and preserves Error identity plus original cleanup',async()=>{

@@ -8,6 +8,7 @@ const source=fs.readFileSync(new URL('./production-combined-e2e.mjs',import.meta
 const tree=ts.createSourceFile('published-runner.mjs',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 assert.equal(tree.parseDiagnostics.length,0);
 const main=tree.statements.find(ts.isTryStatement);
+const cleanupSource = tree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "finishBrowserHarness").getText(tree);
 const body=main.tryBlock.statements;
 const index=name=>body.findIndex(n=>n.getText(tree).includes(name));
 const start=index('postgres = await startPostgres(');
@@ -48,7 +49,8 @@ function harness({kind='mounted',fail,mode=true,emitterFails=false,historicalAct
  waitForOwnedAPIStartup:async({target,child})=>{assert.equal(child.owned,true);call('api-ready',[target,child]);},
  waitForHTTP:async(...args)=>{call(args[0].includes('/readyz')?'api-ready':'web-ready',args);},startProxy:async(...args)=>{call('proxy',args);return {owned:true};},startBrowser:async(...args)=>{call('browser',args);return {owned:true,cdp:{}};},
  Error:function(message){const error=Error(message);wrappers.push(error);return error;}};
- const run=new Function(...Object.keys(deps),`return (async()=>{let compliancePhase="${kind==='initial'?'services':'schema-bootstrap'}";let postgres,identity,policyHistory,api,web,proxy,browser;${mountedPrefix}\ntry{${kind==='initial'?initial:'await exerciseComplianceBrowser(configuration);'}}${main.catchClause.getText(tree)}finally${main.finallyBlock.getText(tree)}return compliancePhase;})();`);
+ const run=new Function(...Object.keys(deps),`return (async()=>{${cleanupSource}
+let compliancePhase="${kind==='initial'?'services':'schema-bootstrap'}";let postgres,identity,policyHistory,api,web,proxy,browser;${mountedPrefix}\ntry{${kind==='initial'?initial:'await exerciseComplianceBrowser(configuration);'}}${main.catchClause.getText(tree)}finally${main.finallyBlock.getText(tree)}return compliancePhase;})();`);
  return {calls,annotations,owned,wrappers,run:()=>run(...Object.values(deps))};
 }
 test('parsed initial PG startup branches retain Error identity, call prefix and actual fatal cleanup',async()=>{
