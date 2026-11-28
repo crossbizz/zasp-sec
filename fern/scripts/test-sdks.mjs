@@ -43,8 +43,9 @@ if (flags.has("--java")) {
   // Maven Resolver retries individual repository requests. Compile and run JUnit once.
   step("java: compile and test", "mvn", [
     "-q", "-B", "-Dstyle.color=never",
+    "-Daether.transport.http.retryHandler.serviceUnavailable=429,502,503,504",
     "-Daether.transport.http.retryHandler.count=5",
-    "-Daether.transport.http.retryHandler.intervalMax=20000",
+    "-Daether.transport.http.retryHandler.intervalMax=60000",
     "test",
   ], join(root, "sdks", "java"));
 }

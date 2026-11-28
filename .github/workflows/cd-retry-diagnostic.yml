@@ -97,7 +97,106 @@ jobs:
         set -euo pipefail
         node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
         log="$RUNNER_TEMP/compliance.log"
-        if node scripts/production-combined-e2e.mjs > "$log" 2>&1; then exit 0; fi
+        # One-run diagnostics in the hosted fixture's private checkout. Every addition
+        # observes the return of an existing call; all deadlines and requests are unchanged.
+        python3 - <<'PY_GO_PROBES'
+        from pathlib import Path
+
+        base = Path("services/platform")
+
+        def patch(file, before, after):
+            p = base / file
+            contents = p.read_text()
+            if contents.count(before) != 1:
+                raise SystemExit("compliance diagnostic source mismatch: " + file)
+            p.write_text(contents.replace(before, after))
+
+        def mark(label):
+            return 'if os.Getenv("ZASP_COMPLIANCE_BROWSER_API") == "true" { _, _ = os.Stdout.WriteString("ZASP_COMPLIANCE_PROBE=' + label + '\\n") }'
+
+        services = "runtimeservices/clients.go"
+        for test, stage in [
+            ("c.FGA.ReadAuthorizationModel(bounded).Execute()", "native-openfga"),
+            ("c.Temporal.WorkflowService().DescribeNamespace(bounded, &workflowservice.DescribeNamespaceRequest{Namespace: c.config.Namespace})", "native-temporal"),
+        ]:
+            check = "if _, err := " + test + "; err != nil {"
+            patch(services, check, check + "\n\t\t" + mark(stage))
+
+        wrapper = "agentsec-api/authorization_runtime_readiness.go"
+        patch(wrapper, '"context"', '"context"\n\t"os"')
+        for receiver, role, stage in [
+            ("database", "zasp_discovery_api", "core-authorization"),
+            ("securityAgentDatabase", "zasp_security_agent_api", "security-agent-authorization")
+        ]:
+            call = receiver + '.CurrentAuthorizationRuntimeReady(probes, "' + role + '", keyVersion)'
+            # A failure caused solely by a sibling cancellation has no independent attribution.
+            before = "results <- " + call
+            after = "err := " + call + "; if err != nil && probes.Err() != context.Canceled { " + mark(stage) + " }; results <- err"
+            patch(wrapper, before, after)
+        patch(wrapper, "return boundedParallelReadiness(bounded,", "err := boundedParallelReadiness(bounded,")
+        patch(wrapper, "previous,\n\t\t\t)", "previous,\n\t\t\t)\n\t\t\tif err != nil && bounded.Err() == context.DeadlineExceeded { " + mark("readiness-deadline") + " }; return err")
+
+        harness = "agentsec-api/compliance_browser_process_test.go"
+        start = 'if err := serveRuntime(ctx, io.Discard, "compliance-browser", config, deps, net.Listen); err != nil {'
+        patch(harness, start, mark("runtime-composed") + "\n\tpreviousReady := deps.ReadinessCheck\n\tdeps.ReadinessCheck = func(probe context.Context) error {\n\t err := previousReady(probe)\n\t if err != nil && probe.Err() == context.DeadlineExceeded { " + mark("readiness-deadline") + " }; return err\n\t}\n\t" + start)
+        PY_GO_PROBES
+        witness="$RUNNER_TEMP/compliance-readiness.mjs"
+        cat > "$witness" <<'NODE'
+        import { readFileSync } from 'node:fs';
+        import childProcess from 'node:child_process';
+        import http from 'node:http';
+        import { syncBuiltinESMExports } from 'node:module';
+        const code=readFileSync('services/platform/agentsec-api/production_runtime.go','utf8');
+        const checks=[...code.matchAll(/(?:named|readiness\.report)\("([a-z][a-z-]+)"/g)].map(m=>m[1]);
+        const allowed=new Set(checks.map(check=>JSON.stringify({event:'readiness_refused',service:'agentsec-api',check})));
+        const goMarkers=['native-temporal','native-openfga','core-authorization','security-agent-authorization','readiness-deadline','runtime-composed'];
+        for(const name of goMarkers) allowed.add('ZASP_COMPLIANCE_PROBE='+name);
+        const spawn=childProcess.spawn;
+        const get=http.get;
+        let readinessTarget,observations;
+        http.get=function(target,...args) {
+          const request=get.call(this,target,...args);
+          if(!(target instanceof URL)||target.href!==readinessTarget) return request;
+          const seen=observations;
+          function observe(label) {
+            if(!seen.has(label)){seen.add(label);process.stdout.write('ZASP_COMPLIANCE_LISTENER='+label+'\n');}
+          }
+          observe('probe-requested');
+          request.once('socket',socket=>socket.once('connect',()=>observe('tcp-connected')));
+          request.once('response',response=>observe(response.statusCode===503?'http-503':response.statusCode===200?'http-200':'http-other'));
+          request.once('error',error=>observe(error.code==='ECONNREFUSED'?'tcp-refused':error.code==='ECONNRESET'?'tcp-reset':'probe-error'));
+          return request;
+        };
+        childProcess.spawn=function(executable,args,options) {
+          const child=spawn.call(this,executable,args,options);
+          if(options?.env?.ZASP_COMPLIANCE_BROWSER_API!=='true'||!args?.includes('-test.run=^TestComplianceBrowserAPIProcess$')) return child;
+          const address=options.env.ZASP_INTERNAL_LISTEN_ADDRESS;
+          if(/^127\.0\.0\.1:[0-9]{1,5}$/.test(address)) {
+            readinessTarget='http://'+address+'/readyz';
+            observations=new Set();
+            child.once('close',()=>{readinessTarget=undefined;});
+          }
+          const reported=new Set();
+          let partial='',overflow=false;
+          child.stdout.on('data',chunk=>{
+            const fragments=chunk.toString().split('\n');
+            for(const [i,part] of fragments.entries()) {
+              if(!overflow && partial.length+part.length<=180) partial+=part;
+              else overflow=true;
+              if(i===fragments.length-1) break;
+              if(!overflow && allowed.has(partial) && !reported.has(partial)) {
+                reported.add(partial);
+                process.stdout.write(partial+'\n');
+              }
+              partial='';
+              overflow=false;
+            }
+          });
+          return child;
+        };
+        syncBuiltinESMExports();
+        NODE
+        if node --import "$witness" scripts/production-combined-e2e.mjs > "$log" 2>&1; then exit 0; fi
         python3 - "$log" <<'DIAG' >> "$GITHUB_OUTPUT"
         from pathlib import Path
         import re, subprocess, sys
@@ -111,7 +210,9 @@ jobs:
         tracked=set(subprocess.check_output(["git","ls-files","-z"]).decode().split("\0"))
         locations=re.findall(r"(?:^|[\s(/])((?:scripts|app|apps|services|fern)/[A-Za-z0-9_./-]+\.(?:mjs|ts|tsx|go|java)):(\d{1,6})(?:[,:]\d+)?",data,re.M)
         frames=[f"{Path(f).name}:{int(line)}" for f,line in locations if f in tracked]
-        print("phase="+(" ".join(dict.fromkeys(refused+codes+frames))[:235] or "no classified evidence"))
+        witness=re.findall(r"^ZASP_COMPLIANCE_(?:PROBE=(native-temporal|native-openfga|core-authorization|security-agent-authorization|readiness-deadline|runtime-composed)|LISTENER=(probe-requested|tcp-connected|http-503|http-200|http-other|tcp-refused|tcp-reset|probe-error))$",data,re.M)
+        observed=[a or b for a,b in witness]
+        print("phase="+(" ".join(dict.fromkeys(refused+observed+codes+frames))[:235] or "no classified evidence"))
         DIAG
         exit 1
       id: browser
