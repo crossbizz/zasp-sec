@@ -5954,8 +5954,21 @@ components:
       {"type":"object","additionalProperties":false,"required":["cohort","revision","phase","allowed_destination","target_ids","submitted_by","submitted_at","request_sha256"],"properties":{"cohort":{"type":"string"},"revision":{"type":"integer","minimum":1,"maximum":9007199254740991},"phase":{"$ref":"#/components/schemas/TicketCohortPhase"},"allowed_destination":{"type":"string"},"target_ids":{"type":"array","maxItems":32,"items":{"$ref":"#/components/schemas/ProductID"}},"submitted_by":{"$ref":"#/components/schemas/ProductID"},"submitted_at":{"type":"string","format":"date-time"},"request_sha256":{"type":"string"}}}
     EndpointDevice:
       {"type": "object", "additionalProperties": false, "required": ["id", "cohort", "state", "version", "credential_generation", "last_seen", "connection", "policy_revision", "reported_policy_revision", "acknowledged", "queued_receipts", "dropped_receipts"], "properties": {"id": {"$ref": "#/components/schemas/ProductID"}, "cohort": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"}, "state": {"type": "string", "enum": ["pending", "active", "retired"]}, "version": {"type": "integer", "minimum": 1}, "credential_generation": {"type": "integer", "minimum": 1}, "last_seen": {"type": ["string", "null"], "format": "date-time"}, "connection": {"type": "string", "enum": ["retired", "never_seen", "online", "stale"]}, "policy_revision": {"type": "integer", "minimum": 0}, "reported_policy_revision": {"type": "integer", "minimum": 0}, "acknowledged": {"type": "boolean"}, "queued_receipts": {"type": ["integer", "null"], "minimum": 0}, "dropped_receipts": {"type": ["integer", "null"], "minimum": 0}}}
+    EndpointSkillScan:
+      type: object
+      additionalProperties: false
+      required: [ruleset, rule_counts, skipped_count]
+      properties:
+        ruleset: { type: string, const: zasp-static.v2 }
+        rule_counts:
+          type: object
+          propertyNames:
+            enum: [dependency.unpinned, instruction.hidden_text, instruction.override, mcp.remote_endpoint, mcp.unpinned_exec, mcp.unpinned_launcher, script.credential_path_access, script.network_access, script.remote_exec_pipe, script.shell_execution]
+          additionalProperties: { type: integer, minimum: 1, maximum: 1024 }
+          maxProperties: 10
+        skipped_count: { type: integer, minimum: 0, maximum: 1024 }
     EndpointInstallationDetail:
-      {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}}
+      {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "skill_scan": {"$ref": "#/components/schemas/EndpointSkillScan"}, "skill_version_id": {"$ref": "#/components/schemas/ProductID"}}}
     EndpointPartitionSummary:
       {"type": "object", "additionalProperties": false, "required": ["partition_id", "generation", "complete", "observed_count", "observed_installations", "last_complete_generation", "confirmed_count", "confirmed_installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "observed_count": {"type": "integer", "minimum": 0}, "observed_installations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/components/schemas/EndpointInstallationDetail"}}, "last_complete_generation": {"type": ["integer", "null"], "minimum": 1}, "confirmed_count": {"type": ["integer", "null"], "minimum": 0}, "confirmed_installations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/components/schemas/EndpointInstallationDetail"}}}}
     EndpointObservationDetail:
@@ -6010,7 +6023,7 @@ components:
     EndpointExchangeReceipt:
       {"type": "object", "additionalProperties": false, "required": ["device_id", "credential_generation", "state"], "properties": {"device_id": {"$ref": "#/components/schemas/ProductID"}, "credential_generation": {"type": "integer", "minimum": 1}, "state": {"type": "string", "const": "active"}}}
     EndpointSnapshot:
-      {"type": "object", "additionalProperties": false, "required": ["partition_id", "snapshot_generation", "complete", "installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "snapshot_generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "installations": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}}}}}
+      {"type": "object", "additionalProperties": false, "required": ["partition_id", "snapshot_generation", "complete", "installations"], "properties": {"partition_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "snapshot_generation": {"type": "integer", "minimum": 1}, "complete": {"type": "boolean"}, "installations": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["installation_id"], "properties": {"installation_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "skill_scan": {"$ref": "#/components/schemas/EndpointSkillScan"}}}}}}
     EndpointObservationBatch:
       {"type": "object", "additionalProperties": false, "required": ["receipts"], "properties": {"receipts": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/components/schemas/EndpointSigned"}}}}
     RecoveryIntentInput:
@@ -8636,7 +8649,7 @@ components:
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         manifest_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
-        origin: { type: string, enum: [local, ci, private_worker] }
+        origin: { type: string, enum: [local, ci, private_worker, endpoint] }
         provenance: { type: string, const: reported }
         ruleset: { type: string, enum: [zasp-static.v1, zasp-static.v2] }
         framework_evidence: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/AddonFrameworkEvidence' } }
