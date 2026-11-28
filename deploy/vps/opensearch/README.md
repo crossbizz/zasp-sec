@@ -41,6 +41,8 @@ ssh -T -o ExitOnForwardFailure=yes -L 127.0.0.1:19200:127.0.0.1:19200 "$VPS_SSH"
 
 Have the search CA operator issue a short-lived client certificate for your own identity. The authentication endpoint returns its username and mapped roles. For cluster health, the operator must map that identity to a role granting `cluster:monitor/health` on the server. The built-in application identities have index-specific roles. Keep their private keys with their workloads and the security administration key with the installation hook.
 
+For a site-operated chart, add a role such as `zasp_health_reader: {cluster_permissions: ["cluster:monitor/health"]}` to [roles.yml](files/security/roles.yml). In [roles_mapping.yml](files/security/roles_mapping.yml), add `zasp_health_reader: {users: [search-operator]}` if the issued certificate's CN is `search-operator`. Preserve the existing mappings and include these additions in the site's OpenSearch chart for subsequent upgrades. The release hook applies them at installation or upgrade. This role can check cluster health and has no index permissions.
+
 In a second Mac terminal, use your CA certificate and operator identity files. Set `SEARCH_TLS` to their directory. The explicit DNS resolution sends traffic through the tunnel and verifies the service hostname against its TLS certificate.
 
 ```sh

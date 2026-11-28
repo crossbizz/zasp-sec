@@ -60,7 +60,7 @@ describe("generic SaaS connector", () => {
 		renderIntegrations({ GET } as unknown as APIClient, "/connectors#add-source");
 		expect(await screen.findByRole("button", { name: "Configure Acme AI" })).toBeVisible();
 		expect(screen.queryByRole("button", { name: "Configure Amazon Web Services" })).toBeNull();
-		expect(screen.getByRole("searchbox", { name: "Filter connectors" })).toHaveFocus();
+		await waitFor(() => expect(screen.getByRole("searchbox", { name: "Filter connectors" })).toHaveFocus());
 		expect(screen.queryByRole("button", { name: "Open Legacy AWS" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "Slack" })).toBeNull();
 		expect(screen.queryByRole("button", { name: "Native connectors" })).toBeNull();
