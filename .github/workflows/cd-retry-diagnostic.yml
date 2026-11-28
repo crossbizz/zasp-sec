@@ -95,7 +95,18 @@ jobs:
         ZASP_COMBINED_E2E_COMPLIANCE: 'true'
       run: |
         set -euo pipefail
-        node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
+        unit_log="$RUNNER_TEMP/compliance-prerequisites.log"
+        if ! node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs | tee "$unit_log"; then
+          python3 - "$unit_log" <<'LOCATIONS' >> "$GITHUB_OUTPUT"
+        from pathlib import Path
+        import re, subprocess, sys
+        text=Path(sys.argv[1]).read_text(errors="replace")
+        files=set(subprocess.check_output(["git","ls-files","-z","scripts/*test.mjs"]).decode().split("\0"))
+        locations=re.findall(r"(?:^|[/\s(])((?:scripts)/[A-Za-z0-9_./-]+\.test\.mjs):(\d{1,6})",text,re.M)
+        print("phase=prerequisite tests "+" ".join(dict.fromkeys(f"{Path(f).name}:{int(n)}" for f,n in locations if f in files))[:150])
+        LOCATIONS
+          exit 1
+        fi
         log="$RUNNER_TEMP/compliance.log"
         # One-run diagnostics in the hosted fixture's private checkout. Every addition
         # observes the return of an existing call; all deadlines and requests are unchanged.

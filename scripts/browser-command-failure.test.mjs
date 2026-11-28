@@ -48,7 +48,7 @@ function fatalHarness({phase='services',mode=true,emitterFails=false,cleanupErro
  const annotations=[],events=[];
  const emit=x=>{if(emitterFails)throw Error('CANARY_EMITTER');annotations.push(x);};
  const cleanupController={run:async()=>{events.push('cleanup');if(cleanupError)throw cleanupError;},dispose:()=>events.push('dispose')};
- const run=new Function('body','events','cleanupController','complianceBrowserMode','compliancePhase','emitComplianceBrowserPhaseFailure','console',`return (async()=>{try{await body();events.push('after');}${mainTry.catchClause.getText(parsed)}finally${mainTry.finallyBlock.getText(parsed)}})();`);
+ const run=new Function('body','events','cleanupController','complianceBrowserMode','compliancePhase','emitComplianceBrowserPhaseFailure','console',`return (async()=>{let harnessFailure;try{await body();events.push('after');}${mainTry.catchClause.getText(parsed)}finally${mainTry.finallyBlock.getText(parsed)}})();`);
  return {annotations,events,run:body=>run(body,events,cleanupController,mode,phase,phaseHelpers.emitComplianceBrowserPhaseFailure,{error:emit})};
 }
 test('actual fatal catch uses four fixed phases and preserves Error identity plus original cleanup',async()=>{
@@ -63,8 +63,15 @@ test('actual fatal catch preserves success silence, noncompliance silence and em
  for(const options of [{mode:false},{emitterFails:true}]){const h=fatalHarness(options),error=Error('CANARY');await assert.rejects(h.run(async()=>{throw error;}),e=>e===error);assert.deepEqual(h.annotations,[]);assert.deepEqual(h.events,['cleanup','dispose']);}
  const poison=fatalHarness({phase:'CANARY_RAW'});await assert.rejects(poison.run(async()=>{throw Error('CANARY');}));assert.deepEqual(poison.annotations,['::error title=Compliance browser phase failed::Observed phase: unavailable.']);
 });
-test('actual fatal catch retains existing cleanup failure semantics and dispose ordering',async()=>{
- const error=Error('original'),cleanupError=Error('cleanup'),h=fatalHarness({cleanupError});await assert.rejects(h.run(async()=>{throw error;}),e=>e===cleanupError);assert.deepEqual(h.events,['cleanup']);assert.equal(h.annotations.length,1);
+test('actual fatal catch preserves both failures and disposes after attempting cleanup',async()=>{
+ const error=Error('original'),cleanupError=Error('cleanup'),h=fatalHarness({cleanupError});
+ await assert.rejects(h.run(async()=>{throw error;}),failure=>{
+  assert.ok(failure instanceof AggregateError);
+  assert.equal(failure.cause,error);
+  assert.deepEqual(failure.errors,[error,cleanupError]);
+  return true;
+ });
+ assert.deepEqual(h.events,['cleanup','dispose']);assert.equal(h.annotations.length,1);
 });
 const migrationDeclaration=mainTry.tryBlock.statements.find(n=>ts.isVariableStatement(n)&&n.declarationList.declarations.some(d=>d.name.getText(parsed)==='migrationResult'));
 const migrationBranch=mainTry.tryBlock.statements.find(n=>ts.isIfStatement(n)&&n.expression.getText(parsed)==='migrationResult.status !== 0');
