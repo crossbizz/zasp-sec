@@ -5,6 +5,8 @@ import { stripVTControlCharacters } from "node:util";
 // Only report a category or a Java source location in the public check name.
 export function javaFailure(log) {
   const java = stripVTControlCharacters(log.split("== java: compile and test").at(-1));
+  if (/No space left on device/i.test(java)) return "disk full";
+  if (/OutOfMemoryError|Cannot allocate memory|insufficient memory/i.test(java)) return "memory exhausted";
   const compiler = java.match(/\/([A-Za-z_$][\w$]*\.java):\[(\d+),\d+\]/);
   if (compiler) return `compiler ${compiler[1]}:${compiler[2]}`;
 
@@ -16,8 +18,13 @@ export function javaFailure(log) {
     return status ? `Maven artifact transfer HTTP ${status[1]}` : "Maven artifact transfer";
   }
   if (/Could not find artifact/i.test(java)) return "Maven artifact unavailable";
+  if (/PluginResolutionException|DependencyResolutionException|UnresolvableModelException/.test(java)) {
+    return "Maven dependency resolution";
+  }
   if (/COMPILATION ERROR/i.test(java)) return "compiler failure";
   if (/Unable to start mvn: ENOENT/.test(java)) return "Maven executable missing";
+  const plugin = java.match(/Failed to execute goal org\.apache\.maven\.plugins:maven-(compiler|surefire|resources)-plugin:[\w.-]+:([A-Za-z]+)/);
+  if (plugin) return `Maven ${plugin[1]} ${plugin[2]}`;
   return "see Maven output";
 }
 

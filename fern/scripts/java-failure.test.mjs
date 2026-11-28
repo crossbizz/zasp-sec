@@ -7,6 +7,7 @@ test("diagnoses Maven transfer errors without publishing repository URLs", () =>
     "Maven artifact transfer HTTP 503");
   assert.equal(javaFailure("Could not transfer artifact: connection reset"), "Maven artifact transfer");
   assert.equal(javaFailure("Could not find artifact example:library:jar:1.0"), "Maven artifact unavailable");
+  assert.equal(javaFailure("maven-exceptions/PluginResolutionException"), "Maven dependency resolution");
 });
 
 test("identifies compiler and JUnit locations without publishing local paths or payloads", () => {
@@ -15,6 +16,10 @@ test("identifies compiler and JUnit locations without publishing local paths or 
   assert.equal(javaFailure("<<< FAILURE!\n at ai.zasp.api.SmokeTest.listsFindings(SmokeTest.java:144)"),
     "JUnit SmokeTest.java:144");
   assert.equal(javaFailure("\x1b[31m[ERROR]\x1b[0m There are test failures"), "JUnit failure");
+  assert.equal(javaFailure("Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile"),
+    "Maven compiler compile");
+  assert.equal(javaFailure("No space left on device"), "disk full");
+  assert.equal(javaFailure("java.lang.OutOfMemoryError: Java heap space"), "memory exhausted");
 });
 
 test("only reports diagnostics from the Java step", () => {

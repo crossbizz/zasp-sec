@@ -93,33 +93,27 @@ jobs:
       timeout-minutes: 15
       env:
         ZASP_COMBINED_E2E_COMPLIANCE: 'true'
-      run: 'set -eu -o pipefail
-
+      run: |
+        set -euo pipefail
         node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
-
         log="$RUNNER_TEMP/compliance.log"
-
         if node scripts/production-combined-e2e.mjs > "$log" 2>&1; then exit 0; fi
-
-        python3 - "$log" <<''DIAG'' >> "$GITHUB_OUTPUT"
-
-        import sys,re
-
-        data=open(sys.argv[1],errors="replace").read()
-
-        codes=re.findall(r"^::error title=[^\n]*?::Observed (?:phase|child stage|command class|dependency phase|readiness reason|branch|subphase|class|step): ([a-z][a-z0-9-]{1,65})\.?$",data,re.M)
-
-        lines=re.findall(r"([a-z0-9-]+\.mjs):(\d+):\d+",data)
-
-        where=[f"{f}:{l}" for f,l in lines if f in {"production-combined-e2e.mjs","compliance-browser-bytes.mjs","browser-e2e-helpers.mjs","browser-command-failure.mjs","owned-current80-composition.mjs","ownership-rehearsal.mjs","owned-command.mjs"}]
-
-        states=re.findall(r"SQLSTATE (\d[A-Z0-9]{4})",data)
-
-        print("phase="+(" ".join(dict.fromkeys(codes+states+where))[:235] or "see compliance log"))
-
+        python3 - "$log" <<'DIAG' >> "$GITHUB_OUTPUT"
+        from pathlib import Path
+        import re, subprocess, sys
+        data=Path(sys.argv[1]).read_text(errors="replace")
+        sources=" ".join(Path(p).read_text() for p in ["scripts/browser-command-failure.mjs", "scripts/owned-runtime-startup-diagnostics.mjs"])
+        known=set(re.findall(r"""["']([a-z][a-z0-9-]{1,65})["']""",sources)) | {"install","forward-readiness","deployment-admin"}
+        codes=[x for x in re.findall(r"(?:Observed (?:phase|child stage|command class|dependency phase|readiness reason|branch|inner step): |Observed owned runtime startup: phase=|; (?:failure|stage)[:=] ?)([a-z][a-z0-9-]{1,65})",data) if x in known]
+        readiness=Path("services/platform/agentsec-api/production_runtime.go").read_text()
+        checks=set(re.findall(r'(?:named|readiness\.report)\("([a-z][a-z-]+)"',readiness))
+        refused=["refused-"+x for x in re.findall(r'"event":"readiness_refused","service":"agentsec-api","check":"([a-z-]+)"',data) if x in checks]
+        tracked=set(subprocess.check_output(["git","ls-files","-z"]).decode().split("\0"))
+        locations=re.findall(r"(?:^|[\s(/])((?:scripts|app|apps|services|fern)/[A-Za-z0-9_./-]+\.(?:mjs|ts|tsx|go|java)):(\d{1,6})(?:[,:]\d+)?",data,re.M)
+        frames=[f"{Path(f).name}:{int(line)}" for f,line in locations if f in tracked]
+        print("phase="+(" ".join(dict.fromkeys(refused+codes+frames))[:235] or "no classified evidence"))
         DIAG
-
-        exit 1'
+        exit 1
       id: browser
   result:
     needs: compliance
@@ -157,7 +151,27 @@ jobs:
           repo="repos/$GITHUB_REPOSITORY"
           test "$(gh api "$repo/actions/jobs/$job_id" --jq .run_id)" = "$run_id"
           gh api "$repo/check-runs/$job_id/annotations?per_page=100" > "$destination/$job_id.json" || echo '[]' > "$destination/$job_id.json"
-          gh api "$repo/actions/jobs/$job_id/logs" > "$destination/$job_id.log" || : > "$destination/$job_id.log"
+          log="$destination/$job_id.log"
+          archive="$destination/$run_id.zip"
+          curl --silent --fail --location --max-time 45 --retry 1 --proto '=https' \
+            -H "Authorization: Bearer $GH_TOKEN" "$GITHUB_API_URL/$repo/actions/jobs/$job_id/logs" > "$log" || : > "$log"
+          if ! test -s "$log"; then
+            curl --silent --fail --location --max-time 90 --retry 1 --proto '=https' \
+              -H "Authorization: Bearer $GH_TOKEN" "$GITHUB_API_URL/$repo/actions/runs/$run_id/logs" > "$archive" || : > "$archive"
+            python3 - "$job_id" "$archive" "$log" <<'PYTHON'
+        from pathlib import Path
+        import re, sys, zipfile
+        job, archive, log = sys.argv[1:]
+        if zipfile.is_zipfile(archive):
+            with zipfile.ZipFile(archive) as run:
+                needle = "verify current compliance browser acceptance" if job == "140839602924" else "compile and exercise all four generated sdks"
+                for step in run.infolist():
+                    name = re.sub(r"[ _-]+", " ", Path(step.filename).stem.lower())
+                    if needle in name and step.file_size <= 64 * 1024 * 1024:
+                        Path(log).write_bytes(run.read(step))
+                        break
+        PYTHON
+          fi
         done
     - name: Classify the retained evidence
       id: summary
@@ -183,8 +197,13 @@ jobs:
         for(const m of text.matchAll(/(?:Observed (?:phase|child stage|command class|dependency phase|readiness reason|branch|inner step): |Observed owned runtime startup: phase=|; (?:failure|stage)[:=] ?)([a-z][a-z0-9-]{1,65})/g)) {
           if(knownLabels.has(m[1])) labels.push(m[1]);
         }
+        const readinessSource=readFileSync('services/platform/agentsec-api/production_runtime.go','utf8');
+        const readinessChecks=new Set([...readinessSource.matchAll(/(?:named|readiness\.report)\("([a-z][a-z-]+)"/g)].map(m=>m[1]));
+        for(const m of text.matchAll(/"event":"readiness_refused","service":"agentsec-api","check":"([a-z-]+)"/g)) {
+          if(readinessChecks.has(m[1])) labels.push('refused-'+m[1]);
+        }
         const frames=[];
-        for(const m of text.matchAll(/(?:zasp-sec\/zasp-sec\/|(?:file:\/\/)?(?:^|\s))((?:scripts|app|apps|services|fern)\/[A-Za-z0-9_./-]+\.(?:mjs|ts|tsx|go|java)):(\d{1,6})(?:[,:]\d+)?/gm)) {
+        for(const m of text.matchAll(/(?:^|[\s(/])((?:scripts|app|apps|services|fern)\/[A-Za-z0-9_./-]+\.(?:mjs|ts|tsx|go|java)):(\d{1,6})(?:[,:]\d+)?/gm)) {
           if(tracked.has(m[1])) frames.push(path.basename(m[1])+':'+Number(m[2]));
         }
         for (const a of list) {
@@ -195,7 +214,7 @@ jobs:
         const javaSource=/^(compiler|JUnit) (.+\.java):\d+$/.exec(category);
         if(javaSource && !javaNames.has(javaSource[2])) category=javaSource[1]+' failure';
         const summary=[...new Set([...labels,...frames])].join(' ').slice(0,185)||'no classified evidence';
-        appendFileSync(process.env.GITHUB_OUTPUT,'compliance='+summary+'\njava='+category+'\n');
+        appendFileSync(process.env.GITHUB_OUTPUT,'compliance='+summary+(log.trim()?'':' [annotations only]')+'\njava='+category+(java.log.trim()?'':' [annotations only]')+'\n');
         NODE
   previous_results:
     needs: previous_failures
