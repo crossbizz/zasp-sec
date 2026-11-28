@@ -19,6 +19,10 @@ for arch in arm64 amd64; do
   CGO_ENABLED=1 GOARCH="$arch" go -C "$repo/services/endpoint-agent" build -trimpath -o "$work/endpoint-$arch" .
   CGO_ENABLED=0 GOARCH="$arch" go -C "$repo/cmd/zaspctl" build -trimpath -o "$work/cli-$arch" .
 done
+fsevents_dir=$(go -C "$repo/services/endpoint-agent" list -m -f '{{.Dir}}' github.com/fsnotify/fsevents)
+notices="$work/payload/usr/local/share/zasp/licenses"
+mkdir -p "$notices"
+install -m 0644 "$fsevents_dir/LICENSE" "$notices/fsnotify-fsevents.txt"
 lipo -create "$work/cli-arm64" "$work/cli-amd64" -output "$bin/zaspctl"
 codesign --options runtime --timestamp --sign "$ZASP_APP_SIGNING_ID" "$bin/zaspctl"
 codesign --verify --strict "$bin/zaspctl"
