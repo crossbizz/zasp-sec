@@ -25,6 +25,25 @@ class DatabaseTransport(unittest.TestCase):
         self.assertEqual(tpl.count('include "nango.dbCheck"'), 2)
         self.assertEqual(tpl.count('include "nango.databaseEnv"'), 2)
 
+    def test_pinned_nango_requires_uuid_v4_environment_key_and_independent_admin_key(self):
+        startup = (CHART / "templates/workloads.yaml").read_text()
+        check = startup.split("node --input-type=module <<'CHECK'\n", 1)[1].split("\n              CHECK", 1)[0]
+        admin = "a" * 64
+        key = "9682a612-c3da-4bc9-821f-6fcdc023f732"
+        with tempfile.TemporaryDirectory() as scratch:
+            mount = Path(scratch)
+            (mount / "admin-key").write_text(admin)
+            check = check.replace("/run/nango-storage", scratch)
+            for service, expected in [(key, 0), (key.upper(), 0), ("b" * 64, 64),
+                                      (key.replace("4bc9", "5bc9"), 64), (key + "\n", 64)]:
+                with self.subTest(valid=expected == 0):
+                    (mount / "service-key").write_text(service)
+                    result = subprocess.run(["node", "--input-type=module", "-e", check], capture_output=True,
+                                            env={**os.environ, "NANGO_SECRET_KEY_PROD": service.rstrip("\n"),
+                                                 "NANGO_ADMIN_KEY": admin, "NANGO_ENCRYPTION_KEY": "fixture"})
+                    self.assertEqual(result.returncode, expected)
+                    self.assertEqual(result.stdout + result.stderr, b"")
+
     def test_db_url_guard_fails_closed_without_printing_credentials(self):
         helper = (CHART / "templates/_helpers.tpl").read_text()
         command = helper.split('{{- define "nango.dbCheck" -}}\n', 1)[1].split("\n", 1)[0]
@@ -84,7 +103,7 @@ class NangoRender(unittest.TestCase):
         self.assertFalse(deploy["automountServiceAccountToken"])
         private = resources["NetworkPolicy", "nango"]["spec"]
         self.assertEqual(private["ingress"][0]["ports"], [{"protocol": "TCP", "port": 8443}])
-        self.assertEqual(private["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"], "agentsec")
+        self.assertEqual(private["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"], "zasp")
         migrate = resources["NetworkPolicy", "nango-migrate"]["spec"]
         self.assertEqual(migrate["ingress"], [])
         self.assertNotIn({"protocol": "TCP", "port": 443}, [port for rule in migrate["egress"] for port in rule["ports"]])

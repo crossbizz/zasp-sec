@@ -14,7 +14,7 @@ class ProductionNamespaces(unittest.TestCase):
 
     def test_creates_only_absent_peer_namespaces_and_sets_owner_at_creation(self):
         owned = {"metadata": {"labels": {LABEL: "example-production"}}}
-        target = self.target({"agentsec": owned, "connectors": owned})
+        target = self.target({"zasp": owned, "connectors": owned})
         prepare_namespaces(target)
         created = [json.loads(call.kwargs["data"]) for call in target.kubectl.call_args_list]
         self.assertEqual([o["metadata"]["name"] for o in created], ["staging", "opensearch"])
@@ -23,8 +23,23 @@ class ProductionNamespaces(unittest.TestCase):
         prepare_namespaces(target)
         target.kubectl.assert_not_called()
 
+    def test_existing_evaluation_namespace_is_labeled_without_changing_workloads(self):
+        owned = {"metadata": {"labels": {LABEL: "example-production"}}}
+        ns = dict.fromkeys(NAMESPACES, owned)
+        ns["zasp"] = {"metadata": {"resourceVersion": "17"}}
+        sts = {"metadata": {"labels": {"app.kubernetes.io/managed-by": "Helm"}, "annotations": {
+            "meta.helm.sh/release-name": "zasp", "meta.helm.sh/release-namespace": "zasp"}}}
+        target = self.target(ns)
+        get_namespace = target.get.side_effect
+        target.get.side_effect = lambda scope, kind, name, **kwargs: (
+            sts if (scope, kind, name) == ("zasp", "statefulset", "zasp")
+            else get_namespace(scope, kind, name, **kwargs))
+        prepare_namespaces(target)
+        target.kubectl.assert_called_once_with("label", "namespace", "zasp",
+                                               LABEL + "=" + target.owner, "--resource-version=17")
+
     def test_foreign_namespace_or_cluster_prevents_every_write(self):
-        for target in (self.target({"connectors": {"metadata": {}}}), self.target({}, actual_uid="foreign")):
+        for target in (self.target({"zasp": {"metadata":{"labels":{LABEL:"different"}}}}), self.target({"connectors": {"metadata": {}}}), self.target({}, actual_uid="foreign")):
             with self.assertRaises(Rejected):
                 prepare_namespaces(target)
             target.kubectl.assert_not_called()

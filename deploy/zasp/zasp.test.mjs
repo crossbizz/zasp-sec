@@ -407,7 +407,7 @@ test("kubernetes secrets init writes a private values file, prints no value, and
     for (const [key, pattern] of Object.entries({
       workflowSigningKey: /^[0-9a-f]{64}$/, tokenRevealKey: /^[A-Za-z0-9_-]{43}$/, stytchWebhookSecret: /^whsec_[A-Za-z0-9+/]{43}=$/,
       openfgaToken: /^[0-9a-f]{64}$/, awsExternalId: /^[0-9a-f]{48}$/, gatewaySigningKey: /^[A-Za-z0-9_-]{86}$/,
-      deploymentAdminPassword: /^[0-9a-f]{64}$/, nangoServiceKey: /^[0-9a-f]{64}$/, nangoAdminKey: /^[0-9a-f]{64}$/, nangoEncryptionKey: /^[A-Za-z0-9+/]{43}=$/,
+      deploymentAdminPassword: /^[0-9a-f]{64}$/, nangoServiceKey: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, nangoAdminKey: /^[0-9a-f]{64}$/, nangoEncryptionKey: /^[A-Za-z0-9+/]{43}=$/,
       neo4jAdminPassword: /^[0-9a-f]{48}$/, frontTlsCertificate: /BEGIN CERTIFICATE/, frontTlsKey: /BEGIN (RSA )?PRIVATE KEY/, neo4jTlsCa: /BEGIN CERTIFICATE/,
     })) {
       assert.match(document.secrets[key], pattern, key);

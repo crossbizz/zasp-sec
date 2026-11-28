@@ -90,9 +90,13 @@ spec:
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
-metadata: { name: default-deny, labels: { app.kubernetes.io/part-of: zasp } }
+metadata: { name: {{ ternary "agentsec-default-deny" "default-deny" .Values.network.scopeDefaultDenyToProduct }}, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
+  {{- if .Values.network.scopeDefaultDenyToProduct }}
+  podSelector: {matchLabels: {app.kubernetes.io/part-of: zasp}}
+  {{- else }}
   podSelector: {}
+  {{- end }}
   policyTypes: [Ingress, Egress]
 ---
 apiVersion: networking.k8s.io/v1

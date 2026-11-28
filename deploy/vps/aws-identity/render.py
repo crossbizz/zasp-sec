@@ -2,16 +2,19 @@
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
-NAMESPACE = "agentsec"
+DEFAULT_NAMESPACE = "zasp"
 AUDIENCE = "sts.amazonaws.com"
 MOUNT = "/var/run/secrets/eks.amazonaws.com/serviceaccount"
 WORKLOADS = ("discovery-worker", "recovery-backup", "recovery-restore")
 
 
-def render(kind, workload, cluster, account, issuer, region=None, image=None):
+def render(kind, workload, cluster, account, issuer, region=None, image=None, namespace=DEFAULT_NAMESPACE):
+    if not re.fullmatch(r"[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?", namespace):
+        raise ValueError("namespace must be a Kubernetes DNS label")
     if kind not in ("trust", "preflight") or workload not in WORKLOADS:
         raise ValueError("choose a supported workload and output format")
     if not re.fullmatch(r"[a-z][a-z0-9-]*[a-z0-9]", cluster) or len(cluster + "-" + workload) > 64:
@@ -26,7 +29,7 @@ def render(kind, workload, cluster, account, issuer, region=None, image=None):
     authority = issuer.removeprefix("https://")
     provider = f"arn:aws:iam::{account}:oidc-provider/{authority}"
     name = "zasp-" + workload
-    subject = f"system:serviceaccount:{NAMESPACE}:{name}"
+    subject = f"system:serviceaccount:{namespace}:{name}"
     if kind == "trust":
         return {
             "Effect": "Allow", "Principal": {"Federated": provider},
@@ -50,7 +53,7 @@ def render(kind, workload, cluster, account, issuer, region=None, image=None):
         "EXPECTED_SUBJECT": subject, "EXPECTED_ISSUER": issuer, "EXPECTED_PROVIDER_ARN": provider,
     }
     service_account = {"apiVersion": "v1", "kind": "ServiceAccount",
-                       "metadata": {"name": name, "namespace": NAMESPACE}, "automountServiceAccountToken": False}
+                       "metadata": {"name": name, "namespace": namespace}, "automountServiceAccountToken": False}
     container = {
         "name": "identity-check", "image": image, "command": ["/bin/sh", "-ec"],
         "args": [Path(__file__).with_name("preflight.sh").read_text()],
@@ -67,7 +70,7 @@ def render(kind, workload, cluster, account, issuer, region=None, image=None):
         "containers": [container], "volumes": [{"name": "workload-identity", "projected": {
             "defaultMode": 0o440, "sources": [{"serviceAccountToken": {"audience": AUDIENCE, "expirationSeconds": 3600, "path": "token"}}]}}],
     }
-    job = {"apiVersion": "batch/v1", "kind": "Job", "metadata": {"name": name + "-identity-check", "namespace": NAMESPACE},
+    job = {"apiVersion": "batch/v1", "kind": "Job", "metadata": {"name": name + "-identity-check", "namespace": namespace},
            "spec": {"backoffLimit": 0, "activeDeadlineSeconds": 120, "ttlSecondsAfterFinished": 3600,
                     "template": {"spec": pod}}}
     return {"apiVersion": "v1", "kind": "List", "items": [service_account, job]}
@@ -79,6 +82,8 @@ def main():
     parser.add_argument("--workload", choices=WORKLOADS, required=True)
     for field in ("cluster", "account", "issuer"):
         parser.add_argument("--" + field, required=True)
+    parser.add_argument("--namespace", default=os.environ.get("ZASP_VPS_APP_NAMESPACE", DEFAULT_NAMESPACE),
+                        help="application namespace for the IAM subject and workload preflight")
     parser.add_argument("--region")
     parser.add_argument("--image")
     args = parser.parse_args()

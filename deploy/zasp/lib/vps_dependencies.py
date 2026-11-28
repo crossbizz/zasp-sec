@@ -70,14 +70,16 @@ def namespace_selector(namespace):
     return {"matchLabels": {"kubernetes.io/metadata.name": namespace}}
 
 
-def runtime_policy(app_namespace):
+def runtime_policy(app_namespace, *, include_authorization_projector=True):
     internal = {"podSelector": {"matchLabels": workload_labels("temporal")}}
-    apps = {"namespaceSelector": namespace_selector(app_namespace), "podSelector": {"matchExpressions": [{
-        "key": "app.kubernetes.io/name", "operator": "In",
-        "values": ["agentsec-api", "agentsec-discovery-worker", "agentsec-discovery-scheduler"],
-    }]}}
     result = []
     for service, port in [("openfga", 8080), ("temporal", 7233)]:
+        clients = ["agentsec-api", "agentsec-discovery-worker", "agentsec-discovery-scheduler"]
+        if service == "openfga" and include_authorization_projector:
+            clients.append("zasp-authorization-projector")
+        apps = {"namespaceSelector": namespace_selector(app_namespace), "podSelector": {"matchExpressions": [{
+            "key": "app.kubernetes.io/name", "operator": "In", "values": clients,
+        }]}}
         rules = [{"from": [apps], "ports": [{"port": port, "protocol": "TCP"}]}]
         if service == "temporal":
             # Member services and the authenticated namespace job communicate privately.
@@ -89,7 +91,8 @@ def runtime_policy(app_namespace):
     return result
 
 
-def resources(root, image, storage_class):
+def resources(root, image, storage_class, app_namespace="zasp"):
+    check(re.fullmatch(r"[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?", app_namespace), "invalid application namespace")
     deploy = root / "deploy"
     catalog = {"apiVersion": "postgresql.cnpg.io/v1", "kind": "ImageCatalog",
                "metadata": {"name": "pilot-database-images", "namespace": DATA},
@@ -110,7 +113,7 @@ def resources(root, image, storage_class):
         service = "openfga" if db == "openfga-db" else "temporal"
         policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"] = workload_labels(service)
         result.extend([policy, cluster])
-    result.extend(runtime_policy("agentsec"))
+    result.extend(runtime_policy(app_namespace))
     return result
 
 
@@ -250,21 +253,37 @@ class Installer:
         kind = {"Cluster": "cluster.postgresql.cnpg.io", "ImageCatalog": "imagecatalog.postgresql.cnpg.io"}.get(resource["kind"], resource["kind"])
         return self.get(meta["namespace"], kind, meta["name"], optional=True)
 
-    def owned(self, resource):
-        existing = self.existing(resource)
+    def owned(self, resource, existing=None):
+        if existing is None:
+            existing = self.existing(resource)
         if not existing:
             return False
         meta = existing.get("metadata", {})
-        check(meta.get("labels", {}).get(LABEL) == self.owner and meta.get("annotations", {}).get(SPEC) == fingerprint(resource)
-              and matches(existing.get("spec", {}), resource["spec"]),
-              f"refusing to adopt or overwrite {resource['kind']}/{resource['metadata']['name']}")
-        return True
+        refusal = f"refusing to adopt or overwrite {resource['kind']}/{resource['metadata']['name']}"
+        check(meta.get("labels", {}).get(LABEL) == self.owner, refusal)
+        stamp = meta.get("annotations", {}).get(SPEC)
+        if stamp == fingerprint(resource) and matches(existing.get("spec", {}), resource["spec"]):
+            return True
+        if resource["kind"] == "NetworkPolicy" and resource["metadata"]["namespace"] == RUNTIME and meta.get("resourceVersion"):
+            for previous in runtime_policy("agentsec", include_authorization_projector=False):
+                if (previous["metadata"] == resource["metadata"] and stamp == fingerprint(previous)
+                        and existing.get("spec") == previous["spec"]):
+                    return False
+        raise Rejected(refusal)
 
     def create(self, resource):
-        if self.owned(resource):
+        existing = self.existing(resource)
+        if self.owned(resource, existing):
+            return
+        stamp = fingerprint(resource)
+        if existing:
+            # Only a recognized, owned previous policy can reach this branch.
+            changes = [{"op": "test", "path": "/metadata/resourceVersion", "value": existing["metadata"]["resourceVersion"]},
+                       {"op": "replace", "path": "/spec", "value": resource["spec"]},
+                       {"op": "replace", "path": "/metadata/annotations/zasp.io~1installer-spec-sha256", "value": stamp}]
+            self.kubectl("-n", RUNTIME, "patch", "networkpolicy", resource["metadata"]["name"], "--type=json", "-p", json.dumps(changes))
             return
         # create (not apply) refuses to overwrite an object created concurrently.
-        stamp = fingerprint(resource)
         meta = {**resource["metadata"], "labels": {LABEL: self.owner}, "annotations": {SPEC: stamp}}
         self.kubectl("create", "-f", "-", data=json.dumps({**resource, "metadata": meta}).encode())
 
@@ -345,7 +364,7 @@ class Installer:
         storage_class = os.environ.get("ZASP_VPS_STORAGE_CLASS") or "local-path"
         check(re.fullmatch(r"[a-z0-9]([-a-z0-9.]*[a-z0-9])?", storage_class), "invalid VPS storage class")
         self.get("", "storageclass", storage_class)
-        plan = resources(self.root, image, storage_class)
+        plan = resources(self.root, image, storage_class, os.environ.get("ZASP_VPS_APP_NAMESPACE", "zasp"))
         job = migration(self.root)
         for obj in [*plan, job]:
             self.owned(obj)

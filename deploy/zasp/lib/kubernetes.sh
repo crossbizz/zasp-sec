@@ -109,8 +109,12 @@ kubernetes_secrets_init() {
     note "$KUBE_VALUES already exists; its keys were kept"
   else
     [ -n "$KUBE_ORIGIN" ] || die "set ZASP_ORIGIN in $ZASP_CONFIG_FILE first (for example https://zasp.example.test:8443)"
-    local host staging planner=false nango_enabled="${ZASP_KUBE_NANGO_ENABLED:-true}"
+    local host staging service_hex service_uuid planner=false nango_enabled="${ZASP_KUBE_NANGO_ENABLED:-true}"
     case "$nango_enabled" in true|false) ;; *) die "ZASP_KUBE_NANGO_ENABLED must be true or false" ;; esac
+    service_hex="$(openssl rand -hex 16)" || die "could not generate the Nango service key"
+    # The pinned Nango bearer middleware accepts RFC 4122 version 4 keys.
+    printf -v service_uuid '%s-%s-4%s-%x%s-%s' "${service_hex:0:8}" "${service_hex:8:4}" "${service_hex:13:3}" \
+      "$((8 | (16#${service_hex:16:1} & 3)))" "${service_hex:17:3}" "${service_hex:20:12}"
     host="${KUBE_ORIGIN#https://}"
     host="${host%%:*}"
     staging="$(mktemp -d)" || die "could not create a temporary directory"
@@ -147,7 +151,7 @@ kubernetes_secrets_init() {
         printf 'deploymentAdmin:\n  enabled: true\n'
         printf 'secrets:\n'
         printf '  deploymentAdminPassword: "%s"\n' "$(random_hex 32)"
-        printf '  nangoServiceKey: "%s"\n' "$(random_hex 32)"
+        printf '  nangoServiceKey: "%s"\n' "$service_uuid"
         printf '  nangoAdminKey: "%s"\n' "$(random_hex 32)"
         printf '  nangoEncryptionKey: "%s"\n' "$(random_base64 32)"
         printf '  stytchProjectId: "%s"\n  stytchSecret: "%s"\n  stytchPublicToken: "%s"\n' "${STYTCH_PROJECT_ID:-}" "${STYTCH_SECRET:-}" "${STYTCH_PUBLIC_TOKEN:-}"

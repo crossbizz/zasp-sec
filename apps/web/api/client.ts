@@ -90,16 +90,6 @@ export async function uploadPrivateAddonArchive(grant: {id: string; upload_url: 
   return JSON.parse(new TextDecoder().decode(await readBounded(response,8192))) as unknown;
 }
 
-// The operator API uses a deployment password and its own CSRF cookie session.
-// Its error envelope and authorization are independent of tenant session state.
-export function deploymentOperatorRequest(path: "session" | "settings", init: RequestInit): Promise<Response> {
-  return fetch(`/api/v1/deployment-admin/${path}`, {
-    ...init, credentials: "same-origin", cache: "no-store", redirect: "error", referrerPolicy: "no-referrer",
-    headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
-    signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
-  });
-}
-
 export function createAPIClient(options: APIClientOptions = {}) {
   const {
     baseUrl = "",

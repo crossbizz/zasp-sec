@@ -20,5 +20,5 @@ databaseCA: nango-database-ca
 databaseEgressCIDRs: []
 providerEgressCIDRs: []
 clients:
-  - namespace: agentsec
+  - namespace: zasp
     workloads: [agentsec-api, agentsec-discovery-worker]

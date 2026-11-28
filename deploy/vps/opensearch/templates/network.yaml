@@ -6,7 +6,7 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
-        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: agentsec}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: zasp}}
           podSelector:
             matchExpressions:
               - key: app.kubernetes.io/name

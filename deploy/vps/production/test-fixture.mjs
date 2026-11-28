@@ -34,10 +34,12 @@ export async function renderVpsFixture(sessionSearchPhase = 'precision-intake') 
       else object = object[key] ??= /^\d+$/.test(keys[index+1]) ? [] : {};
     }
   }
+  // The private site releases ingress ownership only after verifying the production service.
+  site.ingress = {...site.ingress, enabled: false};
   const directory = await mkdtemp(tmpdir() + '/vps-chart-');
   try {
     await writeFile(directory + '/site.json', JSON.stringify(site), {mode: 0o600});
-    return await renderChart('site-product', 'deploy/staging/product', 'agentsec', ['-f', directory + '/site.json', '-f', 'deploy/vps/production/values.yaml']);
+    return await renderChart('agentsec', 'deploy/staging/product', 'zasp', ['-f', directory + '/site.json', '-f', 'deploy/vps/production/values.yaml']);
   } finally {
     await rm(directory, {recursive: true, force: true});
   }

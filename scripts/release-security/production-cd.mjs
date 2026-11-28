@@ -16,22 +16,72 @@ const allowed = new Set([
 ]);
 const shared = /(?:^|[-_/])(?:nango|opensearch)(?:$|[-_:./@])/i;
 
-export function validateProductionResources(manifest, hooks = []) {
+function releaseDocuments(manifest, hooks = []) {
   requireThat((typeof manifest === 'string' || Buffer.isBuffer(manifest)) && Array.isArray(hooks), 'Missing production release manifest');
-  const documents = [manifest.toString(), ...hooks.map(h => {
+  return [manifest.toString(), ...hooks.map(h => {
     requireThat(typeof h?.manifest === 'string', 'Unreadable previous release hook');
     return h.manifest;
   })].flatMap(raw => loadAll(raw, {schema: JSON_SCHEMA}).filter(Boolean));
+}
+
+export function validateProductionResources(manifest, hooks = []) {
+  const documents = releaseDocuments(manifest, hooks);
   requireThat(documents.length > 0, 'Empty production release');
   for (const doc of documents) {
     const metadata = doc.metadata;
-    requireThat(allowed.has(doc.apiVersion + '/' + doc.kind) && metadata?.name && (!metadata.namespace || metadata.namespace === 'agentsec'),
+    requireThat(allowed.has(doc.apiVersion + '/' + doc.kind) && metadata?.name && (!metadata.namespace || metadata.namespace === 'zasp'),
       'Product release contains a cluster-wide or foreign-namespace resource');
     const pod = doc.spec?.template?.spec ?? doc.spec?.jobTemplate?.spec?.template?.spec;
     if (pod) {
       const containers = [...(pod.containers ?? []), ...(pod.initContainers ?? []), ...(pod.ephemeralContainers ?? [])];
       requireThat(!shared.test(metadata.name) && containers.every(c => !shared.test(c.name) && !shared.test(c.image)),
         'Product release contains a shared dependency workload');
+    }
+  }
+}
+
+function overlappingIngress(product, existing) {
+  if (product.spec?.ingressClassName && existing.spec?.ingressClassName && product.spec.ingressClassName !== existing.spec.ingressClassName) return false;
+  if (product.spec?.defaultBackend || existing.spec?.defaultBackend) return true;
+  const rewrites = [product, existing].some(doc => Object.keys(doc.metadata.annotations ?? {}).some(name => /use-regex|rewrite-target/.test(name)));
+  for (const a of product.spec?.rules ?? []) for (const b of existing.spec?.rules ?? []) {
+    const hostsMatch = !a.host || !b.host || a.host === b.host || (a.host.startsWith('*.') && b.host.endsWith(a.host.slice(1))) || (b.host.startsWith('*.') && a.host.endsWith(b.host.slice(1)));
+    if (!hostsMatch) continue;
+    if (rewrites) return true;
+    for (const left of a.http?.paths ?? []) for (const right of b.http?.paths ?? []) {
+      if (left.pathType === 'ImplementationSpecific' || right.pathType === 'ImplementationSpecific') return true;
+      const leftPath = (left.path || '/').replace(/\/$/, ''), rightPath = (right.path || '/').replace(/\/$/, '');
+      if (leftPath === rightPath || (left.pathType === 'Prefix' && rightPath.startsWith(leftPath + '/')) || (right.pathType === 'Prefix' && leftPath.startsWith(rightPath + '/'))) return true;
+    }
+  }
+  return false;
+}
+
+// The two releases share a namespace. Helm hooks can run before Helm's
+// ordinary ownership validation, so collisions must be excluded beforehand.
+export function protectEvaluationRelease(manifest, hooks, evaluation) {
+  const seen = releaseDocuments(evaluation.manifest, evaluation.hooks);
+  const id = doc => [doc.apiVersion.split('/').length === 1 ? '' : doc.apiVersion.split('/')[0], doc.kind, doc.metadata.namespace || 'zasp', doc.metadata.name].join('/');
+  const reserved = new Set(seen.map(id));
+  const labels = seen.map(doc => doc.spec?.template?.metadata?.labels).filter(Boolean);
+  for (const doc of releaseDocuments(manifest, hooks)) {
+    if (doc.kind === 'Ingress') requireThat(!seen.some(existing => existing.kind === 'Ingress' && overlappingIngress(doc, existing)),
+      'Product Ingress overlaps existing evaluation routing');
+    requireThat(!reserved.has(id(doc)), 'Product resource collides with the existing evaluation release');
+    const selector = doc.kind === 'NetworkPolicy' ? doc.spec?.podSelector
+      : doc.kind === 'PodDisruptionBudget' ? doc.spec?.selector
+      : doc.kind === 'Service' && doc.spec?.selector ? {matchLabels:doc.spec.selector} : null;
+    if (!selector) continue;
+    for (const pod of labels) {
+      const labelsMatch = Object.entries(selector.matchLabels ?? {}).every(([key,value]) => pod[key] === value);
+      const expressionsMatch = (selector.matchExpressions ?? []).every(({key,operator,values}) => {
+        if (operator === 'In') return values.includes(pod[key]);
+        if (operator === 'NotIn') return !values.includes(pod[key]);
+        if (operator === 'Exists') return Object.hasOwn(pod,key);
+        if (operator === 'DoesNotExist') return !Object.hasOwn(pod,key);
+        throw Error('Unsupported product pod selector');
+      });
+      requireThat(!(labelsMatch && expressionsMatch), 'Product resource selects the existing evaluation pod');
     }
   }
 }

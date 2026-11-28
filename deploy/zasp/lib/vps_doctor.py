@@ -76,6 +76,12 @@ def public_tls(origin):
     raise Refused()
 
 
+def app_namespace():
+    namespace = env.get("ZASP_VPS_APP_NAMESPACE", "zasp")
+    checked(re.fullmatch(DNS, namespace))
+    return namespace
+
+
 def aws_identity():
     region, owner = env.get("ZASP_AWS_REGION", ""), env.get("ZASP_EVIDENCE_BUCKET_OWNER", "")
     checked(re.fullmatch(REGION, region) and re.fullmatch(r"\d{12}", owner))
@@ -100,7 +106,7 @@ def aws_identity():
                                f"file:///proc/self/fd/{token.fileno()}"], clean=base, fds=(token.fileno(),)))
     arn = f"arn:aws:sts::{owner}:assumed-role/{role_name}/zasp-vps-doctor"
     checked(data["AssumedRoleUser"]["Arn"] == arn and data["Audience"] == "sts.amazonaws.com"
-            and data["SubjectFromWebIdentityToken"] == "system:serviceaccount:agentsec:zasp-vps-doctor")
+            and data["SubjectFromWebIdentityToken"] == f"system:serviceaccount:{app_namespace()}:zasp-vps-doctor")
     creds = data["Credentials"]
     for name, field in (("AWS_ACCESS_KEY_ID", "AccessKeyId"), ("AWS_SECRET_ACCESS_KEY", "SecretAccessKey"), ("AWS_SESSION_TOKEN", "SessionToken")):
         checked(isinstance(creds[field], str) and creds[field])
@@ -225,7 +231,7 @@ def cluster_node(read):
 def discovery_projection(read):
     owner = env.get("ZASP_EVIDENCE_BUCKET_OWNER", "")
     checked(re.fullmatch(r"\d{12}", owner))
-    deployment = read("deployment", "agentsec-discovery-worker", "-n", "agentsec")
+    deployment = read("deployment", "agentsec-discovery-worker", "-n", app_namespace())
     pod = deployment["spec"]["template"]["spec"]
     checked(pod.get("serviceAccountName") == "zasp-discovery-worker" and pod.get("automountServiceAccountToken") is False)
     worker, = [c for c in pod["containers"] if c["name"] == "discovery-worker"]

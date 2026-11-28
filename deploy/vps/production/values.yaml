@@ -1,9 +1,11 @@
 # Apply after the site's private hosted-chart values and before image digest overrides.
-# This release owns only application resources in the agentsec namespace.
+# This release owns only application resources under the agentsec release in the shared zasp namespace.
 profile: control_plane
 global:
   environment: production
   deploymentMode: saas
+network:
+  scopeDefaultDenyToProduct: true
 nango:
   externalNamespace: connectors
   storageSecretName: nango-client

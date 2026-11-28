@@ -8,7 +8,7 @@ The standard `kubernetes` profile has its own bundled option. A single chart ins
 
 1. Provision a dedicated persistent PostgreSQL database for Nango. Use a distinct owner and database, and grant this login the schema creation and migration rights it needs in that database. Scope its network route to this database on port 5432. Use a TLS server certificate for the database hostname, authenticate the login, and keep offsite PostgreSQL backups and the Nango encryption key outside the VPS. The chart consumes an existing database. Size and maintain its PVC or external service separately.
 2. Choose namespace `connectors` for this example and enable an enforcing CNI network policy. Issue a private TLS certificate with a DNS SAN of `nango.connectors.svc.cluster.local`. Make the issuing CA available in the Zasp API and discovery container trust stores. Configure all deployments to use the same cluster DNS suffix required by Zasp's Nango client. Keep the TLS private key only in the service namespace. Require verified upstream TLS to both the database and the SaaS providers.
-3. Preserve the existing Nango encryption and environment service keys on upgrade. On a new installation, generate three independent protected files without a trailing newline. Use `openssl rand -base64 32` for the encryption key, and generate the environment service key and dashboard admin key separately with `openssl rand -hex 32`. For example, run `(umask 077; openssl rand -hex 32 | tr -d '\n' > /secure/nango-admin-key)` for a new admin key in a protected directory. The service key is a bearer credential with environment-wide privileges. The separate admin key signs dashboard sessions and password-reset tokens. Store it only in the trusted server processes that require it. Prepare a private database URL file with an explicit `:5432` and exactly `?sslmode=verify-full`. Each Secret key below contains the value bytes without a trailing newline. Supply the database CA separately.
+3. Preserve the existing Nango encryption key and valid environment service key on upgrade. On a new installation, generate three independent protected files without a trailing newline. Use `openssl rand -base64 32` for the encryption key. Nango requires a UUIDv4 for the environment service key. Generate it with `(umask 077; python3 -c 'import uuid; print(uuid.uuid4(), end="")' > /secure/nango-service-key)`. Generate the dashboard admin key separately with `openssl rand -hex 32`. For example, run `(umask 077; openssl rand -hex 32 | tr -d '\n' > /secure/nango-admin-key)` for a new admin key in a protected directory. The service key is a bearer credential with environment-wide privileges. The separate admin key signs dashboard sessions and password-reset tokens. Store it only in the trusted server processes that require it. Prepare a private database URL file with an explicit `:5432` and exactly `?sslmode=verify-full`. Each Secret key below contains the value bytes without a trailing newline. Supply the database CA separately.
 4. Create a reviewed `nango-values.yaml` with the actual database and provider CIDRs, public Zasp origin, client namespaces and an immutable verified nginx-unprivileged image. No credentials belong in this values file.
 
 ```yaml
@@ -19,7 +19,7 @@ tlsProxyImage: registry.example.com/nginx-unprivileged@sha256:<verified-digest>
 databaseEgressCIDRs: [192.0.2.10/32]       # Replace with the dedicated database address
 providerEgressCIDRs: [198.51.100.7/32]      # Replace with required provider addresses
 clients:
-  - namespace: agentsec
+  - namespace: zasp
     workloads: [agentsec-api, agentsec-discovery-worker]
 ```
 
@@ -50,7 +50,7 @@ For a CLI-managed VPS, configure the cluster context, cluster UID, installation 
 
 ## Access Nango and configure a provider
 
-For the VPS layout, the Nango release lives in `connectors` and the Zasp release lives in `agentsec`. The Nango login URL is **`https://nango.connectors.svc.cluster.local:18443/`**. Zasp and other explicitly allowed pods call the same server through `https://nango.connectors.svc.cluster.local:8443`. Its dashboard listener accepts loopback connections inside the pod by default. The chart creates a private ClusterIP and installs no external Ingress.
+For the VPS layout, the Nango release lives in `connectors` and the production Zasp release is named `agentsec` in namespace `zasp`. The Nango login URL is **`https://nango.connectors.svc.cluster.local:18443/`**. Zasp and other explicitly allowed pods call the same server through `https://nango.connectors.svc.cluster.local:8443`. Its dashboard listener accepts loopback connections inside the pod by default. The chart creates a private ClusterIP and installs no external Ingress.
 
 1. On the machine holding the authenticated k3s context, start the dashboard tunnel. The CLI verifies the configured cluster UID, namespace owner and Helm deployment. The direct equivalent for an authenticated operator is `kubectl -n connectors port-forward --address=127.0.0.1 deployment/nango 18443:9443`.
 
@@ -78,12 +78,12 @@ The standard Kubernetes evaluation chart has its own dashboard setup. The older 
 In the Zasp namespace project only the Nango service key into the supported API and discovery workloads. The independently managed Nango database credentials and encryption key stay in the Nango namespace.
 
 ```sh
-kubectl -n agentsec create secret generic nango-client --from-file=service-key=/secure/nango-service-key --from-file=ca.crt=/secure/nango-server-ca.pem
+kubectl -n zasp create secret generic nango-client --from-file=service-key=/secure/nango-service-key --from-file=ca.crt=/secure/nango-server-ca.pem
 ```
 
 Set `nango.externalNamespace: connectors` and `nango.storageSecretName: nango-client` on the existing production Zasp chart. This omits the bundled Nango workloads and produces an egress rule for the dedicated namespace and TCP 8443. The API and configured SaaS discovery worker use `https://nango.connectors.svc.cluster.local:8443`. Empty `externalNamespace` retains the existing bundled service. Keep per-provider customer credentials inside the original Nango environment. `ZASP_NANGO_SERVICE_SECRET_REFERENCE` identifies the mounted environment key. It does not grant Nango access to the platform's other secrets.
 
-For discovery through the registered SaaS adapters, include the following in the **product release** values and apply them through that release's normal upgrade command. The setting enables the SaaS collector in both the API and the discovery worker. The independent Nango release keeps its own values file. Before upgrading an older independent release, add the new `admin-key` to its existing `nango-storage` Secret while preserving all existing keys. Start with signup disabled when accounts already exist. Apply the component upgrade only after the database restore rehearsal.
+For discovery through the registered SaaS adapters, include the following in the **product release** values and apply them through that release's normal upgrade command. The setting enables the SaaS collector in both the API and the discovery worker. The independent Nango release keeps its own values file. Before upgrading an older independent release, add the new `admin-key` to its existing `nango-storage` Secret while preserving all existing keys. If an earlier deployment used a hex string for the environment service key, replace it with one UUIDv4 in the independent server and the application client Secrets and restart both consumers. Keep the encryption key. Start with signup disabled when accounts already exist. Apply the component upgrade only after the database restore rehearsal.
 
 ```yaml
 nango:

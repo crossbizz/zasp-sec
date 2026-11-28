@@ -25,8 +25,8 @@ class IdentityContract(unittest.TestCase):
                 pod = job["spec"]["template"]["spec"]
                 container, = pod["containers"]
                 name = "zasp-" + workload
-                sub = "system:serviceaccount:agentsec:" + name
-                self.assertEqual(sa["metadata"], {"namespace": "agentsec", "name": name})
+                sub = "system:serviceaccount:zasp:" + name
+                self.assertEqual(sa["metadata"], {"namespace": "zasp", "name": name})
                 self.assertEqual(pod["serviceAccountName"], name)
                 self.assertFalse(sa["automountServiceAccountToken"])
                 self.assertFalse(pod["automountServiceAccountToken"])
@@ -48,10 +48,21 @@ class IdentityContract(unittest.TestCase):
                     "Condition": {"StringEquals": {authority + ":sub": sub, authority + ":aud": AUDIENCE}},
                 })
 
+    def test_explicit_legacy_namespace_matches_role_and_probe(self):
+        sa, probe = build(namespace="agentsec")["items"]
+        expected = "system:serviceaccount:agentsec:zasp-discovery-worker"
+        self.assertEqual(sa["metadata"]["namespace"], "agentsec")
+        self.assertEqual(probe["metadata"]["namespace"], "agentsec")
+        condition = build("trust", namespace="agentsec")["Condition"]["StringEquals"]
+        self.assertEqual(condition[ISSUER.removeprefix("https://") + ":sub"], expected)
+        env = {item["name"]: item["value"] for item in probe["spec"]["template"]["spec"]["containers"][0]["env"]}
+        self.assertEqual(env["EXPECTED_SUBJECT"], expected)
+
     def test_invalid_inputs_rejected(self):
         for field, invalid in {
             "issuer": ["http://issuer.example", "https://user@issuer.example", "https://127.0.0.1",
                        "https://issuer.example/path?debug", "https://issuer.example:8443", "https://issuer.example/../x"],
+            "namespace": ["", "*", "prod:root", "a" * 64],
             "workload": ["other", "discovery-*"], "cluster": ["x"*65, "cluster/role"],
             "image": ["public.ecr.aws/aws-cli/aws-cli:latest", "other.example/cli@sha256:" + "a"*64],
             "region": ["us-gov-west-1", "us-east-1.evil.example"], "account": ["000000000000", "*"],

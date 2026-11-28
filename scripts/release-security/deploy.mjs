@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import {execFileSync} from 'node:child_process';
-import {mkdtemp, mkdir, rm, writeFile} from 'node:fs/promises';
+import {appendFile, mkdtemp, mkdir, rm, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {loadAll, JSON_SCHEMA} from 'js-yaml';
 import {verifyPromotion} from './verify.mjs';
-import {checkTestedMain, validateProductionResources} from './production-cd.mjs';
+import {checkTestedMain, validateProductionResources, protectEvaluationRelease} from './production-cd.mjs';
 import {readBound, requireThat, sha256, verifySigned} from './trust.mjs';
 
 const self=fileURLToPath(import.meta.url);
@@ -31,11 +31,11 @@ export function runAWSRelease(options) {
 }
 
 export function installVPSProduction(options = {}) {
-  return runSignedRelease({...options, args: [], release: 'agentsec', namespace: 'agentsec', mode: 'install', profile: 'vps-production'});
+  return runSignedRelease({...options, args: [], release: 'agentsec', namespace: 'zasp', mode: 'install', profile: 'vps-production'});
 }
 
 export function upgradeProduction(options = {}) {
-  return runSignedRelease({...options, args: [], release: 'agentsec', namespace: 'agentsec', mode: 'apply', profile: 'vps-production'});
+  return runSignedRelease({...options, args: [], release: 'agentsec', namespace: 'zasp', mode: 'apply', profile: 'vps-production'});
 }
 
 async function runSignedRelease({args,release,namespace,profile,mode='apply',apiImage,repo=repoRoot,env=process.env,execute=cli,authorize=verifyPromotion,currentMain=checkTestedMain}){
@@ -68,18 +68,30 @@ async function runSignedRelease({args,release,namespace,profile,mode='apply',api
     confirmInstallation();
     requireThat((env.HELM_DRIVER || 'secret') === 'secret', 'Production requires Helm Secret storage');
     validateProductionResources(expected);
+    const evaluation = JSON.parse(execute('helm', [...scope, 'list', '--all', '--filter', '^zasp$', '--output', 'json']));
+    requireThat(Array.isArray(evaluation), 'Unreadable evaluation release list');
+    let preserved;
+    if (evaluation.length > 0) {
+      preserved = JSON.parse(execute('helm', [...scope, 'status', 'zasp', '--output', 'json']));
+      requireThat(preserved.name === 'zasp' && preserved.namespace === namespace, 'Unexpected evaluation release');
+      protectEvaluationRelease(expected, [], preserved);
+    }
     if (mode === 'install') {
       const existing = JSON.parse(execute('helm', [...scope, 'list', '--all', '--filter', '^agentsec$', '--output', 'json']));
       requireThat(Array.isArray(existing) && existing.length === 0, 'Initial product install requires an unused production release name');
     } else {
       requireThat(receipt.commit === env.GITHUB_SHA, 'Production release commit differs from this run');
       const identity = JSON.parse(execute('kubectl', ['--context', context, 'auth', 'whoami', '-o', 'json']));
-      requireThat(identity.status?.userInfo?.username === 'system:serviceaccount:agentsec:zasp-cd', 'Expected the namespace-scoped production CD identity');
+      requireThat(identity.status?.userInfo?.username === 'system:serviceaccount:zasp:zasp-cd', 'Expected the namespace-scoped production CD identity');
       // Helm can delete objects omitted from a later chart. Check the release
       // being replaced as well as the signed candidate, before a server dry run.
+      const products = JSON.parse(execute('helm', [...scope, 'list', '--all', '--filter', '^agentsec$', '--output', 'json']));
+      requireThat(Array.isArray(products), 'Unreadable product release list');
+      if (products.length === 0) return {installed:false};
       const installed = JSON.parse(execute('helm', [...scope, 'status', release, '--output', 'json']));
       requireThat(installed.name === release && installed.namespace === namespace && installed.info?.status === 'deployed', 'Expected the installed production product release');
       validateProductionResources(installed.manifest, installed.hooks);
+      if (preserved) protectEvaluationRelease(installed.manifest, installed.hooks, preserved);
       const previous = installed.config?.global?.releaseCommit;
       if (previous !== undefined) {
         requireThat(/^[a-f0-9]{40}$/.test(previous), 'Invalid previous release commit');
@@ -163,7 +175,12 @@ if(process.argv[1] && path.resolve(process.argv[1])===self){
     }else if(process.argv[2]==='install-vps-production' && process.argv.length===3){
       await installVPSProduction();
     }else if(process.argv[2]==='upgrade-production' && process.argv.length===3){
-      await upgradeProduction();
+      const outcome = await upgradeProduction();
+      const summary = outcome?.installed === false
+        ? 'Production upgrade skipped. Install the first signed agentsec product release in namespace zasp before enabling future upgrades.'
+        : 'The signed agentsec product release in namespace zasp passed the production upgrade and readiness checks.';
+      console.log(summary);
+      if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + '\n');
     }else{
       requireThat(['apply','check'].includes(process.argv[2]),'Expected apply, check or post-render');
       await runAWSRelease({mode:process.argv[2],apiImage:process.env.ZASP_BOOTSTRAP_CHECK_IMAGE,release:process.argv[3],namespace:process.argv[4],args:process.argv.slice(5)});

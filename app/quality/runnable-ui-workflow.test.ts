@@ -179,9 +179,9 @@ function assertRunnableUiWorkflow(
     .split("&&")
     .map((command) => command.trim());
 
-  // The acceptance suite is run by hand; runnable-ui.yml holds the checks
-  // that run on every push and pull request.
-  expect(workflow.on).toEqual({ workflow_dispatch: null });
+  // Operators can dispatch acceptance directly. Production CD calls the same
+  // suite for its candidate, with read-only permissions in either case.
+  expect(workflow.on).toEqual({ workflow_dispatch: null, workflow_call: null });
   expect(workflow.permissions).toEqual({ contents: "read" });
   expect(workflow.env).toBeUndefined();
   expect(workflow.defaults).toBeUndefined();
@@ -286,7 +286,7 @@ function assertRunnableUiWorkflow(
 
 function validWorkflow(): Workflow {
   return {
-    on: { workflow_dispatch: null },
+    on: { workflow_dispatch: null, workflow_call: null },
     permissions: { contents: "read" },
     jobs: {
       verify: {
@@ -620,6 +620,10 @@ describe("runnable UI GitHub Actions gate", { timeout: 30_000 }, () => {
     description: string;
     workflow: Workflow;
   }> = [
+    {
+      description: "a manual-only suite unavailable to production CD",
+      workflow: { ...validWorkflow(), on: { workflow_dispatch: null } },
+    },
     {
       description: "a filtered push trigger",
       workflow: {

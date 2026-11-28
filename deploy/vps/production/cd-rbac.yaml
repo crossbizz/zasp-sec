@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: ServiceAccount
-metadata: {name: zasp-cd, namespace: agentsec}
+metadata: {name: zasp-cd, namespace: zasp}
 automountServiceAccountToken: false
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
-metadata: {name: zasp-helm-upgrade, namespace: agentsec}
+metadata: {name: zasp-helm-upgrade, namespace: zasp}
 rules:
   # Helm keeps its revision history in namespace-local Secrets.
   - apiGroups: [""]
@@ -44,9 +44,9 @@ rules:
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
-metadata: {name: zasp-helm-upgrade, namespace: agentsec}
+metadata: {name: zasp-helm-upgrade, namespace: zasp}
 subjects:
-  - {kind: ServiceAccount, name: zasp-cd, namespace: agentsec}
+  - {kind: ServiceAccount, name: zasp-cd, namespace: zasp}
 roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: zasp-helm-upgrade}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -55,12 +55,46 @@ metadata: {name: agentsec-cd-read-installation}
 rules:
   - apiGroups: [""]
     resources: [namespaces]
-    resourceNames: [kube-system, agentsec]
+    resourceNames: [kube-system, zasp]
     verbs: [get]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata: {name: agentsec-cd-read-installation}
 subjects:
-  - {kind: ServiceAccount, name: zasp-cd, namespace: agentsec}
+  - {kind: ServiceAccount, name: zasp-cd, namespace: zasp}
 roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: agentsec-cd-read-installation}
+---
+# Helm revision numbers are allocated as new Secrets. RBAC cannot restrict
+# creates by name prefix. Apply this policy as the cluster operator alongside
+# the Role before binding the runner to a shared application namespace.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata: {name: agentsec-cd-release-isolation}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["*"]
+        apiVersions: ["*"]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: ["*"]
+        scope: Namespaced
+  matchConditions:
+    - name: product-deployer
+      expression: "request.userInfo.username == 'system:serviceaccount:zasp:zasp-cd' && request.namespace == 'zasp'"
+  validations:
+    - expression: >-
+        [object, oldObject].all(o, o == null || !has(o.metadata.annotations) || !('meta.helm.sh/release-name' in o.metadata.annotations) || o.metadata.annotations['meta.helm.sh/release-name'] != 'zasp')
+      message: The production deployer cannot mutate evaluation-release resources.
+    - expression: >-
+        request.resource.group != '' || request.resource.resource != 'secrets' ||
+        [object, oldObject].all(o, o == null || (o.metadata.name.matches('^sh[.]helm[.]release[.]v1[.]agentsec[.]v[0-9]+$') && has(o.metadata.labels) && 'owner' in o.metadata.labels && 'name' in o.metadata.labels && o.metadata.labels.owner == 'helm' && o.metadata.labels.name == 'agentsec'))
+      message: The production deployer can write only agentsec Helm revision Secrets.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata: {name: agentsec-cd-release-isolation}
+spec:
+  policyName: agentsec-cd-release-isolation
+  validationActions: [Deny]

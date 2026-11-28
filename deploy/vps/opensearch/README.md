@@ -12,10 +12,10 @@ Issue certificates from a dedicated search CA. Each named Secret has `ca.crt`, `
 | --- | --- | --- | --- |
 | opensearch | opensearch-node-tls | opensearch-node | Server and node transport |
 | opensearch | opensearch-security-admin-tls | opensearch-security-admin | Security configuration installation hook |
-| agentsec | opensearch-api-client | zasp-search-api | Read runtime event and session records |
-| agentsec | opensearch-inventory-client | zasp-search-inventory | Update inventory projections |
-| agentsec | opensearch-runtime-client | zasp-search-runtime | Write runtime event and session projections |
-| agentsec | opensearch-schema-client | zasp-search-schema | Create the four product indices and their schema markers |
+| zasp | opensearch-api-client | zasp-search-api | Read runtime event and session records |
+| zasp | opensearch-inventory-client | zasp-search-inventory | Update inventory projections |
+| zasp | opensearch-runtime-client | zasp-search-runtime | Write runtime event and session projections |
+| zasp | opensearch-schema-client | zasp-search-schema | Create the four product indices and their schema markers |
 
 Create each Secret in its listed namespace from the corresponding issued certificate and key. Select the verified context explicitly. For example, these commands create only the node Secret and then install the independent release. Create the other five Secrets in the same manner before starting their consumers.
 

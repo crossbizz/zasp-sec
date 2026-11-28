@@ -86,7 +86,7 @@ class Doctor(unittest.TestCase):
             config = {"ZASP_AWS_REGION": REGION, "ZASP_EVIDENCE_BUCKET_OWNER": OWNER, "ZASP_VPS_AWS_DOCTOR_ROLE_ARN": role,
                       "ZASP_VPS_AWS_DOCTOR_TOKEN_FILE": str(token), "AWS_ACCESS_KEY_ID": "customer-key",
                       "AWS_ENDPOINT_URL": "http://sink.local", "AWS_PROFILE": "customer"}
-            sub = "system:serviceaccount:agentsec:zasp-vps-doctor"
+            sub = "system:serviceaccount:zasp:zasp-vps-doctor"
             def fake(args, clean, fds=()):
                 self.assertNotIn(secret, repr(args))
                 self.assertNotIn("customer-key", repr(clean))
@@ -104,6 +104,11 @@ class Doctor(unittest.TestCase):
             with mock.patch.dict(d.env, config, clear=True), mock.patch.object(d, "run", side_effect=fake):
                 subject = sub
                 d.aws_identity()
+                with mock.patch.dict(d.env, {"ZASP_VPS_APP_NAMESPACE": "agentsec"}):
+                    with self.assertRaises(d.Refused):
+                        d.aws_identity()
+                    subject = "system:serviceaccount:agentsec:zasp-vps-doctor"
+                    d.aws_identity()
                 subject = "system:serviceaccount:other:zasp-vps-doctor"
                 with self.assertRaises(d.Refused):
                     d.aws_identity()
@@ -142,7 +147,7 @@ class Doctor(unittest.TestCase):
         pod = {"serviceAccountName":"zasp-discovery-worker","automountServiceAccountToken":False,"containers":[worker],
                "volumes":[{"name":"sts","projected":{"sources":[token]}}]}
         def read(*args):
-            self.assertEqual(args, ("deployment", "agentsec-discovery-worker", "-n", "agentsec"))
+            self.assertEqual(args, ("deployment", "agentsec-discovery-worker", "-n", "zasp"))
             return {"spec":{"template":{"spec":pod}}}
         with mock.patch.dict(d.env, {"ZASP_EVIDENCE_BUCKET_OWNER":OWNER}, clear=True):
             d.discovery_projection(read)

@@ -195,12 +195,23 @@ jobs:
           node --test --test-name-pattern='release projects OpenBao|release selects SSE-S3|explicit queue encryption' deploy/production/release-contract.test.mjs deploy/production/audit-export-rollout.test.mjs
 
   opensearch-vps-runtime:
+    outputs:
+      failure: ${{ steps.smoke.outputs.failure }}
     runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Exercise private client identities against persistent OpenSearch
+        id: smoke
         run: bash deploy/vps/opensearch/tests/acceptance.sh
+
+  opensearch-failure-diagnostic:
+    needs: opensearch-vps-runtime
+    if: failure()
+    name: "OpenSearch check · ${{ needs.opensearch-vps-runtime.outputs.failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "See the OpenSearch acceptance step for Pod, storage and security initialization diagnostics." >> "$GITHUB_STEP_SUMMARY"
 
   nango-kubernetes-runtime:
     outputs:
@@ -219,12 +230,24 @@ jobs:
         run: node deploy/zasp/testing/kubernetes-nango-smoke.mjs
 
   nango-vps-runtime:
+    outputs:
+      failure: ${{ steps.smoke.outputs.failure }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Verify private TLS dashboard login and public OAuth redirect
+        id: smoke
         run: python3 deploy/vps/nango/tests/dashboard_smoke.py
+
+
+  nango-vps-diagnostic:
+    needs: nango-vps-runtime
+    if: failure() && needs.nango-vps-runtime.outputs.failure != ''
+    name: "Independent Nango · ${{ needs.nango-vps-runtime.outputs.failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'The independent Nango smoke check failed at the stage named above.'
 
   deployment-diagnostics:
     needs: [vps-operations, release-rendering, backup-and-recovery, nango-kubernetes-runtime]

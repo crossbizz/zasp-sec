@@ -1,5 +1,3 @@
-import { deploymentOperatorRequest } from "../../apps/web/api/client";
-
 export type OperatorSession = { deployment_id: string; csrf_token: string; expires_at: string };
 export type ServiceAccess = { api_url: string; dashboard_url: string; login_hint: string; credential_ref: string };
 export type OperatorSettings = { deployment_id: string; version: number; nango: ServiceAccess; opensearch: ServiceAccess };
@@ -9,7 +7,14 @@ export class OperatorRequestError extends Error {
 }
 
 async function request(path: "session" | "settings", init: RequestInit): Promise<unknown> {
-  const response = await deploymentOperatorRequest(path, init);
+  // This fixed same-origin API authenticates deployment operators independently of the tenant API.
+  // eslint-disable-next-line zasp/no-raw-fetch
+  const response = await fetch(`/api/v1/deployment-admin/${path}`, {
+    ...init,
+    credentials: "same-origin", cache: "no-store", redirect: "error", referrerPolicy: "no-referrer",
+    headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+    signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+  });
   if (!response.ok) throw new OperatorRequestError(response.status);
   return response.status === 204 ? null : response.json();
 }

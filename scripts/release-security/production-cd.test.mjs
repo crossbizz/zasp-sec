@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {load, loadAll} from 'js-yaml';
-import {checkTestedMain, pushChecks, validateProductionResources} from './production-cd.mjs';
+import {checkTestedMain, pushChecks, validateProductionResources, protectEvaluationRelease} from './production-cd.mjs';
 import {installVPSProduction, upgradeProduction} from './deploy.mjs';
 import {imageRoles} from './candidate.mjs';
 import {sha256} from './trust.mjs';
@@ -14,7 +14,7 @@ import {sha256} from './trust.mjs';
 const sha = 'b'.repeat(40);
 const previous = 'a'.repeat(40);
 const uid = '00000000-0000-4000-8000-000000000001';
-const target = {profile:'vps-production', context:'test', clusterUID:uid, installationID:'fixture', namespace:'agentsec', release:'agentsec'};
+const target = {profile:'vps-production', context:'test', clusterUID:uid, installationID:'fixture', namespace:'zasp', release:'agentsec'};
 const env = {GITHUB_SHA:sha, GITHUB_REPOSITORY:'example/repo', GITHUB_REF:'refs/heads/main', GH_TOKEN:'read-token'};
 const workload = name => ({apiVersion:'apps/v1', kind:'Deployment', metadata:{name}, spec:{template:{spec:{containers:[{name, image:'repo/api@sha256:' + 'b'.repeat(64)}]}}}});
 const app = JSON.stringify(workload('agentsec-api'));
@@ -55,7 +55,7 @@ test('only the latest exact push commit can deploy after successful tests for ea
 
 test('production workload admission rejects foreign and cluster resources, including old hooks and embedded shared services', () => {
   validateProductionResources(app, [{manifest:hook}]);
-  for (const namespace of ['staging','connectors','opensearch','zasp','production']) {
+  for (const namespace of ['staging','connectors','opensearch','agentsec','production']) {
     const doc = workload('agentsec-api');
     doc.metadata.namespace = namespace;
     assert.throws(() => validateProductionResources(JSON.stringify(doc)), /foreign-namespace/);
@@ -66,6 +66,30 @@ test('production workload admission rejects foreign and cluster resources, inclu
   const embedded = workload('helper');
   embedded.spec.template.spec.initContainers = [{name:'setup',image:'opensearchproject/opensearch:3'}];
   assert.throws(() => validateProductionResources(JSON.stringify(embedded)), /shared dependency/);
+});
+
+test('preserves actual evaluation resources and refuses intersecting Service, disruption and network selectors', () => {
+  const stateful = workload('zasp');
+  stateful.kind = 'StatefulSet';
+  stateful.spec.template.metadata = {labels:{'app.kubernetes.io/name':'zasp','app.kubernetes.io/instance':'zasp'}};
+  const evaluation = {manifest:JSON.stringify(stateful), hooks:[{manifest:hook}]};
+  assert.doesNotThrow(() => protectEvaluationRelease(app, [], evaluation));
+  assert.throws(() => protectEvaluationRelease(app, [{manifest:hook}], evaluation), /collides/);
+  for (const doc of [
+    {apiVersion:'v1',kind:'Service',metadata:{name:'other'},spec:{selector:{'app.kubernetes.io/name':'zasp'}}},
+    {apiVersion:'networking.k8s.io/v1',kind:'NetworkPolicy',metadata:{name:'isolate'},spec:{podSelector:{}}},
+  ]) assert.throws(() => protectEvaluationRelease(JSON.stringify(doc), [], evaluation), /selects/);
+});
+
+test('public routes can coexist on separate hostnames or disjoint paths', () => {
+  const ingress = (name, host, route, annotations = {}) => ({apiVersion:'networking.k8s.io/v1',kind:'Ingress',metadata:{name,annotations},spec:{rules:[{host,http:{paths:[{path:route,pathType:'Prefix'}]}}]}});
+  const evaluation = {manifest:JSON.stringify(ingress('zasp','eval.example.test','/app'))};
+  assert.throws(() => protectEvaluationRelease(JSON.stringify(ingress('agentsec','eval.example.test','/app/settings')),[],evaluation),/overlaps/);
+  assert.throws(() => protectEvaluationRelease(JSON.stringify(ingress('agentsec','*.example.test','/')),[],evaluation),/overlaps/);
+  assert.throws(() => protectEvaluationRelease(JSON.stringify(ingress('agentsec','eval.example.test','/unrelated',{'nginx.ingress.kubernetes.io/rewrite-target':'/'})),[],evaluation),/overlaps/);
+  for (const doc of [ingress('agentsec','product.example.test','/app'),ingress('agentsec','eval.example.test','/application')]) {
+    assert.doesNotThrow(() => protectEvaluationRelease(JSON.stringify(doc),[],evaluation));
+  }
 });
 
 test('the first install and each upgrade bind scoped resources, full image digests, namespace ownership and immutable signed evidence', async t => {
@@ -85,10 +109,10 @@ test('the first install and each upgrade bind scoped resources, full image diges
     const execute = (bin,args) => {
       if (bin === 'kubectl') {
         if (args.includes('current-context')) return settings.context ?? target.context;
-        if (args.includes('whoami')) return JSON.stringify({status:{userInfo:{username:settings.identity ?? 'system:serviceaccount:agentsec:zasp-cd'}}});
+        if (args.includes('whoami')) return JSON.stringify({status:{userInfo:{username:settings.identity ?? 'system:serviceaccount:zasp:zasp-cd'}}});
         const name = args[4];
-        assert.ok(['kube-system','agentsec'].includes(name));
-        if (name === 'agentsec') ownerChecks++;
+        assert.ok(['kube-system','zasp'].includes(name));
+        if (name === 'zasp') ownerChecks++;
         const owner = ownerChecks === settings.wrongOwnerAt ? 'other' : target.installationID;
         return JSON.stringify({metadata:{name, uid:settings.liveUID ?? uid, labels:{'zasp.io/installation':owner}}});
       }
@@ -99,9 +123,11 @@ test('the first install and each upgrade bind scoped resources, full image diges
       }
       if (bin === 'tar') return '';
       assert.equal(bin,'helm');
-      assert.deepEqual(args.slice(0,4), ['--kube-context',target.context,'-n','agentsec']);
-      if (args.includes('list')) return JSON.stringify(settings.installed ? [{name:'agentsec'}] : []);
-      if (args.includes('status')) return JSON.stringify({name:'agentsec',namespace:'agentsec',config:{global:{releaseCommit:previous}},info:{status:'deployed'},manifest:settings.installedManifest ?? app,hooks:[]});
+      assert.deepEqual(args.slice(0,4), ['--kube-context',target.context,'-n','zasp']);
+      if (args.includes('^zasp$')) return JSON.stringify([{name:'zasp'}]);
+      if (args.includes('status') && args[5] === 'zasp') return JSON.stringify({name:'zasp',namespace:'zasp',manifest:JSON.stringify(workload('zasp')),hooks:[]});
+      if (args.includes('list')) return JSON.stringify((settings.installed ?? !settings.install) ? [{name:'agentsec'}] : []);
+      if (args.includes('status')) return JSON.stringify({name:'agentsec',namespace:'zasp',config:{global:{releaseCommit:previous}},info:{status:'deployed'},manifest:settings.installedManifest ?? app,hooks:[]});
       if (args.includes('template')) {
         const [privateValues, overlay, images] = args.flatMap((flag,i) => flag === '-f' ? [args[i+1]] : []);
         assert.match(readFileSync(privateValues,'utf8'), /operator/);
@@ -111,7 +137,7 @@ test('the first install and each upgrade bind scoped resources, full image diges
         assert.deepEqual(Object.values(values.global.productImages).sort(),Object.values(productImages).sort());
         return expected;
       }
-      if (args.includes('--dry-run=server')) return JSON.stringify({name:'agentsec',namespace:'agentsec',manifest:app,hooks:[{manifest:settings.hook ?? hook}]});
+      if (args.includes('--dry-run=server')) return JSON.stringify({name:'agentsec',namespace:'zasp',manifest:app,hooks:[{manifest:settings.hook ?? hook}]});
       const install = settings.install === true;
       assert.equal(args[4], install ? 'install' : 'upgrade');
       assert.equal(args[5], 'agentsec');
@@ -128,6 +154,7 @@ test('the first install and each upgrade bind scoped resources, full image diges
     } catch (error) { assert.equal(writes,0); throw error; }
   }
   assert.equal(await run(),1);
+  assert.equal(await run({installed:false}),0);
   assert.equal(await run({install:true,env:{GITHUB_SHA:undefined}}),1);
   await assert.rejects(run({install:true,installed:true}),/unused production release/);
   await assert.rejects(run({installedManifest:JSON.stringify(workload('opensearch'))}),/shared dependency/);
@@ -147,7 +174,13 @@ test('CD requires protected acceptance and promotion, serializes upgrades and li
   const workflow = load(file('.github/workflows/production-cd.yml'));
   assert.deepEqual(Object.keys(workflow.on).sort(), ['push','workflow_dispatch']);
   assert.deepEqual(workflow.on.push.branches, ['main']);
-  assert.match(workflow.jobs['tested-main'].if, /refs\/heads\/main/);
+  assert.match(workflow.jobs.enrollment.if, /refs\/heads\/main/);
+  assert.equal(workflow.jobs.enrollment['runs-on'],'ubuntu-24.04');
+  assert.ok(workflow.jobs.enrollment.steps[0].run.includes('GITHUB_STEP_SUMMARY'));
+  for (const name of ['tested-main','acceptance']) {
+    assert.equal(workflow.jobs[name].needs,'enrollment');
+    assert.equal(workflow.jobs[name].if,"needs.enrollment.outputs.enabled == 'true'");
+  }
   assert.deepEqual(workflow.jobs.promotion.needs, ['tested-main','acceptance']);
   assert.equal(workflow.jobs.promotion.uses,'./.github/workflows/production-promotion.yml');
   assert.equal(workflow.jobs.acceptance.uses,'./.github/workflows/runnable-ui-acceptance.yml');
@@ -159,10 +192,16 @@ test('CD requires protected acceptance and promotion, serializes upgrades and li
   for (const job of Object.values(workflow.jobs)) assert.ok(!job['continue-on-error']);
   const rbac = loadAll(file('deploy/vps/production/cd-rbac.yaml'));
   for (const object of rbac) {
-    if (object.kind.startsWith('Cluster')) continue;
-    assert.equal(object.metadata.namespace,'agentsec');
+    if (object.kind.startsWith('Cluster') || object.kind.startsWith('ValidatingAdmissionPolicy')) continue;
+    assert.equal(object.metadata.namespace,'zasp');
   }
+  const policy = rbac.find(resource => resource.kind === 'ValidatingAdmissionPolicy');
+  assert.equal(policy.spec.failurePolicy,'Fail');
+  assert.match(policy.spec.matchConditions[0].expression,/system:serviceaccount:zasp:zasp-cd/);
+  assert.match(policy.spec.validations[0].expression,/release-name.*!= 'zasp'/);
+  assert.match(policy.spec.validations[1].expression,/metadata.labels.name == 'agentsec'/);
+  assert.deepEqual(rbac.find(resource => resource.kind === 'ValidatingAdmissionPolicyBinding').spec.validationActions,['Deny']);
   const read = rbac.find(resource => resource.kind === 'ClusterRole');
-  assert.deepEqual(read.rules,[{apiGroups:[''],resources:['namespaces'],resourceNames:['kube-system','agentsec'],verbs:['get']}]);
+  assert.deepEqual(read.rules,[{apiGroups:[''],resources:['namespaces'],resourceNames:['kube-system','zasp'],verbs:['get']}]);
   assert.deepEqual(rbac.find(r => r.kind === 'RoleBinding').subjects, rbac.find(r => r.kind === 'ClusterRoleBinding').subjects);
 });

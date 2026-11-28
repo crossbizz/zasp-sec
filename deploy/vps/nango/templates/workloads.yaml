@@ -78,6 +78,9 @@ spec:
               export NANGO_SECRET_KEY_PROD NANGO_ADMIN_KEY
               node --input-type=module <<'CHECK'
               import { readFileSync } from "node:fs";
+              const service = readFileSync("/run/nango-storage/service-key", "utf8");
+              const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+              if (!uuidV4.test(service) || service !== process.env.NANGO_SECRET_KEY_PROD) process.exit(64);
               const admin = readFileSync("/run/nango-storage/admin-key", "utf8");
               if (!/^[!-~]{32,4096}$/.test(admin) || admin !== process.env.NANGO_ADMIN_KEY ||
                   admin === process.env.NANGO_SECRET_KEY_PROD || admin === process.env.NANGO_ENCRYPTION_KEY) process.exit(64);

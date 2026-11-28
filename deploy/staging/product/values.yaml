@@ -586,6 +586,7 @@ monitoring:
   namespace: monitoring
   enabled: true
 network:
+  scopeDefaultDenyToProduct: false
   ingressNamespace: ingress-nginx
   postgresCIDR: ""
   securityAgentPlannerEgressCIDRs: []

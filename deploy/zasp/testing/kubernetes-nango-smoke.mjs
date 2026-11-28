@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,7 +22,7 @@ const dashboard = "http://127.0.0.1:3003";
 
 function workload() {
   const secrets = {
-    nangoServiceKey: randomBytes(32).toString("hex"),
+    nangoServiceKey: randomUUID(),
     nangoAdminKey: randomBytes(32).toString("hex"),
     nangoEncryptionKey: randomBytes(32).toString("base64"),
   };

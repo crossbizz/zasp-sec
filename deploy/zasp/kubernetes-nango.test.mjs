@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
 import { helm, rendered, release, clientURL } from "./testing/kubernetes-nango.mjs";
 import { nangoImage } from "../production/nango-image-proof.mjs";
@@ -65,7 +65,7 @@ test("Kubernetes installs the Nango database, migration and server, and binds th
 });
 
 test("Kubernetes renders and validates Nango secrets independently of the existing product secret", () => {
-  const serviceKey = randomBytes(32).toString("hex");
+  const serviceKey = randomUUID();
   const encryptionKey = randomBytes(32).toString("base64");
   const adminKey = randomBytes(32).toString("hex");
   const nango = { enabled: true };
@@ -79,7 +79,7 @@ test("Kubernetes renders and validates Nango secrets independently of the existi
   assert.equal(JSON.stringify(pod).includes(adminKey), false);
   assert.equal(JSON.stringify(pod).includes(serviceKey), false);
   assert.equal(JSON.stringify(pod).includes(encryptionKey), false);
-  for (const [key, value] of [["nangoServiceKey", ""], ["nangoEncryptionKey", "bad"], ["nangoAdminKey", ""], ["nangoAdminKey", serviceKey]]) {
+  for (const [key, value] of [["nangoServiceKey", ""], ["nangoServiceKey", randomBytes(32).toString("hex")], ["nangoEncryptionKey", "bad"], ["nangoAdminKey", ""], ["nangoAdminKey", serviceKey]]) {
     const result = helm("template", nango, { secrets: { ...secrets, [key]: value } });
     assert.ifError(result.error);
     assert.notEqual(result.status, 0);

@@ -51,10 +51,63 @@ class Contract(unittest.TestCase):
             self.assertEqual(db_ports["ports"][0]["port"], 5432)
             self.assertEqual(db_ports["from"][0]["namespaceSelector"], dep.namespace_selector(dep.RUNTIME))
             self.assertEqual(operator["ports"][0]["port"], 8000)
-        for policy in dep.runtime_policy("agentsec"):
-            clients = policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchExpressions"][0]["values"]
-            self.assertEqual(set(clients), {"agentsec-api", "agentsec-discovery-worker", "agentsec-discovery-scheduler"})
-            self.assertNotIn("0.0.0.0", json.dumps(policy))
+
+    def test_runtime_ingress_limits_selected_namespace_and_clients_per_port(self):
+        for namespace, objects in [("zasp", dep.resources(ROOT, IMAGE, "retained")),
+                                   ("agentsec", dep.resources(ROOT, IMAGE, "retained", "agentsec"))]:
+            policies = {o["metadata"]["name"]: o for o in objects if o["kind"] == "NetworkPolicy" and o["metadata"]["namespace"] == dep.RUNTIME}
+            self.assertEqual(set(policies), {"openfga-vps-ingress", "temporal-vps-ingress"})
+            for name, port in [("openfga", 8080), ("temporal", 7233)]:
+                rules = policies[name + "-vps-ingress"]["spec"]["ingress"]
+                expected = ["agentsec-api", "agentsec-discovery-worker", "agentsec-discovery-scheduler"]
+                if name == "openfga":
+                    expected.append("zasp-authorization-projector")
+                self.assertEqual(rules[0], {
+                    "from": [{"namespaceSelector": dep.namespace_selector(namespace), "podSelector": {"matchExpressions": [{
+                        "key": "app.kubernetes.io/name", "operator": "In", "values": expected,
+                    }]}}],
+                    "ports": [{"port": port, "protocol": "TCP"}],
+                })
+                self.assertEqual(rules[1:], [{"from": [{"podSelector": {"matchLabels": dep.workload_labels("temporal")}}]}] if name == "temporal" else [])
+        with self.assertRaises(dep.Rejected):
+            dep.resources(ROOT, IMAGE, "retained", "*")
+
+    def test_reconcile_only_known_previous_runtime_policies_using_resource_version(self):
+        unit = make_installer()
+        for old, new in zip(dep.runtime_policy("agentsec", include_authorization_projector=False), dep.runtime_policy("zasp"), strict=True):
+            live = copy.deepcopy(old)
+            live["metadata"].update(labels={dep.LABEL: unit.owner}, resourceVersion="102", annotations={dep.SPEC: dep.fingerprint(old)})
+            with patch.object(unit, "existing", return_value=live), patch.object(unit, "kubectl") as run:
+                self.assertFalse(unit.owned(new))
+                run.assert_not_called()
+                unit.create(new)
+                command = run.call_args.args
+                self.assertEqual(command[:-1], ("-n", dep.RUNTIME, "patch", "networkpolicy", new["metadata"]["name"], "--type=json", "-p"))
+                self.assertEqual(json.loads(command[-1]), [
+                    {"op": "test", "path": "/metadata/resourceVersion", "value": "102"},
+                    {"op": "replace", "path": "/spec", "value": new["spec"]},
+                    {"op": "replace", "path": "/metadata/annotations/zasp.io~1installer-spec-sha256", "value": dep.fingerprint(new)},
+                ])
+                live["spec"] = new["spec"]
+                live["metadata"]["annotations"][dep.SPEC] = dep.fingerprint(new)
+                unit.create(new)
+                run.assert_called_once()
+            for change in ["owner", "spec", "annotation", "version"]:
+                with self.subTest(change=change):
+                    broken = copy.deepcopy(old)
+                    broken["metadata"].update(labels={dep.LABEL: unit.owner}, resourceVersion="123", annotations={dep.SPEC: dep.fingerprint(old)})
+                    if change == "owner":
+                        broken["metadata"]["labels"][dep.LABEL] = "foreign"
+                    if change == "annotation":
+                        broken["metadata"]["annotations"].clear()
+                    if change == "version":
+                        del broken["metadata"]["resourceVersion"]
+                    if change == "spec":
+                        broken["spec"]["ingress"].append({"from": [{}]})
+                    with patch.object(unit, "existing", return_value=broken), patch.object(unit, "kubectl") as run:
+                        with self.assertRaises(dep.Rejected):
+                            unit.create(new)
+                        run.assert_not_called()
 
     def test_temporal_migration_and_actual_values_use_verified_tls(self):
         job = dep.migration(ROOT)

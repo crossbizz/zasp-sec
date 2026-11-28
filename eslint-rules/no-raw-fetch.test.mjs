@@ -81,6 +81,7 @@ test("flat config rejects normal frontend files and exempts only the client boun
     ["app/seeded-raw-fetch.ts", 1],
     ["apps/web/page.tsx", 1],
     ["apps/web/api/other.ts", 1],
+    ["app/deployment-admin/operator-api.ts", 1],
     ["apps/web/api/client.ts", 0],
     ["apps/web/api/generated.ts", 0],
     ["proofs/seeded-raw-fetch.mjs", 0],

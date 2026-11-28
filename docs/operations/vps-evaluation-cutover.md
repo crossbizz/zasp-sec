@@ -1,0 +1,53 @@
+# Move an existing evaluation installation into production
+
+Keep the existing Helm release `zasp` in namespace `zasp`. Install the production application as the separate Helm release `agentsec` **in that same namespace**. The existing `zasp` StatefulSet, Service, PVC and Helm history belong to the evaluation release. The production release has its own workloads and Helm history, uses the independent Nango and OpenSearch services, and initially leaves its public ingress disabled. Sharing a namespace does not transfer a database, provider account or volume.
+
+## Identify the source
+
+Use the context for the existing installation. These commands show ownership and storage without reading Secret contents.
+
+```sh
+kubectl --context "$ZASP_VPS_KUBE_CONTEXT" get namespace zasp
+helm --kube-context "$ZASP_VPS_KUBE_CONTEXT" -n zasp list --all
+kubectl --context "$ZASP_VPS_KUBE_CONTEXT" -n zasp get statefulsets,pods,pvc,services,ingresses
+kubectl --context "$ZASP_VPS_KUBE_CONTEXT" -n zasp get statefulset zasp \
+  -o jsonpath='{range .spec.template.spec.initContainers[*]}{.name}{"\t"}{range .volumeMounts[*]}{.mountPath}{" "}{end}{"\n"}{end}'
+```
+
+Check the deployed evaluation settings for embedded versus external product PostgreSQL and persistent versus ephemeral storage. In the standard embedded configuration the product database listens on pod loopback with trust authentication. A production pod cannot use that address. The named data volume holds PostgreSQL, Temporal's development SQLite file and installer state such as OpenFGA store/model identifiers. The standard LocalStack, Neo4j and OpenSearch containers have no persistent application-data mounts. Keep the existing pod running while transferring any values available only through those services. Scaling down or restarting the StatefulSet can lose that state. [Evaluation StatefulSet](../../deploy/kubernetes/zasp/templates/statefulset.yaml)
+
+## Connect the data and services
+
+| Existing state | How it reaches production | Check before admitting traffic |
+| --- | --- | --- |
+| Product PostgreSQL | An already-external, production-compatible database can be used directly with the proper TLS service logins. For embedded PostgreSQL, transfer the populated database directly to the production database over a private connection using the site's PostgreSQL migration tooling. Preserve object owners, roles and grants, RLS policies, verifier registrations, sequence positions and the sealed baseline. The chart's schema job can upgrade a supported intact predecessor. It does not move data between servers. | Verify the catalog with the release binary. Compare existing organization, workspace, environment and member IDs, scoped grants, integration IDs, audit history and outstanding work at the final write boundary. |
+| Stytch and tenant access | Records in PostgreSQL retain the provider organization and member IDs. Their sign-in identity belongs to the original Stytch project and environment. Retain the correct authority, register the production callback and deployment verifiers, and have users sign in again. Moving from a test project to a live project requires explicit provider identity mapping and grant review. Matching email strings do not establish identity. | Sign in as a known organization administrator and an existing lower-privileged member. Confirm the expected scopes, an allowed action and a denied admin action. Check a different organization's isolation when one exists. |
+| OpenFGA | Carry across the original store, authorization model and tuples through a supported OpenFGA database migration, or populate the required relations from their authoritative sources and bind the new store/model explicitly. A newly created empty store has different IDs. | Check an existing permitted and denied relationship using the store and model IDs configured in production. |
+| Nango | Move its populated PostgreSQL data directly to the independent Nango database, including the records schema where used. Preserve its encryption key, environment keys, integration configuration keys and connection IDs. A new install creates none of the existing authorizations. Coordinate the callback origin with the provider application. | Authenticate to the independent dashboard, then resolve an existing connection and complete an authorized provider read or sync from Zasp. [Nango setup](independent-nango.md) |
+| LocalStack and AWS | LocalStack's IAM roles and grants, KMS material, secret values, S3 objects and queue messages belong to the emulator. A production AWS account requires its own infrastructure and scoped workload identities. Transfer required objects and secrets directly through authorized APIs, reconcile object versions and digests, and reconcile pending jobs against durable application records. Encrypted material requires its original usable key or an authorized decrypt-and-reencrypt operation. LocalStack account numbers and ARNs cannot identify the real resources. | Check one referenced object and its digest through the production reader, one credential lookup, and a real workload operation using its scoped identity. For customer discovery, the stored external ID and the real customer role's trust condition must agree. A LocalStack role or generated external ID grants no access to a customer account. [AWS identity setup](k3s-aws-identity.md) |
+| Neo4j and OpenSearch | Provision the production graph and private search endpoints. Rebuild projections for which the complete authoritative event/history inputs remain available. Directly transfer required graph or index data that exists only in the evaluation service while the pod is still running. An initializer can create indexes and mappings without populating their documents. | Compare representative inventory IDs and graph relationships per tenant, time-ranged session results and policy history. Check that each production writer can update only its assigned data. [Search configuration](search-provider-compatibility.md) |
+| Temporal | The evaluation server uses namespace `zasp-dev` and SQLite. The production Temporal cluster uses its own persistence and visibility stores. The release installer has no SQLite-to-production workflow-history conversion. Drain running jobs in the original cluster or reconcile each outstanding job at its recorded application boundary before resuming its production equivalent. | Account for each pending workflow ID, schedule and queue. Start one fresh production job and follow its completion. Avoid repeating operations that already produced external effects. |
+| Deployment administrator | An existing console database can be moved separately with its installation ID, bound origin and operator credential. If the evaluation installation predates the console, create its separate database and id for this site. Its provider access records contain pointers. | Sign in at `/deployment-admin`, confirm the installation ID, and read and update its provider access records. [Operator setup](deployment-admin.md) |
+
+## Switch the application
+
+1. Set the private site values for the real production services, public HTTPS origin, service logins and signing material. Keep each application's database and encryption key paired with its original data. Render the approved production release for namespace `zasp` and release name `agentsec`. Resolve any existing Kubernetes object name or ingress ownership conflicts in the new release configuration. Use the existing public endpoint during preparation.
+2. Finish the direct transfers while the original services are accessible. Drain source workflows and stop new submissions, schedules, callbacks and other writes at the handoff. Fence the old API and worker writers at their upstream or database authority and wait for their existing transactions to finish. Disabling browser ingress alone leaves workers running. Complete the last database and provider changes before starting production writers against the transferred state. For a shared external database, use this same writer handoff before the production schema job.
+3. Run the signed production application install with the site's configured context. The VPS command targets the separate `agentsec` release. Keep the existing evaluation release installed. Check the new services using private access before moving the existing hostname. Verify the schema from the target release's API image with `/app/agentsec-migrate verify-baseline` and a protected operator DSN. The target should report `current: true`. An unknown or damaged predecessor needs investigation before running any schema installer. [Application installation](vps-first-deployment.md) · [Supported schema upgrades](baseline-schema-install.md#upgrading-an-existing-baseline)
+4. Run the read checks below on the source and target with an authorized database operator. If they share the same external database, run them before and after the schema upgrade. Compare the actual IDs of known records in the UI in addition to counts, including a recently modified member, an integration and an audit entry. Then complete the service checks above against the production backend.
+
+   ```sql
+   BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+   SELECT current_database(), current_user, datcollate
+     FROM pg_database WHERE datname = current_database();
+   SELECT id FROM public.zasp_organizations ORDER BY id;
+   SELECT organization_id, workspace_id, count(*)
+     FROM public.zasp_environments GROUP BY organization_id, workspace_id ORDER BY 1, 2;
+   SELECT organization_id, role, active, count(*)
+     FROM public.zasp_identity_memberships GROUP BY organization_id, role, active ORDER BY 1, 2, 3;
+   COMMIT;
+   ```
+
+5. Route the existing hostname to the production web service and API through the site's ingress configuration. Keep one active ingress owner for this hostname. Run an authenticated tenant read, a scoped write and a background job through the public origin. Confirm an event written after the switch reaches its production search or graph projection. Future application releases upgrade Helm release `agentsec` in namespace `zasp`.
+
+If a check fails before production writes begin, keep the existing route in place and resume the original writers only after confirming their schema and dependencies remain compatible. After production has accepted writes, fence its writers and reconcile the new records, queue effects and provider operations before redirecting traffic. Changing a Helm revision or ingress alone cannot reverse those writes.
