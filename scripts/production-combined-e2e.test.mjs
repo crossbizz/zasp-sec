@@ -2184,12 +2184,12 @@ test("CDP rejects closed connections immediately and never includes parameters i
   const start = source.indexOf("async function connectCDP(");
   const end = source.indexOf("\nfunction startChild(", start);
   const timers = new Set();
-  let socket;
   class Socket extends EventTarget {
     static OPEN = 1;
+    static instances = [];
     readyState = Socket.OPEN;
     sent = [];
-    constructor() { super(); socket = this; queueMicrotask(() => this.dispatchEvent(new Event("open"))); }
+    constructor() { super(); Socket.instances.push(this); queueMicrotask(() => this.dispatchEvent(new Event("open"))); }
     send(message) { this.sent.push(message); }
     close() { this.readyState = 3; this.dispatchEvent(new Event("close")); }
   }
@@ -2199,6 +2199,7 @@ test("CDP rejects closed connections immediately and never includes parameters i
   });
   for (const peerClosed of [false, true]) {
     const cdp = await connect("local");
+    const socket = Socket.instances.at(-1);
     const pending = cdp.send("Runtime.evaluate", { expression: "private-credential" });
     const rejects = assert.rejects(pending, { message: "CDP connection closed" });
     if (peerClosed) socket.close(); else cdp.close();
@@ -2208,6 +2209,7 @@ test("CDP rejects closed connections immediately and never includes parameters i
     assert.equal(socket.sent.length, 1);
   }
   const cdp = await connect("local");
+  const socket = Socket.instances.at(-1);
   socket.readyState = 2;
   await assert.rejects(cdp.send("Runtime.evaluate"), { message: "CDP connection closed" });
   assert.equal(socket.sent.length, 0);

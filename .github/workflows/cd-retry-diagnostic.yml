@@ -326,6 +326,22 @@ jobs:
       - name: Prime platform full-MVS metadata for offline release contracts
         timeout-minutes: 5
         run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null
+      - name: Provision isolated compliance browser prerequisites
+        timeout-minutes: 10
+        run: |
+          # This populates the exact cache entry consumed with --pull=never.
+          compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+          docker pull "$compliance_postgres_image"
+          docker image inspect "$compliance_postgres_image" --format '{{json .RepoDigests}}' | node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");' "$compliance_postgres_image"
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { appendFileSync } from "node:fs";
+          import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
+          const chrome = selectBrowserExecutable();
+          console.log(`Hosted compliance browser: ${chrome}`);
+          console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
+          appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
+          NODE
       - name: Verify Red Team runtime and ledger regressions
         run: |
           node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
