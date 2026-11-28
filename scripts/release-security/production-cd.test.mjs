@@ -15,7 +15,7 @@ const sha = 'b'.repeat(40);
 const previous = 'a'.repeat(40);
 const uid = '00000000-0000-4000-8000-000000000001';
 const target = {profile:'vps-production', context:'test', clusterUID:uid, installationID:'fixture', namespace:'zasp', release:'agentsec'};
-const env = {GITHUB_SHA:sha, GITHUB_REPOSITORY:'example/repo', GITHUB_REF:'refs/heads/main', GH_TOKEN:'read-token'};
+const env = {GITHUB_SHA:sha, GITHUB_REPOSITORY:'crossbizz/zasp-sec', GITHUB_REF:'refs/heads/main', GH_TOKEN:'read-token'};
 const workload = name => ({apiVersion:'apps/v1', kind:'Deployment', metadata:{name}, spec:{template:{spec:{containers:[{name, image:'repo/api@sha256:' + 'b'.repeat(64)}]}}}});
 const app = JSON.stringify(workload('agentsec-api'));
 const hook = JSON.stringify({apiVersion:'batch/v1', kind:'Job', metadata:{name:'agentsec-migrate', annotations:{'helm.sh/hook':'pre-upgrade'}}, spec:{template:{spec:{containers:[{name:'migrate', image:'repo/api@sha256:' + 'b'.repeat(64)}]}}}});
@@ -51,6 +51,7 @@ test('only the latest exact push commit can deploy after successful tests for ea
   await assert.rejects(check({conclusion:'failure'}), /did not pass/);
   await assert.rejects(check({job:'skipped'}), /missing or skipped/);
   await assert.rejects(checkTestedMain({env:{...env,GITHUB_REF:'refs/heads/feature'}}), /main commit/);
+  await assert.rejects(checkTestedMain({env:{...env,GITHUB_REPOSITORY:'fork/zasp-sec'}}), /main commit/);
 });
 
 test('production workload admission rejects foreign and cluster resources, including old hooks and embedded shared services', () => {
@@ -174,12 +175,21 @@ test('CD requires protected acceptance and promotion, serializes upgrades and li
   const workflow = load(file('.github/workflows/production-cd.yml'));
   assert.deepEqual(Object.keys(workflow.on).sort(), ['push','workflow_dispatch']);
   assert.deepEqual(workflow.on.push.branches, ['main']);
-  assert.match(workflow.jobs.enrollment.if, /refs\/heads\/main/);
+  const guard = "github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main'";
+  assert.equal(workflow.jobs.enrollment.if, guard);
+  assert.deepEqual(workflow.jobs.enrollment.steps[0].env, {ZASP_PRODUCTION_CD_ENABLED:'true'});
+  assert.equal((file('.github/workflows/production-cd.yml').match(/vars\.ZASP_PRODUCTION_CD_ENABLED/g) ?? []).length,0);
+  assert.equal(workflow.jobs.promotion.if, guard + " && needs.tested-main.outputs.current == 'true'");
+  assert.equal(workflow.jobs.upgrade.if, guard);
+  for (const job of Object.values(workflow.jobs)) {
+    assert.ok(Object.values(job.permissions ?? {}).every(level => level === 'read'));
+    assert.equal(job.env?.ZASP_PRODUCTION_CD_ENABLED,undefined);
+  }
   assert.equal(workflow.jobs.enrollment['runs-on'],'ubuntu-24.04');
   assert.ok(workflow.jobs.enrollment.steps[0].run.includes('GITHUB_STEP_SUMMARY'));
   for (const name of ['tested-main','acceptance']) {
     assert.equal(workflow.jobs[name].needs,'enrollment');
-    assert.equal(workflow.jobs[name].if,"needs.enrollment.outputs.enabled == 'true'");
+    assert.equal(workflow.jobs[name].if,guard + " && needs.enrollment.outputs.enabled == 'true'");
   }
   assert.deepEqual(workflow.jobs.promotion.needs, ['tested-main','acceptance']);
   assert.equal(workflow.jobs.promotion.uses,'./.github/workflows/production-promotion.yml');

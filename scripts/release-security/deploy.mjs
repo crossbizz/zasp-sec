@@ -177,7 +177,7 @@ if(process.argv[1] && path.resolve(process.argv[1])===self){
     }else if(process.argv[2]==='upgrade-production' && process.argv.length===3){
       const outcome = await upgradeProduction();
       const summary = outcome?.installed === false
-        ? 'Production upgrade skipped. Install the first signed agentsec product release in namespace zasp before enabling future upgrades.'
+        ? 'Production upgrade skipped. Install the first signed agentsec product release in namespace zasp before the next production upgrade.'
         : 'The signed agentsec product release in namespace zasp passed the production upgrade and readiness checks.';
       console.log(summary);
       if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + '\n');

@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   enrollment:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     permissions: {}
     outputs:
@@ -17,19 +17,14 @@ jobs:
       - name: Report production deployment enrollment
         id: status
         env:
-          ENABLED: ${{ vars.ZASP_PRODUCTION_CD_ENABLED }}
+          ZASP_PRODUCTION_CD_ENABLED: 'true'
         run: |
-          if [[ "$ENABLED" == true ]]; then
-            echo 'enabled=true' >> "$GITHUB_OUTPUT"
-            echo "Production CD is enabled for \`$GITHUB_SHA\`. The signed upgrade requires the installed \`agentsec\` product release in namespace \`zasp\`." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'enabled=false' >> "$GITHUB_OUTPUT"
-            echo "Production CD evaluated \`$GITHUB_SHA\`. Deployment is disabled. The private production runner and cluster were not contacted. After the first signed product install, set the repository variable \`ZASP_PRODUCTION_CD_ENABLED=true\` to enable future upgrades." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          printf 'enabled=%s\n' "$ZASP_PRODUCTION_CD_ENABLED" >> "$GITHUB_OUTPUT"
+          printf 'This workflow sets production CD to `%s` for commit `%s`. The signed upgrade requires the installed `agentsec` release in namespace `zasp`.\n' "$ZASP_PRODUCTION_CD_ENABLED" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   tested-main:
     needs: enrollment
-    if: needs.enrollment.outputs.enabled == 'true'
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main' && needs.enrollment.outputs.enabled == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 110
     permissions: {contents: read, actions: read}
@@ -53,16 +48,17 @@ jobs:
 
   acceptance:
     needs: enrollment
-    if: needs.enrollment.outputs.enabled == 'true'
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main' && needs.enrollment.outputs.enabled == 'true'
     uses: ./.github/workflows/runnable-ui-acceptance.yml
 
   promotion:
     needs: [tested-main, acceptance]
-    if: needs.tested-main.outputs.current == 'true'
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main' && needs.tested-main.outputs.current == 'true'
     uses: ./.github/workflows/production-promotion.yml
 
   upgrade:
     needs: promotion
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main'
     runs-on:
       group: zasp-production
       labels: zasp-production-deploy

@@ -94,7 +94,7 @@ export const pushChecks = [
 
 export async function checkTestedMain({env = process.env, request = fetch, wait = false, sleep = delay, now = Date.now} = {}) {
   const {GITHUB_SHA: sha, GITHUB_REPOSITORY: repo, GH_TOKEN: token} = env;
-  requireThat(/^[a-f0-9]{40}$/.test(sha) && /^[\w.-]+\/[\w.-]+$/.test(repo) && token && env.GITHUB_REF === 'refs/heads/main', 'Production requires a main commit and read-only Actions credentials');
+  requireThat(/^[a-f0-9]{40}$/.test(sha) && repo === 'crossbizz/zasp-sec' && token && env.GITHUB_REF === 'refs/heads/main', 'Production requires a main commit and read-only Actions credentials');
   const api = async path => {
     const response = await request('https://api.github.com/repos/' + repo + path, {
       headers: {Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},

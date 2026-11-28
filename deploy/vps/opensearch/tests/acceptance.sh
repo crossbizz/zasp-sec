@@ -13,7 +13,7 @@ detail=''
 cleanup() {
   local result=$?
   if (( result != 0 )); then
-    if [[ $phase == install-search ]]; then
+    if [[ $phase == install-search || $phase == upgrade-search ]]; then
       "${kube[@]}" -n opensearch get pod,pvc,job --ignore-not-found >&2 || true
       for workload in statefulset/opensearch job/opensearch-security-init; do
         "${kube[@]}" -n opensearch logs "$workload" --tail=45 >> "$scratch/server-log" 2>&1 || true
@@ -73,18 +73,24 @@ done
 phase=install-search
 helm --kube-context "$ctx" install opensearch "$root/deploy/vps/opensearch" --namespace opensearch --timeout 10m --wait
 phase=verify-persistent-volume
-"${kube[@]}" -n opensearch get pvc data-opensearch-0
+claim_uid=$("${kube[@]}" -n opensearch get pvc data-opensearch-0 -o jsonpath='{.metadata.uid}')
+pod_uid=$("${kube[@]}" -n opensearch get pod opensearch-0 -o jsonpath='{.metadata.uid}')
+[[ -n $claim_uid && -n $pod_uid ]]
+open_tunnel() {
+  "${kube[@]}" -n opensearch port-forward --address=127.0.0.1 service/opensearch :9200 >"$scratch/forward" 2>&1 &
+  forward_pid=$!
+  for _ in {1..100}; do
+    if ! kill -0 "$forward_pid" 2>/dev/null; then cat "$scratch/forward" >&2; return 1; fi
+    if grep -q 'Forwarding from 127.0.0.1:' "$scratch/forward"; then break; fi
+    sleep .1
+  done
+  port=$(sed -n 's/.*127\.0\.0\.1:\([0-9]*\) ->.*/\1/p' "$scratch/forward" | head -1)
+  [[ -n $port ]]
+  endpoint="https://$broker_host:$port"
+  tls=(curl -sS --max-time 20 --noproxy '*' --resolve "$broker_host:$port:127.0.0.1" --cacert "$scratch/ca.crt")
+}
 phase=open-private-tunnel
-"${kube[@]}" -n opensearch port-forward --address=127.0.0.1 service/opensearch :9200 >"$scratch/forward" 2>&1 &
-forward_pid=$!
-for _ in {1..100}; do
-  if grep -q 'Forwarding from 127.0.0.1:' "$scratch/forward"; then break; fi
-  sleep .1
-done
-port=$(sed -n 's/.*127\.0\.0\.1:\([0-9]*\) ->.*/\1/p' "$scratch/forward" | head -1)
-[[ -n $port ]]
-endpoint="https://$broker_host:$port"
-tls=(curl -sS --max-time 20 --noproxy '*' --resolve "$broker_host:$port:127.0.0.1" --cacert "$scratch/ca.crt")
+open_tunnel
 request() {
   local expected=$1 cert=$2 method=$3 path=$4
   shift 4
@@ -119,6 +125,7 @@ request 200 runtime POST 'zasp-runtime-events-v1/_mget' -d '{"ids":["second"]}'
 grep -q '"fixture":"bulk"' "$scratch/response"
 request 200 api POST 'zasp-runtime-events-v1/_search' -d '{"query":{"term":{"fixture":"runtime"}}}'
 grep -q '"fixture":"runtime"' "$scratch/response"
+request 403 schema PUT 'zasp-unrelated-v1' -d '{}'
 request 403 api PUT 'zasp-runtime-events-v1/_doc/forbidden' -d '{}'
 request 403 inventory PUT 'zasp-runtime-events-v1/_doc/forbidden' -d '{}'
 request 403 runtime PUT 'zasp-inventory-v1/_doc/forbidden' -d '{}'
@@ -126,3 +133,19 @@ request 403 runtime PUT 'zasp-inventory-v1/_doc/forbidden' -d '{}'
 phase=reject-missing-certificate
 detail=''
 if "${tls[@]}" -o /dev/null "$endpoint/"; then echo 'TLS accepted a client without a certificate' >&2; exit 1; fi
+
+# Force an actual pod replacement through the same release, then authenticate again.
+phase=upgrade-search
+detail=''
+kill "$forward_pid"
+wait "$forward_pid" || true
+forward_pid=''
+helm --kube-context "$ctx" upgrade opensearch "$root/deploy/vps/opensearch" --namespace opensearch --wait --timeout 6m \
+  --set-string 'javaOpts=-Xms1g -Xmx1g -Djava.net.preferIPv4Stack=true'
+phase=verify-restored-index
+[[ $claim_uid == "$("${kube[@]}" -n opensearch get pvc data-opensearch-0 -o jsonpath='{.metadata.uid}')" ]]
+[[ $pod_uid != "$("${kube[@]}" -n opensearch get pod opensearch-0 -o jsonpath='{.metadata.uid}')" ]]
+open_tunnel
+request 200 api GET 'zasp-runtime-events-v1/_doc/second'
+grep -q '"fixture":"bulk"' "$scratch/response"
+request 403 api PUT 'zasp-runtime-events-v1/_doc/forbidden' -d '{}'

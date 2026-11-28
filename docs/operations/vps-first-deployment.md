@@ -132,7 +132,7 @@ Prepare the site’s product database, identity provider, graph, object storage,
 ./zasp --profile vps status application
 ```
 
-The first install verifies the cluster UID and namespace owner and refuses to replace an existing release. Routine deployments use the same signed release checks in GitHub Actions. Enable CD after configuring the runner, environment and evidence producers. The independent services retain their own upgrade and backup schedules. [Production CD enrollment](release-advisories.md) · [Deployment Administrator console](deployment-admin.md)
+The first install verifies the cluster UID and namespace owner and refuses to replace an existing release. Routine deployments use the same signed release checks in GitHub Actions. The production workflow enables CD for upstream main. Configure the runner, protected environment and evidence producers for signed upgrades. The independent services retain their own upgrade and backup schedules. [Production CD enrollment](release-advisories.md) · [Deployment Administrator console](deployment-admin.md)
 
 ## 5. Verify offsite recovery before relying on these services
 
