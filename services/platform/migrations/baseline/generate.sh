@@ -196,7 +196,7 @@ while IFS= read -r release_source || [[ -n "$release_source" ]]; do
   [[ -n "$release_source" ]] || continue
   completion_sources+=("$HERE/$release_source")
 done < "$HERE/feature_v3.order"
-completion_sources+=("$HERE/member_lifecycle.sql" "$HERE/organization_rename.sql")
+completion_sources+=("$HERE/member_lifecycle.sql" "$HERE/organization_rename.sql" "$HERE/endpoint_skill_scan.sql")
 if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
   predicates reference > "$WORK/reference.predicates"
   echo "baseline: applying the product completion"

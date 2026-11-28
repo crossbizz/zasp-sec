@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>ai.zasp.skill-inventory</string>
+  <key>LimitLoadToSessionType</key><string>Aqua</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/local/libexec/zasp-endpoint</string>
+    <string>watch-skills</string>
+  </array>
+  <key>WatchPaths</key><array><string>/Library/Application Support/Zasp/run/endpoint.sock</string><string>/Library/Application Support/Zasp/endpoint.json</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>ProcessType</key><string>Background</string>
+</dict></plist>

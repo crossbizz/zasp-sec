@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"io"
+	"slices"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 	"time"
 )
 
@@ -74,10 +78,70 @@ func (s Signed) ObservationFor(key []byte, binding Binding, now time.Time) (Obse
 	}
 }
 
-type Installation struct {
-	ID     string `json:"installation_id"`
-	Digest string `json:"manifest_digest,omitempty"`
+// SkillScan is a user-context static observation. Only aggregate rule counts
+// leave the device. Presence of a manifest digest identifies a complete scan.
+type SkillScan struct {
+	Ruleset      string         `json:"ruleset"`
+	RuleCounts   map[string]int `json:"rule_counts"`
+	SkippedCount int            `json:"skipped_count"`
 }
+
+func (s *SkillScan) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Ruleset      string         `json:"ruleset"`
+		RuleCounts   map[string]int `json:"rule_counts"`
+		SkippedCount *int           `json:"skipped_count"`
+	}
+	if !Strict(data, &wire) || wire.SkippedCount == nil || wire.RuleCounts == nil {
+		return errors.New("invalid skill scan summary")
+	}
+	*s = SkillScan{Ruleset: wire.Ruleset, RuleCounts: wire.RuleCounts, SkippedCount: *wire.SkippedCount}
+	return nil
+}
+
+func (s SkillScan) valid(hasManifest bool) bool {
+	if s.Ruleset != addonevidence.CurrentRuleset || s.RuleCounts == nil ||
+		s.SkippedCount < 0 || s.SkippedCount > 1024 || hasManifest != (s.SkippedCount == 0) {
+		return false
+	}
+	rules := addonevidence.Rules(s.Ruleset)
+	for rule, count := range s.RuleCounts {
+		if !slices.Contains(rules, rule) || count < 1 || count > 1024 {
+			return false
+		}
+	}
+	return true
+}
+
+type Installation struct {
+	ID        string     `json:"installation_id"`
+	Digest    string     `json:"manifest_digest,omitempty"`
+	SkillScan *SkillScan `json:"skill_scan,omitempty"`
+}
+
+// A missing scan is a legacy inventory observation. An explicitly supplied
+// scan must satisfy its schema even when its JSON value is null.
+func (i *Installation) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		ID        string          `json:"installation_id"`
+		Digest    string          `json:"manifest_digest,omitempty"`
+		SkillScan json.RawMessage `json:"skill_scan,omitempty"`
+	}
+	if !Strict(data, &wire) {
+		return errors.New("invalid installation")
+	}
+	item := Installation{ID: wire.ID, Digest: wire.Digest}
+	if wire.SkillScan != nil {
+		var scan SkillScan
+		if err := json.Unmarshal(wire.SkillScan, &scan); err != nil {
+			return err
+		}
+		item.SkillScan = &scan
+	}
+	*i = item
+	return nil
+}
+
 type Inventory struct {
 	Partition  string         `json:"partition_id"`
 	Generation uint64         `json:"snapshot_generation"`
@@ -92,6 +156,9 @@ func (i Inventory) Valid() bool {
 	seen := make(map[string]bool, len(i.Items))
 	for _, item := range i.Items {
 		if !Digest.MatchString(item.ID) || seen[item.ID] || (item.Digest != "" && (len(item.Digest) != 71 || item.Digest[:7] != "sha256:" || !Digest.MatchString(item.Digest[7:]))) {
+			return false
+		}
+		if item.SkillScan != nil && !item.SkillScan.valid(item.Digest != "") {
 			return false
 		}
 		seen[item.ID] = true

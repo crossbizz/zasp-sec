@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	endpointAdminSQL   = `SELECT zasp_authorization80.endpoint_admin($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`
-	endpointMachineSQL = `SELECT zasp_authorization80.endpoint_machine($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`
+	endpointInventoryBodyLimit = 80 << 10 // 128 installations with ten static rule counts each.
+	endpointAdminSQL           = `SELECT zasp_authorization80.endpoint_admin($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`
+	endpointMachineSQL         = `SELECT zasp_authorization80.endpoint_machine($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`
 )
 
 var cohortLabel = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
@@ -193,8 +194,12 @@ func (h *endpointFleetHandler) machine(r *http.Request, op RoutedOperation, i Re
 	if r.URL.RawQuery != "" {
 		return nil, ErrRepositoryOperation
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 65537))
-	if err != nil || len(body) > 65536 {
+	limit := int64(64 << 10)
+	if op.OperationID == "recordEndpointInventory" {
+		limit = endpointInventoryBodyLimit
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+	if err != nil || int64(len(body)) > limit {
 		return nil, ErrRepositoryOperation
 	}
 	if r.Method == http.MethodGet && len(body) != 0 {

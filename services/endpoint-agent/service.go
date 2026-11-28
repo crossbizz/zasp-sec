@@ -126,10 +126,11 @@ type health struct {
 }
 
 type response struct {
-	Decision *result  `json:"decision,omitempty"`
-	Status   *health  `json:"status,omitempty"`
-	Receipts []Signed `json:"receipts,omitempty"`
-	Error    string   `json:"error,omitempty"`
+	InventoryEnabled bool     `json:"inventory_enabled,omitempty"`
+	Decision         *result  `json:"decision,omitempty"`
+	Status           *health  `json:"status,omitempty"`
+	Receipts         []Signed `json:"receipts,omitempty"`
+	Error            string   `json:"error,omitempty"`
 }
 
 // Wake the background transport without waiting on the network in a hook.
@@ -173,6 +174,8 @@ func (b *broker) process(req request, uid int) response {
 		}
 		p, status := b.policy(now)
 		return response{Status: &health{PolicyStatus: status, Revision: p.Revision, Mode: p.Mode, Queued: len(b.store.state.Decisions), Gaps: b.store.state.Gaps, Remote: b.remoteState}}
+	case "inventory-enabled":
+		return response{InventoryEnabled: b.inventoryEnabled}
 	case "inventory":
 		if !b.inventoryEnabled || b.queueInventory(req.Hook, req.Project) != nil {
 			return response{Error: "inventory_rejected"}

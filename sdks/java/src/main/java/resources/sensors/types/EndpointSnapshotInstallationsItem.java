@@ -5,6 +5,7 @@
 package ai.zasp.api.resources.sensors.types;
 
 import ai.zasp.api.core.ObjectMappers;
+import ai.zasp.api.types.EndpointSkillScan;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -30,12 +31,15 @@ public final class EndpointSnapshotInstallationsItem {
 
   private final Optional<String> manifestDigest;
 
+  private final Optional<EndpointSkillScan> skillScan;
+
   private final Map<String, Object> additionalProperties;
 
   private EndpointSnapshotInstallationsItem(String installationId, Optional<String> manifestDigest,
-      Map<String, Object> additionalProperties) {
+      Optional<EndpointSkillScan> skillScan, Map<String, Object> additionalProperties) {
     this.installationId = installationId;
     this.manifestDigest = manifestDigest;
+    this.skillScan = skillScan;
     this.additionalProperties = additionalProperties;
   }
 
@@ -47,6 +51,11 @@ public final class EndpointSnapshotInstallationsItem {
   @JsonProperty("manifest_digest")
   public Optional<String> getManifestDigest() {
     return manifestDigest;
+  }
+
+  @JsonProperty("skill_scan")
+  public Optional<EndpointSkillScan> getSkillScan() {
+    return skillScan;
   }
 
   @java.lang.Override
@@ -61,12 +70,12 @@ public final class EndpointSnapshotInstallationsItem {
   }
 
   private boolean equalTo(EndpointSnapshotInstallationsItem other) {
-    return installationId.equals(other.installationId) && manifestDigest.equals(other.manifestDigest);
+    return installationId.equals(other.installationId) && manifestDigest.equals(other.manifestDigest) && skillScan.equals(other.skillScan);
   }
 
   @java.lang.Override
   public int hashCode() {
-    return Objects.hash(this.installationId, this.manifestDigest);
+    return Objects.hash(this.installationId, this.manifestDigest, this.skillScan);
   }
 
   @java.lang.Override
@@ -94,6 +103,10 @@ public final class EndpointSnapshotInstallationsItem {
     _FinalStage manifestDigest(Optional<String> manifestDigest);
 
     _FinalStage manifestDigest(String manifestDigest);
+
+    _FinalStage skillScan(Optional<EndpointSkillScan> skillScan);
+
+    _FinalStage skillScan(EndpointSkillScan skillScan);
   }
 
   @JsonIgnoreProperties(
@@ -101,6 +114,8 @@ public final class EndpointSnapshotInstallationsItem {
   )
   public static final class Builder implements InstallationIdStage, _FinalStage {
     private String installationId;
+
+    private Optional<EndpointSkillScan> skillScan = Optional.empty();
 
     private Optional<String> manifestDigest = Optional.empty();
 
@@ -113,6 +128,7 @@ public final class EndpointSnapshotInstallationsItem {
     public Builder from(EndpointSnapshotInstallationsItem other) {
       installationId(other.getInstallationId());
       manifestDigest(other.getManifestDigest());
+      skillScan(other.getSkillScan());
       return this;
     }
 
@@ -120,6 +136,22 @@ public final class EndpointSnapshotInstallationsItem {
     @JsonSetter("installation_id")
     public _FinalStage installationId(@NotNull String installationId) {
       this.installationId = Objects.requireNonNull(installationId, "installationId must not be null");
+      return this;
+    }
+
+    @java.lang.Override
+    public _FinalStage skillScan(EndpointSkillScan skillScan) {
+      this.skillScan = Optional.ofNullable(skillScan);
+      return this;
+    }
+
+    @java.lang.Override
+    @JsonSetter(
+        value = "skill_scan",
+        nulls = Nulls.SKIP
+    )
+    public _FinalStage skillScan(Optional<EndpointSkillScan> skillScan) {
+      this.skillScan = skillScan;
       return this;
     }
 
@@ -141,12 +173,12 @@ public final class EndpointSnapshotInstallationsItem {
 
     @java.lang.Override
     public EndpointSnapshotInstallationsItem build() {
-      return new EndpointSnapshotInstallationsItem(installationId, manifestDigest, additionalProperties);
+      return new EndpointSnapshotInstallationsItem(installationId, manifestDigest, skillScan, additionalProperties);
     }
 
     @JsonAnySetter
     private void putAdditionalPropertyFromJson(String key, Object value) {
-      if (key.equalsIgnoreCase("installation_id") || key.equalsIgnoreCase("manifest_digest")) {
+      if (key.equalsIgnoreCase("installation_id") || key.equalsIgnoreCase("manifest_digest") || key.equalsIgnoreCase("skill_scan")) {
         return;
       }
       this.additionalProperties.put(key, value);

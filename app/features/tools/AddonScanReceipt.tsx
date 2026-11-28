@@ -1,5 +1,7 @@
 "use client";
 
+import { SkillRuleLabel } from "./SkillRuleLabel";
+
 import { useCallback, useState } from "react";
 import { addonID, type AddonReviewAPI } from "../../../apps/web/api/addon-reviews";
 import { useAPIQuery } from "../../api/query";
@@ -31,7 +33,7 @@ export function AddonScanReceipt({api, initial, environment}: { api: AddonReview
       <h4>{receipt.completeness === "complete" ? "Complete scan" : "Partial scan"}</h4>
       <p><code>{receipt.id}</code> · <Time value={receipt.received} /></p>
       <p>Reported source {receipt.origin} · {receipt.ruleset} · Skipped entries {receipt.skipped}</p>
-      {receipt.findings.length ? <ul>{receipt.findings.map(f => <li key={f.rule_id}>{f.rule_id} · {f.count}</li>)}</ul> : <p>No findings were reported by this scan.</p>}
+      {receipt.findings.length ? <ul>{receipt.findings.map(f => <li key={f.rule_id}><SkillRuleLabel rule={f.rule_id} /> · {f.count}</li>)}</ul> : <p>No findings were reported by this scan.</p>}
       {receipt.completeness === "complete" ? <><p>Manifest <code>{receipt.digest}</code></p><a href={addonVersionLink(receipt.versionID, environment)}>Open version review</a></> :
         <p>Coverage is incomplete. Check the skipped entries in the local report before scanning again. Version review requires a complete scan.</p>}
     </section>}

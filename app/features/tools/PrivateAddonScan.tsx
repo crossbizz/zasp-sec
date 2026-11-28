@@ -1,5 +1,7 @@
 "use client";
 
+import { SkillRuleLabel } from "./SkillRuleLabel";
+
 import { addonVersionLink, scanReceiptLink } from "../../domain/addon-links";
 
 import { useEffect, useRef, useState } from "react";
@@ -411,7 +413,7 @@ export function PrivateAddonScan({
         {busy ? (grant ? "Uploading and scanning the ZIP…" : "Checking the file and authorizing the upload…") : message}
       </div>
       {findings && findings.length > 0 && <ul aria-label="Findings by rule">{findings.map(row =>
-        <li key={row.rule_id}><code>{row.rule_id}</code> · {row.count}</li>)}</ul>}
+        <li key={row.rule_id}><SkillRuleLabel rule={row.rule_id} /> · {row.count}</li>)}</ul>}
       {(scanID || review) && <div className="page-actions">
         {scanID && <a href={scanReceiptLink(scanID, environment)}>Open scan receipt</a>}
         {review && <a href={review}>Open version review</a>}

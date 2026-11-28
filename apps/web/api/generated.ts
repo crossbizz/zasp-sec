@@ -4557,7 +4557,7 @@ export type components = {
             readonly manifest_digest: string;
             readonly offline_observations?: readonly components["schemas"]["OfflineAddonObservation"][];
             /** @enum {string} */
-            readonly origin: "local" | "ci" | "private_worker";
+            readonly origin: "local" | "ci" | "private_worker" | "endpoint";
             /** @constant */
             readonly provenance: "reported";
             /** @enum {string} */
@@ -5900,6 +5900,8 @@ export type components = {
         readonly EndpointInstallationDetail: {
             readonly installation_id: string;
             readonly manifest_digest?: string;
+            readonly skill_scan?: components["schemas"]["EndpointSkillScan"];
+            readonly skill_version_id?: components["schemas"]["ProductID"];
         };
         readonly EndpointObservationBatch: {
             readonly receipts: readonly components["schemas"]["EndpointSigned"][];
@@ -5987,11 +5989,20 @@ export type components = {
             /** Format: byte */
             readonly signature: string;
         };
+        readonly EndpointSkillScan: {
+            readonly rule_counts: {
+                readonly [key: string]: number;
+            };
+            /** @constant */
+            readonly ruleset: "zasp-static.v2";
+            readonly skipped_count: number;
+        };
         readonly EndpointSnapshot: {
             readonly complete: boolean;
             readonly installations: readonly {
                 readonly installation_id: string;
                 readonly manifest_digest?: string;
+                readonly skill_scan?: components["schemas"]["EndpointSkillScan"];
             }[];
             readonly partition_id: string;
             readonly snapshot_generation: number;
@@ -9379,6 +9390,7 @@ export type EndpointRecorded = components['schemas']['EndpointRecorded'];
 export type EndpointRegistration = components['schemas']['EndpointRegistration'];
 export type EndpointRotation = components['schemas']['EndpointRotation'];
 export type EndpointSigned = components['schemas']['EndpointSigned'];
+export type EndpointSkillScan = components['schemas']['EndpointSkillScan'];
 export type EndpointSnapshot = components['schemas']['EndpointSnapshot'];
 export type Environment = components['schemas']['Environment'];
 export type EnvironmentAiControls = components['schemas']['EnvironmentAIControls'];

@@ -7,6 +7,7 @@ import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useOptionalSession } from "../../auth/SessionProvider";
 import { Button, Card } from "../../components/ui";
+import { AutomaticSkillScans } from "./AutomaticSkillScans";
 import { LocalScanHelp } from "./AddonReviews";
 import { PrivateAddonScan } from "./PrivateAddonScan";
 
@@ -42,5 +43,8 @@ export function SkillScannerPanel() {
   } else if (session) {
     content = <PrivateAddonScan key={JSON.stringify([queryScopeKey, queryGeneration, environment])} client={client} environment={environment} allowRetention={settings?.worker === "encrypted_24h"} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} />;
   }
-  return <Card title="Scan a skill">{content}<LocalScanHelp /></Card>;
+  return <div className="skill-scanner-panels">
+    {environment && <AutomaticSkillScans key={JSON.stringify([queryScopeKey, queryGeneration, environment])} environment={environment} />}
+    <Card title="Scan a private ZIP">{content}<LocalScanHelp /></Card>
+  </div>;
 }

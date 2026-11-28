@@ -19,7 +19,7 @@ func baselineCommand(arguments []string) bool {
 		return false
 	}
 	switch arguments[0] {
-	case "ensure-baseline", "upgrade-feature-v5", "upgrade-feature-v3", "upgrade-feature-v2", "install-baseline", "verify-baseline", "baseline-script":
+	case "ensure-baseline", "upgrade-feature-v6", "upgrade-feature-v5", "upgrade-feature-v3", "upgrade-feature-v2", "install-baseline", "verify-baseline", "baseline-script":
 		return true
 	}
 	return false
@@ -89,7 +89,7 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 		apply = baseline.Ensure
 		resultKey = "ready"
 	} else if strings.HasPrefix(arguments[0], "upgrade-feature-") {
-		apply = baseline.UpgradeToV5
+		apply = baseline.UpgradeToV6
 		resultKey = "upgraded"
 	}
 	err = apply(ctx, conn, baseline.Check{

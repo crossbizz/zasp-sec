@@ -2840,6 +2840,211 @@ func TestSettersMarkExplicitEndpointSigned(t *testing.T) {
 
 }
 
+func TestSettersEndpointSkillScan(t *testing.T) {
+	t.Run("SetRuleset", func(t *testing.T) {
+		obj := &EndpointSkillScan{}
+		var fernTestValueRuleset EndpointSkillScanRuleset
+		obj.SetRuleset(fernTestValueRuleset)
+		assert.Equal(t, fernTestValueRuleset, obj.Ruleset)
+		assert.NotNil(t, obj.explicitFields)
+	})
+
+	t.Run("SetRuleCounts", func(t *testing.T) {
+		obj := &EndpointSkillScan{}
+		var fernTestValueRuleCounts map[string]int
+		obj.SetRuleCounts(fernTestValueRuleCounts)
+		assert.Equal(t, fernTestValueRuleCounts, obj.RuleCounts)
+		assert.NotNil(t, obj.explicitFields)
+	})
+
+	t.Run("SetSkippedCount", func(t *testing.T) {
+		obj := &EndpointSkillScan{}
+		var fernTestValueSkippedCount int
+		obj.SetSkippedCount(fernTestValueSkippedCount)
+		assert.Equal(t, fernTestValueSkippedCount, obj.SkippedCount)
+		assert.NotNil(t, obj.explicitFields)
+	})
+
+}
+
+func TestGettersEndpointSkillScan(t *testing.T) {
+	t.Run("GetRuleset", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		var expected EndpointSkillScanRuleset
+		obj.Ruleset = expected
+
+		// Act & Assert
+		assert.Equal(t, expected, obj.GetRuleset(), "getter should return the property value")
+	})
+
+	t.Run("GetRuleset_NilReceiver", func(t *testing.T) {
+		t.Parallel()
+		var obj *EndpointSkillScan
+		// Should not panic - getters should handle nil receiver gracefully
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Getter panicked on nil receiver: %v", r)
+			}
+		}()
+		_ = obj.GetRuleset() // Should return zero value
+	})
+
+	t.Run("GetRuleCounts", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		var expected map[string]int
+		obj.RuleCounts = expected
+
+		// Act & Assert
+		assert.Equal(t, expected, obj.GetRuleCounts(), "getter should return the property value")
+	})
+
+	t.Run("GetRuleCounts_NilValue", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		obj.RuleCounts = nil
+
+		// Act & Assert
+		assert.Nil(t, obj.GetRuleCounts(), "getter should return nil when property is nil")
+	})
+
+	t.Run("GetRuleCounts_NilReceiver", func(t *testing.T) {
+		t.Parallel()
+		var obj *EndpointSkillScan
+		// Should not panic - getters should handle nil receiver gracefully
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Getter panicked on nil receiver: %v", r)
+			}
+		}()
+		_ = obj.GetRuleCounts() // Should return zero value
+	})
+
+	t.Run("GetSkippedCount", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		var expected int
+		obj.SkippedCount = expected
+
+		// Act & Assert
+		assert.Equal(t, expected, obj.GetSkippedCount(), "getter should return the property value")
+	})
+
+	t.Run("GetSkippedCount_NilReceiver", func(t *testing.T) {
+		t.Parallel()
+		var obj *EndpointSkillScan
+		// Should not panic - getters should handle nil receiver gracefully
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Getter panicked on nil receiver: %v", r)
+			}
+		}()
+		_ = obj.GetSkippedCount() // Should return zero value
+	})
+
+}
+
+func TestSettersMarkExplicitEndpointSkillScan(t *testing.T) {
+	t.Run("SetRuleset_MarksExplicit", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		var fernTestValueRuleset EndpointSkillScanRuleset
+
+		// Act
+		obj.SetRuleset(fernTestValueRuleset)
+
+		// Assert - object with explicitly set field can be marshaled/unmarshaled
+		bytes, err := json.Marshal(obj)
+		require.NoError(t, err, "marshaling should succeed for test setup")
+
+		// This test ensures JSON marshaling and unmarshaling succeed when the field has a zero/nil value
+		// Detect if marshaled JSON is an object or primitive to use correct unmarshal target
+		if len(bytes) > 0 && bytes[0] == '{' {
+			// JSON object - unmarshal into map
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		} else {
+			// JSON primitive (string, number, boolean, null) - unmarshal into interface{}
+			var unmarshaled interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		}
+
+		// Note: This does not explicitly assert the presence of a specific JSON field
+		// It verifies that setting a field via setter allows successful JSON round-trip
+	})
+
+	t.Run("SetRuleCounts_MarksExplicit", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		var fernTestValueRuleCounts map[string]int
+
+		// Act
+		obj.SetRuleCounts(fernTestValueRuleCounts)
+
+		// Assert - object with explicitly set field can be marshaled/unmarshaled
+		bytes, err := json.Marshal(obj)
+		require.NoError(t, err, "marshaling should succeed for test setup")
+
+		// This test ensures JSON marshaling and unmarshaling succeed when the field has a zero/nil value
+		// Detect if marshaled JSON is an object or primitive to use correct unmarshal target
+		if len(bytes) > 0 && bytes[0] == '{' {
+			// JSON object - unmarshal into map
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		} else {
+			// JSON primitive (string, number, boolean, null) - unmarshal into interface{}
+			var unmarshaled interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		}
+
+		// Note: This does not explicitly assert the presence of a specific JSON field
+		// It verifies that setting a field via setter allows successful JSON round-trip
+	})
+
+	t.Run("SetSkippedCount_MarksExplicit", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+		var fernTestValueSkippedCount int
+
+		// Act
+		obj.SetSkippedCount(fernTestValueSkippedCount)
+
+		// Assert - object with explicitly set field can be marshaled/unmarshaled
+		bytes, err := json.Marshal(obj)
+		require.NoError(t, err, "marshaling should succeed for test setup")
+
+		// This test ensures JSON marshaling and unmarshaling succeed when the field has a zero/nil value
+		// Detect if marshaled JSON is an object or primitive to use correct unmarshal target
+		if len(bytes) > 0 && bytes[0] == '{' {
+			// JSON object - unmarshal into map
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		} else {
+			// JSON primitive (string, number, boolean, null) - unmarshal into interface{}
+			var unmarshaled interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		}
+
+		// Note: This does not explicitly assert the presence of a specific JSON field
+		// It verifies that setting a field via setter allows successful JSON round-trip
+	})
+
+}
+
 func TestSettersSensor(t *testing.T) {
 	t.Run("SetRuntimeSensorID", func(t *testing.T) {
 		obj := &Sensor{}
@@ -5163,6 +5368,14 @@ func TestSettersEndpointSnapshotInstallationsItem(t *testing.T) {
 		assert.NotNil(t, obj.explicitFields)
 	})
 
+	t.Run("SetSkillScan", func(t *testing.T) {
+		obj := &EndpointSnapshotInstallationsItem{}
+		var fernTestValueSkillScan *EndpointSkillScan
+		obj.SetSkillScan(fernTestValueSkillScan)
+		assert.Equal(t, fernTestValueSkillScan, obj.SkillScan)
+		assert.NotNil(t, obj.explicitFields)
+	})
+
 }
 
 func TestGettersEndpointSnapshotInstallationsItem(t *testing.T) {
@@ -5222,6 +5435,39 @@ func TestGettersEndpointSnapshotInstallationsItem(t *testing.T) {
 		_ = obj.GetManifestDigest() // Should return zero value
 	})
 
+	t.Run("GetSkillScan", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSnapshotInstallationsItem{}
+		var expected *EndpointSkillScan
+		obj.SkillScan = expected
+
+		// Act & Assert
+		assert.Equal(t, expected, obj.GetSkillScan(), "getter should return the property value")
+	})
+
+	t.Run("GetSkillScan_NilValue", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSnapshotInstallationsItem{}
+		obj.SkillScan = nil
+
+		// Act & Assert
+		assert.Nil(t, obj.GetSkillScan(), "getter should return nil when property is nil")
+	})
+
+	t.Run("GetSkillScan_NilReceiver", func(t *testing.T) {
+		t.Parallel()
+		var obj *EndpointSnapshotInstallationsItem
+		// Should not panic - getters should handle nil receiver gracefully
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Getter panicked on nil receiver: %v", r)
+			}
+		}()
+		_ = obj.GetSkillScan() // Should return zero value
+	})
+
 }
 
 func TestSettersMarkExplicitEndpointSnapshotInstallationsItem(t *testing.T) {
@@ -5264,6 +5510,37 @@ func TestSettersMarkExplicitEndpointSnapshotInstallationsItem(t *testing.T) {
 
 		// Act
 		obj.SetManifestDigest(fernTestValueManifestDigest)
+
+		// Assert - object with explicitly set field can be marshaled/unmarshaled
+		bytes, err := json.Marshal(obj)
+		require.NoError(t, err, "marshaling should succeed for test setup")
+
+		// This test ensures JSON marshaling and unmarshaling succeed when the field has a zero/nil value
+		// Detect if marshaled JSON is an object or primitive to use correct unmarshal target
+		if len(bytes) > 0 && bytes[0] == '{' {
+			// JSON object - unmarshal into map
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		} else {
+			// JSON primitive (string, number, boolean, null) - unmarshal into interface{}
+			var unmarshaled interface{}
+			err = json.Unmarshal(bytes, &unmarshaled)
+			require.NoError(t, err, "unmarshaling should succeed for test verification")
+		}
+
+		// Note: This does not explicitly assert the presence of a specific JSON field
+		// It verifies that setting a field via setter allows successful JSON round-trip
+	})
+
+	t.Run("SetSkillScan_MarksExplicit", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSnapshotInstallationsItem{}
+		var fernTestValueSkillScan *EndpointSkillScan
+
+		// Act
+		obj.SetSkillScan(fernTestValueSkillScan)
 
 		// Assert - object with explicitly set field can be marshaled/unmarshaled
 		bytes, err := json.Marshal(obj)
@@ -5727,6 +6004,39 @@ func TestJSONMarshalingEndpointSigned(t *testing.T) {
 	})
 }
 
+func TestJSONMarshalingEndpointSkillScan(t *testing.T) {
+	t.Run("MarshalUnmarshal", func(t *testing.T) {
+		t.Parallel()
+		// Arrange
+		obj := &EndpointSkillScan{}
+
+		// Act - Marshal to JSON
+		data, err := json.Marshal(obj)
+		require.NoError(t, err, "marshaling should succeed")
+		assert.NotNil(t, data, "marshaled data should not be nil")
+		assert.NotEmpty(t, data, "marshaled data should not be empty")
+
+		// Unmarshal back and verify round-trip
+		var unmarshaled EndpointSkillScan
+		err = json.Unmarshal(data, &unmarshaled)
+		assert.NoError(t, err, "round-trip unmarshal should succeed")
+	})
+
+	t.Run("UnmarshalInvalidJSON", func(t *testing.T) {
+		t.Parallel()
+		var obj EndpointSkillScan
+		err := json.Unmarshal([]byte(`{invalid json}`), &obj)
+		assert.Error(t, err, "unmarshaling invalid JSON should return an error")
+	})
+
+	t.Run("UnmarshalEmptyObject", func(t *testing.T) {
+		t.Parallel()
+		var obj EndpointSkillScan
+		err := json.Unmarshal([]byte(`{}`), &obj)
+		assert.NoError(t, err, "unmarshaling empty object should succeed")
+	})
+}
+
 func TestJSONMarshalingEndpointSnapshotInstallationsItem(t *testing.T) {
 	t.Run("MarshalUnmarshal", func(t *testing.T) {
 		t.Parallel()
@@ -6161,6 +6471,22 @@ func TestStringEndpointSigned(t *testing.T) {
 	})
 }
 
+func TestStringEndpointSkillScan(t *testing.T) {
+	t.Run("StringMethod", func(t *testing.T) {
+		t.Parallel()
+		obj := &EndpointSkillScan{}
+		result := obj.String()
+		assert.NotEmpty(t, result, "String() should return a non-empty representation")
+	})
+
+	t.Run("StringMethod_NilReceiver", func(t *testing.T) {
+		t.Parallel()
+		var obj *EndpointSkillScan
+		result := obj.String()
+		assert.Equal(t, "<nil>", result, "String() should return <nil> for nil receiver")
+	})
+}
+
 func TestStringEndpointSnapshotInstallationsItem(t *testing.T) {
 	t.Run("StringMethod", func(t *testing.T) {
 		t.Parallel()
@@ -6436,6 +6762,28 @@ func TestEnumEndpointHeartbeatPolicyStatus(t *testing.T) {
 
 	t.Run("Ptr", func(t *testing.T) {
 		val, err := NewEndpointHeartbeatPolicyStatusFromString("verified_cache")
+		assert.NoError(t, err)
+		ptr := val.Ptr()
+		assert.NotNil(t, ptr)
+		assert.Equal(t, val, *ptr)
+	})
+}
+
+func TestEnumEndpointSkillScanRuleset(t *testing.T) {
+	t.Run("NewFromString_zasp_static_v2", func(t *testing.T) {
+		t.Parallel()
+		val, err := NewEndpointSkillScanRulesetFromString("zasp-static.v2")
+		assert.NoError(t, err, "valid enum value should not return error")
+		assert.Equal(t, EndpointSkillScanRuleset("zasp-static.v2"), val, "enum value should match expected wire value")
+	})
+
+	t.Run("NewFromString_Invalid", func(t *testing.T) {
+		_, err := NewEndpointSkillScanRulesetFromString("invalid_value_that_does_not_exist")
+		assert.Error(t, err)
+	})
+
+	t.Run("Ptr", func(t *testing.T) {
+		val, err := NewEndpointSkillScanRulesetFromString("zasp-static.v2")
 		assert.NoError(t, err)
 		ptr := val.Ptr()
 		assert.NotNil(t, ptr)
@@ -6771,6 +7119,29 @@ func TestExtraPropertiesEndpointSigned(t *testing.T) {
 	t.Run("GetExtraProperties_NilReceiver", func(t *testing.T) {
 		t.Parallel()
 		var obj *EndpointSigned
+		extraProps := obj.GetExtraProperties()
+		assert.Nil(t, extraProps, "nil receiver should return nil without panicking")
+	})
+}
+
+func TestExtraPropertiesEndpointSkillScan(t *testing.T) {
+	t.Run("GetExtraProperties", func(t *testing.T) {
+		t.Parallel()
+		obj := &EndpointSkillScan{}
+		// Should not panic when calling GetExtraProperties()
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("GetExtraProperties() panicked: %v", r)
+			}
+		}()
+		extraProps := obj.GetExtraProperties()
+		// Result can be nil or an empty/non-empty map
+		_ = extraProps
+	})
+
+	t.Run("GetExtraProperties_NilReceiver", func(t *testing.T) {
+		t.Parallel()
+		var obj *EndpointSkillScan
 		extraProps := obj.GetExtraProperties()
 		assert.Nil(t, extraProps, "nil receiver should return nil without panicking")
 	})

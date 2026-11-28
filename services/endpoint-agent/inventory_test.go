@@ -38,3 +38,15 @@ func TestLargeRootStaysPartialAndInvalidReportCannotRemoveInstallations(t *testi
 		t.Fatal("malformed path superseded prior roots")
 	}
 }
+
+func TestEndpointInventoryObservesSkillsOnlyForEnrolledEmployee(t *testing.T) {
+	b := newFixture(t).b
+	request := request{Operation: "inventory-enabled"}
+	if b.process(request, b.uid).InventoryEnabled {
+		t.Fatal("inventory enabled before enrollment")
+	}
+	b.inventoryEnabled = true
+	if b.process(request, b.uid+1).InventoryEnabled || !b.process(request, b.uid).InventoryEnabled {
+		t.Fatal("assigned user boundary missing")
+	}
+}

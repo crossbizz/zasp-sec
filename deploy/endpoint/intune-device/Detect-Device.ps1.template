@@ -3,6 +3,9 @@ $target=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Zasp Inventory
 if (!(Test-Path -LiteralPath $target -PathType Leaf) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $target).Hash -ne '__SHA256__') { exit 1 }
 $signature=Get-AuthenticodeSignature -LiteralPath $target
 if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne '__THUMBPRINT__') { exit 1 }
-foreach ($name in @('Zasp Inventory User Scan','Zasp Inventory Device Sync')) { if (!(Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue)) { exit 1 } }
+$scan=Get-ScheduledTask -TaskName 'Zasp Inventory User Scan' -ErrorAction SilentlyContinue
+$sync=Get-ScheduledTask -TaskName 'Zasp Inventory Device Sync' -ErrorAction SilentlyContinue
+if (!$sync -or !$scan -or $scan.Triggers.Count -ne 1 -or $scan.Triggers[0].CimClass.CimClassName -ne 'MSFT_TaskLogonTrigger' -or $scan.Triggers[0].Repetition.Interval) { exit 1 }
+foreach ($file in @('Watch-Inventory.ps1','Sync-Inventory.ps1')) { if (!(Test-Path -LiteralPath (Join-Path (Split-Path $target) $file) -PathType Leaf)) { exit 1 } }
 Write-Output 'Installed'
 exit 0

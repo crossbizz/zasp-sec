@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/addonevidence"
 	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 )
 
@@ -192,6 +193,63 @@ func TestEndpointFleetOnInstalledBaselinePostgres(t *testing.T) {
 	request(admin, "publishEndpointPolicy", "PUT", base+"/policy-bundle", id, endpointprotocol.Signed{Payload: payload, Signature: ed25519.Sign(signer, payload)}, edit(2), 200)
 	t.Run("daemon and hook through installed HTTP", func(t *testing.T) {
 		exerciseInstalledEndpoint(t, b, surface, repo, binding, key, issuer, tokenSecrets["Pilot device"], admin)
+	})
+	exerciseInstalledSkillInventory(t, b, admin, key.Seed(), func(snapshot endpointprotocol.Inventory) {
+		machine(token, key, "recordEndpointInventory", "POST", base+"/inventory-snapshots", id, snapshot, 200)
+	}, func() map[string]any {
+		return request(admin, "getEndpointDevice", "GET", base, id, nil, nil, 200)
+	})
+	t.Run("signed skill scan conflicts leave the entire generation unchanged", func(t *testing.T) {
+		complete := true
+		makeItem := func(label string, digest string, count int) endpointprotocol.Installation {
+			return endpointprotocol.Installation{ID: strings.Repeat(label, 64), Digest: "sha256:" + strings.Repeat(digest, 64),
+				SkillScan: &endpointprotocol.SkillScan{Ruleset: "zasp-static.v2", RuleCounts: map[string]int{"instruction.override": count}}}
+		}
+		item := makeItem("1", "4", 1)
+		snapshot := endpointprotocol.Inventory{Partition: strings.Repeat("f", 64), Generation: 1, Complete: &complete, Items: []endpointprotocol.Installation{item}}
+		submit := func(want int) {
+			machine(token, key, "recordEndpointInventory", "POST", base+"/inventory-snapshots", id, snapshot, want)
+		}
+		submit(200)
+		snapshot.Generation++
+		snapshot.Items = []endpointprotocol.Installation{makeItem("2", "5", 2), makeItem("1", "4", 2)}
+		submit(409)
+		// The first version in the refused batch cannot bind a digest to counts.
+		snapshot.Items = []endpointprotocol.Installation{makeItem("2", "5", 1), item}
+		submit(200)
+		// A full partition can exceed both the generic 16 KiB product limit
+		// and the former 64 KiB inventory limit.
+		snapshot.Generation++
+		snapshot.Items = nil
+		counts := map[string]int{}
+		for _, rule := range addonevidence.Rules(addonevidence.CurrentRuleset) {
+			counts[rule] = 1024
+		}
+		for n := range 128 {
+			entry := makeItem("3", "6", 1)
+			entry.ID = fmt.Sprintf("%064x", n)
+			entry.SkillScan.RuleCounts = counts
+			snapshot.Items = append(snapshot.Items, entry)
+		}
+		submit(200)
+		partial := endpointprotocol.Installation{ID: strings.Repeat("3", 64), SkillScan: &endpointprotocol.SkillScan{
+			Ruleset: "zasp-static.v2", RuleCounts: map[string]int{}, SkippedCount: 1}}
+		snapshot.Generation++
+		snapshot.Items = []endpointprotocol.Installation{partial}
+		submit(200)
+		device := request(admin, "getEndpointDevice", "GET", base, id, nil, nil, 200)
+		for _, partition := range device["partition_summaries"].([]any) {
+			row := partition.(map[string]any)
+			if row["partition_id"] != snapshot.Partition {
+				continue
+			}
+			observed := row["observed_installations"].([]any)[0].(map[string]any)
+			if observed["skill_version_id"] != nil || observed["manifest_digest"] != nil || observed["skill_scan"].(map[string]any)["skipped_count"] != float64(1) {
+				t.Fatal("partial scan was bound to an exact version", observed)
+			}
+			return
+		}
+		t.Fatal("missing partition with partial scan")
 	})
 	newPub, newKey, _ := ed25519.GenerateKey(rand.Reader)
 	request(admin, "rotateEndpointCredential", "POST", base+"/credential-rotations", id, endpointRegister{Credential: other.binding.ID, DeviceKey: newPub}, edit(3), 200)

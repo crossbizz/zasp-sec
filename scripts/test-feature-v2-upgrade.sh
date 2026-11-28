@@ -33,7 +33,9 @@ build_probe() {
   python3 - "$tree" "$repo_dir" "$fixture_dir/$label-overlay.json" <<'PYTHON'
 import json, sys
 from pathlib import Path
-source, repo, output = map(Path, sys.argv[1:])
+# Go resolves module directories before applying overlay file names. macOS
+# commonly returns /var or /tmp symlinks for the disposable directory.
+source, repo, output = (Path(arg).resolve() for arg in sys.argv[1:])
 output.write_text(json.dumps({"Replace": {
     str(source / "services/platform/apiserver/v2_upgrade_binary_test.go"):
     str(repo / "scripts/upgrade-fixtures/api_runtime_test.go")
@@ -146,6 +148,28 @@ for pass in 1 2; do
   [[ "$("$pg_bin/psql" -XAt "$v5_dsn" -c 'SELECT zasp_baseline.content()')" == "$fresh_catalog" ]]
   "$pg_bin/psql" -XqAt -v ON_ERROR_STOP=1 -d v5_upgrade -f "$snapshots/v2_predecessor_snapshot.sql" > "$fixture_dir/v5-members.after"
   cmp "$fixture_dir/v4-members.before" "$fixture_dir/v5-members.after"
+done
+
+# A V5 installation already has the member lifecycle DDL. Its existing review
+# must survive the added endpoint scan origin, including a repeated upgrade.
+v5_release=299c429062f360148da0f9d79d1bbc4a00c386c8
+mkdir "$fixture_dir/v5-release"
+git -C "$repo_dir" archive "$v5_release" services/platform services/health | tar -x -C "$fixture_dir/v5-release"
+go build -C "$fixture_dir/v5-release/services/platform" -o "$fixture_dir/v5-release-migrate" ./agentsec-migrate
+"$pg_bin/createdb" -O zasp_operator -T template0 v6_upgrade
+v6_dsn="postgres://zasp_operator@/v6_upgrade?host=$socket_dir&sslmode=disable"
+ZASP_POSTGRES_DSN="$v6_dsn" "$fixture_dir/v5-release-migrate" install-baseline
+"$pg_bin/psql" -X -v ON_ERROR_STOP=1 -d v6_upgrade <<'SQL'
+INSERT INTO public.zasp_addon_versions
+ (organization_id,workspace_id,environment_id,id,manifest_digest,origin,origin_credential,ruleset,findings,review_state)
+VALUES ('org','workspace','staging','pid_10000001-0000-4000-8000-000000000001','sha256:'||repeat('b',64),
+ 'local','staging-credential','zasp-static.v1','[]','approved');
+SQL
+for operation in ensure-baseline upgrade-feature-v6; do
+  ZASP_POSTGRES_DSN="$v6_dsn" "$fixture_dir/current-migrate" "$operation"
+  ZASP_POSTGRES_DSN="$v6_dsn" "$fixture_dir/current-migrate" verify-baseline
+  [[ "$("$pg_bin/psql" -XAt "$v6_dsn" -c 'SELECT zasp_baseline.content()')" == "$fresh_catalog" ]]
+  [[ "$("$pg_bin/psql" -XAt -d v6_upgrade -c "SELECT review_state FROM public.zasp_addon_versions WHERE origin_credential='staging-credential'")" == approved ]]
 done
 
 if [[ "$upgrade_only" == true ]]; then exit 0; fi

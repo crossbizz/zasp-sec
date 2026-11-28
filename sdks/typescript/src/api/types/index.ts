@@ -38,6 +38,7 @@ export * from "./EndpointEmpty.js";
 export * from "./EndpointExchangeReceipt.js";
 export * from "./EndpointRecorded.js";
 export * from "./EndpointSigned.js";
+export * from "./EndpointSkillScan.js";
 export * from "./Finding.js";
 export * from "./FindingAcceptanceInput.js";
 export * from "./FindingFrameworkReference.js";

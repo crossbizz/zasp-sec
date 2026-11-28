@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/cmd/zaspctl/internal/addons"
+	"github.com/zasp-ai/zasp-sec/services/platform/endpointprotocol"
 )
 
 const maxRootEntries = 256
@@ -35,19 +36,20 @@ type rootCoverage struct {
 }
 
 type installation struct {
-	Profile        string              `json:"profile"`
-	Enablement     string              `json:"enablement"`
-	Name           string              `json:"name"`
-	Harness        string              `json:"harness"`
-	Type           string              `json:"type"`
-	Scope          string              `json:"scope"`
-	Path           string              `json:"path"`
-	Status         string              `json:"status"`
-	ManifestDigest string              `json:"manifest_digest,omitempty"`
-	Findings       int                 `json:"findings_count"`
-	Skipped        []addons.Skip       `json:"skipped,omitempty"`
-	Usage          string              `json:"usage"`
-	Declaration    *addons.Declaration `json:"declaration,omitempty"`
+	Profile        string                      `json:"profile"`
+	Enablement     string                      `json:"enablement"`
+	Name           string                      `json:"name"`
+	Harness        string                      `json:"harness"`
+	Type           string                      `json:"type"`
+	Scope          string                      `json:"scope"`
+	Path           string                      `json:"path"`
+	Status         string                      `json:"status"`
+	ManifestDigest string                      `json:"manifest_digest,omitempty"`
+	SkillScan      *endpointprotocol.SkillScan `json:"skill_scan,omitempty"`
+	Findings       int                         `json:"findings_count"`
+	Skipped        []addons.Skip               `json:"skipped,omitempty"`
+	Usage          string                      `json:"usage"`
+	Declaration    *addons.Declaration         `json:"declaration,omitempty"`
 }
 
 func claudeSources(project, scope string) []source {
@@ -240,11 +242,17 @@ func discover(location source, deadline time.Time) ([]installation, string) {
 func observed(location source, name string, scan addons.Report) installation {
 	path := location.rel
 	kind := "mcp_declaration"
+	var summary *endpointprotocol.SkillScan
 	if !location.mcp {
 		path += "/" + name
 		kind = "skill"
+		counts := make(map[string]int)
+		for _, finding := range scan.Findings {
+			counts[finding.RuleID]++
+		}
+		summary = &endpointprotocol.SkillScan{Ruleset: scan.Ruleset, RuleCounts: counts, SkippedCount: min(len(scan.Skipped), 1024)}
 	}
 	return installation{Name: name, Harness: location.harness, Profile: location.profile(), Enablement: "unknown", Type: kind, Scope: location.scope,
-		Path: path, Status: scan.Status, ManifestDigest: scan.ManifestDigest, Findings: len(scan.Findings),
+		Path: path, Status: scan.Status, ManifestDigest: scan.ManifestDigest, Findings: len(scan.Findings), SkillScan: summary,
 		Usage: "unknown", Skipped: scan.Skipped}
 }

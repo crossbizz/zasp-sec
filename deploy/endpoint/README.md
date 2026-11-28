@@ -2,6 +2,10 @@
 
 For employee Claude Code and Codex CLI coverage, see [managed pre-tool policies](pretool-policy.md) for deployment, the rules editor, device-bound signing and receipt readback.
 
+## Automatic skill scans
+
+Upgrade the schema and API before deploying the updated endpoint and CLI. Existing collectors can continue reporting installation digests during rollout. Devices that send static scan counts also report the ruleset and the number of skipped entries. In **Tools & MCP → Skill scanner**, select a device to inspect its observations. Complete versions can be reviewed in Add-ons. Changed contents get a new digest and review record.
+
 ## Ticket-action pilot
 
 The endpoint broker evaluates a signed policy for Claude Code's named `mcp__pilot__update_ticket` tool on a local Unix socket. The managed process owns the device key, policy cache and encrypted receipt queue. The hook uses Claude Code's `PreToolUse` permission-decision response. On a permitted call it emits `{}`, preserving the harness's own permission prompts. Triggering the hook produces an adapter decision. Target effect and skill usage are both recorded as unknown.
@@ -46,14 +50,9 @@ The optional `control_plane` member of the configuration enables periodic HTTPS 
 
 Publish a signed per-device bundle through `PUT /api/v1/devices/{id}/policy-bundle`. The heartbeat reports the last local policy status. The fleet counts separate preassigned devices, enrollment, recent online health, and acknowledgment of the exact assigned revision. Revocation stops new server access. An already-disconnected device can still honor its cached signed policy until its expiry.
 
-Use a user-context managed job with scoped project selection to deliver inventory. The CLI walks the locations readable by that employee. The privileged daemon only consumes the report and never opens employee paths. For a selected project, run the following commands from its root:
+The Mac package installs the `ai.zasp.skill-inventory` LaunchAgent and its signed scanner. With inventory enabled, the assigned employee's watcher scans on startup, then listens for filesystem events in the Claude Code and Codex personal and managed skill roots. Adding, editing, replacing or removing a bundle triggers collection. To watch one project instead, manage the user LaunchAgent's `ProgramArguments` and append `--project` and the absolute project directory as separate entries after `watch-skills`. Reload the LaunchAgent for the assigned user after changing its arguments.
 
-```bash
-zaspctl addons inventory --local --scope project --project "$PWD" --json |
-  /usr/local/libexec/zasp-endpoint inventory --project "$PWD"
-```
-
-Configure the job to surface the CLI's partial exit status as well as the broker result. For managed/personal inventory omit the project flag on both tools and select the corresponding scope. The broker sends opaque, device-keyed partition and installation IDs, observed manifest digests and completeness. It excludes file paths, personal names and raw source. A complete report updates only its matching partition. An unreadable, absent or incomplete root retains the previous complete installation report until a subsequent complete report establishes removal. The endpoint API keeps observations separate from independently verified side effects. Stored `target_effect` and `skill_usage` remain unknown.
+The employee process reads skill files. The privileged broker queues signed installation references, bundle digests, static rule counts and skipped-entry counts for the Environment. Paths, filenames and skill contents stay on the device. A complete observation updates the matching partition. A partial observation preserves the previous complete snapshot. The endpoint API keeps observations separate from independently verified side effects. Stored `target_effect` and `skill_usage` remain unknown.
 
 For rotation provision a fresh device key and independently issued transport credential, then use the browser-authorized `/devices/{id}/credential-rotations` mutation with the prior version. After exchanging the new generation, publish a higher policy revision bound to that generation. Once the old identity has been retired or rotated its future uploads fail, including buffered historical observations. Archive any required local evidence before rotation. Retiring a device through the control plane preserves its audit history. MDM package removal requires a separate step.
 

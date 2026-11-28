@@ -948,6 +948,9 @@ a { color: var(--blue-text); }
 .search-results-inline li:last-child { border: 0; }
 .search-results-inline small { display: block; color: var(--muted); overflow-wrap: anywhere; }
 
+.skill-scanner-panels, .endpoint-skill-scans { display: grid; gap: 16px; }
+.endpoint-skill-scans p { margin: 0; }
+.endpoint-skill-scans .field { max-width: 36rem; }
 .skill-scan { display: grid; gap: 14px; max-width: 44rem; }
 .skill-scan > .button, .skill-scan__drop > .button { justify-self: start; }
 .skill-scan p { margin: 0; }

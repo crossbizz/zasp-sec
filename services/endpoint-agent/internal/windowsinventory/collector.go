@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -26,18 +27,26 @@ type Config struct {
 	Binding endpointprotocol.Binding `json:"binding"`
 	// The scheduled user-context scanner submits the assigned scope only.
 	Scope       string `json:"scope"`
+	ProjectRoot string `json:"project_root,omitempty"`
 	AssignedSID string `json:"assigned_sid"`
 }
 
 func (c Config) Valid() bool {
 	b := c.Binding
-	return devicehttp.ValidOrigin(c.Origin) && endpointprotocol.Label.MatchString(b.Organization) && endpointprotocol.Label.MatchString(b.Workspace) && endpointprotocol.Label.MatchString(b.Environment) && endpointprotocol.Label.MatchString(b.Device) && b.Generation > 0 && b.Generation < 1<<53 && (c.Scope == "personal" || c.Scope == "managed") && strings.HasPrefix(c.AssignedSID, "S-1-") && len(c.AssignedSID) < 185
+	validScope := (c.Scope == "personal" || c.Scope == "managed") && c.ProjectRoot == ""
+	if c.Scope == "project" {
+		volume := filepath.VolumeName(c.ProjectRoot)
+		validScope = len(volume) == 2 && filepath.IsAbs(c.ProjectRoot) && filepath.Clean(c.ProjectRoot) == c.ProjectRoot &&
+			len(c.ProjectRoot) > len(volume)+1 && filepath.IsLocal(c.ProjectRoot[len(volume)+1:])
+	}
+	return devicehttp.ValidOrigin(c.Origin) && endpointprotocol.Label.MatchString(b.Organization) && endpointprotocol.Label.MatchString(b.Workspace) && endpointprotocol.Label.MatchString(b.Environment) && endpointprotocol.Label.MatchString(b.Device) && b.Generation > 0 && b.Generation < 1<<53 && validScope && strings.HasPrefix(c.AssignedSID, "S-1-") && len(c.AssignedSID) < 185
 }
 
 type State struct {
 	Binding      endpointprotocol.Binding     `json:"binding"`
 	AssignedSID  string                       `json:"assigned_sid"`
 	Scope        string                       `json:"scope"`
+	ProjectRoot  string                       `json:"project_root,omitempty"`
 	Sequence     uint64                       `json:"sequence"`
 	ReportDigest string                       `json:"report_digest"`
 	Pending      []endpointprotocol.Inventory `json:"pending"`
@@ -50,7 +59,7 @@ func (s *State) Admit(c Config, seed, report []byte) error {
 	if !c.Valid() || len(seed) != ed25519.SeedSize {
 		return ErrInvalid
 	}
-	if s.Binding != (endpointprotocol.Binding{}) && (s.Binding != c.Binding || s.AssignedSID != c.AssignedSID || s.Scope != c.Scope) {
+	if s.Binding != (endpointprotocol.Binding{}) && (s.Binding != c.Binding || s.AssignedSID != c.AssignedSID || s.Scope != c.Scope || s.ProjectRoot != c.ProjectRoot) {
 		return ErrInvalid
 	}
 	if len(report) > 1<<20 {
@@ -60,6 +69,7 @@ func (s *State) Admit(c Config, seed, report []byte) error {
 	next.Binding = c.Binding
 	next.AssignedSID = c.AssignedSID
 	next.Scope = c.Scope
+	next.ProjectRoot = c.ProjectRoot
 	if len(report) > 0 {
 		digest := sha256.Sum256(report)
 		hash := hex.EncodeToString(digest[:])
@@ -77,7 +87,7 @@ func (s *State) Admit(c Config, seed, report []byte) error {
 					return ErrInvalid
 				}
 			}
-			snapshots, seq, err := inventoryreport.Parse(report, "", seed, s.Sequence)
+			snapshots, seq, err := inventoryreport.Parse(report, c.ProjectRoot, seed, s.Sequence)
 			if err != nil {
 				return err
 			}

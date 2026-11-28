@@ -1,5 +1,7 @@
 # Private static add-on scans
 
+The private worker handles manual ZIP uploads. Enrolled devices can also scan installed skills locally and send findings during inventory check-in. [Automatic device scans](../getting-started/local-skill-scan.md#when-a-skill-is-added-or-changed)
+
 The private worker scans an explicitly selected ZIP for one Environment. The API authorizes one archive digest and size. The worker receives the bytes over TLS and returns aggregate static finding counts. Administrators can also enable registry delivery so AppSec can review an exact version. The submitting browser previews which destination will receive the findings. A regular local scan and findings-only submission remain available without this worker.
 
 ## Provision the private worker

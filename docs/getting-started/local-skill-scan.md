@@ -4,6 +4,14 @@ A developer can inventory Claude Code or Codex skills, check one bundle and read
 
 The offline scanner benchmark shows which benign declarations produce review findings and where source comments can trigger a capability warning. [Benchmark and fixtures](../operations/local-skill-scanner-benchmark.md)
 
+## When a skill is added or changed
+
+On an enrolled device with skill inventory enabled, the employee's collector watches the assigned Claude Code and Codex skill directories. File changes trigger static scans. Installing a bundle, editing its instructions and replacing a script all produce filesystem events. Editing an installed bundle changes its digest and produces evidence for the new contents. An unchanged bundle keeps its existing version across device snapshots.
+
+Open **Tools & MCP → Skill scanner** and select the device to see its last reported scans. A complete report with zero findings means the static rules found no matches. A partial report means the collector could not inspect the whole skill. The report includes rule counts and installation references. Skill text and local paths stay on the device.
+
+Automatic coverage depends on device enrollment, the assigned directories and successful check-in. The collector reconciles its inventory on startup and after a gap in notifications. Changes that happen together can appear as one final version. Scanning does not block installation or execution. For a one-time check, use the local CLI below or upload a ZIP in an Environment with a private scan worker. [macOS endpoint setup](../../deploy/endpoint/README.md) · [Windows enrollment and collection](../../deploy/endpoint/intune-device/README.md)
+
 ## Get a verified binary
 
 Open **Scan this device**. When your deployment has published a release, choose its exact OS and architecture. Use **Verify your download** to authenticate the signed manifest with your organization's trusted Ed25519 public key, then compare the file's SHA-256 before execution. A deployment with no staged release shows the source build. [Release owner instructions](../../deploy/cli-release/README.md)

@@ -35,7 +35,7 @@ import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
 import { Button, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
-import { enrollSensorLocation, parseActivityLink } from "../domain/activity-links";
+import { deviceFleetLocation, enrollSensorLocation, parseActivityLink } from "../domain/activity-links";
 import { parseCatalogLink } from "../domain/coverage-links";
 import { parseComplianceLink } from "../domain/compliance-links";
 
@@ -105,7 +105,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}/${initialSection}`} initialSection={initialSection} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   }
   if (path === "/connectors") return <ProductionIntegrationsView location={location} canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
-  if (path === "/integrations/sensors") return <ProductionSensorSurface startEnrollment={location === enrollSensorLocation} canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
+  if (path === "/integrations/sensors") return <ProductionSensorSurface startDeviceFleet={location === deviceFleetLocation} startEnrollment={location === enrollSensorLocation} canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" selectedID={selected?.kind === "approval" ? selected.id : undefined} onNavigate={navigate} />;
   if (path === "/administration/identity-access") {
