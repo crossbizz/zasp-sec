@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +32,7 @@ let stderr = "";
 browser.stderr.on("data", (data) => { stderr = (stderr + data).slice(-1500); });
 let next = 0;
 const callbacks = new Map();
+const loadedFrames = new Map();
 let input = "";
 browser.stdio[4].setEncoding("utf8");
 browser.stdio[4].on("data", (chunk) => {
@@ -39,14 +40,17 @@ browser.stdio[4].on("data", (chunk) => {
   for (let end; (end = input.indexOf("\0")) >= 0;) {
     const message = JSON.parse(input.slice(0, end));
     input = input.slice(end + 1);
+    if (message.method === "Page.lifecycleEvent" && message.params.name === "load") {
+      loadedFrames.set(message.params.loaderId, { sessionId: message.sessionId, frameId: message.params.frameId });
+    }
     callbacks.get(message.id)?.(message);
   }
 });
-function send(method, params = {}, sessionId) {
+function send(method, params = {}, sessionId, timeoutMs = 4000) {
   if (browser.exitCode !== null || browser.signalCode) throw Error("Chromium exited before " + method + "\n" + stderr);
   return new Promise((resolve, reject) => {
     const id = ++next;
-    const timer = setTimeout(() => { callbacks.delete(id); reject(Error(method + " timed out\n" + stderr)); }, 4000);
+    const timer = setTimeout(() => { callbacks.delete(id); reject(Error(method + " timed out\n" + stderr)); }, timeoutMs);
     callbacks.set(id, (message) => {
       clearTimeout(timer);
       callbacks.delete(id);
@@ -64,16 +68,18 @@ async function until(check) {
   }
   throw Error("Chromium did not reach the required popup state");
 }
+let phase = "browser-start";
 try {
-  const version = await send("Browser.getVersion");
+  const version = await send("Browser.getVersion", {}, undefined, 15000);
   const target = await send("Target.createTarget", { url: "about:blank" });
   const { sessionId } = await send("Target.attachToTarget", { targetId: target.targetId, flatten: true });
-  async function evaluate(expression) {
-    const result = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }, sessionId);
+  async function evaluate(expression, timeoutMs) {
+    const result = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }, sessionId, timeoutMs);
     assert.equal(result.exceptionDetails, undefined);
     return result.result.value;
   }
   if (!managedProfile) {
+    phase = "popup-fixture";
     // Exercise the popup DOM and script with synthetic local data. No
     // attempt is made to install an extension or change browser management.
     const data = {policy:{status:"enabled",retentionDays:7,origins:["https://claude.ai"]},uploads:{status:"active",count:1},observations:[{day:"2026-01-01",origin:"https://claude.ai"}]};
@@ -106,6 +112,7 @@ try {
     console.log(version.product + ": popup renders standalone guidance, worker recovery and local coverage at 320px");
   }
   if (managedProfile) {
+    phase = "managed-profile";
     // The normal enterprise store installs the signed build. This mode only
     // reads the profile's actual managed storage, registered rules and popup.
     const url = "chrome-extension://" + managedID + "/status.html";
@@ -130,8 +137,21 @@ try {
     else assert.equal(proof.count,0);
     console.log(version.product+": signed managed profile acknowledged "+proof.count+" exact upload rules.");
   } else if (!fixtureUI) {
+    phase = "extension-install";
     const loaded = await send("Extensions.loadUnpacked", { path: extension });
-    await send("Page.navigate", {url:"chrome-extension://" + loaded.id + "/status.html"}, sessionId);
+    phase = "extension-navigation";
+    await send("Page.enable", {}, sessionId);
+    await send("Page.setLifecycleEventsEnabled", { enabled: true }, sessionId);
+    const url = "chrome-extension://" + loaded.id + "/status.html";
+    const navigation = await send("Page.navigate", { url }, sessionId);
+    assert.equal(navigation.errorText, undefined);
+    assert.ok(navigation.loaderId);
+    // Page.navigate can resolve while Runtime.evaluate would still see the old document.
+    await until(() => {
+      const frame = loadedFrames.get(navigation.loaderId);
+      return frame?.sessionId === sessionId && frame.frameId === navigation.frameId;
+    });
+    phase = "unconfigured-extension";
     const status = await until(async () =>
       (await evaluate('document.querySelector("#status")?.textContent')) === "Managed policy required. Collection is off.");
     assert.ok(status);
@@ -140,6 +160,7 @@ try {
     assert.deepEqual(await evaluate('chrome.scripting.getRegisteredContentScripts()'), []);
     // Exercise the real browser registration, storage and cleanup APIs with an
     // explicitly synthetic policy adapter. This does not test enterprise rollout.
+    phase = "upload-rules";
     const registrations = await evaluate(`(async () => {
       const {createGuard} = await import(chrome.runtime.getURL("guard.mjs"));
       const route = "https://chatgpt.com/backend-api/files";
@@ -157,7 +178,7 @@ try {
       const rules = await chrome.scripting.getRegisteredContentScripts();
       config = {Enabled: false}; await guard.refresh();
       return {rules, before, active, during, unrelated, after:await matching(route), cleaned: await chrome.scripting.getRegisteredContentScripts()};
-    })()`);
+    })()`, 15000);
     assert.deepEqual(registrations.rules.flatMap(rule => rule.matches).sort(), ["https://chatgpt.com/*","https://claude.ai/*"]);
     assert.deepEqual(registrations.before, []);
     assert.deepEqual(registrations.active, {status:"active",count:1});
@@ -167,6 +188,9 @@ try {
     assert.deepEqual(registrations.cleaned, []);
     console.log(version.product + ": loaded real extension, policy-off popup, empty storage, fixture-rule registration and removal");
   }
+} catch (error) {
+  if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, "failure_phase=" + phase + "\n");
+  throw error;
 } finally {
   try {
     await send("Browser.close");

@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import uuid
 
 import yaml
 
@@ -29,13 +30,13 @@ class DatabaseTransport(unittest.TestCase):
         startup = (CHART / "templates/workloads.yaml").read_text()
         check = startup.split("node --input-type=module <<'CHECK'\n", 1)[1].split("\n              CHECK", 1)[0]
         admin = "a" * 64
-        key = "9682a612-c3da-4bc9-821f-6fcdc023f732"
+        key = str(uuid.uuid4())
         with tempfile.TemporaryDirectory() as scratch:
             mount = Path(scratch)
             (mount / "admin-key").write_text(admin)
             check = check.replace("/run/nango-storage", scratch)
             for service, expected in [(key, 0), (key.upper(), 0), ("b" * 64, 64),
-                                      (key.replace("4bc9", "5bc9"), 64), (key + "\n", 64)]:
+                                      (key[:14] + "5" + key[15:], 64), (key + "\n", 64)]:
                 with self.subTest(valid=expected == 0):
                     (mount / "service-key").write_text(service)
                     result = subprocess.run(["node", "--input-type=module", "-e", check], capture_output=True,

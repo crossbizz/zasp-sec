@@ -2,6 +2,24 @@
 
 A fresh `./zasp config init` selects the VPS profile. Install the stateful services once, then deploy signed Zasp application releases to the Production namespace. Each application rollout leaves the independent Nango and OpenSearch releases running. [Release controls](release-advisories.md) · [Provider matrix](infrastructure-providers.md)
 
+## Add Nango and OpenSearch to an existing k3s deployment
+
+From the VPS, inspect the current releases and services before choosing an endpoint. Use the local context you verified for the installation.
+
+```sh
+sudo k3s kubectl --context default get services -A
+sudo helm --kubeconfig /etc/rancher/k3s/k3s.yaml --kube-context default list -A
+```
+
+If the inventory shows only the evaluation Service `zasp` in namespace `zasp`, the URLs below become available after installing their independent releases. Start with `./zasp --profile vps install namespaces` using the reviewed operator configuration. Then follow each service's setup guide. These releases can run alongside the existing evaluation pod. Switching the application or transferring existing data is a separate operation. [Evaluation cutover](vps-evaluation-cutover.md)
+
+| Service | Install and reach it from your workstation | How you authenticate |
+| --- | --- | --- |
+| Nango in `connectors` | Provision its PostgreSQL database, TLS and keys, then install the chart and tunnel to `https://nango.connectors.svc.cluster.local:18443/`. | Create and verify the first operator account, then sign in with its email and password. Configure provider credentials in Nango’s **prod** environment. [Nango setup and login](independent-nango.md#access-nango-and-configure-a-provider) |
+| OpenSearch in `opensearch` | Provision its storage and TLS identities, then install the chart and tunnel to `https://opensearch.opensearch.svc.cluster.local:19200/`. | Use the issuing CA and an authorized client certificate and key with the REST API. [OpenSearch setup and access](../../deploy/vps/opensearch/README.md) |
+
+Inside the cluster, Zasp uses port `8443` for Nango and `9200` for OpenSearch. The forwarded ports in the table serve the operator workstation. Nango’s OAuth callback uses the public HTTPS origin of the Zasp web application.
+
 ## 1. Prepare and identify the host
 
 Start with one x86-64 Linux VPS, 8 shared vCPUs, 24–32 GB RAM, and about 200 GB of SSD/NVMe. These are planning estimates. The three CNPG clusters request 10 GiB each and OpenBao defaults to 8 GiB. Add capacity for Nango, any additional databases, rolling migrations and encrypted restore staging. A single VPS is one failure domain. Keep recovery receipts, keys and artifacts on independent storage.

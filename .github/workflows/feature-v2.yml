@@ -65,8 +65,12 @@ jobs:
           echo "6a586dcc9d4676b5f4b421f80a5406256e5687fb0d1b3479ceb9dd4eb37a6548  $archive" | sha256sum -c -
           unzip -q "$archive" -d "$RUNNER_TEMP/zasp-browser"
       - name: Verify the packaged upload rules in an isolated test browser
+        id: browser_smoke
         run: |
           CHROMIUM_BIN="$RUNNER_TEMP/zasp-browser/chrome-linux64/chrome" BROWSER_GUARD_TEST_NO_SANDBOX=1 node extensions/browser-guard/test/chromium-smoke.mjs
+      - name: Browser smoke failure in ${{ steps.browser_smoke.outputs.failure_phase || 'harness' }}
+        if: failure() && steps.browser_smoke.outcome == 'failure'
+        run: echo 'See the failed browser smoke step for the assertion and stack trace.'
 
   macos-endpoint:
     runs-on: macos-15
