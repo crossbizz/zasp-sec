@@ -5,6 +5,7 @@ import { once } from "node:events";
 import { mkdtemp, readFile, readdir, rm, rmdir } from "node:fs/promises";
 import os from "node:os";
 import http from "node:http";
+import https from "node:https";
 import path from "node:path";
 import test from "node:test";
 import { createContext, runInContext, runInNewContext } from "node:vm";
@@ -26,12 +27,12 @@ test("compliance paging waits for both policy links in the selected scope and re
   let links = [good, different, link("https://different.example", "selected-env")];
   let now = 0;
   const messages = [];
-  const trace = {method: "GET", path: "/api/v1/compliance/evidence", framework: "hipaa", scope, cursor: true, cursorLength: 836, status: 200};
+  const trace = {method: "GET", path: "/api/v1/compliance/evidence", framework: "hipaa", scope, cursor: true, cursorLength: 836, status: 200, duration: "9to11s"};
   const wait = runInNewContext(`(${source.slice(start, end)})`, {
     performance: {now: () => now}, delay: async milliseconds => { now += milliseconds; },
     console: {error: message => messages.push(message)},
     complianceResponseTrace: [
-      {...trace, status: 429}, trace, trace, {...trace, path: "/api/v1/compliance/controls", framework: null, cursor: false, scope: "private-env"},
+      {...trace, status: 429}, trace, trace, {...trace, path: "/api/v1/compliance/controls", framework: null, cursor: false, scope: "private-env", duration: "private-value"},
       {...trace, path: "/private/secret"}, {...trace, status: 998},
     ],
   });
@@ -45,13 +46,65 @@ test("compliance paging waits for both policy links in the selected scope and re
   }};
   await assert.rejects(wait(browser, label, scope, 1), /both frameworks/);
   assert.equal(now, 52_000);
-  assert.deepEqual(messages, ["ZASP_COMPLIANCE_PAGING=ui-read-error-links-1-route-evidence evidence-hipaa-selected-long-200 controls-all-other-first-200"]);
+  assert.deepEqual(messages, ["ZASP_COMPLIANCE_PAGING=ui-read-error-links-1-route-evidence evidence-hipaa-selected-long-200-9to11s controls-all-other-first-200-unknown"]);
   // Five valid serial responses may outlast the generic 15-second UI wait.
   const startedAt = now;
   document.querySelectorAll = () => now - startedAt >= 38_000 ? [good, good] : links;
   await wait(browser, label, scope, 1);
   assert.equal(now - startedAt, 38_000);
   assert.equal(messages.length, 1);
+});
+
+test("the TLS compliance proxy cancels abandoned reads and preserves completed reads and upstream failures", async t => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function startProxy(");
+  const end = source.indexOf("\nfunction captureDelayedFirstTabBootstrap(", start);
+  assert.ok(start > 0 && end > start);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "zasp-proxy-tls-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const key = path.join(directory, "key.pem"), cert = path.join(directory, "cert.pem");
+  const signed = spawnSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+    "-nodes", "-days", "1", "-subj", "/CN=localhost", "-keyout", key, "-out", cert]);
+  assert.equal(signed.status, 0);
+  const trace = [];
+  const startProxy = runInNewContext(`(${source.slice(start, end)})`, {
+    http, https, readFile, once, URL, performance, recoveryHostname: "unused.invalid", auditBrowserMode: false,
+    auditExportBrowserMode: false, securityAgentExportMode: false, complianceBrowserMode: true,
+    productAPIRequests: [], administrationRequests: [], complianceResponseTrace: trace, scopeOverlapProof: { events: [] },
+  });
+  const api = http.createServer();
+  api.listen(0, "127.0.0.1");
+  await once(api, "listening");
+  const stop = server => {
+    server.closeAllConnections();
+    return new Promise(resolve => server.close(resolve));
+  };
+  t.after(() => stop(api));
+  const proxy = await startProxy(0, api.address().port, 0, key, cert);
+  t.after(() => stop(proxy));
+  const url = `https://127.0.0.1:${proxy.address().port}/api/v1/compliance/controls`;
+  const options = { rejectUnauthorized: false, agent: false };
+  const waitForRequest = once(api, "request", { signal: AbortSignal.timeout(3000) });
+  const abandoned = https.get(url, options);
+  abandoned.on("error", error => assert.equal(error.code, "ECONNRESET"));
+  const [, pending] = await waitForRequest;
+  const upstreamClosed = once(pending, "close", { signal: AbortSignal.timeout(3000) });
+  abandoned.destroy();
+  await upstreamClosed;
+
+  const fetchThroughProxy = () => new Promise((resolve, reject) => {
+    https.get(url, options, async reply => {
+      const chunks = [];
+      for await (const chunk of reply) chunks.push(chunk);
+      resolve([reply.statusCode, Buffer.concat(chunks).toString()]);
+    }).once("error", reject);
+  });
+  api.once("request", (_request, response) => response.end("completed"));
+  assert.deepEqual(await fetchThroughProxy(), [200, "completed"]);
+  api.once("request", (request) => request.socket.destroy());
+  assert.deepEqual(await fetchThroughProxy(), [502, "upstream unavailable"]);
+  assert.deepEqual(trace.map(entry => entry.status), [200, 502]);
+  assert.ok(trace.every(entry => ["lt1s","1to5s","5to9s","9to11s","ge11s"].includes(entry.duration)));
 });
 
 test("a failed cleanup retains the original browser harness failure and disposes handlers", async () => {

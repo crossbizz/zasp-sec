@@ -6250,6 +6250,8 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       const expectedScope=String(request.headers["x-zasp-expected-scope"]??"");
       const framework=target.searchParams.get("framework");
       const entry={method:request.method,path:target.pathname,status,cursor:target.searchParams.has("cursor"),cursorLength:(target.searchParams.get("cursor")??"").length,framework:["soc2_security","hipaa"].includes(framework)?framework:null,scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
+      const elapsed = performance.now() - auditStartedAt;
+      entry.duration = elapsed < 1000 ? "lt1s" : elapsed < 5000 ? "1to5s" : elapsed < 9000 ? "5to9s" : elapsed < 11000 ? "9to11s" : "ge11s";
       complianceResponseTrace.push(entry);
       return entry;
     }
@@ -6441,7 +6443,14 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
       upstreamResponse.pipe(response);
     });
+    const complianceRead = complianceBrowserMode && request.method === "GET" && target.pathname.startsWith("/api/v1/compliance/");
+    if (complianceRead) {
+      response.once("close", () => {
+        if (!response.writableFinished) upstream.destroy();
+      });
+    }
     upstream.on("error", () => {
+      if (complianceRead && response.destroyed) return;
       if (!response.headersSent) {
         observeCompliance(502);
         response.writeHead(502);
@@ -6907,7 +6916,8 @@ async function waitForCompliancePagingLinks(cdp, label, scope, traceStart) {
     if (!route || response.method !== "GET" || !Number.isInteger(response.status) || response.status < 100 || response.status > 599) continue;
     const framework = response.framework === "soc2_security" ? "soc2" : response.framework === "hipaa" ? "hipaa" : "all";
     const cursor = response.cursor ? response.cursorLength > 512 ? "long" : "short" : "first";
-    observations.add([route,framework,response.scope===scope?"selected":"other",cursor,response.status].join("-"));
+    const duration = ["lt1s","1to5s","5to9s","9to11s","ge11s"].includes(response.duration) ? response.duration : "unknown";
+    observations.add([route,framework,response.scope===scope?"selected":"other",cursor,response.status,duration].join("-"));
   }
   const state = ["loading","forbidden","unavailable","read-error","sign-in","pending","session-error","no-access","switching","evidence"].includes(last?.state) ? last.state : "other";
   const links = last?.links === 0 || last?.links === 1 ? last.links : "other";
