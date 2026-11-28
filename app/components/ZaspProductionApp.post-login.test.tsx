@@ -186,7 +186,9 @@ it("keeps the saved organization name visible in member administration and invit
   await userEvent.type(name, "Renamed Team");
   await userEvent.click(screen.getByRole("button", { name: "Save organization name" }));
   expect(await screen.findByText("Renamed Team")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Invite member" }));
+  const invite = await screen.findByRole("button", { name: "Invite member" });
+  await waitFor(() => expect(invite).toBeEnabled());
+  await userEvent.click(invite);
   expect(screen.getByRole("dialog", { name: "Invite member" })).toHaveTextContent("membership in Renamed Team");
   expect(orgReads).toEqual(["GET", "PATCH"]);
 });

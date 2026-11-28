@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { APIClient } from "../../../apps/web/api/client";
 import { APIProvider } from "../../api/APIProvider";
@@ -65,7 +65,8 @@ describe("getting started in the active environment", () => {
       management_state: "not_applicable", last_activity_at: null, activity_state: "not_applicable",
     };
     const { GET } = setup({ rows: { "/api/v1/identities": [identity] } });
-    await act(async () => {});
+    await waitFor(() => expect(GET).toHaveBeenCalledTimes(3));
+    await act(async () => { await Promise.all(GET.mock.results.map(result => result.value)); });
     expect(GET.mock.calls.map(([path]) => path)).toEqual(["/api/v1/tools", "/api/v1/identities", "/api/v1/runtimes"]);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();

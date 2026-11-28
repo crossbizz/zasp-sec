@@ -85,8 +85,10 @@ describe("Identity & Access product surface", () => {
     expect(await screen.findByText("SSO connection created")).toBeInTheDocument();
     expect(createSSOConnection).toHaveBeenCalledWith({ displayName: "Launch SSO", protocol: "saml", identityProvider: "generic" });
     await user.click(screen.getByRole("button", { name: "Test Corporate SAML" }));
+    expect(await screen.findByText("Corporate SAML connection is healthy")).toBeVisible();
     expect(testSSOConnection).toHaveBeenCalledWith("saml-connection-live-a");
     await user.click(screen.getByRole("button", { name: "Delete Corporate SCIM" }));
+    expect(await screen.findByText("SCIM connection deleted")).toBeVisible();
     expect(deleteSCIMConnection).toHaveBeenCalledWith("scim-connection-live-a");
   });
 
@@ -118,9 +120,9 @@ describe("Identity & Access product surface", () => {
     const updateMemberProfile = vi.fn(async (_id: string, displayName: string, version: number) => ({ ...member, displayName, version: version + 1 }));
     const memberAccess = vi.fn(async () => [{ workspace_id: "ws-1", environment_id: "env-2", workspace_name: "Payments", environment_name: "Staging", role: "security_engineer" as const, permissions: ["view" as const] }]);
     render(<IdentityAccessView api={fixtureAPI({ listMembers: async () => [member, { ...original, id: "legacy", memberReference: "legacy-id" }], updateMemberProfile, memberAccess })} />);
-    const search = await screen.findByRole("searchbox", { name: "Search members" });
-    fireEvent.change(search, { target: { value: "JORDAN@" } });
-    const directory = screen.getByRole("table", { name: "Organization members" });
+    const directory = await screen.findByRole("table", { name: "Organization members" });
+    expect(within(directory).getByText("legacy-id")).toBeVisible();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search members" }), { target: { value: "JORDAN@" } });
     expect(within(directory).getByText("Jordan Fox")).toBeVisible();
     expect(within(directory).queryByText("legacy-id")).toBeNull();
     await user.click(within(directory).getByRole("button", { name: "Manage Jordan Fox" }));
@@ -131,8 +133,8 @@ describe("Identity & Access product surface", () => {
     await user.clear(screen.getByLabelText("Display name"));
     fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Jordan Smith" } });
     await user.click(screen.getByRole("button", { name: "Save name" }));
+    expect(await within(directory).findByText("Jordan Smith")).toBeVisible();
     expect(updateMemberProfile).toHaveBeenCalledWith(member.id, "Jordan Smith", member.version);
-    expect(await screen.findByText("Jordan Smith")).toBeVisible();
   });
 
   it("sends an invitation with an explicit role and reloads its durable status", async () => {
@@ -147,8 +149,8 @@ describe("Identity & Access product surface", () => {
     fireEvent.change(within(dialog).getByLabelText("Display name"), { target: { value: "Jordan Smith" } });
     await user.selectOptions(within(dialog).getByLabelText("Initial role"), "organization_admin");
     await user.click(within(dialog).getByRole("button", { name: "Send invitation" }));
-    expect(inviteMember).toHaveBeenCalledWith({ email: "jordan@example.test", display_name: "Jordan Smith", role: "organization_admin" });
     expect(await screen.findByText("Pending")).toBeVisible();
+    expect(inviteMember).toHaveBeenCalledWith({ email: "jordan@example.test", display_name: "Jordan Smith", role: "organization_admin" });
     expect(listInvitations).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status")).toHaveTextContent("Invitation pending for jordan@example.test.");
   });
@@ -167,8 +169,8 @@ describe("Identity & Access product surface", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("could not be confirmed");
     expect(screen.queryByText("private provider error")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Confirm removal" }));
-    expect(removeMember).toHaveBeenCalledWith("pid_member", 1);
     expect(await screen.findByText("Disabled")).toBeVisible();
+    expect(removeMember).toHaveBeenCalledWith("pid_member", 1);
   });
 
 });

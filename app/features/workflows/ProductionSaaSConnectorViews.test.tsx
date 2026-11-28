@@ -51,16 +51,19 @@ function renderIntegrations(client: APIClient, location = "/connectors", canWrit
 
 describe("generic SaaS connector", () => {
 	it("shows only returned Nango integrations even when an older API supplies native sources", async () => {
+		const native: Integration = { ...created, connector_key: "aws", name: "Legacy AWS",
+			configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } };
 		const GET = vi.fn(async (path: string) => {
 			if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap());
 			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [awsManifest, manifest] });
-			if (path === "/api/v1/integrations") return jsonResult({ items: [{ ...created, connector_key: "aws", name: "Legacy AWS" }], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [native], page_info: { next_cursor: null, has_more: false } });
 			throw new Error(`unexpected GET ${path}`);
 		});
 		renderIntegrations({ GET } as unknown as APIClient, "/connectors#add-source");
 		expect(await screen.findByRole("button", { name: "Configure Acme AI" })).toBeVisible();
 		expect(screen.queryByRole("button", { name: "Configure Amazon Web Services" })).toBeNull();
 		await waitFor(() => expect(screen.getByRole("searchbox", { name: "Filter connectors" })).toHaveFocus());
+		expect(await screen.findByText("No integrations")).toBeVisible();
 		expect(screen.queryByRole("button", { name: "Open Legacy AWS" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "Slack" })).toBeNull();
 		expect(screen.queryByRole("button", { name: "Native connectors" })).toBeNull();
@@ -89,10 +92,12 @@ describe("generic SaaS connector", () => {
 
 	it("tells a read-only member who can connect the first source", async () => {
 		const GET = vi.fn(async (path: string) => path === "/api/v1/session/bootstrap" ? jsonResult(sessionBootstrap()) :
-			path === "/api/v1/integration-catalog" ? jsonResult({ items: [] }) :
+			path === "/api/v1/integration-catalog" ? jsonResult({ items: [manifest] }) :
 			jsonResult({ items: [], page_info: { next_cursor: null, has_more: false } }));
 		renderIntegrations({ GET } as unknown as APIClient, "/connectors", false);
 		expect(await screen.findByText(/Ask an environment administrator to connect a Nango source/)).toBeVisible();
+		await waitFor(() => expect(screen.queryByText("Loading integration catalog…")).toBeNull());
+		expect(screen.queryByRole("alert")).toBeNull();
 		expect(screen.queryByText("Add a source")).toBeNull();
 	});
 
