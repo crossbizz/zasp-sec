@@ -7,9 +7,52 @@ import os from "node:os";
 import http from "node:http";
 import path from "node:path";
 import test from "node:test";
-import { runInNewContext } from "node:vm";
+import { createContext, runInContext, runInNewContext } from "node:vm";
 import { auditBrowserAPISettings, auditBrowserEnvironment, auditBrowserPolicyEnvironment } from "./audit-log-browser-proof.mjs";
 import { exportBrowserIdentity, exportBrowserRelease } from "./security-agent-export-mounted-browser.mjs";
+
+test("compliance paging waits for both policy links in the selected scope and reports only bounded diagnostics", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function waitForCompliancePagingLinks(");
+  const end = source.indexOf("\nasync function waitForBrowserText(", start);
+  assert.ok(start >= 0 && end > start);
+  const scope = "selected-org/selected-workspace/selected-env", label = "Open policy fixture version 7";
+  const location = new URL("https://console.example/compliance/evidence");
+  const link = (origin, environment) => ({
+    href: origin + "/compliance/evidence?organization_id=selected-org&workspace_id=selected-workspace&environment_id=" + environment,
+    getAttribute: name => name === "aria-label" ? label : null,
+  });
+  const good = link(location.origin, "selected-env"), different = link(location.origin, "private-env");
+  let links = [good, different, link("https://different.example", "selected-env")];
+  let now = 0;
+  const messages = [];
+  const trace = {method: "GET", path: "/api/v1/compliance/evidence", framework: "hipaa", scope, cursor: true, cursorLength: 836, status: 200};
+  const wait = runInNewContext(`(${source.slice(start, end)})`, {
+    performance: {now: () => now}, delay: async milliseconds => { now += milliseconds; },
+    console: {error: message => messages.push(message)},
+    complianceResponseTrace: [
+      {...trace, status: 429}, trace, trace, {...trace, path: "/api/v1/compliance/controls", framework: null, cursor: false, scope: "private-env"},
+      {...trace, path: "/private/secret"}, {...trace, status: 998},
+    ],
+  });
+  const document = {body: {innerText: "Compliance request failed. private-env secret"}, querySelectorAll: selector => {
+    assert.equal(selector, "a[href]"); return links;
+  }};
+  const page = createContext({document, location, URL});
+  const browser = {send: async (method, {expression}) => {
+    assert.equal(method, "Runtime.evaluate");
+    return {result: {value: runInContext(expression, page)}};
+  }};
+  await assert.rejects(wait(browser, label, scope, 1), /both frameworks/);
+  assert.equal(now, 52_000);
+  assert.deepEqual(messages, ["ZASP_COMPLIANCE_PAGING=ui-read-error-links-1-route-evidence evidence-hipaa-selected-long-200 controls-all-other-first-200"]);
+  // Five valid serial responses may outlast the generic 15-second UI wait.
+  const startedAt = now;
+  document.querySelectorAll = () => now - startedAt >= 38_000 ? [good, good] : links;
+  await wait(browser, label, scope, 1);
+  assert.equal(now - startedAt, 38_000);
+  assert.equal(messages.length, 1);
+});
 
 test("a failed cleanup retains the original browser harness failure and disposes handlers", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");

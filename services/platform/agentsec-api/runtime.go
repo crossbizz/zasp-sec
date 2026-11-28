@@ -545,7 +545,7 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 	}
 	productServer := &http.Server{
 		Handler: dependencies.ProductHandler, ReadHeaderTimeout: 2 * time.Second, ReadTimeout: config.ProviderTimeout,
-		WriteTimeout: config.ProviderTimeout, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 * 1024,
+		WriteTimeout: config.RequestTimeout, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 * 1024,
 	}
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
