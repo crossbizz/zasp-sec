@@ -3,6 +3,17 @@ image: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha2
 # Set a verified nginx-unprivileged image digest; it must include the nginx executable.
 tlsProxyImage: ""
 publicOrigin: ""
+dashboard:
+  # Defaults to the TLS service hostname. Include this name in the certificate.
+  hostname: ""
+  # Enable only to register the first operator, then disable at the next upgrade.
+  allowSignup: false
+  # A tunnel works without these. Add explicit private gateway pods to enable
+  # the ClusterIP dashboard port 18443 and ingress from those pods.
+  clients: []
+  # Optional SMTPS credentials for private signup/invitation and recovery email.
+  emailSecret: ""         # keys: smtp-url (smtps://...:465), smtp-from
+  smtpEgressCIDRs: []     # exact SMTP server networks reachable on TCP 465
 storageSecret: nango-storage
 serverTLSSecret: nango-server-tls
 databaseCA: nango-database-ca

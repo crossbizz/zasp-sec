@@ -37,12 +37,14 @@ describe("M3 runtime ingestion and connection surfaces batch", () => {
   });
 
   it("renders product connection catalog, freshness, detail, history, and gated actions", async () => {
-    const [view, seed] = await Promise.all([
-      readFile(resolve(root, "app/features/connectors/ConnectorViews.tsx"), "utf8"),
+    const [view, api, seed] = await Promise.all([
+      readFile(resolve(root, "app/features/workflows/ProductionWorkflowViews.tsx"), "utf8"),
+      readFile(resolve(root, "app/features/workflows/api.ts"), "utf8"),
       readFile(resolve(root, "app/domain/seed.ts"), "utf8"),
     ]);
-    for (const value of ["Connected integrations", "Collected data", "Sync history", "Review access", "Sync now", "Delete connection"]) expect(view).toContain(value);
-    expect(view).not.toMatch(/Cartography|Prowler|Nango|Tetragon|OpenTelemetry/);
+    for (const value of ["Configured integrations", "Collected data", "Sync history", "Review access", "Sync inventory now", "Delete integration"]) expect(view).toContain(value);
+    expect(api).toContain("filter(isNangoManifest)");
+    expect(api).toContain("filter(isNangoIntegration)");
     expect(seed).toMatch(/freshness: "healthy"/);
     expect(seed).toMatch(/freshness: "stale"/);
     expect(seed).toMatch(/status: "failed"/);

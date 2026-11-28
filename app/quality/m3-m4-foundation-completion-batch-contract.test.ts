@@ -6,9 +6,9 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 describe("M3 UI/E2E and M4 reconciliation completion batch", () => {
   it("binds the selected tasks to reviewed product boundaries", () => {
-    const connector = read("app/features/connectors/ConnectorViews.tsx");
+    const connector = read("app/features/workflows/ProductionWorkflowViews.tsx");
     const sensor = read("app/features/sensors/SensorView.tsx");
-    for (const value of ["Connected integrations", "Collected data", "Sync history", "Sync now", "Delete connection"]) expect(connector).toContain(value);
+    for (const value of ["Configured integrations", "Collected data", "Sync history", "Sync inventory now", "Delete integration"]) expect(connector).toContain(value);
     for (const value of ["Enroll sensor", "Rotate enrollment token", "Delete sensor", "Coverage"]) expect(sensor).toContain(value);
     const reconciliation = read("services/platform/reconciliation/reconciliation.go") + read("services/platform/reconciliation/http.go");
     expect(reconciliation).toContain(") Reconcile(");

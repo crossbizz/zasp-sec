@@ -42,6 +42,11 @@ func TestProductStatementContracts(t *testing.T) {
 		browserOnly, fresh     bool
 	}
 	contracts := []contract{
+		{"pending member invitations", memberLifecycleReadSQL, "listMemberInvitations", "", []any{o, w, e, p, "listMemberInvitations", "", "", 51}, []AuthorizationTarget{target("organization_identity", o)}, 0, 3, -1, true, false},
+		{"member access", memberLifecycleReadSQL, "getMemberAccess", object, []any{o, w, e, p, "getMemberAccess", object, "", 1}, []AuthorizationTarget{target("organization_identity", o)}, 0, 3, 5, true, false},
+		{"invite member", memberLifecycleWriteSQL, "inviteMember", "", []any{o, w, e, p, "inviteMember", object, body, audit}, []AuthorizationTarget{target("organization_identity", o)}, 0, 3, -1, true, true},
+		{"profile edit", memberLifecycleWriteSQL, "updateMemberProfile", object, []any{o, w, e, p, "updateMemberProfile", object, body, audit}, []AuthorizationTarget{target("organization_identity", o)}, 0, 3, 5, true, true},
+		{"member removal", memberLifecycleWriteSQL, "removeMember", object, []any{o, w, e, p, "removeMember", object, body, audit}, []AuthorizationTarget{target("organization_identity", o)}, 0, 3, 5, true, true},
 		{"acknowledge", currentReceiptAcknowledgeSQL, "acknowledgeWorkflowMutationReceipt", receipt, []any{o, w, e, p, receipt}, []AuthorizationTarget{target("integration", object)}, 0, 3, 4, true, false},
 		{"policy value", currentPolicyValueSQL, "getPolicy", policy, []any{o, w, e, policy}, []AuthorizationTarget{policyTarget}, 0, -1, 3, false, false},
 		{"policy value for rollout", currentPolicyValueSQL, "rolloutPolicy", policy, []any{o, w, e, policy}, []AuthorizationTarget{policyTarget}, 0, -1, 3, false, false},
@@ -71,6 +76,7 @@ func TestProductStatementContracts(t *testing.T) {
 		{"workspace", currentHierarchyValueSQL, "getWorkspace", w, []any{o, w, e, "workspace", w}, []AuthorizationTarget{target("workspace", w)}, 0, -1, 4, true, false},
 		{"environment", currentHierarchyValueSQL, "getEnvironment", e, []any{o, w, e, "environment", e}, []AuthorizationTarget{target("environment", e)}, 0, -1, 4, true, false},
 		{"rename workspace", currentHierarchyRenameSQL, "updateWorkspace", w, []any{o, w, e, p, "workspace", w, "Name", int64(1), audit}, []AuthorizationTarget{target("workspace", w)}, 0, 3, 5, true, true},
+		{"rename organization", currentOrganizationRenameSQL, "updateOrganization", "", []any{o, w, e, p, "Name", int64(1), audit}, []AuthorizationTarget{target("organization_identity", o)}, 0, 3, -1, true, true},
 		{"rename environment", currentHierarchyRenameSQL, "updateEnvironment", e, []any{o, w, e, p, "environment", e, "Name", int64(1), audit}, []AuthorizationTarget{target("environment", e)}, 0, 3, 5, true, true},
 		{"update finding", currentFindingMutateSQL, "updateFinding", object, []any{"updateFinding", object, o, w, e, p, key, int64(1), "open", "", audit, audit, receipt}, []AuthorizationTarget{target("finding", object)}, 2, 5, 1, false, false},
 		{"accept finding risk", currentFindingMutateSQL, "acceptFindingRisk", object, []any{"acceptFindingRisk", object, o, w, e, p, key, int64(1), "accepted", "reason", audit, audit, receipt}, []AuthorizationTarget{target("finding", object)}, 2, 5, 1, false, false},

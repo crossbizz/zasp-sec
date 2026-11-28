@@ -1,3 +1,4 @@
+import { DeploymentSignInLink } from "../components/DeploymentSignInLink";
 import { AuthPage } from "../components/AuthPage";
 import { buildIdentityStartURL, safeReturnPath } from "../auth/browser-flow";
 
@@ -9,5 +10,6 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <h1>Sign in to Zasp</h1>
     <p>Continue through the configured identity provider.</p>
 		<a href={target}>Continue to sign in</a>
+    <p><DeploymentSignInLink /></p>
   </AuthPage>;
 }

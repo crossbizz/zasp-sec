@@ -151,7 +151,7 @@ If the browser lost the answer to a change that the server had stored, the top o
 
 ## Golden path
 
-Each step says what you should see. The numbers in brackets are what the test run measured.
+The measurements and native AWS browser steps below describe the November 14 test run. The current web catalog lists Nango-backed providers. On the local profile, exercise the native AWS integration through the API. To test the current browser setup with a provider, use the [Kubernetes Nango setup](../getting-started/administrator.md#set-up-nango-in-this-cluster).
 
 ### 1. Connect the emulated AWS account *(fresh sign-in)*
 

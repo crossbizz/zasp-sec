@@ -244,6 +244,7 @@ spec:
             - { name: ZASP_RUNTIME_STAGE_VERSION, value: {{ $worker.version | quote }} }
             {{- if eq $worker.kind "index" }}
             - { name: ZASP_RUNTIME_SESSION_INDEX, value: {{ default "zasp-runtime-sessions-v1" $worker.sessionIndex | quote }} }
+            {{- include "zasp.searchTLS.env" $root | nindent 12 }}
             - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "runtime.openSearchEndpoint is required" $root.Values.runtime.openSearchEndpoint | quote }} }
             - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "runtime.openSearchIndex is required" $root.Values.runtime.openSearchIndex | quote }} }
             {{- else if or (eq $worker.mode "runtime-correlation") (eq $worker.mode "runtime-projection") }}
@@ -255,9 +256,15 @@ spec:
             {{- end }}
             {{- end }}
           volumeMounts:
+            {{- if and $root.Values.searchTLS.enabled (eq $worker.kind "index") }}
+            {{- include "zasp.searchTLS.mount" . | nindent 12 }}
+            {{- end }}
             - { name: database, mountPath: /var/run/secrets/{{ $worker.mount }}, readOnly: true }
             - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
       volumes:
+        {{- if and $root.Values.searchTLS.enabled (eq $worker.kind "index") }}
+        {{- include "zasp.searchTLS.volume" "runtime" | nindent 8 }}
+        {{- end }}
         - name: database
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ index $root.Values.secrets $worker.provider | quote }} } }
         - name: web-identity
@@ -353,8 +360,7 @@ spec:
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
     {{- if $policy.search }}
-    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" $root.Values.network.opensearchCIDR | quote }} } }]
-      ports: [{ protocol: TCP, port: 443 }]
+    {{- include "zasp.searchTLS.egress" $root | nindent 4 }}
     {{- end }}
 {{- end }}
 ---

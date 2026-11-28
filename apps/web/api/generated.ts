@@ -385,6 +385,24 @@ export type paths = {
         readonly patch: operations["updateGroupMappings"];
         readonly trace?: never;
     };
+    readonly "/api/v1/admin/member-invitations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List pending invitations for the authenticated organization */
+        readonly get: operations["listMemberInvitations"];
+        readonly put?: never;
+        /** Invite a member to this organization with an initial role in the active scope */
+        readonly post: operations["inviteMember"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/admin/members": {
         readonly parameters: {
             readonly query?: never;
@@ -414,11 +432,50 @@ export type paths = {
         readonly get?: never;
         readonly put?: never;
         readonly post?: never;
-        readonly delete?: never;
+        /** Remove the member's access to the organization and revoke active sessions */
+        readonly delete: operations["removeMember"];
         readonly options?: never;
         readonly head?: never;
         /** Atomically update a member role and revoke active sessions */
         readonly patch: operations["updateMemberRole"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/members/{id}/access": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** View this member's workspace and environment access */
+        readonly get: operations["getMemberAccess"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/members/{id}/profile": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update the member's display name in this organization */
+        readonly patch: operations["updateMemberProfile"];
         readonly trace?: never;
     };
     readonly "/api/v1/admin/roles": {
@@ -2171,7 +2228,10 @@ export type paths = {
             readonly path?: never;
             readonly cookie?: never;
         };
-        /** Search the product connector catalog */
+        /**
+         * Search the configured Nango connector catalog
+         * @description Lists supported Nango integrations available to this deployment. An unconfigured deployment returns an empty list.
+         */
         readonly get: operations["listIntegrationCatalog"];
         readonly put?: never;
         readonly post?: never;
@@ -2594,7 +2654,8 @@ export type paths = {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        readonly patch?: never;
+        /** Rename the authenticated organization */
+        readonly patch: operations["updateOrganization"];
         readonly trace?: never;
     };
     readonly "/api/v1/organization/ai-controls": {
@@ -6770,6 +6831,43 @@ export type components = {
          * @enum {string}
          */
         readonly MCPToolRiskClass: "execute" | "write" | "network" | "read" | "unclassified";
+        readonly MemberAccess: {
+            readonly items: readonly components["schemas"]["MemberAccessScope"][];
+            readonly member_id: components["schemas"]["ProductID"];
+        };
+        readonly MemberAccessScope: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly environment_name: string;
+            readonly permissions: readonly components["schemas"]["Permission"][];
+            readonly role: components["schemas"]["BuiltInRoleName"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+            readonly workspace_name: string;
+        };
+        readonly MemberDisplayName: string;
+        /** Format: email */
+        readonly MemberEmail: string;
+        readonly MemberInvitation: {
+            readonly display_name: components["schemas"]["MemberDisplayName"];
+            readonly email: components["schemas"]["MemberEmail"];
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly role: components["schemas"]["BuiltInRoleName"];
+            /** @enum {string} */
+            readonly status: "pending" | "accepted";
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly MemberInvitationInput: {
+            readonly display_name: components["schemas"]["MemberDisplayName"];
+            readonly email: components["schemas"]["MemberEmail"];
+            readonly role: components["schemas"]["BuiltInRoleName"];
+        };
+        readonly MemberInvitationPage: {
+            readonly items: readonly components["schemas"]["MemberInvitation"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly MemberProfileInput: {
+            readonly display_name: components["schemas"]["MemberDisplayName"];
+        };
         readonly MemberRoleInput: {
             readonly role: components["schemas"]["BuiltInRoleName"];
         };
@@ -6979,6 +7077,8 @@ export type components = {
         readonly PolicySimulationInput: Record<string, never> | components["schemas"]["PolicyReplayInput"];
         readonly Principal: {
             readonly active: boolean;
+            readonly display_name?: components["schemas"]["MemberDisplayName"];
+            readonly email?: components["schemas"]["MemberEmail"];
             readonly id: components["schemas"]["ProductID"];
             readonly member_reference: string;
             readonly organization_id: components["schemas"]["ProductID"];
@@ -9378,6 +9478,14 @@ export type McpServerAgent = components['schemas']['MCPServerAgent'];
 export type McpServerPage = components['schemas']['MCPServerPage'];
 export type McpTool = components['schemas']['MCPTool'];
 export type McpToolRiskClass = components['schemas']['MCPToolRiskClass'];
+export type MemberAccess = components['schemas']['MemberAccess'];
+export type MemberAccessScope = components['schemas']['MemberAccessScope'];
+export type MemberDisplayName = components['schemas']['MemberDisplayName'];
+export type MemberEmail = components['schemas']['MemberEmail'];
+export type MemberInvitation = components['schemas']['MemberInvitation'];
+export type MemberInvitationInput = components['schemas']['MemberInvitationInput'];
+export type MemberInvitationPage = components['schemas']['MemberInvitationPage'];
+export type MemberProfileInput = components['schemas']['MemberProfileInput'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type ModelQualification = components['schemas']['ModelQualification'];
 export type ModelQualificationPage = components['schemas']['ModelQualificationPage'];
@@ -10388,6 +10496,74 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listMemberInvitations: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Pending invitations. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MemberInvitationPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly inviteMember: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["MemberInvitationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Organization member invitation. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MemberInvitation"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listMembers: {
         readonly parameters: {
             readonly query?: {
@@ -10412,6 +10588,43 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly removeMember: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Deactivated organization membership. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Principal"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -10446,6 +10659,75 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getMemberAccess: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Member scope assignments and permissions. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MemberAccess"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateMemberProfile: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["MemberProfileInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated member. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Principal"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -15053,6 +15335,45 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateOrganization: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["NameInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated organization. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Organization"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

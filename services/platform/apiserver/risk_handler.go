@@ -395,6 +395,9 @@ func (handler *riskHTTPHandler) mutateFinding(writer http.ResponseWriter, reques
 }
 
 func (handler *riskHTTPHandler) writeMutationResult(writer http.ResponseWriter, request *http.Request, result RiskFindingMutationResult) {
+	if result.Replayed {
+		suppressReplayedWorkflow(request.Context())
+	}
 	writer.Header().Set("ETag", quoteVersion(result.Version))
 	writer.Header().Set("X-Audit-ID", result.AuditID)
 	if result.ReceiptID != "" {

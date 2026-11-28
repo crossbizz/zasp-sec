@@ -1,5 +1,6 @@
 "use client";
 
+import { DeploymentSignInLink } from "./DeploymentSignInLink";
 import { isSaaSCallback } from "../features/workflows/saasSignIn";
 import { AuthPage } from "./AuthPage";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +36,7 @@ import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from
 import { PrivateAddonScan } from "../features/tools/PrivateAddonScan";
 import { Button, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
-import { parseActivityLink } from "../domain/activity-links";
+import { enrollSensorLocation, parseActivityLink } from "../domain/activity-links";
 import { parseCatalogLink } from "../domain/coverage-links";
 import { parseComplianceLink } from "../domain/compliance-links";
 
@@ -105,10 +106,13 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}/${initialSection}`} initialSection={initialSection} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   }
   if (path === "/connectors") return <ProductionIntegrationsView location={location} canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
-  if (path === "/integrations/sensors") return <ProductionSensorSurface canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
+  if (path === "/integrations/sensors") return <ProductionSensorSurface startEnrollment={location === enrollSensorLocation} canManagePolicy={session.permissions.includes("manage_workflows")} canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" selectedID={selected?.kind === "approval" ? selected.id : undefined} onNavigate={navigate} />;
-  if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;
+  if (path === "/administration/identity-access") {
+    if (queryScopeKey === null) return <LoadingState label="Checking identity access…" />;
+    return <IdentityAdministration key={`${session.principal.id}/${queryScopeKey}/${queryGeneration}`} client={client} session={session} />;
+  }
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
   if (path === "/investigate/sessions") return <ProductionSessionsView enableInvestigation={session.hasCapability("sessions.read")} key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
   if (path === "/administration/ai-controls") return <AIControlsView expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} key={`${session.principal.id}/${queryGeneration}`} client={client} canEditOrganization={session.hasCapability("identity.manage")} canEditEnvironment={session.hasCapability("data-controls.manage")} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} />;
@@ -133,6 +137,17 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     return <>{inventory}<PrivateAddonScan key={JSON.stringify([queryScopeKey, queryGeneration])} client={client} environment={session.environmentID} fresh={session.isFreshAuthenticated} reauthenticate={session.reauthenticate} /></>;
   }
   return inventory;
+}
+
+function IdentityAdministration({ client, session }: { client: APIClient; session: SessionContextValue }) {
+  const [organizationName, setOrganizationName] = useState<string>();
+  const manageOrganization = session.hasCapability("identity.manage");
+  const readOrganization = manageOrganization || session.hasCapability("identity.scopes.manage");
+  return <IdentityAPIProvider client={client}>
+    {(manageOrganization || session.hasCapability("identity.groups.manage")) &&
+      <IdentityAccessView organizationName={readOrganization ? organizationName : undefined} />}
+    {readOrganization && <ScopeOnboardingView client={client} onOrganizationNameChange={setOrganizationName} />}
+  </IdentityAPIProvider>;
 }
 
 function ProductionScopeSelector() {
@@ -233,7 +248,7 @@ function ProductionAppContent() {
     return () => window.clearTimeout(timer);
   }, [authorizationPending, retrySession, session.status, pendingAttempt]);
   if (session.status === "loading") return <AuthPage><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></AuthPage>;
-  if (session.status === "unauthenticated") return <AuthPage><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></AuthPage>;
+  if (session.status === "unauthenticated") return <AuthPage><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button><p><DeploymentSignInLink /></p></AuthPage>;
   if (session.status === "forbidden") return <AuthPage><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></AuthPage>;
   if (session.status === "error") return <AuthPage><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. This usually takes a few seconds; the page retries on its own. You can also retry now.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</AuthPage>;
   if (session.status !== "authenticated") return null;

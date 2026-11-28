@@ -68,6 +68,15 @@ Workspaces and Environments are created on the **Identity & Access** page, in
 the cards **Workspace onboarding** and **Environment onboarding**. You need a
 role that may manage scopes to see them.
 
+### Manage your organization and its members
+
+Open **Settings** → **Identity & Access** with organization identity-management access.
+
+- **Invite a member.** Select the workspace and environment the person should start in. Choose **Invite member**, enter a name and email address, and select a built-in role. **Invitations** shows pending invitations. The person follows the invitation and signs in before receiving access.
+- **Review or edit a member.** Search **Directory** by name or email and choose **Manage**. **Profile and role** lets you edit the display name or assign a built-in role. **Workspace access** shows the member’s workspace and environment grants and the permissions associated with each role. Changing the role revokes their active sessions.
+- **Remove access.** Choose **Remove from organization** on the member’s profile and confirm the person’s identity. The directory marks the membership disabled. The person loses access across the organization. Zasp protects your own membership from removal here and keeps an active organization administrator.
+- **Rename the organization.** Edit **Organization display name** in the **Organization** card and select **Save organization name**. The domain used for sign-in stays bound to the same organization.
+
 ### Roles
 
 A member has one built-in role per scope. The roles are listed on
@@ -87,6 +96,8 @@ guide names is missing, your role does not include it.
 
 ## 2. Connect your first source
 
+Open **Overview** after signing in. An empty environment shows **Get started with discovery**. Choose **Connect an integration** to select an enabled provider, authorize it, and verify its first sync. For runtime coverage, **Enroll a sensor** opens enrollment. Follow the collector-specific installation instructions, then check **Sensors** for its first heartbeat. When a source already exists, the overview links to its status. Members with read-only access can ask their environment administrator to complete setup.
+
 Zasp has nothing to show until one integration has synced. Start with the
 source where your agents are. No source is required and none comes first: an
 Environment can hold one integration or many, of any mix of providers.
@@ -99,29 +110,15 @@ servers and attack paths. Its integrations are named `Demo: …`. It is sample
 data: nothing in it comes from your accounts, and it can be removed at any
 time.
 
-All integrations are on the **Integrations** page:
-
-- **Add a source** lists what this deployment can connect.
-- **Configured integrations** lists what is connected.
-
 ### Choose a source
 
-| Source | What it finds | What you grant | Needs your administrator first |
-| --- | --- | --- | --- |
-| [AWS](#aws) | Bedrock agents, AgentCore runtimes and gateways, and agents inferred from Lambda, CloudTrail and network logs | A read role with an external ID | The two principals to trust and the external ID reference |
-| [GitHub](#github) | Repositories that are agent projects, their MCP configuration and skills | An installation of the GitHub App | A GitHub App configured in the deployment |
-| [Google Cloud](#google-cloud) | Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, and agents inferred from Cloud Run and Cloud Functions | A read-only service account | The connector enabled; for federation, the deployment's two roles |
-| [Kubernetes](#kubernetes) | Agent workloads, MCP servers and the links between them | A read-only cluster credential | The credential stored, and its reference |
-| [Microsoft](#microsoft-entra-copilot-studio-azure-ai) | Entra agent identities, AI enterprise applications, Copilot Studio agents, Azure OpenAI and AI Foundry | An application with read permissions | The connector enabled, and the client secret stored |
-| [Okta](#okta) | AI applications connected to the directory | A read-only OAuth authorization | An Okta application configured in the deployment |
-| [Salesforce](#salesforce-agentforce) | Agentforce agents, the users they run as, their topics and actions | A connected app with the client credentials flow | The connector enabled, and the consumer secret stored |
-| [SaaS platforms](#saas-platforms) | AI apps and agents of Slack, Google Workspace, ServiceNow, GitLab, Databricks, OpenAI, Anthropic and Atlassian | A sign-in, or an API key held by the connection service | The connector enabled; for key-based platforms, the connection created |
+Open **Integrations**. **Add a source** shows supported providers configured in this deployment's Nango environment. **Configured integrations** lists the Nango-backed connections saved in your current environment. Select a platform that holds your agents, then follow its [SaaS setup steps](#saas-platforms).
 
-If a connector shows **Not enabled** in **Add a source**, the deployment has not
-enabled it: ask your administrator. Google Cloud, Microsoft, Salesforce and the
-SaaS platforms are off until an administrator turns them on.
+If the provider is missing, ask your operator to check the Nango environment, integration key and Zasp collector configuration. [Administrator setup](administrator.md#set-up-nango-in-this-cluster)
 
 ### What each source gives you
+
+The table includes native adapters used by existing API integrations. Partners configuring a new connection in the web app should use the SaaS platforms row.
 
 Every source gives you an inventory, ownership, the general findings, attack
 paths, the AI bill of materials and evidence. Some things depend on what the
@@ -186,7 +183,7 @@ A coverage gap is not a failure. The sync succeeded and everything else was
 read. It means: agents of this kind may exist and Zasp cannot see them. The
 line disappears after the first sync with the gap closed.
 
-The sources follow in alphabetical order.
+The following native-adapter reference describes provider grants and configuration for operators managing existing integrations through the API. For the web catalog, see [SaaS platforms](#saas-platforms).
 
 ### AWS
 
@@ -295,8 +292,7 @@ of the AI services that were matched.
 
 **Step 3. Configure the integration.**
 
-1. Open **Integrations**. In **Add a source**, choose Amazon Web Services.
-2. Fill in the form:
+Supply these fields to the administrator managing the AWS integration through the API.
 
    | Field | Value |
    | --- | --- |
@@ -305,25 +301,17 @@ of the AI services that were matched.
    | **External ID** | `ref:aws/external-id/<name>`. This is a reference. Never paste the external ID itself. |
    | **Home region** | The region used for the identity check, for example `us-east-1` |
 
-3. Choose **Save integration**.
 
 **Step 4. Authorize and sync.**
 
-Follow [Authorize, sync and schedule](#authorize-sync-and-schedule). For AWS the
-authorize button reads `Authorize AWS reference`. Success shows
-**AWS account scope** with the account that was read.
+Authorize the AWS reference and run a sync through the integrations API. The setup-status response identifies the account that was read.
 
 ### GitHub
 
 What you grant: an installation of the Zasp GitHub App on your organization,
 with the read permissions `actions`, `contents` and `metadata`.
 
-1. In **Add a source**, choose GitHub. Enter `github_app` in
-   **Authorization mode**, the only value it accepts, and save.
-2. Open the integration and choose the authorize button. You continue on
-   GitHub, choose the organization, and choose all repositories or selected
-   ones.
-3. Back in the product, sync.
+Configure the GitHub integration through the API with `authorization_mode` set to `github_app`. Start authorization, then choose the organization and repositories on GitHub. Run a sync when authorization completes.
 
 What success looks like: the card **GitHub provider scope** shows
 **Organization scope**, **Repository scope** (**All repositories** or
@@ -363,7 +351,7 @@ federation: no key exists. Your administrator gives you the two AWS roles of the
 deployment; you allow them to impersonate the service account. The steps are in
 `docs/operations/google-cloud-connector.md`.
 
-In the product, choose Google Cloud:
+Supply the following Google Cloud configuration to the operator managing the integration through the API.
 
 | Field | Value |
 | --- | --- |
@@ -381,9 +369,8 @@ and `watch` on inventory resources. The built-in `view` ClusterRole is enough.
 1. Give the cluster's endpoint, CA and credential to your administrator, who
    stores them outside the browser and gives you a reference of the form
    `ref:kubernetes/connection/<name>`.
-2. In **Add a source**, choose Kubernetes. Enter the reference in
-   **Cluster credential reference** and save.
-3. Open the integration, authorize it, and choose **Sync inventory now**.
+2. Supply that reference to the operator managing the Kubernetes integration through the API.
+3. Authorize the integration and run a sync.
 
 What is found without anything installed: workloads whose pod template names an
 AI framework, a model provider or an MCP server, and the agents related to the
@@ -415,8 +402,7 @@ What you grant, in your tenant:
    Reader role on each subscription, and the Azure AI User role on each
    AI Foundry account whose agents should be listed.
 
-In the product, choose "Microsoft Entra and Copilot Studio" in
-**Add a source**:
+Supply the following Microsoft configuration to the operator managing the integration through the API.
 
 | Field | Value |
 | --- | --- |
@@ -433,11 +419,7 @@ integration's detail.
 What you grant: a read-only OAuth authorization with the scopes
 `okta.apps.read`, `okta.groups.read` and `okta.users.read`.
 
-1. In **Add a source**, choose Okta. Enter your tenant's address in
-   **Okta issuer**, in the form `https://<tenant>.okta.com`, and save.
-2. Open the integration and authorize. You continue on Okta and sign in with an
-   account that may grant those scopes.
-3. Sync.
+Supply the tenant address in the form `https://<tenant>.okta.com` to the operator managing the Okta integration through the API. Continue authorization on Okta with an account that may grant the scopes, then run a sync.
 
 What success looks like: the card **Okta provider scope** shows **Okta tenant**
 and **Directory scopes**.
@@ -457,7 +439,7 @@ What you grant, in your org:
 3. Give the consumer secret to your administrator, who gives you a reference of
    the form `ref:salesforce/client-secret/<name>`.
 
-In the product, choose "Salesforce Agentforce":
+Supply the following Salesforce configuration to the operator managing the integration through the API.
 
 | Field | Value |
 | --- | --- |
@@ -470,7 +452,7 @@ Then authorize and sync. Success shows **Salesforce org**.
 
 ### SaaS platforms
 
-Optional connector. Ask your administrator to enable it.
+**Add a source** lists each supported provider whose Nango integration is configured and whose Zasp adapter is available. A provider can offer sign-in or request the reference of a connection your administrator created in Nango.
 
 SaaS platforms are read through Nango, a connection service that is part of the
 deployment. Nango holds the provider's token. Zasp never receives it.
@@ -488,7 +470,7 @@ deployment. Nango holds the provider's token. Zasp never receives it.
 
 There are two ways to connect, depending on the platform.
 
-**Sign-in** (Slack, Google Workspace, ServiceNow, GitLab):
+**Sign-in** (when offered for Slack, Google Workspace, ServiceNow or GitLab)
 
 1. In **Add a source**, choose the platform. Enter its tenant identifier
    and save.
@@ -501,7 +483,7 @@ There are two ways to connect, depending on the platform.
 Use the same browser tab from start to end. A sign-in that returns to another
 tab is refused.
 
-**Reference** (OpenAI, Anthropic, Atlassian, Databricks):
+**Reference** (when the form requests a Nango connection)
 
 1. Your administrator creates the connection in Nango with the platform's API
    key or token, and gives you a reference of the form
@@ -1151,14 +1133,10 @@ described in `fern/README.md`.
 
 ## Runtime sensors (optional)
 
-The **Sensors** page is for the optional runtime sensor: software installed in
-your Kubernetes cluster that reports process and network events. It is not part
-of the agentless path, and nothing in this guide depends on it.
+Open **Sensors**. When the environment has no enrollments, **Set up your first runtime sensor** lets you choose a collector. An administrator can choose **Enroll sensor** and save the one-time token. If prompted, confirm your sign-in first. Members with read access can return here to check coverage once a collector reports.
 
-If you choose to install it: **Enroll sensor**, choose the **Sensor kind**
-(**Tetragon** or **OTLP**), and copy the token when the page says
-**Copy this token now**. It is shown once. The installation itself is described
-in the administrator guide.
+- Choose **Tetragon** for Kubernetes process and network events. Store the token in a Kubernetes Secret under the key `token`. Install Tetragon and the Zasp customer-edge chart with the Secret name and enrollment binding. Open the sensor to confirm the first heartbeat and event rate. [Customer-edge installation](../operations/production-deployment.md#install-the-customer-edge)
+- Choose **OTLP** when you operate a compatible semantic collector that converts application spans into Zasp runtime events. Configure the collector with the enrollment token and binding, send a supported session event, and check **Sessions** for the result. The collector reports heartbeat coverage separately.
 
 ### Managed endpoint policies
 
@@ -1207,7 +1185,7 @@ The messages below are the ones the product shows.
 
 | You see | What it means | What to do |
 | --- | --- | --- |
-| The connector shows **Not enabled** in **Add a source** | The deployment has not enabled it | Ask your administrator |
+| A provider is missing from **Add a source** | The Zasp adapter or its Nango configuration is unavailable | Ask your administrator to check the configured Nango environment, integration key and collector |
 | **No integrations** | Nothing is connected yet | Choose an entry in **Add a source** |
 | "Authoritative provider scope is unavailable. Setup remains incomplete." | The provider could not be read after authorization | Check what you granted at the provider and the reference you entered, then authorize again. For AWS: the role, the external ID reference and the trust policy. |
 | "Kubernetes inventory access was denied. Grant the documented get, list, and watch permissions, then run Test connection again." | The cluster credential is too narrow | Bind the credential to the `view` ClusterRole |

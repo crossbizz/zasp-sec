@@ -1,3 +1,4 @@
+import { LegacyIntegrationWorkflow } from "./test/LegacyIntegrationWorkflow";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -5,7 +6,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { APIClient } from "../../../apps/web/api/client";
 import type { Integration, IntegrationFreshness, IntegrationSetupStatus } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
-import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
 
 const integrationID = "pid_20000001-0000-4000-8000-000000000001";
 const syncID = "pid_20000002-0000-4000-8000-000000000002";
@@ -19,7 +19,7 @@ const freshness = { integration_id: integrationID, version: 7, last_good: { snap
 const setupStatus: IntegrationSetupStatus = { integration_id: integrationID, connector_key: "github", authorization: { state: "verified", scope_kind: "github_organization", scope_label: "acme", repository_selection: "selected", permissions: ["actions:read", "contents:read", "metadata:read"] }, runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 }, updated_at: "2026-08-19T00:00:04Z" };
 const receiptHeaders = { ETag: '"1"', "Cache-Control": "no-store", "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" };
 
-describe("production integration discovery workflows", () => {
+describe("integration discovery for existing records", () => {
   it("renders independent freshness, bounded history, and UTC schedule without internal identifiers or errors", async () => {
     const user = userEvent.setup();
     renderSurface(discoveryClient());
@@ -329,7 +329,7 @@ describe("production integration discovery workflows", () => {
 });
 
 function renderSurface(client: APIClient, canWrite = true, navigate?: (target: string) => void) {
-  return render(<APIProvider client={client}><ProductionIntegrationsView canWrite={canWrite} navigate={navigate} /></APIProvider>);
+  return render(<APIProvider client={client}><LegacyIntegrationWorkflow canWrite={canWrite} navigate={navigate} /></APIProvider>);
 }
 
 function discoveryClient(overrides: { catalog?: typeof manifest; integration?: Integration; freshness?: IntegrationFreshness; setupStatus?: IntegrationSetupStatus; POST?: ReturnType<typeof vi.fn>; PUT?: ReturnType<typeof vi.fn>; DELETE?: ReturnType<typeof vi.fn>; details?: Integration[] } = {}): APIClient {

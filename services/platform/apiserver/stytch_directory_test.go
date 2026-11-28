@@ -21,7 +21,7 @@ import (
 type fakeStytchDirectory struct {
 	mu            sync.Mutex
 	organizations []stytchOrganization
-	members       []stytchMember
+	members       []DirectoryMember
 	requests      []fakeStytchRequest
 	mutate        func(path string, response map[string]any)
 }
@@ -61,8 +61,10 @@ func (fake *fakeStytchDirectory) handler(t *testing.T) http.Handler {
 			response["organization"] = created
 		case "/v1/b2b/organizations/members/search":
 			response["members"] = fake.members
+		case "/v1/b2b/magic_links/email/login_or_signup":
+			response["member"] = fake.members[0]
 		case "/v1/b2b/magic_links/email/invite":
-			invited := stytchMember{Reference: "member-test-invited", OrganizationReference: body["organization_id"].(string), Email: body["email_address"].(string), Status: "invited"}
+			invited := DirectoryMember{Reference: "member-test-invited", OrganizationReference: body["organization_id"].(string), Email: body["email_address"].(string), Status: "invited"}
 			fake.members = append(fake.members, invited)
 			response["member"] = invited
 		default:
@@ -229,13 +231,13 @@ func TestStytchDirectoryInvitesTheFirstAdministratorWithoutAPasswordOnlyOnce(t *
 func TestStytchDirectoryRefusesAnInvitationForAnotherOrganizationOrAddress(t *testing.T) {
 	for name, mutate := range map[string]func(map[string]any){
 		"other organization": func(response map[string]any) {
-			response["member"] = stytchMember{Reference: "member-test-invited", OrganizationReference: "organization-test-other", Email: "admin@acme.example", Status: "invited"}
+			response["member"] = DirectoryMember{Reference: "member-test-invited", OrganizationReference: "organization-test-other", Email: "admin@acme.example", Status: "invited"}
 		},
 		"other address": func(response map[string]any) {
-			response["member"] = stytchMember{Reference: "member-test-invited", OrganizationReference: "organization-test-acme", Email: "intruder@acme.example", Status: "invited"}
+			response["member"] = DirectoryMember{Reference: "member-test-invited", OrganizationReference: "organization-test-acme", Email: "intruder@acme.example", Status: "invited"}
 		},
 		"deleted member": func(response map[string]any) {
-			response["member"] = stytchMember{Reference: "member-test-invited", OrganizationReference: "organization-test-acme", Email: "admin@acme.example", Status: "deleted"}
+			response["member"] = DirectoryMember{Reference: "member-test-invited", OrganizationReference: "organization-test-acme", Email: "admin@acme.example", Status: "deleted"}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

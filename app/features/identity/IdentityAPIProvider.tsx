@@ -20,7 +20,7 @@ import type {
   SsoConnectionMutation,
   SsoConnectionPage,
 } from "../../../apps/web/api/generated";
-import { decodeBuiltInRolePage, decodeConnectionDeletion, decodeConnectionTest, decodeGroupMapping, decodeGroupMappingPage, decodePrincipal, decodePrincipalPage, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage } from "../../../apps/web/api/administration-decoders";
+import { decodeBuiltInRolePage, decodeConnectionDeletion, decodeConnectionTest, decodeGroupMapping, decodeGroupMappingPage, decodeMemberAccess, decodeMemberInvitation, decodeMemberInvitationPage, decodePrincipal, decodePrincipalPage, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage } from "../../../apps/web/api/administration-decoders";
 import type { IdentityAdminAPI } from "./IdentityAccessView";
 
 const IdentityAPIContext = createContext<IdentityAdminAPI | null>(null);
@@ -37,11 +37,42 @@ export function createIdentityAdminAPI(client: APIClient): IdentityAdminAPI {
   return {
     async listMembers() {
       const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<PrincipalPage>(await client.GET("/api/v1/admin/members", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodePrincipalPage), { maximumItems: 2_000, maximumPages: 20 });
-      return loaded.items.map((item) => ({ id: item.id, memberReference: item.member_reference, role: item.role, active: item.active, version: item.version ?? 1 }));
+      return loaded.items.map(item => identityMember(item));
+    },
+    async listInvitations() {
+      const page = await loadAllCursorPages(async cursor => requireAPIData(await client.GET("/api/v1/admin/member-invitations", {
+        params: { query: { limit: 100, cursor } },
+      }), decodeMemberInvitationPage), { maximumItems: 2_000, maximumPages: 20 });
+      return page.items;
+    },
+    async inviteMember(input) {
+      return mutation(`invite:${JSON.stringify(input)}`, async key => requireAPIData(await client.POST("/api/v1/admin/member-invitations", {
+        params: { header: identityMutationHeaders(key) }, body: input,
+      }), decodeMemberInvitation));
+    },
+    async updateMemberProfile(id, displayName, version) {
+      const item = requireAPIData(await client.PATCH("/api/v1/admin/members/{id}/profile", {
+        params: { path: { id }, header: memberChangeHeaders(version) }, body: { display_name: displayName },
+      }), decodePrincipal);
+      if (item.id !== id || item.display_name !== displayName) throw new Error("Member profile change was not confirmed");
+      return identityMember(item, version + 1);
+    },
+    async removeMember(id, version) {
+      const item = requireAPIData(await client.DELETE("/api/v1/admin/members/{id}", {
+        params: { path: { id }, header: memberChangeHeaders(version) },
+      }), decodePrincipal);
+      if (item.id !== id || item.active) throw new Error("Member removal was not confirmed");
+      return identityMember(item, version + 1);
+    },
+    async memberAccess(id) {
+      const access = requireAPIData(await client.GET("/api/v1/admin/members/{id}/access", { params: { path: { id } } }), decodeMemberAccess);
+      if (access.member_id !== id) throw new Error("Member access response does not match the requested member");
+      return access.items;
     },
     async updateMemberRole(id, role, version) {
       const item = requireAPIData<Principal>(await client.PATCH("/api/v1/admin/members/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } }, body: { role: role as Principal["role"] } }), decodePrincipal);
-      return { id: item.id, memberReference: item.member_reference, role: item.role, active: item.active, version: item.version ?? version + 1 };
+      if (item.id !== id || item.role !== role) throw new Error("Member role change was not confirmed");
+      return identityMember(item, version + 1);
     },
     async listRoles() {
       const page = requireAPIData<BuiltInRolePage>(await client.GET("/api/v1/admin/roles"), decodeBuiltInRolePage);
@@ -83,6 +114,15 @@ export function createIdentityAdminAPI(client: APIClient): IdentityAdminAPI {
       return groupMapping(requireAPIData<GroupMapping>(await client.PATCH("/api/v1/admin/group-mappings", { params: { header: { "X-CSRF-Token": "", "X-Zasp-Fresh-Auth": "confirmed" } }, body }), decodeGroupMapping));
     },
   };
+}
+
+function identityMember(item: Principal, fallbackVersion = 1) {
+  return { id: item.id, memberReference: item.member_reference, displayName: item.display_name, email: item.email,
+    role: item.role, active: item.active, version: item.version ?? fallbackVersion };
+}
+
+function memberChangeHeaders(version: number) {
+  return { "X-CSRF-Token": "", "X-Zasp-Fresh-Auth": "confirmed", "If-Match": `"${version}"` } as const;
 }
 
 function groupMapping(item: GroupMapping) {

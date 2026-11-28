@@ -9,13 +9,14 @@ import (
 var ErrInvalidComposition = errors.New("invalid API composition")
 
 type Dependencies struct {
-	Authorizer RequestAuthorizer
-	Session    http.Handler
-	Identity   http.Handler
-	Inventory  http.Handler
-	Risk       http.Handler
-	Workflow   http.Handler
-	Connector  http.Handler
+	WorkflowTelemetry WorkflowTelemetry
+	Authorizer        RequestAuthorizer
+	Session           http.Handler
+	Identity          http.Handler
+	Inventory         http.Handler
+	Risk              http.Handler
+	Workflow          http.Handler
+	Connector         http.Handler
 }
 
 type OperationDefinition struct {
@@ -59,6 +60,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PUT", "/api/v1/session/scope", "switchSessionScope", "", []string{"BrowserSession"}}, sessionDependency},
 	{OperationDefinition{"GET", "/api/v1/me", "getCurrentPrincipal", "", []string{"BrowserSession", "ProductAPIToken"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/organization", "getOrganization", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/organization", "updateOrganization", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/workspaces", "listWorkspaces", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/workspaces", "createWorkspace", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/workspaces/{id}", "getWorkspace", "view", []string{"BrowserSession"}}, identityDependency},
@@ -70,6 +72,11 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/admin/members", "listMembers", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/roles", "listBuiltInRoles", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/admin/members/{id}", "updateMemberRole", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/members/{id}/access", "getMemberAccess", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"DELETE", "/api/v1/admin/members/{id}", "removeMember", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/admin/members/{id}/profile", "updateMemberProfile", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/admin/member-invitations", "inviteMember", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/member-invitations", "listMemberInvitations", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/group-mappings", "listGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/admin/group-mappings", "updateGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/sso-connections", "listSSOConnections", "manage_identity", []string{"BrowserSession"}}, identityDependency},
@@ -461,7 +468,8 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 			operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: "view", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: definition.Method == http.MethodPost, Handler: agentExportHandler})
 		}
 	}
-	for _, operation := range operations {
+	for index, operation := range operations {
+		operations[index].Handler = withWorkflowTelemetry(operation, dependencies.WorkflowTelemetry)
 		if seenOperations[operation.OperationID] {
 			return nil, ErrInvalidComposition
 		}
@@ -483,7 +491,8 @@ func requiresFreshAuthentication(operationID string) bool {
 		return true
 	case "verifyAgentDiscovery", "draftAgentPurpose", "deepScanAddonVersion", "createCustomSecurityAgent", "updateCustomSecurityAgent", "reviewAddonDeploymentApproval", "reviewAddonVersion", "approveCLILogin", "createPrivateAddonUpload":
 		return true
-	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
+	case "updateOrganization", "inviteMember", "updateMemberProfile", "removeMember",
+		"createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"authorizeWorkloadContainment", "releaseWorkloadContainment", "bindWorkloadCredential", "updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "putAPITokenPolicy",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":

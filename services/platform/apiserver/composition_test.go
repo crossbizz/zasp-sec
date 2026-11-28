@@ -79,8 +79,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 227 || len(public) != 241 {
-		t.Fatalf("base/public operation counts = %d/%d, want 227/241", len(seen), len(public))
+	if len(seen) != 275 || len(public) != 289 {
+		t.Fatalf("base/public operation counts = %d/%d, want 275/289", len(seen), len(public))
 	}
 	extended, err := NewCompositionWithSecurityAgentExports(auditExportCompositionDependencies(), handlerResponse("export"), handlerResponse("compliance"), handlerResponse("agent-export"))
 	if err != nil {

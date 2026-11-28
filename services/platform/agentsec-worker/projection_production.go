@@ -168,7 +168,7 @@ func newProductionSearchProjection(ctx context.Context, config workerRuntimeConf
 	}
 	enterStartupStage("projection-search-driver")
 	requestTimeout := minDuration(time.Duration(config.LeaseDuration)/3, 30*time.Second)
-	driver, err := opensearchdriver.New(opensearchdriver.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL),
+	driver, err := opensearchdriver.New(opensearchdriver.Config{AuthMode: config.OpenSearchAuthMode, AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL),
 		Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20,
 	}, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 	if err != nil {

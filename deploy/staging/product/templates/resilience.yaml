@@ -90,9 +90,13 @@ spec:
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
-metadata: { name: default-deny, labels: { app.kubernetes.io/part-of: zasp } }
+metadata: { name: {{ ternary "agentsec-default-deny" "default-deny" .Values.network.scopeDefaultDenyToProduct }}, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
+  {{- if .Values.network.scopeDefaultDenyToProduct }}
+  podSelector: {matchLabels: {app.kubernetes.io/part-of: zasp}}
+  {{- else }}
   podSelector: {}
+  {{- end }}
   policyTypes: [Ingress, Egress]
 ---
 apiVersion: networking.k8s.io/v1
@@ -183,8 +187,16 @@ spec:
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.stytchCIDR is required" .Values.network.stytchCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 443 }]
-    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
-      ports: [{ protocol: TCP, port: 443 }]
+    {{- if and .Values.posthog .Values.posthog.enabled }}
+    {{- if not .Values.posthog.egressCIDRs }}{{ fail "posthog.egressCIDRs is required when posthog.enabled is set" }}{{ end }}
+    {{- $origin := urlParse (required "posthog.host is required" .Values.posthog.host) }}
+    - to:
+        {{- range .Values.posthog.egressCIDRs }}
+        - ipBlock: { cidr: {{ . | quote }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: {{ regexFind ":[0-9]+$" $origin.host | trimPrefix ":" | default "443" | atoi }} }]
+    {{- end }}
+    {{- include "zasp.searchTLS.egress" . | nindent 4 }}
 {{- $connectorAWS := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
 {{- $connectorGitHub := required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github }}
 {{- $connectorOkta := required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta }}
@@ -408,8 +420,7 @@ spec:
   egress:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
-    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
-      ports: [{ protocol: TCP, port: 443 }]
+    {{- include "zasp.searchTLS.egress" . | nindent 4 }}
     - to:
       {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
         - ipBlock: { cidr: {{ $cidr | quote }} }

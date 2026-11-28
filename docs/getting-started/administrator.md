@@ -52,7 +52,7 @@ Select the target with `--config` and its recorded `ZASP_PROFILE`. The CLI rejec
 | AWS: STS, IAM, Secrets Manager, KMS, S3, SQS | Workload identity, connector secrets, evidence storage, job queues. | A real AWS account in production. LocalStack in the two evaluation profiles. |
 | Identity provider: Stytch B2B | Sign-in, organizations, invitations. A hosted service. | A Stytch project. It cannot be self-hosted. |
 | Model provider: OpenRouter | Plans Security Agent runs. Optional. | An API key. |
-| Nango | OAuth sign-in to SaaS platforms for the SaaS connectors. Optional. | Its own database. Production chart only. |
+| Nango | Holds SaaS provider credentials and connects the catalog to the providers configured for this installation. | Its own database. Available in the Kubernetes evaluation and production charts. |
 
 Two requirements are worth knowing before you choose a profile:
 
@@ -234,6 +234,25 @@ Add `127.0.0.1 zasp.example.test` to `/etc/hosts`, then open the origin.
 
 To expose it properly, set `service.type: LoadBalancer`, or `ingress.enabled: true` with an ingress controller that re-encrypts to the service (the pod terminates TLS itself) and a TLS Secret. Replace the generated certificate in `secrets.frontTlsCertificate` and `secrets.frontTlsKey` with one from your own authority.
 
+### Set up Nango in this cluster
+
+New values written by `./zasp --profile kubernetes secrets init` enable Nango and generate its service key, dashboard signing key and credential encryption key. The same Helm install starts a Nango migration and server, creates a dedicated database in the pod's PostgreSQL, and connects the Zasp API and discovery worker to the private `<release>-nango` Service on port 3003. The first Nango account creates the `prod` environment with an empty provider list.
+
+For an existing Kubernetes release, enable `nango.enabled: true` in the existing private values file. Generate a random UUID version 4 for `secrets.nangoServiceKey` (on Linux, `uuidgen --random`), an independent `secrets.nangoAdminKey` with `openssl rand -hex 32`, and `secrets.nangoEncryptionKey` with `openssl rand -base64 32`. If an earlier installation generated a 64-character hexadecimal service key, replace that service key with a UUID version 4 and restart the Nango server and its product clients. Run `./zasp --profile kubernetes upgrade`. To use an operator-managed Secret, set `nango.existingSecret` to its name in the release namespace. Its keys are `service-key`, `admin-key` and `encryption-key`, with no trailing newline. Preserve these keys with the database backup.
+
+1. Open a private tunnel from your workstation. Leave it running while using the dashboard.
+
+   ```bash
+   ./zasp --profile kubernetes nango dashboard
+   ```
+
+   Open `http://127.0.0.1:3003/` in your browser. For a direct Helm installation, the equivalent command is `kubectl -n zasp port-forward --address=127.0.0.1 service/zasp-nango 3003:3003`. Substitute your release name and namespace if they differ.
+2. Create the first local Nango operator account, or sign in to the existing account. This chart runs without SMTP. On first signup, read the verification message privately with `kubectl -n zasp logs zasp-0 -c nango --since=10m` and open its single-use link while the tunnel is running. Treat the message as a credential.
+3. Select the **prod** environment. For OAuth, open its environment settings, find **Auth callback** and save the **Callback URL** as `<public Zasp origin>/api/v1/integrations/oauth/callback`. Include the port if your Zasp origin specifies one. Register this exact URL with your OAuth provider. The dashboard uses the local tunnel for its account and session. The provider returns users to the public Zasp callback. [Nango environment callback setting](https://github.com/NangoHQ/nango/blob/7faf2c303bbb0322333f526e9ca31c0fe95ef58e/packages/webapp/src/pages/Environment/Settings/Backend.tsx)
+4. In Nango **Integrations**, add the provider and give it the unique key the Zasp adapter uses, such as `slack` or `openai-admin`. Enter the provider application's credentials in Nango. In Zasp **Integrations**, select the configured provider, connect the tenant, authorize it and run the first sync. For an API-key adapter, create the customer connection in Nango and use its `ref:nango/connection/<connection-id>` reference in Zasp. [Provider setup and scopes](../operations/saas-connectors.md)
+
+To check a rollout, run `kubectl -n zasp logs zasp-0 -c nango-migrate` and `kubectl -n zasp get service zasp-nango`. While the tunnel is open, `curl --fail http://127.0.0.1:3003/ready` verifies Nango startup. Seeing the configured source in Zasp verifies access to the same environment. The independent TLS-protected Helm release has a separate setup procedure. [Independent Nango release](../operations/independent-nango.md)
+
 ### What you can switch off or point elsewhere
 
 | Dependency | In the pod by default | To use your own |
@@ -243,7 +262,7 @@ To expose it properly, set `service.type: LoadBalancer`, or `ingress.enabled: tr
 | OpenFGA | Yes, with a database in the pod's PostgreSQL | Not possible in this chart, for the same reason: plaintext is accepted on loopback only. |
 | OpenSearch, Neo4j | Yes, without persistence. The next sync rebuilds them. | Not possible in this chart. |
 | Object store, queue, secrets, keys | LocalStack | Not possible: the product speaks to AWS APIs only, and a real AWS account means the `aws` profile. |
-| Nango | No | Production chart only. |
+| Nango | Yes with CLI-generated values | The chart runs one instance behind the private `<release>-nango` Service. Set `nango.enabled: false` to omit it. |
 
 This table is the honest answer to "can each dependency be an external managed service": for the product database, yes. For the others the product's own rules tie plaintext dependencies to the loopback interface, so the choice is between this pod and the production topology.
 
@@ -337,7 +356,7 @@ Roll out and look.
 | `ZASP_OAUTH_PROVIDER` | The OAuth provider returning members sign in with. | No, default `google` | Must be enabled in the Stytch project. The production chart is fixed to Google. |
 | GitHub App ID, client ID, client secret, private key | The GitHub connector. | No. Placeholders are used until you connect GitHub. | Create a GitHub App in your GitHub organization. `aws`: Terraform variables and the Secrets Manager entries `connectors/github/*`. |
 | Okta client ID and client secret | The Okta connector. | No. Placeholders are used. | Create an API services application in Okta. `aws`: as for GitHub, `connectors/okta/client-secret`. |
-| Nango secret key (`service-key`), database URL, encryption key | SaaS connectors that sign in through Nango. | No | Generate the keys yourself; `aws` only, Kubernetes Secret `nango-storage`. See [SaaS connectors](../operations/saas-connectors.md). |
+| Nango service, dashboard and encryption keys | SaaS provider setup, sign-in and discovery. | With Nango | `kubernetes` generates the keys in the private values file and uses the pod's dedicated Nango database. Production also needs a verified TLS database URL in `nango-storage`. [Kubernetes Nango setup](#set-up-nango-in-this-cluster) |
 | AWS role ARNs of customer accounts | The roles the product may assume to read a customer account. | To connect a real AWS account | The customer creates a read role under the path `/zasp-reference/`; you list it in the Terraform variables. Runbook step 12. |
 | Neo4j endpoint and credentials | The graph projection. | `aws`: yes for three workloads | Your Neo4j (AuraDB or self-run). The evaluation profiles run their own. |
 | Operator DSN | Installs the schema, as the database role `zasp_operator`. | `aws`; `kubernetes` with an external database | You create the role and the database: [schema guide](../operations/baseline-schema-install.md). |
@@ -531,21 +550,18 @@ Shows the last 100 lines. Add `--follow` to keep reading. The API and the worker
 
 ### Upgrade
 
-Get the new code (not run in the authoring environment):
+Back up the deployment and roll out the new checkout.
 
 ```bash
 git pull
-```
-
-Then:
-
-```bash
 ./zasp upgrade
 ```
 
-Locally this stops the processes, rebuilds the programs and the web application, and starts again. On Kubernetes and AWS it runs the chart again with your values; build and reference new images first (`--build-images` on Kubernetes, `./zasp install images` on AWS).
+Locally this stops the processes, rebuilds the programs and web application, upgrades the schema and restarts the deployment. On Kubernetes and AWS it runs the chart with your values. Build and reference the new images first (`--build-images` on Kubernetes and `./zasp install images` on AWS).
 
-**There is no in-place schema upgrade between releases.** Each release carries one schema artifact. When the installed schema came from another artifact, `./zasp upgrade` stops and says so, and the only way forward is to reinstall: back up for reference, uninstall, install. Organizations, members, integrations and API tokens are lost. This is a property of the product today, described in [the schema guide](../operations/baseline-schema-install.md#reinstalling-over-an-earlier-artifact). To see which artifact is installed:
+V5 upgrades supported, intact baseline releases in place, preserving organizations, members, API tokens and integrations. If the catalog has drifted or the installed artifact is unknown, the migration stops. Check the recorded artifact before planning recovery. [Supported schema upgrades](../operations/baseline-schema-install.md#upgrading-an-existing-baseline)
+
+To verify the installed artifact locally, run
 
 ```bash
 deploy/local/real-stack/stack.sh verify
@@ -620,12 +636,32 @@ None of the switches in this section were exercised in the authoring environment
 | Salesforce (Agentforce) | Off. `ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION=collector_v1`. | `discovery.salesforceCollectorVersion`. | [Runbook step 14](../operations/production-aws-runbook.md) |
 | Google Cloud | Off. `ZASP_DISCOVERY_GCP_COLLECTOR_VERSION=collector_v1`. | Terraform `discovery_optional_providers.gcp_collector`. | [Google Cloud connector](../operations/google-cloud-connector.md) |
 | SaaS connectors through Nango (Slack, Atlassian, GitLab, Databricks, ServiceNow, Google Workspace, OpenAI, Anthropic) | Not available: the local stack runs no Nango. | `discovery.saasCollectorVersion: collector_v1`, the Secret `nango-storage`, and each platform's address ranges. | [SaaS connectors](../operations/saas-connectors.md) |
+| Product usage analytics | Off. Set the two PostHog API environment variables before starting the API. | Off. Configure the PostHog project and API egress. | [PostHog setup and events](#posthog-product-analytics) |
 | Hosted gateway (MCP gateway and model proxy) | Off. | `hostedGateway.enabled: true` and `hostedGateway.egressCIDRs`. | [Hosted gateway](../operations/hosted-gateway.md) |
 | Remediation role (the Security Agent changes a customer AWS account after approval) | Off. | `securityAgentRemediation.*`, and a remediation role in the customer account. | [Runbook step 16](../operations/production-aws-runbook.md) |
 | Runtime agent discovery in a customer cluster | Off. | The customer-edge values of the hosted chart. This is the one feature that installs something at a customer. | [Runbook step 15](../operations/production-aws-runbook.md) |
 | Security Agent planner | Set `OPENROUTER_API_KEY`. | Secrets Manager `openrouter-security-agent-api-key`. | [Local stack README](../../deploy/local/real-stack/README.md) |
 
-The evaluation chart (`kubernetes` profile) has none of these switches except the planner (`securityAgent.planner`).
+The evaluation chart supports `securityAgent.planner` and the bundled SaaS connection service (`nango.enabled`). [Kubernetes Nango setup](#set-up-nango-in-this-cluster)
+
+### PostHog product analytics
+
+To opt in for a deployment, set `ZASP_POSTHOG_HOST` to your project's HTTPS ingestion origin (for example `https://us.i.posthog.com` or `https://eu.i.posthog.com`) and supply its `phc_` project token as `ZASP_POSTHOG_PROJECT_KEY` to the API process. Restart the API after changing either setting. Leave both unset to disable collection.
+
+For either Helm chart, create a Secret in the release namespace containing the project token under `project-key`. Set `posthog.enabled` to `true`, `posthog.host` to the ingestion origin and `posthog.existingSecret` to the Secret's name. The production chart also requires `posthog.egressCIDRs` for the ingestion destination.
+
+The API captures successful operations from authenticated browser sessions. In PostHog, break down these events by their `source` property.
+
+| Event | Workflow | Values of `source` |
+| --- | --- | --- |
+| `workflow_action` | Set up a team | `workspace_created`, `environment_created`, `member_invited` |
+| `workflow_action` | Set up discovery | `integration_created`, `integration_sync_requested`, `sensor_enrollment_created` |
+| `workflow_action` | Manage a policy or finding | `policy_created`, `policy_rolled_out`, `finding_updated` |
+| `workflow_usage` | Read an overview, investigation, or report | `home_summary_read`, `finding_detail_read`, `audit_log_read`, `compliance_coverage_read` |
+
+For example, define a PostHog Action named **Integration created** matching `workflow_action` where `source` equals `integration_created`. Define **Sync requested** the same way with `integration_sync_requested`. Use those Actions as successive funnel steps to measure how many organizations that created an integration went on to request a sync. A sync request counts when the API accepts it for processing. A usage read counts when the API serves the data, so refreshing a view can count again.
+
+Each event carries a project-specific pseudonym for the organization. Unique counts therefore measure organizations. Person profiles and GeoIP enrichment are disabled. Capture runs server-side with a fixed set of properties. Requests, credentials, member details and security evidence stay out of the event. Delivery is best effort. Counts can understate activity during an outage or a burst of requests.
 
 ## Health checks
 

@@ -11,7 +11,7 @@ test('named profile packages an inspected canonical61 installer and purpose-spec
   // The baseline installer replaces the chain profile and principal registration.
   assert.deepEqual(authorizationTemporalMigrationCommands(actual),['register-authorization-verifier','register-worker-authorization-verifier','register-compensation-authorization-verifier','register-approval-maintenance-verifier']);
   const shell=authorizationTemporalMigrationShell(actual);
-  assert.match(shell,/^export ZASP_POSTGRES_DSN="\$\(cat \/var\/run\/secrets\/zasp-migration\/postgres-dsn\)"; export ZASP_WORKFLOW_SIGNING_KEY=.*; if ! \/app\/agentsec-migrate verify-baseline; then \/app\/agentsec-migrate install-baseline; \/app\/agentsec-migrate verify-baseline; fi; \/app\/agentsec-migrate register-authorization-verifier; .*register-approval-maintenance-verifier$/);
+  assert.match(shell,/^export ZASP_POSTGRES_DSN="\$\(cat \/var\/run\/secrets\/zasp-migration\/postgres-dsn\)"; export ZASP_WORKFLOW_SIGNING_KEY=.*; \/app\/agentsec-migrate ensure-baseline; \/app\/agentsec-migrate register-authorization-verifier; .*register-approval-maintenance-verifier$/);
   assert.doesNotMatch(shell,/up-|register-temporal-executor-principals|register-identity|stytch/);
   const later=normalizeAuthorizationTemporalProfile({...profile(),registerIdentityVerifiers:true},options(),'123456789012');
   assert.deepEqual(authorizationTemporalMigrationCommands(later).slice(4),['register-identity-session-verifier','register-identity-webhook-verifier']);

@@ -9,3 +9,45 @@
 .release-checks-table caption { padding: 8px 16px 12px; text-align: start; }
 .release-checks-table :is(th, td) { overflow-wrap: anywhere; vertical-align: top; }
 .release-checks-table th[scope="col"]:first-child { width: 25%; }
+
+.identity-grid .member-directory { grid-column: 1 / -1; min-width: 0; }
+.member-directory .card__header { align-items: center; gap: 12px; flex-wrap: wrap; }
+.member-directory .tabs { margin: 0; }
+.member-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px; margin: 16px 0;
+}
+.member-toolbar .search-box { width: min(100%, 320px); }
+.member-directory .member-table { width: 100%; }
+.member-table th[scope="row"] { text-align: start; font-weight: 500; white-space: normal; overflow-wrap: anywhere; }
+.member-table :is(strong,small) { display: block; }
+.member-table small, .member-form p, .member-scope-list p { color: var(--muted); }
+.member-form { display: grid; gap: 16px; margin-block: 12px; }
+.member-edit-action { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.member-edit-action .field { flex: 1 1 190px; margin: 0; }
+.member-form p { margin: 0; }
+.member-form-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.member-scope-list { padding: 0; margin: 16px 0; list-style: none; }
+.member-scope-list li { display: grid; gap: 4px; padding-block: 10px; border-bottom: 1px solid var(--border); }
+.member-scope-list p { margin: 0; }
+.member-table th[scope="row"] { background: var(--surface); color: var(--text); }
+.member-table th[scope="row"] small { margin-top: 3px; font-size: .8125rem; }
+@media (max-width: 660px) {
+  .member-directory .member-table { display: block; }
+  .member-table thead {
+    position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .member-table tbody { display: block; }
+  .member-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px 16px; gap: 8px 12px; border-top: 1px solid var(--border);
+  }
+  .member-table tbody :is(th[scope="row"],td) { height: auto; padding: 0; border: 0; }
+  .member-table th[scope="row"] { grid-column: 1 / -1; }
+  .member-table td[data-label] { white-space: normal; }
+  .member-table td[data-label]::before {
+    content: attr(data-label); display: block; font-size: .75rem; color: var(--muted);
+  }
+  .member-table td:last-child:has(button) { grid-column: 1 / -1; }
+}

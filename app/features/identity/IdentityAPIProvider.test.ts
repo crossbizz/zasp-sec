@@ -48,4 +48,41 @@ describe("production identity provider administration API", () => {
     expect(keys).toHaveLength(2);
     expect(new Set(keys).size).toBe(1);
   });
+  it("sends versioned member changes and enforces the member ID on access responses", async () => {
+    const id = "pid_10000001-0000-4000-8000-000000000001";
+    const otherID = "pid_10000002-0000-4000-8000-000000000002";
+    const member = { id, organization_id: otherID, organization_reference: "org", member_reference: "member-1", role: "read_only_viewer", active: true, display_name: "Jordan", email: "jordan@example.test", version: 8 };
+    const PATCH = vi.fn().mockResolvedValue(ok(member));
+    const DELETE = vi.fn().mockResolvedValue(ok({ ...member, active: false }));
+    const GET = vi.fn()
+      .mockResolvedValueOnce(ok(page([member])))
+      .mockResolvedValueOnce(ok({ member_id: id, items: [] }))
+      .mockResolvedValueOnce(ok({ member_id: otherID, items: [] }));
+    const api = createIdentityAdminAPI({ GET, DELETE, PATCH } as unknown as APIClient);
+    await expect(api.listMembers()).resolves.toMatchObject([{ displayName: "Jordan", email: "jordan@example.test" }]);
+    await expect(api.updateMemberProfile(id, "Jordan", 7)).resolves.toMatchObject({ version: 8 });
+    const params = { path: { id }, header: { "X-CSRF-Token": "", "X-Zasp-Fresh-Auth": "confirmed", "If-Match": '"7"' } };
+    expect(PATCH).toHaveBeenCalledWith("/api/v1/admin/members/{id}/profile", { params, body: { display_name: "Jordan" } });
+    await expect(api.removeMember(id, 7)).resolves.toMatchObject({ active: false });
+    expect(DELETE).toHaveBeenCalledWith("/api/v1/admin/members/{id}", { params });
+    await expect(api.memberAccess(id)).resolves.toEqual([]);
+    await expect(api.memberAccess(id)).rejects.toThrow("does not match");
+  });
+
+  it("recovers an interrupted invitation with the same idempotency key and reads all invitation pages", async () => {
+    const input = { email: "jordan@example.test", display_name: "Jordan", role: "security_engineer" as const };
+    const id = "pid_10000001-0000-4000-8000-000000000001";
+    const invitation = { id, ...input, workspace_id: id, environment_id: id, status: "pending" };
+    const POST = vi.fn().mockRejectedValueOnce(new Error("lost response")).mockResolvedValueOnce(ok(invitation, 201));
+    const GET = vi.fn().mockResolvedValueOnce(ok({ items: [], page_info: { has_more: true, next_cursor: "next" } })).mockResolvedValueOnce(ok(page([invitation])));
+    const api = createIdentityAdminAPI({ GET, POST } as unknown as APIClient);
+    await expect(api.inviteMember(input)).rejects.toThrow("lost response");
+    await expect(api.inviteMember(input)).resolves.toEqual(invitation);
+    const headers = POST.mock.calls[0][1].params.header;
+    expect(headers).toMatchObject({ "X-Zasp-Fresh-Auth": "confirmed", "X-CSRF-Token": "", "Idempotency-Key": expect.stringMatching(/^identity_/) });
+    expect(POST.mock.calls[1]).toEqual(["/api/v1/admin/member-invitations", { params: { header: headers }, body: input }]);
+    await expect(api.listInvitations()).resolves.toEqual([invitation]);
+    expect(GET.mock.calls[1][1].params.query).toMatchObject({ cursor: "next" });
+  });
+
 });

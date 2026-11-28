@@ -30,7 +30,7 @@ func TestConnectionClientStartsAPerTenantSignInAndBindsTheConnectionWithoutATemp
 	}), &http.Client{
 		Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
 			switch {
-			case request.URL.Path == "/api/v1/connect/sessions":
+			case request.URL.Path == "/connect/sessions":
 				return jsonHTTPResponse(http.StatusCreated, `{"data":{"token":"`+token+`","connect_link":"http://nango.connector.svc.cluster.local:3003/connect?session_token=`+token+`","expires_at":"2026-11-14T12:20:00.000Z"}}`), nil
 			case strings.HasPrefix(request.URL.Path, "/oauth/connect/"):
 				connectURLs = append(connectURLs, request.URL.String())

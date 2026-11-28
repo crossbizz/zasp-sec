@@ -1,0 +1,29 @@
+# Apply after the site's private hosted-chart values and before image digest overrides.
+# This release owns only application resources under the agentsec release in the shared zasp namespace.
+profile: control_plane
+global:
+  environment: production
+  deploymentMode: saas
+network:
+  scopeDefaultDenyToProduct: true
+nango:
+  externalNamespace: connectors
+  storageSecretName: nango-client
+  clientCAKey: ca.crt
+discovery:
+  saasCollectorVersion: collector_v1
+projectionSearch:
+  endpoint: https://opensearch.opensearch.svc.cluster.local:9200
+runtime:
+  openSearchEndpoint: https://opensearch.opensearch.svc.cluster.local:9200
+searchTLS:
+  enabled: true
+attackLab:
+  enabled: false
+attackLabReconciler:
+  enabled: false
+recovery:
+  canaryEnabled: false
+
+deploymentAdmin:
+  enabled: true

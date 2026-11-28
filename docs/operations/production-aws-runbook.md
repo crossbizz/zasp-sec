@@ -109,7 +109,7 @@ The operator DSN is `postgres://zasp_operator:<password>@<direct host>/zasp?sslm
 
 Verify: `psql "$OPERATOR_DSN" -Atc "select current_user, datcollate from pg_database where datname = current_database()"` prints `zasp_operator|C`.
 
-The baseline guide records that the production Neon project already had the schema installed on 2026-11-12. If so, skip the statements. The chart's schema job then verifies that installation; it accepts it only if it came from the same baseline artifact as the release you deploy (`"current":true` in step 8). A database installed from an older artifact cannot be upgraded in place: drop it and create it again as [Reinstalling over an earlier artifact](baseline-schema-install.md#reinstalling-over-an-earlier-artifact) describes. That procedure was run on a Neon development branch on 2026-11-14, not on the production project.
+The baseline guide records that the production Neon project already had the schema installed on 2026-11-12. If so, skip the statements. The chart's schema job upgrades an intact supported baseline in place or verifies an already-current installation. Confirm the resulting artifact reports `"current":true` in step 8. [Supported schema upgrades](baseline-schema-install.md#upgrading-an-existing-baseline)
 
 ### 2. Create the AWS resources
 

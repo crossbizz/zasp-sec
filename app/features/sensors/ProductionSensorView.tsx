@@ -6,7 +6,7 @@ import { RadioTower, RotateCw, Trash2 } from "lucide-react";
 import type { Sensor, SensorCoverage, SensorEnrollment, SensorInput, SensorMode, SensorUpdateInput } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useOptionalSession } from "../../auth/SessionProvider";
-import { Badge, Button, Card, EmptyState, Field, LoadingState, MetricGrid, Modal, PageHeader, Select } from "../../components/ui";
+import { Badge, Button, Card, Field, LoadingState, MetricGrid, Modal, PageHeader, Select } from "../../components/ui";
 import { SectionTabs } from "../../components/section-tabs";
 import { createFleetAPI } from "../../../apps/web/api/endpoint-fleet";
 import { TicketCohort } from "./TicketCohort";
@@ -15,12 +15,13 @@ import { DeviceFleet } from "./DeviceFleet";
 import "../managed-device-layout.css";
 import { createSensorMutationAttempt, createSensorsAPI, type SensorVersioned, type SensorsAPI } from "./api";
 import { Time } from "../../components/time";
+import "../onboarding/getting-started.css";
 
 type Feedback = Readonly<{ role: "status" | "alert"; message: string }> | null;
 
 export { type SensorsAPI } from "./api";
 
-type SensorSurfaceProps = { canWrite: boolean; canManagePolicy?: boolean; fresh: boolean; onReauthenticate(): void };
+type SensorSurfaceProps = { startEnrollment?: boolean; canWrite: boolean; canManagePolicy?: boolean; fresh: boolean; onReauthenticate(): void };
 
 function subscribeToNavigation(notify: () => void) {
   window.addEventListener("popstate", notify);
@@ -37,7 +38,7 @@ export function ProductionSensorSurface(props: SensorSurfaceProps) {
   return <SensorSections key={linkedDevice} {...props} linkedDevice={linkedDevice} />;
 }
 
-function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
+function SensorSections({ startEnrollment, canWrite, canManagePolicy = false, fresh, onReauthenticate, linkedDevice }: SensorSurfaceProps & { linkedDevice: string }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
   const [section, setSection] = useState(linkedDevice ? "devices" : "sensors");
   const session = useOptionalSession();
@@ -53,7 +54,7 @@ function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenti
         {
           id: "sensors",
           label: "Sensors",
-          content: <ProductionSensorView api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} />,
+          content: <ProductionSensorView startEnrollment={startEnrollment} api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} />,
         },
         {
           id: "devices",
@@ -75,13 +76,13 @@ function SensorSections({ canWrite, canManagePolicy = false, fresh, onReauthenti
   );
 }
 
-export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }: { api: SensorsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
+export function ProductionSensorView({ startEnrollment = false, api, canWrite, fresh, onReauthenticate }: { startEnrollment?: boolean; api: SensorsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void }) {
   const [sensors, setSensors] = useState<readonly Sensor[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "success" | "error">("loading");
   const [selected, setSelected] = useState<SensorVersioned<Sensor> | null>(null);
   const [coverage, setCoverage] = useState<SensorCoverage | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [enrolling, setEnrolling] = useState(false);
+  const [enrolling, setEnrolling] = useState(startEnrollment && canWrite && fresh);
   const [name, setName] = useState("");
   const [kind, setKind] = useState<SensorInput["kind"]>("tetragon");
   const [runtimeSensorID, setRuntimeSensorID] = useState("");
@@ -94,7 +95,12 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoadState("loading");
-    try { setSensors(await api.listSensors(signal)); setLoadState("success"); } catch { if (!signal?.aborted) { setLoadState("error"); setFeedback({ role: "alert", message: "Sensors are unavailable. Retry the authoritative read." }); } }
+    try {
+      const values = await api.listSensors(signal);
+      if (signal?.aborted) return;
+      setSensors(values);
+      setLoadState("success");
+    } catch { if (!signal?.aborted) setLoadState("error"); }
   }, [api]);
   useEffect(() => { const controller = new AbortController(); let active = true; queueMicrotask(() => { if (active) void load(controller.signal); }); return () => { active = false; controller.abort(); }; }, [load]);
 
@@ -109,7 +115,7 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
   const upsert = (value: Sensor) => setSensors((current) => [...current.filter((item) => item.id !== value.id), value].sort((left, right) => left.id.localeCompare(right.id)));
   const run = async (action: () => Promise<void>, failure: string) => { setBusy(true); setFeedback(null); try { await action(); } catch { setFeedback({ role: "alert", message: failure }); } finally { setBusy(false); } };
 
-  const create = () => void run(async () => {
+  const create = () => canWrite && fresh && void run(async () => {
     const result = await api.createSensor({ name, kind, mode, ...(kind === "otlp" && runtimeSensorID ? { runtime_sensor_id: runtimeSensorID } : {}) }, createSensorMutationAttempt());
     setOneTime(result.value); upsert(sensorWithoutToken(result.value)); setFeedback({ role: "status", message: "Sensor enrollment created. Copy the token before closing." });
   }, "Enrollment may have succeeded, but its one-time token was not received. Refresh sensors and rotate its token; do not reuse this attempt.");
@@ -129,13 +135,35 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
   const runtimeAnchors = sensors.filter((item) => item.kind === "tetragon" && item.state === "active");
   const pairingInvalid = runtimeSensorID !== "" && (kind !== "otlp" || loadState !== "success" || !runtimeAnchors.some((item) => item.id === runtimeSensorID));
   const attention = sensors.filter((item) => item.state === "degraded" || item.state === "revoked").length;
+  const firstSensor = loadState === "success" && sensors.length === 0;
+  const enrollAction = canWrite && (fresh
+    ? <Button variant="primary" onClick={() => { setFeedback(null); setEnrolling(true); }}>Enroll sensor</Button>
+    : <Button onClick={onReauthenticate}>Reauthenticate to enroll</Button>);
   return <div className="page">
-    <PageHeader title="Runtime sensors" description="Enroll and monitor scoped runtime collectors. Enrollment tokens are revealed once and never recoverable." actions={canWrite ? fresh ? <Button variant="primary" onClick={() => { setFeedback(null); setEnrolling(true); }}>Enroll sensor</Button> : <Button onClick={onReauthenticate}>Reauthenticate to enroll</Button> : undefined} />
+    <PageHeader title="Runtime sensors" description="Enroll collectors and check runtime coverage in this environment." actions={!firstSensor && loadState === "success" && enrollAction} />
     {feedback && <p role={feedback.role}>{feedback.message}</p>}
-    <MetricGrid metrics={[{ label: "Sensors", value: sensors.length, tone: "brand" }, { label: "Active", value: active, tone: "success" }, { label: "Needs attention", value: attention, tone: attention > 0 ? "warning" : "success" }, { label: "Awaiting heartbeat", value: sensors.filter((item) => item.state === "pending").length }]} />
+    {firstSensor ? <section className="setup-guide" aria-labelledby="sensor-setup-heading">
+      <header><h2 id="sensor-setup-heading">Set up your first runtime sensor</h2>
+        <p>{canWrite ? "Choose the evidence you want to collect in this environment." : "Ask your environment administrator to enroll a collector. Once it reports in, you can review its coverage here."}</p>
+      </header>
+      <div className="sensor-setup-body">
+        <Select label="Collector to set up" value={kind} onChange={event => setKind(event.target.value as SensorInput["kind"])}>
+          <option value="tetragon">Tetragon · Kubernetes process and network events</option>
+          <option value="otlp">OTLP · application telemetry</option>
+        </Select>
+        <ol>
+          <li>Enroll the {kind === "tetragon" ? "Kubernetes sensor" : "OTLP source"} and save its one-time token.</li>
+          <li>{kind === "tetragon" ? "Save the token in a Kubernetes Secret under the key token. Install Tetragon and the Zasp customer-edge Helm chart using the Secret name and enrollment binding." : "Configure a Zasp-compatible semantic collector with the token and enrollment binding. The collector must convert application spans to Zasp runtime events."}</li>
+          <li>{kind === "tetragon" ? "Open the sensor here and check its first heartbeat and event rate." : "Send a supported session event through the collector, then open Sessions to find it."}</li>
+        </ol>
+        {canWrite && !fresh && <p>Confirm your sign-in to create an enrollment token.</p>}
+        {enrollAction}
+      </div>
+    </section> : <>
+    {sensors.length > 0 && <MetricGrid metrics={[{ label: "Sensors", value: sensors.length, tone: "brand" }, { label: "Active", value: active, tone: "success" }, { label: "Needs attention", value: attention, tone: attention > 0 ? "warning" : "success" }, { label: "Awaiting heartbeat", value: sensors.filter((item) => item.state === "pending").length }]} />}
     <Card title="Authorized sensor coverage" action={loadState === "error" ? <Button onClick={() => void load()}>Retry</Button> : undefined}>
       {loadState === "loading" && <LoadingState label="Loading sensors…" />}
-      {loadState === "success" && sensors.length === 0 && <EmptyState title="No runtime sensors" description="Enroll a scoped Tetragon or OTLP sensor to begin runtime coverage." />}
+      {loadState === "error" && <p role="alert">Sensors are unavailable. Retry to check coverage.</p>}
       {loadState !== "loading" && sensors.length > 0 && <div className="connection-list" aria-busy={detailLoading}>
         {sensors.map(sensor => (
           <button key={sensor.id} type="button" disabled={busy} aria-disabled={busy || detailLoading}
@@ -144,8 +172,8 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
           </button>
         ))}
       </div>}
-    </Card>
-    <Modal open={enrolling} title="Enroll runtime sensor" onClose={closeEnrollment} closeDisabled={busy} footer={oneTime ? <Button onClick={closeEnrollment}>Done</Button> : <><Button disabled={busy} onClick={closeEnrollment}>Cancel</Button><Button variant="primary" disabled={busy || name.length < 1 || name.trim() !== name || pairingInvalid} onClick={create}>Create enrollment</Button></>}>
+    </Card></>}
+    <Modal open={enrolling} title="Enroll runtime sensor" onClose={closeEnrollment} closeDisabled={busy} footer={oneTime ? <Button onClick={closeEnrollment}>Done</Button> : <><Button disabled={busy} onClick={closeEnrollment}>Cancel</Button><Button variant="primary" disabled={!canWrite || !fresh || busy || name.length < 1 || name.trim() !== name || pairingInvalid} onClick={create}>Create enrollment</Button></>}>
       {feedback && <p role={feedback.role}>{feedback.message}</p>}<div className="form-grid"><Field label="Sensor name" value={name} maxLength={128} disabled={busy || oneTime !== null} onChange={(event) => setName(event.target.value)} /><Select label="Sensor kind" value={kind} disabled={busy || oneTime !== null} onChange={(event) => { setKind(event.target.value as SensorInput["kind"]); setRuntimeSensorID(""); }}><option value="tetragon">Tetragon</option><option value="otlp">OTLP</option></Select><Select label="Collection mode" value={mode} disabled={busy || oneTime !== null} onChange={(event) => setMode(event.target.value as SensorMode)}><option value="metadata_only">Metadata only</option><option value="full">Full</option></Select>
         {kind === "otlp" && <Select label="Runtime sensor pairing" value={runtimeSensorID} disabled={busy || oneTime !== null || loadState !== "success"} onChange={(event) => setRuntimeSensorID(event.target.value)}><option value="">No pairing (semantic only)</option>{runtimeAnchors.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.id})</option>)}</Select>}
       </div>
@@ -165,7 +193,17 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
 
 function OneTimeCredential({ value }: { value: SensorEnrollment }) {
   return <div className="credential-once"><strong>Copy this token now</strong><p>This credential is shown once. Zasp cannot recover it after this dialog closes.</p><code>{value.token}</code><p>Expires <Time value={value.token_expires_at} /></p>
-    {value.kind === "tetragon" ? <><strong>Helm deployment boundary</strong><p>Create the Kubernetes Secret out of band, then render the customer-edge chart with these values. Never place the token in Helm arguments or release history.</p><code>sensorAgent.enabled=true</code><code>sensorAgent.tokenSecretName=&lt;pre-created-secret-name&gt;</code><code>sensorAgent.enrollmentBinding={value.enrollment_binding}</code><p>Keep this enrollment binding when rotating the token. A new enrollment needs its own binding and cursor state.</p></> : <><strong>OTLP ingestion boundary</strong><p>This token belongs to an OTLP source. Do not install the Tetragon sensor-agent chart with it. Configure the semantic collector for this enrollment; runtime pairing does not change the token&apos;s source kind.</p><code>enrollment_binding={value.enrollment_binding}</code></>}
+    {value.kind === "tetragon" ? <>
+      <strong>Helm deployment boundary</strong>
+      <p>Put the token in the Kubernetes Secret’s <code>token</code> key. Install <code>deploy/staging/tetragon</code> and <code>deploy/staging/product</code> in your edge namespace. Use the customer-edge values file and your site configuration with these sensor settings.</p>
+      <code>sensorAgent.enabled=true</code><code>sensorAgent.tokenSecretName=&lt;pre-created-secret-name&gt;</code><code>sensorAgent.enrollmentBinding={value.enrollment_binding}</code>
+      <p>Keep the token out of Helm values and command history. After installation, open this sensor to verify its first heartbeat. Keep the enrollment binding when rotating the token.</p>
+    </> : <>
+      <strong>OTLP ingestion boundary</strong>
+      <p>Configure your semantic collector to convert spans into Zasp runtime events and submit them to the private event-ingest service. Supply this token as its bearer credential and use the following binding.</p>
+      <code>enrollment_binding={value.enrollment_binding}</code>
+      <p>Send a supported session event and confirm it appears in Sessions. The collector submits its heartbeat separately.</p>
+    </>}
   </div>;
 }
 

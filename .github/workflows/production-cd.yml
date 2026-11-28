@@ -1,0 +1,93 @@
+name: Deploy tested main to production
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  enrollment:
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - name: Report production deployment enrollment
+        id: status
+        env:
+          ZASP_PRODUCTION_CD_ENABLED: 'true'
+        run: |
+          printf 'enabled=%s\n' "$ZASP_PRODUCTION_CD_ENABLED" >> "$GITHUB_OUTPUT"
+          printf 'This workflow sets production CD to `%s` for commit `%s`. The signed upgrade requires the installed `agentsec` release in namespace `zasp`.\n' "$ZASP_PRODUCTION_CD_ENABLED" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  tested-main:
+    needs: enrollment
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main' && needs.enrollment.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    permissions: {contents: read, actions: read}
+    outputs:
+      current: ${{ steps.check.outputs.current }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - id: check
+        name: Wait for same-commit main CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-security/production-cd.mjs
+
+  acceptance:
+    needs: enrollment
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main' && needs.enrollment.outputs.enabled == 'true'
+    uses: ./.github/workflows/runnable-ui-acceptance.yml
+
+  promotion:
+    needs: [tested-main, acceptance]
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main' && needs.tested-main.outputs.current == 'true'
+    uses: ./.github/workflows/production-promotion.yml
+
+  upgrade:
+    needs: promotion
+    if: github.repository == 'crossbizz/zasp-sec' && github.ref == 'refs/heads/main'
+    runs-on:
+      group: zasp-production
+      labels: zasp-production-deploy
+    environment: production
+    permissions: {contents: read, actions: read}
+    concurrency:
+      group: agentsec-production-helm
+      cancel-in-progress: false
+    timeout-minutes: 50
+    env:
+      KUBECONFIG: /var/run/zasp-production-cd/kubeconfig
+      HELM_DRIVER: secret
+      ZASP_VPS_KUBE_CONTEXT: ${{ secrets.ZASP_VPS_KUBE_CONTEXT }}
+      ZASP_VPS_CLUSTER_UID: ${{ secrets.ZASP_VPS_CLUSTER_UID }}
+      ZASP_VPS_INSTALLATION_ID: ${{ secrets.ZASP_VPS_INSTALLATION_ID }}
+      ZASP_RELEASE_EVIDENCE_DIR: /var/lib/zasp/release-evidence/${{ github.sha }}
+      ZASP_RELEASE_BUILD_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_BUILD_PUBLIC_KEY }}
+      ZASP_RELEASE_INTAKE_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_INTAKE_PUBLIC_KEY }}
+      ZASP_RELEASE_SCANNER_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_SCANNER_PUBLIC_KEY }}
+      ZASP_RELEASE_APPSEC_PUBLIC_KEY: ${{ vars.ZASP_RELEASE_APPSEC_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install locked dependencies from the private runner cache
+        run: npm ci --offline --ignore-scripts --no-audit --no-fund
+      - name: Upgrade the signed production Zasp release and wait for readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-security/deploy.mjs upgrade-production

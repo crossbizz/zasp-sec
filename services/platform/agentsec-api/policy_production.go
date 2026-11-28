@@ -46,18 +46,18 @@ func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory,
 	}
 	clock := func() time.Time { return time.Now().UTC() }
 	allowTestLoopback := config.Environment == "test"
-	schema, err := runtimeopensearch.New(runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 1, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
+	schema, err := runtimeopensearch.New(runtimeopensearch.Config{AuthMode: config.OpenSearchAuthMode, Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 1, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
 	if err != nil {
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	history, err := opensearchhistory.New(opensearchhistory.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), schema, clock)
+	history, err := opensearchhistory.New(opensearchhistory.Config{AuthMode: config.OpenSearchAuthMode, Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), schema, clock)
 	if err != nil {
 		schema.Close()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	sessionSearch, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
+	sessionSearch, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{AuthMode: config.OpenSearchAuthMode, Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
 	if err != nil {
 		_ = history.Close()
 		schema.Close()

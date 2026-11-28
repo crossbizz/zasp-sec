@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/deploymentadmin"
 	"github.com/zasp-ai/zasp-sec/services/platform/openbaokv"
+	"github.com/zasp-ai/zasp-sec/services/platform/opensearchaccess"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepath"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimesecret"
 	"io"
@@ -20,6 +22,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/infraprovider"
+	"github.com/zasp-ai/zasp-sec/services/platform/producttelemetry"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -36,6 +39,7 @@ var (
 // for the generic saas provider (every SaaS platform read through the Nango
 // proxy); it also needs the Nango settings.
 type RuntimeConfig struct {
+	DeploymentAdmin                 *deploymentadmin.Config
 	DelegationAuthorityFile         string
 	ClaudeEnterpriseHookFile        string
 	RuntimeServices                 runtimeservices.Config
@@ -87,6 +91,7 @@ type RuntimeConfig struct {
 	ConnectorTokenFile             string
 	ConnectorKMSKeyARN             string
 	ConnectorSecretPrefix          string
+	OpenSearchAuthMode             opensearchaccess.Mode
 	PolicyHistoryEndpoint          string
 	RuntimeSessionIndex            string
 	PolicyHistoryIndex             string
@@ -107,6 +112,8 @@ type RuntimeConfig struct {
 	// the deployment's worker serves Google Cloud; the provider is offered
 	// only then.
 	GCPCollectorVersion         string
+	PostHogHost                 string
+	PostHogProjectKey           string
 	NangoBaseURL                string
 	NangoServiceSecretReference string
 	NangoEnvironment            string
@@ -142,7 +149,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		return RuntimeConfig{}, err
 	}
 	var fileErr error
-	getenv, fileErr = runtimesecret.FromFiles(getenv, "ZASP_POSTGRES_DSN", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN")
+	getenv, fileErr = runtimesecret.FromFiles(getenv, "ZASP_POSTGRES_DSN", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN", "ZASP_POSTHOG_PROJECT_KEY")
 	if fileErr != nil {
 		return RuntimeConfig{}, fileErr
 	}
@@ -185,7 +192,12 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	}
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
+	console, err := deploymentadmin.Load(getenv)
+	if err != nil {
+		return RuntimeConfig{}, errInvalidRuntimeConfig
+	}
 	config := RuntimeConfig{
+		DeploymentAdmin:                 console,
 		DelegationAuthorityFile:         getenv("ZASP_DELEGATION_AUTHORITY_FILE"),
 		ClaudeEnterpriseHookFile:        getenv("ZASP_CLAUDE_ENTERPRISE_HOOK_FILE"),
 		RuntimeServices:                 services,
@@ -204,12 +216,13 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		ApprovalMaintenancePostgresDSN: getenv("ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN"), ApprovalMaintenanceKeyFile: getenv("ZASP_APPROVAL_MAINTENANCE_KEY_FILE"), PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorSecrets:   openbaokv.FromEnvironment(getenv),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
-		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
+		OpenSearchAuthMode: opensearchaccess.Mode(getenv("ZASP_OPENSEARCH_AUTH_MODE")), PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
 		RuntimeSessionIndex:     getenv("ZASP_RUNTIME_SESSION_INDEX"),
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
 		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), GCPCollectorVersion: getenv("ZASP_DISCOVERY_GCP_COLLECTOR_VERSION"),
+		PostHogHost: getenv("ZASP_POSTHOG_HOST"), PostHogProjectKey: getenv("ZASP_POSTHOG_PROJECT_KEY"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
@@ -232,6 +245,11 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	}
 	if config.AttackLabWorkflow != "" && config.AttackLabWorkflow != "enabled" {
 		return false
+	}
+	if config.PostHogHost != "" || config.PostHogProjectKey != "" {
+		if producttelemetry.ValidatePostHogConfig(config.PostHogHost, config.PostHogProjectKey) != nil {
+			return false
+		}
 	}
 	if !validComplianceAPIConfiguration(config) {
 		return false
@@ -268,7 +286,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
 		return false
 	}
-	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !validConnectorSecretAuthority(config) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !validPolicyHistoryAuthority(config.PolicyHistoryEndpoint, config.PolicyHistoryIndex, config.ConnectorAWSRegion, config.Environment) || !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
+	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != runtimepath.Fixed("/var/run/secrets/eks.amazonaws.com/serviceaccount/token") || !validConnectorSecretAuthority(config) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !validPolicyHistoryAuthority(config.PolicyHistoryEndpoint, config.PolicyHistoryIndex, config.ConnectorAWSRegion, config.Environment, config.OpenSearchAuthMode) || !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
 		return false
 	}
 	for _, value := range config.KubernetesEgressCIDRs {
@@ -313,9 +331,12 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 		config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.RequestTimeout > 0 && config.RequestTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
 }
 
-func validPolicyHistoryAuthority(endpointValue, index, region, environment string) bool {
+func validPolicyHistoryAuthority(endpointValue, index, region, environment string, mode opensearchaccess.Mode) bool {
 	if index != "zasp-runtime-events-v1" {
 		return false
+	}
+	if mode != "" {
+		return mode.AllowsPrivateEndpoint(endpointValue, environment == "test")
 	}
 	endpoint, err := url.Parse(endpointValue)
 	if err != nil || endpoint.String() != endpointValue || endpoint.User != nil || endpoint.Path != "" || endpoint.RawPath != "" || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Opaque != "" {

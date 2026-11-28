@@ -25,8 +25,9 @@ const (
 	currentIntegrationWebhookReserveSQL  = `SELECT zasp_authorization80.integration_webhook_test_reserve($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 	currentIntegrationWebhookCompleteSQL = `SELECT zasp_authorization80.integration_webhook_test_complete($1,$2,$3,$4,$5,$6,$7)`
 
-	currentHierarchyValueSQL  = `SELECT zasp_authorization80.hierarchy_value($1,$2,$3,$4,$5)`
-	currentHierarchyRenameSQL = `SELECT zasp_authorization80.hierarchy_rename($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	currentHierarchyValueSQL     = `SELECT zasp_authorization80.hierarchy_value($1,$2,$3,$4,$5)`
+	currentHierarchyRenameSQL    = `SELECT zasp_authorization80.hierarchy_rename($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	currentOrganizationRenameSQL = `SELECT zasp_authorization80.rename_organization($1,$2,$3,$4,$5,$6,$7)`
 
 	currentFindingMutateSQL = `SELECT zasp_authorization80.finding_mutate($1,$2,$3,$4,$5,$6,$7,$8,NULLIF($9,''),NULLIF($10,''),$11,$12,NULLIF($13,''))`
 )
@@ -59,6 +60,9 @@ var productWorkflowOperations = map[string]struct{ kind, action string }{
 }
 
 var productStatementRules = map[string]productStatementRule{
+	memberLifecycleReadSQL:  {operations: []string{"getMemberAccess", "listMemberInvitations"}, arguments: 8, scope: 1, actor: 4, browserOnly: true, check: memberLifecycleStatementAllowed},
+	memberLifecycleWriteSQL: {operations: []string{"inviteMember", "updateMemberProfile", "removeMember"}, arguments: 8, scope: 1, actor: 4, browserOnly: true, fresh: true, check: memberLifecycleStatementAllowed},
+
 	browserProfileSQL:         {operations: []string{"getBrowserProfile", "registerBrowserProfile", "retireBrowserProfile", "recordBrowserOriginDays"}, arguments: 6, scope: 1, actor: 4, object: 5, check: browserStatementAllowed},
 	currentWorkloadContainSQL: {operations: []string{"authorizeWorkloadContainment", "releaseWorkloadContainment", "getWorkloadContainment"}, arguments: 7, scope: 1, actor: 4, object: 5, browserOnly: true, check: workloadControlStatementAllowed},
 
@@ -83,8 +87,9 @@ var productStatementRules = map[string]productStatementRule{
 	currentIntegrationWebhookReserveSQL:  {operations: []string{"testIntegrationWebhook"}, arguments: 12, scope: 1, actor: 4, object: 5, kind: "integration"},
 	currentIntegrationWebhookCompleteSQL: {operations: []string{"testIntegrationWebhook"}, arguments: 7, scope: 1, check: productIntegrationPathAllowed},
 
-	currentHierarchyValueSQL:  {operations: []string{"getWorkspace", "getEnvironment"}, arguments: 5, scope: 1, browserOnly: true, check: productHierarchyValueAllowed},
-	currentHierarchyRenameSQL: {operations: []string{"updateWorkspace", "updateEnvironment"}, arguments: 9, scope: 1, actor: 4, browserOnly: true, fresh: true, check: productHierarchyRenameAllowed},
+	currentHierarchyValueSQL:     {operations: []string{"getWorkspace", "getEnvironment"}, arguments: 5, scope: 1, browserOnly: true, check: productHierarchyValueAllowed},
+	currentHierarchyRenameSQL:    {operations: []string{"updateWorkspace", "updateEnvironment"}, arguments: 9, scope: 1, actor: 4, browserOnly: true, fresh: true, check: productHierarchyRenameAllowed},
+	currentOrganizationRenameSQL: {operations: []string{"updateOrganization"}, arguments: 7, scope: 1, actor: 4, browserOnly: true, fresh: true, check: organizationRenameAllowed},
 
 	// Sign-in to a SaaS platform (saas_sign_in.go, completion.sql section
 	// ws6_saas_sign_in). The first two belong to the authorize request of the
@@ -140,6 +145,26 @@ func productStatementAllowed(g RequestAuthorization, q string, args []any) (hand
 		}
 	}
 	return true, r.check == nil || r.check(g, args)
+}
+
+// The SQL entry points share the organization identity target, but an admin's
+// checked operation and the member in its path bind each individual request.
+func memberLifecycleStatementAllowed(g RequestAuthorization, args []any) bool {
+	if !authorizationNativeTargetAllowed(g, "organization_identity", g.Identity.Scope.OrganizationID().String()) || args[4] != g.OperationID {
+		return false
+	}
+	id, ok := args[5].(string)
+	if !ok {
+		return false
+	}
+	switch g.OperationID {
+	case "listMemberInvitations":
+		return id == "" && g.PathParameters["id"] == ""
+	case "inviteMember":
+		return validAdministrationProductID(id) && g.PathParameters["id"] == ""
+	default:
+		return validAdministrationProductID(id) && id == g.PathParameters["id"]
+	}
 }
 
 // A replay names the request's own operation, and its intent names the
@@ -252,6 +277,14 @@ func productHierarchyRenameAllowed(g RequestAuthorization, args []any) bool {
 		return false
 	}
 	return authorizationNativeTargetAllowed(g, kind, id)
+}
+
+func organizationRenameAllowed(g RequestAuthorization, args []any) bool {
+	name, nameOK := args[4].(string)
+	version, versionOK := args[5].(int64)
+	audit, auditOK := args[6].(string)
+	return authorizationNativeTargetAllowed(g, "organization_identity", g.Identity.Scope.OrganizationID().String()) &&
+		nameOK && validAdministrationName(name) && versionOK && version > 0 && auditOK && validProductID(audit)
 }
 
 // A finding status change names the request's own operation.

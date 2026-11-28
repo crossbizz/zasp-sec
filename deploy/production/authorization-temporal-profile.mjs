@@ -56,7 +56,7 @@ export function authorizationTemporalMigrationCommands(profile) {
 export function authorizationTemporalMigrationShell(profile) {
   const run = command => `/app/agentsec-migrate ${command}`, file = name => `"$(cat /var/run/secrets/zasp-migration/${name})"`;
   const commands = authorizationTemporalMigrationCommands(profile), identity = commands.slice(4);
-  return `export ZASP_POSTGRES_DSN=${file('postgres-dsn')}; export ZASP_WORKFLOW_SIGNING_KEY=${file('workflow-signing-key')}; if ! ${run('verify-baseline')}; then ${run('install-baseline')}; ${run('verify-baseline')}; fi; ` + commands.slice(0, 4).map(run).join('; ') +
+  return `export ZASP_POSTGRES_DSN=${file('postgres-dsn')}; export ZASP_WORKFLOW_SIGNING_KEY=${file('workflow-signing-key')}; ${run('ensure-baseline')}; ` + commands.slice(0, 4).map(run).join('; ') +
     (identity.length ? `; export ZASP_STYTCH_PROJECT_ID=${file('stytch-project-id')}; export ZASP_STYTCH_ORGANIZATION_ID=${file('stytch-organization-id')}; ` + identity.map(run).join('; ') : '');
 }
 

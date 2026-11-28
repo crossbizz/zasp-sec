@@ -192,10 +192,16 @@ connectors:
 nango:
   # Set to use an independently installed, TLS-protected Nango service.
   externalNamespace: ""
+  clientCAKey: ""
   replicas: 2
   storageSecretName: ""
   databaseEgressCIDRs: []
   providerEgressCIDRs: []
+posthog:
+  enabled: false
+  host: ""           # HTTPS ingestion origin, e.g. https://us.i.posthog.com
+  existingSecret: "" # Secret with the PostHog project key under "project-key"
+  egressCIDRs: []    # Addresses of the configured ingestion host
 telemetry:
   replicas: 2
   backend: none
@@ -306,6 +312,8 @@ discovery:
   oktaClientSecretReference: ""
   providerTimeout: 5s
   readinessTimeout: 5s
+searchTLS:
+  enabled: false
 projectionSearch:
   awsRegion: ""
   endpoint: ""
@@ -372,6 +380,7 @@ redTeam:
   adapterRequestTimeout: 10s
   adapterShutdownTimeout: 15s
 attackLab:
+  enabled: true
   runnerTestRoleArn: ""
   awsRegion: ""
   queueURL: ""
@@ -411,8 +420,8 @@ runtime:
 rollout:
   discoveryScheduleReplayPhase: steady
 schema:
-  # baseline: the schema job runs agentsec-migrate verify-baseline, and
-  # install-baseline when the database holds no baseline, as zasp_operator.
+  # baseline: the schema job runs ensure-baseline as zasp_operator to install
+  # an empty database or apply a supported schema upgrade.
   # It needs no PostgreSQL superuser and requires authorizationTemporal.profile
   # with schema.expectedVersion 61. See docs/operations/baseline-schema-install.md.
   # chain: the historical migration chain (up-to-<expectedVersion> and the
@@ -582,6 +591,7 @@ monitoring:
   namespace: monitoring
   enabled: true
 network:
+  scopeDefaultDenyToProduct: false
   ingressNamespace: ingress-nginx
   postgresCIDR: ""
   securityAgentPlannerEgressCIDRs: []
@@ -660,3 +670,12 @@ openbaoClients:
   namespace: ""
   kvMount: ""
   transitKey: ""
+
+# Operator credentials originate outside the tenant identity authority. Each site
+# supplies its own id and dedicated database credentials in a namespace Secret.
+deploymentAdmin:
+  enabled: false
+  id: ""
+  existingSecret: deployment-admin
+  databaseCAKey: "" # optional PEM root in the same Secret
+  initialPointers: {}

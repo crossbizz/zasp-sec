@@ -163,7 +163,8 @@ jobs:
         run: |
           if ! ./node_modules/.bin/eslint -f json -o "$RUNNER_TEMP/deployment-lint.json" \
             deploy/production/{audit-export-rollout,evidence-encryption,release-contract}{,.test}.mjs \
-            deploy/staging/queue-contract.test.mjs deploy/zasp/{vps-cli,zasp}.test.mjs; then
+            deploy/staging/queue-contract.test.mjs deploy/zasp/{kubernetes-nango,vps-cli,zasp}.test.mjs \
+            deploy/zasp/testing/kubernetes-nango{,-smoke}.mjs; then
             python3 - "$RUNNER_TEMP/deployment-lint.json" <<'PY' >> "$GITHUB_OUTPUT"
           import json, pathlib, sys
           locations = []
@@ -185,15 +186,73 @@ jobs:
             exit 1
           fi
           tail -10 "$RUNNER_TEMP/cli.tap"
+      - name: Test signed production deployment admission
+        run: node --test scripts/release-security/{deploy,production-cd,promotion}.test.mjs
       - name: Render and validate provider selections
         run: |
           helm version --short
+          node --test deploy/zasp/kubernetes-nango.test.mjs deploy/vps/production/{releases,workload-credentials}.test.mjs
           node --test --test-name-pattern='release projects OpenBao|release selects SSE-S3|explicit queue encryption' deploy/production/release-contract.test.mjs deploy/production/audit-export-rollout.test.mjs
 
+  opensearch-vps-runtime:
+    outputs:
+      failure: ${{ steps.smoke.outputs.failure }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Exercise private client identities against persistent OpenSearch
+        id: smoke
+        run: bash deploy/vps/opensearch/tests/acceptance.sh
+
+  opensearch-failure-diagnostic:
+    needs: opensearch-vps-runtime
+    if: failure()
+    name: "OpenSearch check · ${{ needs.opensearch-vps-runtime.outputs.failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "See the OpenSearch acceptance step for Pod, storage and security initialization diagnostics." >> "$GITHUB_STEP_SUMMARY"
+
+  nango-kubernetes-runtime:
+    outputs:
+      failure: ${{ steps.smoke.outputs.failure }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Boot the chart's Nango database and dashboard in a disposable kind cluster
+        id: smoke
+        run: node deploy/zasp/testing/kubernetes-nango-smoke.mjs
+
+  nango-vps-runtime:
+    outputs:
+      failure: ${{ steps.smoke.outputs.failure }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify private TLS dashboard login and public OAuth redirect
+        id: smoke
+        run: python3 deploy/vps/nango/tests/dashboard_smoke.py
+
+
+  nango-vps-diagnostic:
+    needs: nango-vps-runtime
+    if: failure() && needs.nango-vps-runtime.outputs.failure != ''
+    name: "Independent Nango · ${{ needs.nango-vps-runtime.outputs.failure }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'The independent Nango smoke check failed at the stage named above.'
+
   deployment-diagnostics:
-    needs: [vps-operations, release-rendering, backup-and-recovery]
-    if: failure() && (needs.vps-operations.outputs.chart-failure != '' || needs.release-rendering.outputs.cli-failure != '' || needs.backup-and-recovery.outputs.drill-failure != '')
-    name: "Deployment check · ${{ needs.vps-operations.outputs.chart-failure }} ${{ needs.release-rendering.outputs.cli-failure }} ${{ needs.backup-and-recovery.outputs.drill-failure }}"
+    needs: [vps-operations, release-rendering, backup-and-recovery, nango-kubernetes-runtime]
+    if: failure() && (needs.vps-operations.outputs.chart-failure != '' || needs.release-rendering.outputs.cli-failure != '' || needs.backup-and-recovery.outputs.drill-failure != '' || needs.nango-kubernetes-runtime.outputs.failure != '')
+    name: "Deployment check · ${{ needs.vps-operations.outputs.chart-failure }} ${{ needs.release-rendering.outputs.cli-failure }} ${{ needs.backup-and-recovery.outputs.drill-failure }} ${{ needs.nango-kubernetes-runtime.outputs.failure }}"
     runs-on: ubuntu-24.04
     steps:
       - run: echo "See the named deployment step for its full test output." >> "$GITHUB_STEP_SUMMARY"

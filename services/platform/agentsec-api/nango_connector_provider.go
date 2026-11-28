@@ -56,11 +56,10 @@ type cachedNangoCapabilityCheck struct {
 
 func newNangoOAuthProvider(config nangoOAuthProviderConfig) (*nangoOAuthProvider, error) {
 	base, baseErr := url.Parse(config.BaseURL)
-	callback, callbackErr := url.Parse(config.CallbackURL)
-	if config.Client == nil || config.Proxy == nil || baseErr != nil || callbackErr != nil || base.Scheme != "http" && base.Scheme != "https" || base.User != nil || base.Port() == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || !strings.HasSuffix(strings.ToLower(base.Hostname()), ".svc.cluster.local") || net.ParseIP(base.Hostname()) != nil ||
+	if config.Client == nil || config.Proxy == nil || baseErr != nil || base.Scheme != "http" && base.Scheme != "https" || base.User != nil || base.Port() == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || !strings.HasSuffix(strings.ToLower(base.Hostname()), ".svc.cluster.local") || net.ParseIP(base.Hostname()) != nil ||
 		!nangoServiceReferencePattern.MatchString(config.ServiceSecretReference) || !nangoKeyPattern.MatchString(config.Environment) || !nangoKeyPattern.MatchString(config.ConnectorKey) || config.Provider != config.ConnectorKey ||
 		strings.ToLower(config.AuthorizationHost) != config.AuthorizationHost || net.ParseIP(config.AuthorizationHost) != nil || strings.ContainsAny(config.AuthorizationHost, "/:@?#\\\x00\r\n\t ") || config.AuthorizationPath == "" || config.AuthorizationPath[0] != '/' || strings.ContainsAny(config.AuthorizationPath, "?#\\\r\n") ||
-		callback.Scheme != "https" || callback.Host == "" || callback.Port() != "" || callback.User != nil || callback.Path != "/api/v1/integrations/oauth/callback" || callback.RawQuery != "" || callback.Fragment != "" {
+		!nango.ValidPublicCallbackURL(config.CallbackURL) {
 		return nil, errRuntimeUnavailable
 	}
 	return &nangoOAuthProvider{config: config}, nil
@@ -254,7 +253,7 @@ func (nangoProviderDNSResolver) LookupIP(ctx context.Context, host string) ([]ne
 }
 
 type nangoConnectorResources struct {
-	connection io.Closer
+	connection *nango.ProductionConnectionClient
 	proxy      io.Closer
 }
 
@@ -265,7 +264,7 @@ func (resources *nangoConnectorResources) Close() error {
 	return errors.Join(resources.proxy.Close(), resources.connection.Close())
 }
 
-func addProductionNangoProvider(config RuntimeConfig, resolver nango.ServiceSecretResolver, providers map[string]apiserver.ConnectorOAuthProviderDefinition, checks map[string]apiserver.ConnectorCapabilityCheck) (io.Closer, error) {
+func addProductionNangoProvider(config RuntimeConfig, resolver nango.ServiceSecretResolver, providers map[string]apiserver.ConnectorOAuthProviderDefinition, checks map[string]apiserver.ConnectorCapabilityCheck) (*nangoConnectorResources, error) {
 	if config.NangoBaseURL == "" && config.NangoServiceSecretReference == "" && config.NangoEnvironment == "" {
 		return nil, nil
 	}

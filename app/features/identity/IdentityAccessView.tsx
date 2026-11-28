@@ -6,11 +6,15 @@ import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader, Selec
 import "../admin-surface-layout.css";
 import { useOptionalSession } from "../../auth/SessionProvider";
 import { BUILT_IN_ROLE_NAMES } from "../../../apps/web/api/administration-decoders";
+import { MemberDirectory } from "./MemberDirectory";
+import type { MemberAccessScope, MemberInvitation, MemberInvitationInput } from "../../../apps/web/api/generated";
 import { useOptionalIdentityAdminAPI } from "./IdentityAPIProvider";
 
 export interface IdentityMember {
   id: string;
   memberReference: string;
+  displayName?: string;
+  email?: string;
   role: string;
   active: boolean;
   version: number;
@@ -59,6 +63,11 @@ export interface IdentityGroupMappingInput {
 
 export interface IdentityAdminAPI {
   listMembers(): Promise<IdentityMember[]>;
+  listInvitations(): Promise<readonly MemberInvitation[]>;
+  inviteMember(input: MemberInvitationInput): Promise<MemberInvitation>;
+  updateMemberProfile(id: string, displayName: string, version: number): Promise<IdentityMember>;
+  removeMember(id: string, version: number): Promise<IdentityMember>;
+  memberAccess(id: string): Promise<readonly MemberAccessScope[]>;
   updateMemberRole(id: string, role: string, version: number): Promise<IdentityMember>;
   listRoles(): Promise<IdentityRole[]>;
   listSSOConnections(): Promise<IdentitySSOConnection[]>;
@@ -73,16 +82,14 @@ export interface IdentityAdminAPI {
 }
 
 interface LoadedState {
-  members: IdentityMember[];
-  roles: IdentityRole[];
   ssoConnections: IdentitySSOConnection[];
   scimConnections: IdentitySCIMConnection[];
   groupMappings: IdentityGroupMapping[];
 }
 
-const emptyState: LoadedState = { members: [], roles: [], ssoConnections: [], scimConnections: [], groupMappings: [] };
+const emptyState: LoadedState = { ssoConnections: [], scimConnections: [], groupMappings: [] };
 
-export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAPI }) {
+export function IdentityAccessView({ api: suppliedAPI, organizationName }: { api?: IdentityAdminAPI; organizationName?: string }) {
   const contextAPI = useOptionalIdentityAdminAPI();
   const api = suppliedAPI ?? contextAPI;
 	const session = useOptionalSession();
@@ -92,9 +99,9 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
   const identityRoot = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<LoadedState>(emptyState);
   const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<IdentityRole[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [ssoDisplayName, setSSODisplayName] = useState("");
   const [ssoProtocol, setSSOProtocol] = useState<"saml" | "oidc">("saml");
   const [ssoProvider, setSSOProvider] = useState("generic");
@@ -106,14 +113,21 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
   const [groupWorkspaceID, setGroupWorkspaceID] = useState("");
   const [groupEnvironmentID, setGroupEnvironmentID] = useState("");
 
+  useEffect(() => {
+    if (!organizationAllowed || !api) return;
+    let current = true;
+    void api.listRoles().then(value => { if (current) setRoles(value); })
+      .catch(() => { if (current) setError("Built-in roles could not be loaded"); });
+    return () => { current = false; };
+  }, [api, organizationAllowed]);
+
   const load = useCallback(async () => {
     try {
       if (!api) throw new Error("identity API unavailable");
-      const [members, roles, ssoConnections, scimConnections, groupMappings] = await Promise.all([
-        organizationAllowed ? api.listMembers() : [], organizationAllowed ? api.listRoles() : [], organizationAllowed ? api.listSSOConnections() : [], organizationAllowed ? api.listSCIMConnections() : [], groupsAllowed ? api.listGroupMappings() : [],
+      const [ssoConnections, scimConnections, groupMappings] = await Promise.all([
+        organizationAllowed ? api.listSSOConnections() : [], organizationAllowed ? api.listSCIMConnections() : [], groupsAllowed ? api.listGroupMappings() : [],
       ]);
-      setState({ members, roles, ssoConnections, scimConnections, groupMappings });
-      setRoleDrafts(Object.fromEntries(members.map((member) => [member.id, member.role])));
+      setState({ ssoConnections, scimConnections, groupMappings });
     } catch {
       setError("Identity data could not be loaded");
     } finally {
@@ -151,9 +165,10 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
   if (loading) return <div className="page"><LoadingState label="Loading identity and access…" /></div>;
 
   return <div className="page identity-access" ref={identityRoot}>
-    <PageHeader title="Identity & Access" eyebrow="Administration" description="Manage tenant-scoped roles, enterprise SSO, and SCIM provisioning." />
+    <PageHeader title="Identity & Access" eyebrow={organizationName || "Administration"} description="Manage organization members, roles, and sign-in settings." />
     <nav className="identity-section-nav" aria-label="Identity sections">
       {organizationAllowed && <><a href="#identity-members">Members</a>
+      {session?.status === "authenticated" && <a href="#scope-onboarding">Organization</a>}
       <a href="#identity-roles">Built-in roles</a>
       <a href="#identity-provider">Enterprise identity</a></>}
       {groupsAllowed && <a href="#identity-groups">Group mappings</a>}
@@ -162,16 +177,18 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
     {notice && <div className="success-banner" role="status">{notice}</div>}
 	{!fresh && <div className="error-banner" role="alert">Fresh authentication expired. <Button onClick={() => session?.reauthenticate()}>Reauthenticate</Button></div>}
     <div className="identity-grid">
-      {organizationAllowed && <><Card title={<h2 id="identity-members" tabIndex={-1}>Members</h2>}>
-        {state.members.length === 0 ? <EmptyState title="No members" description="Provisioned members will appear here." /> :
-          <ul className="identity-list">{state.members.map((member) => <li key={member.id}><span><strong>{member.memberReference}</strong><small>version {member.version}</small></span><div className="row-actions"><Select disabled={!fresh} label={`Role for ${member.memberReference}`} value={roleDrafts[member.id] ?? member.role} onChange={(event) => setRoleDrafts((current) => ({ ...current, [member.id]: event.target.value }))}>{state.roles.map((roleValue) => <option key={roleValue.role} value={roleValue.role}>{roleValue.role.replaceAll("_", " ")}</option>)}</Select><Button disabled={!fresh || !member.active || (roleDrafts[member.id] ?? member.role) === member.role} onClick={() => void action(async () => { if (!api) throw new Error(); const updated = await api.updateMemberRole(member.id, roleDrafts[member.id] ?? member.role, member.version); setState((current) => ({ ...current, members: current.members.map((item) => item.id === updated.id ? updated : item) })); }, "Member role updated; active sessions revoked")}>Update role</Button><Badge tone={member.active ? "success" : "neutral"}>{member.active ? "Active" : "Disabled"}</Badge></div></li>)}</ul>}
-      </Card>
+      {organizationAllowed && <>{api && <MemberDirectory
+        heading={<h2 id="identity-members" tabIndex={-1}>Members</h2>}
+        api={api} roles={roles} fresh={fresh} organizationName={organizationName}
+        selfID={session?.status === "authenticated" ? session.principal.id : undefined}
+        scopeLabel={session?.status === "authenticated" ? session.scopes.find(scope => scope.workspace_id === session.workspaceID && scope.environment_id === session.environmentID)?.label : undefined}
+      />}
       <Card title={<h2 id="identity-roles" tabIndex={-1}>Built-in roles</h2>}>
-        {state.roles.length === 0 ? <EmptyState title="No roles" /> :
-          <ul className="identity-list">{state.roles.map((role) => <li key={role.role}><span><strong>{role.role.replaceAll("_", " ")}</strong><small>{role.permissions.join(" · ")}</small></span></li>)}</ul>}
+        {roles.length === 0 ? <EmptyState title="No roles" /> :
+          <ul className="identity-list">{roles.map((role) => <li key={role.role}><span><strong>{role.role.replaceAll("_", " ")}</strong><small>{role.permissions.join(" · ")}</small></span></li>)}</ul>}
       </Card>
       <Card title={<h2 id="identity-provider" tabIndex={-1}>Enterprise identity</h2>}>
-        <Badge tone="success">Configured</Badge>
+        {(state.ssoConnections.length > 0 || state.scimConnections.length > 0) && <Badge tone="success">Configured</Badge>}
         <p>Connections are isolated to this organization and reconciled against the configured identity provider.</p>
         <h3>Single sign-on</h3>
         <div className="form-grid">

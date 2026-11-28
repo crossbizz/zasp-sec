@@ -1,0 +1,6 @@
+apiVersion: v2
+name: opensearch
+description: Independent persistent single-node OpenSearch with workload certificate authentication.
+version: 0.1.0
+appVersion: "3.8.0"
+type: application

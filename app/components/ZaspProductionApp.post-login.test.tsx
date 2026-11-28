@@ -139,7 +139,7 @@ it.each([[true,false],[false,true],[true,true]] as const)("loads only authorized
     if(path==="/api/v1/session/bootstrap")return json(bootstrap([...(organizationAllowed?["identity.manage"]:[]),...(environmentAllowed?["identity.groups.manage","identity.scopes.manage"]:[])]));
     if(path==="/api/v1/workflow-mutation-receipts")return json({items:[]});
     const orgOnly=["/api/v1/admin/members","/api/v1/admin/roles","/api/v1/admin/sso-connections","/api/v1/admin/scim-connections"].includes(path);
-    const envOnly=["/api/v1/admin/group-mappings","/api/v1/organization","/api/v1/workspaces","/api/v1/environments"].includes(path);
+    const envOnly=["/api/v1/admin/group-mappings","/api/v1/workspaces","/api/v1/environments"].includes(path);
     if(orgOnly&&!organizationAllowed||envOnly&&!environmentAllowed){forbidden.push(path);return json({code:"request_forbidden",message:"Request forbidden",correlation_id:principal,retryable:false},403);}
     if(path==="/api/v1/admin/roles")return json({items:[{role:"security_admin",permissions:["manage_identity"]}],page_info:{has_more:false,next_cursor:null}});
     if(path==="/api/v1/organization")return json({id:org,name:"Post-login",domain:"post-login.invalid",version:1});
@@ -151,9 +151,46 @@ it.each([[true,false],[false,true],[true,true]] as const)("loads only authorized
   await waitFor(()=>expect(screen.queryByText("Loading identity and access…")).not.toBeInTheDocument());
   expect(screen.queryByRole("heading",{name:"Members"})!==null).toBe(organizationAllowed);
   expect(screen.queryByRole("heading",{name:"Group mappings"})!==null).toBe(environmentAllowed);
+  await screen.findByRole("heading",{name:"Organization"});
+  if(organizationAllowed) expect(await screen.findByRole("textbox",{name:"Organization display name"})).toBeVisible();
+  else { const card = screen.getByRole("heading", { name:"Organization" }).closest("section")!; expect(await within(card).findByText("Post-login")).toBeVisible(); expect(screen.queryByRole("button",{name:"Save organization name"})).toBeNull(); }
   if(environmentAllowed){expect(within(screen.getByRole("combobox",{name:"Mapped role"})).getByRole("option",{name:"read only viewer"})).toBeVisible();expect(await screen.findByRole("button",{name:"Create workspace"})).toBeVisible();}
   expect(screen.queryByText("Identity data could not be loaded")).not.toBeInTheDocument();
   expect(forbidden).toEqual([]);
+});
+
+it("keeps the saved organization name visible in member administration and invitation confirmation", async () => {
+  window.history.replaceState({}, "", "/administration/identity-access");
+  const scope = { id: org, domain: "example.test", name: "Example Team", version: 1 };
+  const orgReads: string[] = [];
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/v1/session/bootstrap") return json(bootstrap(["identity.manage"]));
+    if (path === "/api/v1/workflow-mutation-receipts") return json({items: []});
+    if (path === "/api/v1/organization") {
+      orgReads.push(request.method);
+      if (request.method === "PATCH") {
+        expect(await request.json()).toEqual({ name: "Renamed Team" });
+        return json({ ...scope, name: "Renamed Team", version: 2 });
+      }
+      return json(scope);
+    }
+    if (path === "/api/v1/admin/roles") return json({ items: [{ role: "read_only_viewer", permissions: ["view"] }], page_info: { has_more: false, next_cursor: null } });
+    if (["/api/v1/admin/members", "/api/v1/admin/sso-connections", "/api/v1/admin/scim-connections"].includes(path)) return emptyPage();
+    throw new Error(`Unexpected identity request ${path}`);
+  });
+  render(<ZaspProductionApp />);
+  expect(await screen.findByText("Example Team")).toBeVisible();
+  const name = screen.getByRole("textbox", { name: "Organization display name" });
+  await userEvent.clear(name);
+  await userEvent.type(name, "Renamed Team");
+  await userEvent.click(screen.getByRole("button", { name: "Save organization name" }));
+  expect(await screen.findByText("Renamed Team")).toBeVisible();
+  const invite = await screen.findByRole("button", { name: "Invite member" });
+  await waitFor(() => expect(invite).toBeEnabled());
+  await userEvent.click(invite);
+  expect(screen.getByRole("dialog", { name: "Invite member" })).toHaveTextContent("membership in Renamed Team");
+  expect(orgReads).toEqual(["GET", "PATCH"]);
 });
 
 it("keeps Settings-only URLs, reloads, the brand and browser Back on permitted pages", async () => {

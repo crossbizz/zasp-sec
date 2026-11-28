@@ -27,6 +27,15 @@ spec:
             matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: {{ .workloads | toJson }} }]
         {{- end }}
       ports: [{ protocol: TCP, port: 8443 }]
+    {{- if .Values.dashboard.clients }}
+    - from:
+        {{- range .Values.dashboard.clients }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .namespace | quote }} } }
+          podSelector:
+            matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: {{ .workloads | toJson }} }]
+        {{- end }}
+      ports: [{ protocol: TCP, port: 9443 }]
+    {{- end }}
   egress:
     {{- include "nango.dbEgress" . | nindent 4 }}
     - to:
@@ -34,3 +43,10 @@ spec:
         - ipBlock: { cidr: {{ . | quote }} }
         {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
+    {{- if .Values.dashboard.emailSecret }}
+    - to:
+        {{- range .Values.dashboard.smtpEgressCIDRs }}
+        - ipBlock: { cidr: {{ . | quote }} }
+        {{- end }}
+      ports: [{ protocol: TCP, port: 465 }]
+    {{- end }}

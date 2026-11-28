@@ -12,7 +12,7 @@ You need two things, whatever you connect:
 - the address of the product, written here as `https://zasp.example.com`;
 - an invitation to it.
 
-No provider is required, and none comes first. Connect the source where your agents are. Each source below says what it needs from the person who operates your Zasp deployment and from you.
+Choose a configured provider that holds your agents. Your operator can enable a supported provider in Nango or create a connection reference for your tenant.
 
 ## 1. Sign in
 
@@ -24,159 +24,13 @@ Follow the invitation email, then choose **Sign in**. If the top bar shows a sco
 No source to connect yet? Ask your operator to seed demo data: `./zasp demo seed --email <your address>`. You get an Environment of its own with a fictional company's agents, findings, MCP servers and attack paths, which you open with your own sign-in. Its integrations are named `Demo: …`, and it can be removed again. The [Administrator guide](/administrator-guide#demo-data) has the details.
 </Note>
 
-Open **Integrations**. **Add a source** lists what this deployment can connect. If a source below is missing from it, the deployment has not enabled it: ask your operator.
+Open **Integrations**. **Add a source** shows the supported providers configured in the Nango environment connected to your deployment. If a provider is missing, ask your operator to check its integration key and collector configuration. [Administrator setup](/administrator-guide#set-up-nango-in-this-cluster)
 
-The sources are in alphabetical order.
+1. Choose your provider and enter the tenant identifier requested by its form.
+2. When the form asks for a Nango connection, enter the `ref:nango/connection/<id>` supplied by your operator. Nango holds the provider credentials.
+3. Choose **Save integration**. If the integration offers provider sign-in, start it, choose **Continue to provider**, and complete authorization in the new tab. Return to the original Zasp tab and choose **Finish sign-in**.
 
-<Tabs>
-  <Tab title="AWS">
-    **Finds:** Bedrock agents, AgentCore runtimes and gateways, and agents inferred from Lambda, CloudTrail and network logs.
-
-    | From your operator | From you |
-    | --- | --- |
-    | The two principals of the deployment that may assume your role, an external ID, and its reference `ref:aws/external-id/<name>` | An IAM role in the account that trusts those principals with the external ID, with the [read policy](/integrations/aws#the-read-policy) |
-
-    In **Add a source**, choose Amazon Web Services and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **Read role ARN** | The ARN of your role |
-    | **External ID** | `ref:aws/external-id/<name>`. The reference, never the external ID itself. |
-    | **Home region** | A region, for example `us-east-1` |
-
-    Choose **Save integration**. Success after authorizing: **AWS account scope** shows the account.
-
-    Full page: [AWS](/integrations/aws).
-  </Tab>
-  <Tab title="GitHub">
-    **Finds:** repositories that are agent projects, their MCP configuration, and their skills by path.
-
-    | From your operator | From you |
-    | --- | --- |
-    | A GitHub App configured in the deployment | An installation of that App on your organization, on all repositories or selected ones |
-
-    In **Add a source**, choose GitHub and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **Authorization mode** | `github_app`. It is the only value the field accepts. |
-
-    Choose **Save integration**. Authorizing continues on GitHub, where you choose the organization and the repositories.
-
-    Success after authorizing: **GitHub provider scope** shows **Organization scope**, **Repository scope** and **Read-only permissions**.
-
-    Full page: [GitHub](/integrations/github).
-  </Tab>
-  <Tab title="Google Cloud">
-    **Finds:** Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, and agents inferred from Cloud Run and Cloud Functions.
-
-    | From your operator | From you |
-    | --- | --- |
-    | The connector enabled. For workload identity federation, the deployment's two roles. | A read-only service account with the [roles listed](/integrations/google-cloud#what-you-grant), and a workload identity provider that lets the deployment impersonate it |
-
-    In **Add a source**, choose Google Cloud and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **Organization, folder or project** | `organizations/<number>`, `folders/<number>` or `projects/<project id>` |
-    | **Service account** | `ref:gcp/workload-identity/<project id>/<service account name>` |
-    | **Workload identity provider** | The provider's full resource name |
-
-    Choose **Save integration**. Success after authorizing: **Google Cloud scope** shows what was read.
-
-    Full page: [Google Cloud](/integrations/google-cloud).
-  </Tab>
-  <Tab title="Kubernetes">
-    **Finds:** agent workloads, MCP servers, and the agents linked to them.
-
-    | From your operator | From you |
-    | --- | --- |
-    | The cluster credential stored outside the browser, and its reference `ref:kubernetes/connection/<name>` | A read-only credential for the cluster. The built-in `view` ClusterRole is enough. |
-
-    In **Add a source**, choose Kubernetes and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **Cluster credential reference** | `ref:kubernetes/connection/<name>` |
-
-    Choose **Save integration**. Success after authorizing: **Cluster scope** shows the cluster.
-
-    Full page: [Kubernetes](/integrations/kubernetes).
-  </Tab>
-  <Tab title="Microsoft and Azure">
-    **Finds:** Entra agent identities, AI enterprise applications, Copilot Studio agents, and Azure OpenAI and AI Foundry resources.
-
-    | From your operator | From you |
-    | --- | --- |
-    | The connector enabled, and your client secret stored, with its reference `ref:microsoft/client-secret/<name>` | A single-tenant application in Microsoft Entra with the [read permissions listed](/integrations/microsoft#what-you-grant), and a client secret |
-
-    In **Add a source**, choose "Microsoft Entra and Copilot Studio" and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **Directory (tenant) ID** | The tenant GUID, in lower case |
-    | **Application (client) ID** | The application GUID, in lower case |
-    | **Client secret** | `ref:microsoft/client-secret/<name>` |
-    | **Dataverse environment URL** | Optional, for Copilot Studio. It cannot be added later. |
-
-    Choose **Save integration**. Success after authorizing: **Microsoft Entra tenant** shows the tenant.
-
-    Full page: [Microsoft and Azure](/integrations/microsoft).
-  </Tab>
-  <Tab title="Okta">
-    **Finds:** AI applications connected to your directory.
-
-    | From your operator | From you |
-    | --- | --- |
-    | An Okta application configured in the deployment | A sign-in with an account that may grant the read scopes for applications, groups and users |
-
-    In **Add a source**, choose Okta and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **Okta issuer** | `https://<tenant>.okta.com` |
-
-    Choose **Save integration**. Authorizing continues on Okta. Success: **Okta provider scope** shows **Okta tenant** and **Directory scopes**.
-
-    Full page: [Okta](/integrations/okta).
-  </Tab>
-  <Tab title="Salesforce">
-    **Finds:** Agentforce agents, the users they run as, and their topics and actions.
-
-    | From your operator | From you |
-    | --- | --- |
-    | The connector enabled, and your consumer secret stored, with its reference `ref:salesforce/client-secret/<name>` | A connected app with the client credentials flow and a run-as user, as [described](/integrations/salesforce#what-you-grant) |
-
-    In **Add a source**, choose "Salesforce Agentforce" and fill in:
-
-    | Field | Paste |
-    | --- | --- |
-    | **My Domain URL** | `https://<name>.my.salesforce.com` |
-    | **Organization ID** | The 18-character ID that starts with `00D` |
-    | **Consumer key** | The connected app's consumer key |
-    | **Consumer secret** | `ref:salesforce/client-secret/<name>` |
-
-    Choose **Save integration**. Success after authorizing: **Salesforce org** shows the org.
-
-    Full page: [Salesforce](/integrations/salesforce).
-  </Tab>
-  <Tab title="SaaS platforms">
-    **Finds:** AI apps and agents of Anthropic, Atlassian, Databricks, GitLab, Google Workspace, OpenAI, ServiceNow and Slack. They are read through Nango, a connection service that is part of the deployment and holds the provider's token.
-
-    | Platform | From your operator | From you |
-    | --- | --- | --- |
-    | GitLab, Google Workspace, ServiceNow, Slack | The connector enabled | A sign-in at the provider, with an account of the tenant |
-    | Anthropic, Atlassian, Databricks, OpenAI | The connector enabled, and the connection created in Nango, with its reference `ref:nango/connection/<id>` | The platform's API key or token, handed to your operator |
-
-    In **Add a source**, choose the platform, enter its tenant identifier, and for a key-based platform the reference. Choose **Save integration**.
-
-    For a sign-in platform, open the integration and choose the button that starts with "Sign in to". Choose **Continue to provider**. After signing in, return to the original Zasp tab and choose **Finish sign-in**. When Zasp verifies the connection, the page says "Signed in. Authorize the integration to start collecting."
-
-    Success after authorizing: **Tenant** shows the tenant.
-
-    Full page: [SaaS platforms](/integrations/saas-platforms).
-  </Tab>
-</Tabs>
+Zasp can discover AI apps and agents from Anthropic, Atlassian, Databricks, GitLab, Google Workspace, OpenAI, ServiceNow and Slack when their adapters are configured. [SaaS platforms](/integrations/saas-platforms)
 
 ## 3. Authorize and sync
 
@@ -207,10 +61,6 @@ These steps are the same for every source.
     Open the first critical finding and read it from **Why** to **Verify**.
   </Step>
 </Steps>
-
-## What each source gives you
-
-<Markdown src="/docs/snippets/what-each-source-gives-you.mdx" />
 
 ## Make a first API call
 

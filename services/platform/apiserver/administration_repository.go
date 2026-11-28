@@ -59,7 +59,7 @@ type administrationRepository interface {
 
 type administrationMutation struct {
 	Operation, ID, ReplacementID, Name, Role, WorkspaceID, EnvironmentID string
-	InitialEnvironmentID                                                 string
+	Email, InitialEnvironmentID                                          string
 	EnvironmentClass, CollectionMode, IdempotencyKey, GrantID, AuditID   string
 	RetentionDays                                                        int
 	DeletionEnabled                                                      bool
@@ -112,11 +112,21 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 			return repository.database.QueryJSON(ctx, currentHierarchyValueSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "environment", parameters["id"])
 		}
 		return repository.database.QueryJSON(ctx, postgresGetEnvironmentSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), parameters["id"], identity.Scope.EnvironmentID().String())
+	case "listMemberInvitations", "getMemberAccess":
+		return repository.database.QueryJSON(ctx, memberLifecycleReadSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), operation, parameters["id"], parameters["after_id"], adminLimit(parameters)+1)
 	case "listMembers":
+		o := identity.Scope.OrganizationID().String()
+		var page json.RawMessage
+		var err error
 		if _, current := requestAuthorizationFromContext(ctx); current {
-			return repository.database.QueryJSON(ctx, currentMemberPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
+			page, err = repository.database.QueryJSON(ctx, currentMemberPageSQL, o, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
+		} else {
+			page, err = repository.database.QueryJSON(ctx, postgresListMembersSQL, o, parameters["after_id"], adminLimit(parameters)+1)
 		}
-		return repository.database.QueryJSON(ctx, postgresListMembersSQL, identity.Scope.OrganizationID().String(), parameters["after_id"], adminLimit(parameters)+1)
+		if err != nil || nilInterface(repository.memberDirectory) {
+			return page, err
+		}
+		return repository.enrichMemberPage(ctx, o, page), nil
 	case "listGroupMappings":
 		if _, current := requestAuthorizationFromContext(ctx); current {
 			return repository.database.QueryJSON(ctx, currentGroupMappingPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
@@ -191,6 +201,8 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 	}
 	organization, workspace, environment, actor := identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()
 	switch mutation.Operation {
+	case "updateOrganization":
+		return repository.preconditionedAdministrationMutation(ctx, currentOrganizationRenameSQL, organization, workspace, environment, actor, mutation.Name, mutation.ExpectedVersion, mutation.AuditID)
 	case "createWorkspace":
 		if _, checked := requestAuthorizationFromContext(ctx); checked {
 			return repository.database.QueryJSON(ctx, postgresCreateWorkspaceCurrentSQL, mutation.ID, organization, mutation.Name, workspace, environment, mutation.AuditID, actor, mutation.InitialEnvironmentID, []byte("[]"))
@@ -225,6 +237,8 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 			return repository.preconditionedAdministrationMutation(ctx, currentHierarchyRenameSQL, organization, workspace, environment, actor, "environment", mutation.ID, mutation.Name, mutation.ExpectedVersion, mutation.AuditID)
 		}
 		return repository.preconditionedAdministrationMutation(ctx, postgresUpdateEnvironmentSQL, organization, workspace, mutation.ID, environment, mutation.Name, mutation.ExpectedVersion, mutation.AuditID, actor)
+	case "inviteMember", "updateMemberProfile", "removeMember":
+		return repository.mutateMember(ctx, identity, mutation)
 	case "updateMemberRole":
 		return repository.preconditionedAdministrationMutation(ctx, postgresUpdateMemberRoleSQL, organization, mutation.ID, mutation.Role, mutation.ExpectedVersion, workspace, environment, mutation.AuditID, actor)
 	case "updateGroupMappings":

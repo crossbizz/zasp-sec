@@ -3,7 +3,7 @@ import { dirname, extname, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const productionEntries = ["app/page.tsx", "app/[...path]/page.tsx"];
+const productionEntries = ["app/page.tsx", "app/[...path]/page.tsx", "app/deployment-admin/page.tsx"];
 const sourceExtensions = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const allowedExactSources = new Set([
 	"app/features/redteam/ProductionAttackLabView.tsx",

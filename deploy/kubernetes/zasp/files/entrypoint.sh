@@ -153,10 +153,7 @@ migrate() { ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" /app/agentsec-migrate "$1" ||
 cmd_schema() {
   /app/agentsec-migrate approval-maintenance-checksum > "$RUN/approval.checksum" || fail "agentsec-migrate is not in this image (it must be the API image)"
   load_environment
-  if ! ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" /app/agentsec-migrate verify-baseline >/dev/null 2>&1; then
-    migrate install-baseline
-    migrate verify-baseline >/dev/null
-  fi
+  migrate ensure-baseline
   export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
   for command in register-authorization-verifier register-worker-authorization-verifier register-compensation-authorization-verifier register-approval-maintenance-verifier; do
     migrate "$command"

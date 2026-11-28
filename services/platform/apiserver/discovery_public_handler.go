@@ -152,6 +152,9 @@ func (handler *discoveryPublicHTTPHandler) syncIntegration(writer http.ResponseW
 		writeProductionError(writer, request, err)
 		return
 	}
+	if result.Replayed {
+		suppressReplayedWorkflow(request.Context())
+	}
 	writeDiscoveryMutationHeaders(writer, result.Version, result.AuditID, result.ReceiptID)
 	writeJSONValue(writer, request, http.StatusAccepted, result.Value, nil)
 }

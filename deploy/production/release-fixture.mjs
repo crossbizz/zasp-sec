@@ -164,3 +164,25 @@ export const customerEdgeReleaseFixture = Object.freeze({
   nodeCIDRs: Object.freeze(["10.0.0.0/16"]),
   stateHostPath: "/var/lib/zasp-sensor-lineage",
 });
+
+export const canonicalRuntimeFixture = () => ({
+  schemaVersion: 61,
+  authorizationTemporal: {
+    profile: 'canonical61-temporal78-authorization79-80-worker-v1',
+    executorPrincipal: 'zasp_svc_temporal_executor', compensationPrincipal: 'zasp_svc_temporal_compensation',
+    projectorPrincipal: 'zasp_svc_outbox', adapterPrincipal: 'zasp_svc_red_team_adapter',
+    executorDSNSecret: 'zasp-temporal-executor', compensationDSNSecret: 'zasp-temporal-compensation',
+    projectorDSNSecret: 'zasp-authorization-projector', adapterDSNSecret: 'zasp-authorization-adapter',
+    forwardKey: { purpose: 'worker-forward', secretName: 'zasp-worker-forward-key', key: 'seed' },
+    compensationKey: { purpose: 'captured-compensation', secretName: 'zasp-worker-compensation-key', key: 'seed' },
+    pricingBindingsConfigMap: 'zasp-temporal-pricing',
+    gatewayPolicyKeysConfigMap: 'zasp-gateway-policy-verifiers',
+    workerRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-temporal-worker',
+    projectorRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-authorization-projector',
+    adapterRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-red-team-adapter',
+    approvalMaintenanceChecksum: 'a'.repeat(64), approvalMaintenanceDSNSecret: 'zasp-approval-maintenance-dsn',
+    approvalMaintenanceKey: { purpose: 'approval-forward', secretName: 'zasp-approval-maintenance-key', key: 'seed' },
+    registerIdentityVerifiers: false,
+  },
+  runtimeServices: { enabled: true, timeout: '5s', temporalAddress: 'temporal-frontend.zasp-runtime.svc.cluster.local:7233', namespace: 'zasp-staging', taskQueue: 'zasp-security-agent', discoveryTaskQueue: 'zasp-discovery', openfgaURL: 'https://openfga.zasp-runtime.svc.cluster.local:8080', storeID: '01ARZ3NDEKTSV4RRFFQ69G5FAV', modelID: '01ARZ3NDEKTSV4RRFFQ69G5FAW', clientSecret: 'zasp-runtime-services-client' },
+});

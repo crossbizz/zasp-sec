@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -104,7 +105,7 @@ func (client *ProductionConnectionClient) StartOAuth(ctx context.Context, reques
 		return OAuthAuthorization{}, ErrConnection
 	}
 	body, err := json.Marshal(map[string]any{
-		"end_user":             map[string]string{"id": nangoEndUserID(request.Binding)},
+		"end_user":             map[string]any{"id": nangoEndUserID(request.Binding), "tags": map[string]string{"origin": "zasp"}},
 		"organization":         map[string]string{"id": nangoOrganizationID(request.Binding)},
 		"allowed_integrations": []string{request.ConnectorKey},
 	})
@@ -112,7 +113,6 @@ func (client *ProductionConnectionClient) StartOAuth(ctx context.Context, reques
 		clear(secret)
 		return OAuthAuthorization{}, ErrConnection
 	}
-	query := url.Values{"env": []string{request.Environment}}
 	var response struct {
 		Data struct {
 			Token       string `json:"token"`
@@ -120,7 +120,7 @@ func (client *ProductionConnectionClient) StartOAuth(ctx context.Context, reques
 			ExpiresAt   string `json:"expires_at"`
 		} `json:"data"`
 	}
-	err = client.doJSON(ctx, http.MethodPost, request.NangoBaseURL+"/api/v1/connect/sessions?"+query.Encode(), secret, body, http.StatusCreated, &response)
+	err = client.doJSON(ctx, http.MethodPost, request.NangoBaseURL+"/connect/sessions", secret, body, http.StatusCreated, &response)
 	clear(secret)
 	clear(body)
 	if err != nil || !connectSessionTokenPattern.MatchString(response.Data.Token) {
@@ -136,9 +136,7 @@ func (client *ProductionConnectionClient) StartOAuth(ctx context.Context, reques
 		return OAuthAuthorization{}, ErrConnection
 	}
 	connectQuery := url.Values{"connect_session_token": []string{response.Data.Token}}
-	// UNVERIFIED against a running Nango: the params[<name>] form of the
-	// connection configuration is written from memory of the Nango connect
-	// endpoint.
+	// Nango reads the nested params query as the per-tenant connection configuration.
 	for name, value := range request.ConnectionParams {
 		connectQuery.Set("params["+name+"]", value)
 	}
@@ -147,6 +145,8 @@ func (client *ProductionConnectionClient) StartOAuth(ctx context.Context, reques
 	if err != nil {
 		return OAuthAuthorization{}, ErrConnection
 	}
+	// Ask Express for the redirect headers without its browser-facing HTML fallback.
+	httpRequest.Header.Set("Accept", "application/json")
 	httpResponse, err := client.client.Do(httpRequest)
 	if err != nil || httpResponse == nil {
 		return OAuthAuthorization{}, ErrConnection
@@ -199,7 +199,6 @@ func (client *ProductionConnectionClient) RecoverOAuth(ctx context.Context, requ
 	}
 	query := url.Values{
 		"endUserId":     []string{nangoEndUserID(request.Binding)},
-		"env":           []string{request.Environment},
 		"integrationId": []string{request.ConnectorKey},
 		"limit":         []string{"2"},
 		"page":          []string{"0"},
@@ -235,7 +234,6 @@ func (client *ProductionConnectionClient) RevokeConnection(ctx context.Context, 
 	query := url.Values{
 		"connectionId":          []string{connection[1]},
 		"endUserOrganizationId": []string{nangoRevocationOrganizationID(request.Binding)},
-		"env":                   []string{request.Environment},
 		"integrationId":         []string{request.ConnectorKey},
 		"limit":                 []string{"2"},
 		"page":                  []string{"0"},
@@ -304,19 +302,10 @@ func (client *ProductionConnectionClient) CheckReadiness(ctx context.Context, re
 		clear(secret)
 		return ErrConnection
 	}
-	query := url.Values{"env": []string{readiness.Environment}}
 	var integration struct {
-		Data struct {
-			UniqueKey       string `json:"unique_key"`
-			Provider        string `json:"provider"`
-			DisplayName     string `json:"display_name"`
-			Logo            string `json:"logo"`
-			ForwardWebhooks bool   `json:"forward_webhooks"`
-			CreatedAt       string `json:"created_at"`
-			UpdatedAt       string `json:"updated_at"`
-		} `json:"data"`
+		Data publicIntegration `json:"data"`
 	}
-	err = client.doJSON(ctx, http.MethodGet, readiness.NangoBaseURL+"/api/v1/integrations/"+url.PathEscape(readiness.ConnectorKey)+"?"+query.Encode(), secret, nil, http.StatusOK, &integration)
+	err = client.doJSON(ctx, http.MethodGet, readiness.NangoBaseURL+"/integrations/"+url.PathEscape(readiness.ConnectorKey), secret, nil, http.StatusOK, &integration)
 	clear(secret)
 	created, createdErr := time.Parse(time.RFC3339Nano, integration.Data.CreatedAt)
 	updated, updatedErr := time.Parse(time.RFC3339Nano, integration.Data.UpdatedAt)
@@ -327,10 +316,65 @@ func (client *ProductionConnectionClient) CheckReadiness(ctx context.Context, re
 	return nil
 }
 
+type publicIntegration struct {
+	UniqueKey       string `json:"unique_key"`
+	Provider        string `json:"provider"`
+	DisplayName     string `json:"display_name"`
+	Logo            string `json:"logo"`
+	ForwardWebhooks bool   `json:"forward_webhooks"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
+
+// ConfiguredIntegrations reads the public, credential-free inventory. The
+// service key selects the Nango environment; this endpoint requires an empty query.
+func (client *ProductionConnectionClient) ConfiguredIntegrations(ctx context.Context, baseURL, serviceKeyRef string) (map[string]string, error) {
+	if client == nil || client.resolver == nil || client.client == nil || ctx == nil || ctx.Err() != nil || !validBaseURL(baseURL) || !referencePattern.MatchString(serviceKeyRef) {
+		return nil, ErrInvalid
+	}
+	secret, err := client.resolver.Resolve(ctx, serviceKeyRef)
+	defer clear(secret)
+	if err != nil || !validServiceSecret(secret) {
+		return nil, ErrConnection
+	}
+	var result struct {
+		Data []publicIntegration `json:"data"`
+	}
+	payload, err := client.requestJSON(ctx, http.MethodGet, baseURL+"/integrations", secret, nil, http.StatusOK)
+	defer clear(payload)
+	// Decode only the public inventory schema. Provider names such as
+	// "1password" are legitimate metadata; a credentials field is rejected.
+	if err != nil || decodeNangoJSON(payload, &result) != nil || result.Data == nil {
+		return nil, ErrConnection
+	}
+	configured := make(map[string]string, len(result.Data))
+	for _, integration := range result.Data {
+		// Custom integration keys unrelated to a Zasp connector do not
+		// affect availability of the supported integrations.
+		if !keyPattern.MatchString(integration.UniqueKey) || !keyPattern.MatchString(integration.Provider) {
+			continue
+		}
+		if _, duplicate := configured[integration.UniqueKey]; duplicate {
+			return nil, ErrConnection
+		}
+		configured[integration.UniqueKey] = integration.Provider
+	}
+	return configured, nil
+}
+
 func (client *ProductionConnectionClient) doJSON(ctx context.Context, method, target string, secret, body []byte, expectedStatus int, output any) error {
+	payload, err := client.requestJSON(ctx, method, target, secret, body, expectedStatus)
+	defer clear(payload)
+	if err != nil || containsSecret(payload) {
+		return ErrConnection
+	}
+	return decodeNangoJSON(payload, output)
+}
+
+func (client *ProductionConnectionClient) requestJSON(ctx context.Context, method, target string, secret, body []byte, expectedStatus int) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, method, target, bytes.NewReader(body))
 	if err != nil {
-		return ErrConnection
+		return nil, ErrConnection
 	}
 	request.Header.Set("Authorization", "Bearer "+string(secret))
 	request.Header.Set("Accept", "application/json")
@@ -339,20 +383,23 @@ func (client *ProductionConnectionClient) doJSON(ctx context.Context, method, ta
 	}
 	response, err := client.client.Do(request)
 	if err != nil || response == nil {
-		return ErrConnection
+		return nil, ErrConnection
 	}
 	defer response.Body.Close()
 	payload, readErr := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
-	if readErr != nil || response.StatusCode != expectedStatus || len(payload) < 2 || len(payload) > 1<<20 || containsSecret(payload) {
+	if readErr != nil || response.StatusCode != expectedStatus || len(payload) < 2 || len(payload) > 1<<20 {
 		clear(payload)
-		return ErrConnection
+		return nil, ErrConnection
 	}
+	return payload, nil
+}
+
+func decodeNangoJSON(payload []byte, output any) error {
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	decodeErr := decoder.Decode(output)
 	var trailing any
 	trailingErr := decoder.Decode(&trailing)
-	clear(payload)
 	if decodeErr != nil || trailingErr != io.EOF {
 		return ErrConnection
 	}
@@ -387,26 +434,52 @@ type nangoPublicConnection struct {
 	Created  string            `json:"created"`
 }
 
+func validConnectionOrigin(value nangoPublicConnection) bool {
+	// The dashboard client marked connections created by older deployments.
+	origin := value.EndUser.Tags["origin"]
+	return len(value.EndUser.Tags) == 1 && (origin == "zasp" || origin == "nango_dashboard") && value.Tags["origin"] == origin
+}
+
+var slackMetadataID = regexp.MustCompile(`^[A-Z][A-Z0-9]{8,20}$`)
+
+func validNangoConnectionMetadata(provider string, metadata json.RawMessage) bool {
+	if string(metadata) == "null" {
+		return true
+	}
+	var fields map[string]string
+	if json.Unmarshal(metadata, &fields) != nil || fields == nil {
+		return false
+	}
+	// The pinned Slack template copies these public identifiers from the
+	// provider token response. No metadata is returned to the caller.
+	for key, id := range fields {
+		if provider != "slack" || key != "bot_user_id" && key != "team.id" || !slackMetadataID.MatchString(id) {
+			return false
+		}
+	}
+	return true
+}
+
 func validNangoConnection(value nangoPublicConnection, request OAuthCompleteRequest, organizationID, endUserID string) bool {
 	created, err := time.Parse(time.RFC3339Nano, value.Created)
 	return err == nil && created.Location() == time.UTC && value.ID > 0 && connectionReferencePattern.MatchString("ref:nango/connection/"+value.ConnectionID) &&
-		value.ProviderConfigKey == request.ConnectorKey && (request.Provider == "" || value.Provider == request.Provider) && len(value.Errors) == 0 && string(value.Metadata) == "null" &&
-		value.EndUser.ID == endUserID && value.EndUser.DisplayName == nil && value.EndUser.Email == nil && len(value.EndUser.Tags) == 1 && value.EndUser.Tags["origin"] == "nango_dashboard" &&
-		value.EndUser.Organization.ID == organizationID && value.EndUser.Organization.DisplayName == nil && len(value.Tags) == 3 && value.Tags["end_user_id"] == endUserID && value.Tags["organization_id"] == organizationID && value.Tags["origin"] == "nango_dashboard"
+		value.ProviderConfigKey == request.ConnectorKey && (request.Provider == "" || value.Provider == request.Provider) && len(value.Errors) == 0 && validNangoConnectionMetadata(value.Provider, value.Metadata) &&
+		value.EndUser.ID == endUserID && value.EndUser.DisplayName == nil && value.EndUser.Email == nil && validConnectionOrigin(value) &&
+		value.EndUser.Organization.ID == organizationID && value.EndUser.Organization.DisplayName == nil && len(value.Tags) == 3 && value.Tags["end_user_id"] == endUserID && value.Tags["organization_id"] == organizationID
 }
 
 func validNangoRevocationConnection(value nangoPublicConnection, request ConnectionRevocationRequest, connectionID string) bool {
 	created, err := time.Parse(time.RFC3339Nano, value.Created)
 	organizationID := nangoRevocationOrganizationID(request.Binding)
 	return err == nil && created.Location() == time.UTC && value.ID > 0 && value.ConnectionID == connectionID &&
-		value.ProviderConfigKey == request.ConnectorKey && (request.Provider == "" || value.Provider == request.Provider) && len(value.Errors) == 0 && string(value.Metadata) == "null" &&
+		value.ProviderConfigKey == request.ConnectorKey && (request.Provider == "" || value.Provider == request.Provider) && len(value.Errors) == 0 && validNangoConnectionMetadata(value.Provider, value.Metadata) &&
 		strings.HasPrefix(value.EndUser.ID, "user_") && len(value.EndUser.ID) == len("user_")+16 && value.EndUser.DisplayName == nil && value.EndUser.Email == nil &&
-		len(value.EndUser.Tags) == 1 && value.EndUser.Tags["origin"] == "nango_dashboard" && value.EndUser.Organization.ID == organizationID && value.EndUser.Organization.DisplayName == nil &&
-		len(value.Tags) == 3 && value.Tags["end_user_id"] == value.EndUser.ID && value.Tags["organization_id"] == organizationID && value.Tags["origin"] == "nango_dashboard"
+		validConnectionOrigin(value) && value.EndUser.Organization.ID == organizationID && value.EndUser.Organization.DisplayName == nil &&
+		len(value.Tags) == 3 && value.Tags["end_user_id"] == value.EndUser.ID && value.Tags["organization_id"] == organizationID
 }
 
 func validOAuthStartRequest(value OAuthStartRequest) bool {
-	return validNangoAuthority(value.NangoBaseURL, value.ServiceSecretReference, value.Environment, value.ConnectorKey, value.Provider, value.Binding) && validAuthorizationHost(value.AuthorizationHost) && validAuthorizationPath(value.AuthorizationPath) && validPublicCallbackURL(value.CallbackURL) && validConnectionParams(value.ConnectionParams)
+	return validNangoAuthority(value.NangoBaseURL, value.ServiceSecretReference, value.Environment, value.ConnectorKey, value.Provider, value.Binding) && validAuthorizationHost(value.AuthorizationHost) && validAuthorizationPath(value.AuthorizationPath) && ValidPublicCallbackURL(value.CallbackURL) && validConnectionParams(value.ConnectionParams)
 }
 
 var connectionParamNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,63}$`)
@@ -456,9 +529,18 @@ func validAuthorizationPath(value string) bool {
 	return validProxyPath(value)
 }
 
-func validPublicCallbackURL(value string) bool {
+// ValidPublicCallbackURL checks the configured Zasp origin, including an
+// optional HTTPS port. StartOAuth compares the entire redirect URI to it.
+func ValidPublicCallbackURL(value string) bool {
 	parsed, err := url.Parse(value)
-	return err == nil && parsed.Scheme == "https" && validAuthorizationHost(strings.ToLower(parsed.Hostname())) && parsed.Port() == "" && parsed.User == nil && parsed.Path == "/api/v1/integrations/oauth/callback" && parsed.RawQuery == "" && parsed.Fragment == ""
+	if err != nil || parsed.Scheme != "https" || !validAuthorizationHost(strings.ToLower(parsed.Hostname())) || parsed.User != nil || parsed.EscapedPath() != "/api/v1/integrations/oauth/callback" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || strings.HasSuffix(parsed.Host, ":") {
+		return false
+	}
+	if port := parsed.Port(); port != "" {
+		n, portErr := strconv.ParseUint(port, 10, 16)
+		return portErr == nil && n != 0
+	}
+	return true
 }
 
 func nangoOrganizationID(value ConnectionBinding) string {

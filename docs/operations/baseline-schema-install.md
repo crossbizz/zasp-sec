@@ -79,7 +79,7 @@ On 2026-11-14 the four deployment registrations, run by hand this way over the W
 
 ### With the Helm chart
 
-The hosted chart's schema job runs `verify-baseline`, `install-baseline` when that fails, and the four registrations of step 2, as `zasp_operator`. With `schema.registerIdentityVerifiers: true` it also runs the two identity registrations. It does not set passwords or create the first Organization. [Production deployment](production-deployment.md#schema-installation) lists the values, the Secrets to create first, and what has and has not been checked.
+The hosted chart's schema job runs `ensure-baseline` as `zasp_operator`, followed by the four registrations of step 2. The command installs an empty database, upgrades an intact supported predecessor or rechecks the current catalog. With `schema.registerIdentityVerifiers: true` it also runs the two identity registrations. It does not set passwords or create the first Organization. [Production deployment](production-deployment.md#schema-installation) lists the values, the Secrets to create first, and what has and has not been checked.
 
 ## Connecting where only HTTPS egress is allowed
 
@@ -99,9 +99,22 @@ ZASP_BASELINE_EXISTING_ROLES=zasp_operator /app/agentsec-migrate baseline-script
 
 The production Neon project was installed this way on 2026-11-12 in 7 seconds.
 
+## Upgrading an existing baseline
+
+Use the V5 release's operator binary and a direct connection as the database owner. Take a backup and rehearse on a restored copy before upgrading a customer deployment.
+
+```bash
+/app/agentsec-migrate upgrade-feature-v5
+/app/agentsec-migrate verify-baseline
+```
+
+Both commands read `ZASP_POSTGRES_DSN`. The upgrade recognizes the sealed pre-V2, framework, V2 and V3/V4 artifacts recorded in the release, including the artifact shipped in V4 at commit `a647c7a2`. It obtains the catalog lock, applies pending migrations, restores temporary grants, seals the catalog and checks readiness in one transaction. Existing tenant data and service credentials carry forward. A failed migration rolls back. Repeating the command against the current release checks readiness again. The older command names `upgrade-feature-v2` and `upgrade-feature-v3` remain available.
+
+If the upgrade refuses an unknown artifact or reports drift, keep the database and its backup. Record the installed artifact with `verify-baseline` and identify the source version or catalog change before planning its migration.
+
 ## Reinstalling over an earlier artifact
 
-There is no upgrade between baseline artifacts. `verify-baseline` on a database installed from another release prints `"current":false` and exits with status 1, and `install-baseline` refuses it with `stage=preconditions reason=the database already contains a product schema`. To install this release's artifact, replace the database. Everything in it is lost: Organizations, memberships, sessions, API tokens, integrations and registered verification keys.
+Use the steps below only for an intentional reset that discards the contents of the old database, including tenants, memberships, sessions, API tokens, integrations and registered verification keys.
 
 1. Stop every workload that connects to the database.
 2. Confirm which database you are connected to before dropping anything, for example `select current_database(), inet_server_addr()`, the provider's branch or instance identifier, and `select name from zasp_organizations`.
@@ -191,15 +204,15 @@ It needs Docker, Go and `psql`, and takes about five minutes. Without Docker, se
 ## Not covered
 
 - **Installing with `install-baseline` on production.** The production Neon project was installed over Neon's HTTPS SQL endpoint (above), not with `install-baseline`. Both run the same statements, and `verify-baseline` has since confirmed that installation over the WebSocket transport. `install-baseline` itself has been run on a Neon development branch only (2026-11-14).
-- **Other upgrade origins.** The populated transition below accepts one sealed predecessor. A database installed from the historical chain or an earlier artifact follows the replacement procedure under [Reinstalling over an earlier artifact](#reinstalling-over-an-earlier-artifact); its data is not carried over.
+- **Other upgrade origins.** The historical migration chain and unrecognized baseline artifacts need a migration designed for that catalog.
 - **Removing the historical chain.** It stays in the repository as the generator's input.
 
-## Upgrade the populated pre-V2 baseline
+## Rehearsing populated upgrades
 
-Use the V2 release's `agentsec-migrate upgrade-feature-v2` with the direct operator connection in `ZASP_POSTGRES_DSN`. It accepts the intact catalog from commit `2f2ad720` or the already-current V2 catalog. Verify the backup and rehearse on a restored copy before changing a customer deployment. Use `verify-baseline` after upgrade. The operator command obtains the catalog lock, applies the same V2 SQL as a fresh installation, restores temporary privileges, seals the catalog and checks authorization readiness in one transaction. A failed readiness check rolls the DDL back. A retry on the current release rechecks readiness. An unknown or modified catalog needs its own reviewed transition.
+Run `scripts/test-feature-v2-upgrade.sh --upgrade-only` as a non-root user with PostgreSQL 18, pgcrypto, Python 3, Go and the predecessor commits available in the checkout. Omit the flag to also run installed product tests, including member invitations, member removal and organization renaming.
 
-Run `scripts/test-feature-v2-upgrade.sh --upgrade-only` as a non-root user with PostgreSQL 18, pgcrypto, Python 3, Go and the predecessor commit available in the checkout. Omit the flag to also run the installed V2 product suite.
+The V4-to-V5 rehearsal installs the preceding release at `a647c7a2`, seeds two tenants, runs the upgrade twice and compares the full tenant snapshots and final schema with a fresh V5 installation.
 
-The rehearsal installs the release at `2f2ad720f069180dfa473b63e435a608c57aa865` in a private cluster and restores two tenants' workspaces, environments, memberships, scoped API tokens, browser sessions, gateway policies, guardrail decisions and queued compliance exports. It compares their complete joined rows after an injected transactional failure, successful upgrade, idempotent retry and restart of the predecessor application code. The token's expected change to its last-used timestamp is excluded. It also compares the upgraded catalog with a fresh V2 installation.
+The rehearsal installs the release at `2f2ad720f069180dfa473b63e435a608c57aa865` in a private cluster and restores two tenants' workspaces, environments, memberships, scoped API tokens, browser sessions, gateway policies, guardrail decisions and queued compliance exports. It compares their complete joined rows after an injected transactional failure, successful upgrade, idempotent retry and restart of the predecessor application code. The token's expected change to its last-used timestamp is excluded. It also compares the upgraded catalog with a fresh installation of the current release.
 
 Two persistent API contract processes compile the actual PostgreSQL repository, HTTP gateway-policy handler and authorization logic from each source revision. They exercise authenticated reads and cross-tenant refusals concurrently on the upgraded database. Both API service roles must satisfy that release's authorization readiness check. The previous process also reads before the upgrade and after the injected failure. A newly started predecessor process repeats the checks after both processes have stopped, modeling application rollback on the upgraded schema. The rehearsal uses a fixture OpenFGA decision with real PostgreSQL service credentials and authorization fences. Full service startup, external providers, other application routes and restoring a production backup require their own deployment rehearsal.

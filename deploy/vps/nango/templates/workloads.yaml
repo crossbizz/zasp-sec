@@ -1,9 +1,12 @@
+{{- if ne (not (empty .Values.dashboard.emailSecret)) (not (empty .Values.dashboard.smtpEgressCIDRs)) }}
+{{- fail "dashboard.emailSecret and dashboard.smtpEgressCIDRs must be configured together" }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata: { name: nango-tls-proxy }
 data:
   nginx.conf: |
-{{ .Files.Get "files/nginx.conf" | indent 4 }}
+{{ tpl (.Files.Get "files/nginx.conf") . | indent 4 }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -58,7 +61,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: nango }
       annotations:
-        zasp.io/config-sha256: {{ .Files.Get "files/nginx.conf" | sha256sum | quote }}
+        zasp.io/config-sha256: {{ tpl (.Files.Get "files/nginx.conf") . | sha256sum | quote }}
     spec:
       {{- include "nango.podSecurity" . | nindent 6 }}
       containers:
@@ -69,18 +72,42 @@ spec:
             - |
               {{- include "nango.loadStorage" . | nindent 14 }}
               {{ include "nango.dbCheck" . }}
-              test -s /run/nango-storage/service-key || exit 64
+              test -s /run/nango-storage/service-key && test -s /run/nango-storage/admin-key || exit 64
               NANGO_SECRET_KEY_PROD="$(cat /run/nango-storage/service-key)"
-              export NANGO_SECRET_KEY_PROD
+              NANGO_ADMIN_KEY="$(cat /run/nango-storage/admin-key)"
+              export NANGO_SECRET_KEY_PROD NANGO_ADMIN_KEY
+              node --input-type=module <<'CHECK'
+              import { readFileSync } from "node:fs";
+              const service = readFileSync("/run/nango-storage/service-key", "utf8");
+              const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+              if (!uuidV4.test(service) || service !== process.env.NANGO_SECRET_KEY_PROD) process.exit(64);
+              const admin = readFileSync("/run/nango-storage/admin-key", "utf8");
+              if (!/^[!-~]{32,4096}$/.test(admin) || admin !== process.env.NANGO_ADMIN_KEY ||
+                  admin === process.env.NANGO_SECRET_KEY_PROD || admin === process.env.NANGO_ENCRYPTION_KEY) process.exit(64);
+              if (Object.hasOwn(process.env, "SMTP_URL")) {
+                let smtp;
+                try { smtp = new URL(process.env.SMTP_URL); } catch { process.exit(64); }
+                if (smtp.protocol !== "smtps:" || !smtp.hostname || (smtp.port && smtp.port !== "465") ||
+                    smtp.search || smtp.hash || !process.env.SMTP_FROM) process.exit(64);
+              }
+              CHECK
               exec node packages/server/dist/server.js
           env:
             {{- include "nango.databaseEnv" . | nindent 12 }}
+            {{- if .Values.dashboard.emailSecret }}
+            - name: SMTP_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.dashboard.emailSecret | quote }}, key: smtp-url } }
+            - name: SMTP_FROM
+              valueFrom: { secretKeyRef: { name: {{ .Values.dashboard.emailSecret | quote }}, key: smtp-from } }
+            {{- end }}
+            - { name: FLAG_AUTH_ENABLED, value: "true" }
+            - { name: AUTH_ALLOW_SIGNUP, value: {{ .Values.dashboard.allowSignup | quote }} }
             - { name: FLAG_SERVE_CONNECT_UI, value: "false" }
             - { name: FLAG_AUTH_ROLES_ENABLED, value: "false" }
             - { name: CSP_REPORT_ONLY, value: "true" }
             - { name: NANGO_MIGRATE_AT_START, value: "false" }
             - { name: NANGO_PUBLIC_CONNECT_URL, value: {{ printf "https://nango.%s.svc.cluster.local:8443/connect" .Release.Namespace | quote }} }
-            - { name: NANGO_PUBLIC_SERVER_URL, value: {{ printf "%s/api/v1/integrations" .Values.publicOrigin | quote }} }
+            - { name: NANGO_PUBLIC_SERVER_URL, value: {{ include "nango.dashboardURL" . | quote }} }
             - { name: NANGO_SERVER_URL, value: {{ printf "%s/api/v1/integrations" .Values.publicOrigin | quote }} }
             - { name: SERVER_PORT, value: "3003" }
           readinessProbe: { httpGet: { path: /ready, port: 3003 }, periodSeconds: 5 }
@@ -94,7 +121,9 @@ spec:
         - name: tls
           image: {{ .Values.tlsProxyImage | quote }}
           command: ["nginx", "-c", "/run/nango-proxy/nginx.conf", "-g", "daemon off;"]
-          ports: [{ name: https, containerPort: 8443 }]
+          ports:
+            - { name: https, containerPort: 8443 }
+            - { name: dashboard, containerPort: 9443 }
           readinessProbe: { tcpSocket: { port: https }, periodSeconds: 5 }
           resources: { requests: { cpu: 25m, memory: 32Mi }, limits: { cpu: 250m, memory: 128Mi } }
           volumeMounts:
@@ -114,6 +143,7 @@ spec:
               - { key: database-url, path: database-url }
               - { key: encryption-key, path: encryption-key }
               - { key: service-key, path: service-key }
+              - { key: admin-key, path: admin-key }
         - { name: proxy-config, configMap: { name: nango-tls-proxy } }
         - { name: server-tls, secret: { secretName: {{ .Values.serverTLSSecret | quote }}, defaultMode: 0440 } }
 ---
@@ -123,4 +153,8 @@ metadata: { name: nango }
 spec:
   type: ClusterIP
   selector: { app.kubernetes.io/name: nango }
-  ports: [{ name: https, port: 8443, targetPort: https }]
+  ports:
+    - { name: https, port: 8443, targetPort: https }
+    {{- if .Values.dashboard.clients }}
+    - { name: dashboard, port: 18443, targetPort: dashboard }
+    {{- end }}

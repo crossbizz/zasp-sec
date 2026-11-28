@@ -47,7 +47,7 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	driver, err := runtimeopensearch.New(runtimeopensearch.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL), Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	driver, err := runtimeopensearch.New(runtimeopensearch.Config{AuthMode: config.OpenSearchAuthMode, AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL), Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
@@ -65,7 +65,7 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		return nil, errRuntimeUnavailable
 	}
 	cloud := productionDiscoveryCloudConfig{Region: config.AWSRegion, RoleARN: config.RuntimeStageRoleARN, TokenFile: config.RuntimeStageTokenFile, SecretRoot: "runtime/index", Timeout: requestTimeout, Clock: func() time.Time { return time.Now().UTC() }}
-	sessionIndex, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL), Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	sessionIndex, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{AuthMode: config.OpenSearchAuthMode, AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL), Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		driver.Close()
 		transport.CloseIdleConnections()

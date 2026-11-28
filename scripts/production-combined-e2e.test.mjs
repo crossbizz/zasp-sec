@@ -1361,9 +1361,9 @@ test("Home exposure E2E waits for loaded rows, not the persistent navigation tit
   assert.match(flow, /Home critical exposure route had no authoritative path/);
 });
 
-test("webhook browser E2E verifies real persisted outcome across response loss and reload", async () => {
+test("webhook public API retains its persisted delivery outcome across response loss and browser reload", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
-  for (const expected of ["integrationWebhookTestRequests", "webhook retry changed its idempotency key", "webhook retry changed its audit record", "webhook failure was not durably retained once", "webhook status reload emitted another delivery", "Signature and acceptance are unconfirmed", "1|failed"]) assert.ok(source.includes(expected));
+  for (const expected of ["integrationWebhookTestRequests", "webhook retry changed its idempotency key", "webhook retry changed its audit record", "webhook failure was not durably retained once", "webhook status reload emitted another delivery", 'assert.equal(replayedDelivery.body.signature_status, "unconfirmed")', "1|failed"]) assert.ok(source.includes(expected));
 });
 
 test("Red Team response recovery proves committed authority without duplicate work", async () => {
@@ -1439,7 +1439,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
     "generateHarnessGitHubAppPrivateKey", "github-app-private-key.pem", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
     "/api/v1/integrations/{id}/authorize", "/api/v1/integrations/oauth/callback", "assertRejectedConnectorResponse",
-    "unavailable managed OAuth authority remained fail-closed with zero provider calls", "browser launch connector setup catalog proven", "Configure Amazon Web Services", "Configure Kubernetes", "connectorAuthorizationRequests", "browserConnectorForensics", "Page.getNavigationHistory",
+    "unavailable managed OAuth authority remained fail-closed with zero provider calls", "browser Nango-only source directory and unconfigured catalog proven", "Configure Amazon Web Services", "Configure Kubernetes", "connectorAuthorizationRequests", "browserConnectorForensics", "Page.getNavigationHistory",
     "live AWS/GitHub/Okta connector success remains typed external evidence", "zero provider/AWS calls",
     "integrationDeleteRequests", "malformNextIntegrationDeleteResponse", "completeHarnessConnectorRevocation",
     "external-provider completion simulation", "real DELETE 202 durable revoking receipt",
@@ -1497,8 +1497,9 @@ test("combined production E2E owns every local boundary and fixed assertion", as
   assert.match(outboxBoundary, /status: 1, signal: null/);
   assert.doesNotMatch(outboxBoundary, /assertFailClosedTask4Worker/);
   const discoveryBrowserBoundary = source.slice(source.indexOf("async function assertTask4BrowserPublicState"), source.indexOf("async function navigateBrowser", source.indexOf("async function assertTask4BrowserPublicState")));
-  assert.equal(discoveryBrowserBoundary.match(/await waitForBrowserText\(cdp, \/Risk projection: pending\/\)/g)?.length, 2);
-  assert.equal(discoveryBrowserBoundary.match(/await waitForBrowserText\(cdp, \/No automatic sync schedule\/\)/g)?.length, 2);
+  assert.equal(discoveryBrowserBoundary.match(/await confirmNativeHistory\(\)/g)?.length, 2);
+  assert.match(discoveryBrowserBoundary, /browserHasAriaLabel\(cdp, "Open Harness AWS discovery"\), false/);
+  assert.match(discoveryBrowserBoundary, /freshness\.body\.projections\[kind\]\.state, "pending"/);
   assert.match(discoveryBrowserBoundary, /const \{ resources, \.\.\.persistentForensics \} = forensics/);
   assert.match(discoveryBrowserBoundary, /resources\.every\(\(resource\) => new URL\(resource\)\.origin === publicOrigin\)/);
   assert.doesNotMatch(source, /Shown only once/);

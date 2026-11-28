@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import uuid
 
 import yaml
 
@@ -24,6 +25,25 @@ class DatabaseTransport(unittest.TestCase):
         tpl = (CHART / "templates/workloads.yaml").read_text()
         self.assertEqual(tpl.count('include "nango.dbCheck"'), 2)
         self.assertEqual(tpl.count('include "nango.databaseEnv"'), 2)
+
+    def test_pinned_nango_requires_uuid_v4_environment_key_and_independent_admin_key(self):
+        startup = (CHART / "templates/workloads.yaml").read_text()
+        check = startup.split("node --input-type=module <<'CHECK'\n", 1)[1].split("\n              CHECK", 1)[0]
+        admin = "a" * 64
+        key = str(uuid.uuid4())
+        with tempfile.TemporaryDirectory() as scratch:
+            mount = Path(scratch)
+            (mount / "admin-key").write_text(admin)
+            check = check.replace("/run/nango-storage", scratch)
+            for service, expected in [(key, 0), (key.upper(), 0), ("b" * 64, 64),
+                                      (key[:14] + "5" + key[15:], 64), (key + "\n", 64)]:
+                with self.subTest(valid=expected == 0):
+                    (mount / "service-key").write_text(service)
+                    result = subprocess.run(["node", "--input-type=module", "-e", check], capture_output=True,
+                                            env={**os.environ, "NANGO_SECRET_KEY_PROD": service.rstrip("\n"),
+                                                 "NANGO_ADMIN_KEY": admin, "NANGO_ENCRYPTION_KEY": "fixture"})
+                    self.assertEqual(result.returncode, expected)
+                    self.assertEqual(result.stdout + result.stderr, b"")
 
     def test_db_url_guard_fails_closed_without_printing_credentials(self):
         helper = (CHART / "templates/_helpers.tpl").read_text()
@@ -64,14 +84,23 @@ class NangoRender(unittest.TestCase):
         self.assertEqual(tls["image"], IMAGE)
         env = {e["name"]: e for e in container["env"]}
         self.assertEqual(env["NANGO_PUBLIC_CONNECT_URL"]["value"], "https://nango.connectors.svc.cluster.local:8443/connect")
-        self.assertEqual(env["NANGO_PUBLIC_SERVER_URL"]["value"], "https://zasp.example.test/api/v1/integrations")
+        self.assertEqual(env["NANGO_SERVER_URL"]["value"], "https://zasp.example.test/api/v1/integrations")
+        self.assertEqual(env["NANGO_PUBLIC_SERVER_URL"]["value"], "https://nango.connectors.svc.cluster.local:18443")
+        self.assertEqual(env["FLAG_AUTH_ENABLED"]["value"], "true")
+        self.assertEqual(env["AUTH_ALLOW_SIGNUP"]["value"], "false")
+        proxy = resources["ConfigMap", "nango-tls-proxy"]["data"]["nginx.conf"]
+        self.assertIn("listen 127.0.0.1:9443 ssl", proxy)
+        self.assertIn("""sub_filter '"apiUrl": "https://zasp.example.test/api/v1/integrations"' '"apiUrl": "https://nango.connectors.svc.cluster.local:18443"'""", proxy)
+        self.assertIn("X-Forwarded-Proto https", proxy)
+        self.assertIn("location / { return 404; }", proxy)
         self.assertNotIn("NANGO_SECRET_KEY_PROD", env)
         storage = next(v["secret"] for v in deploy["volumes"] if v["name"] == "storage")
         self.assertEqual(storage["defaultMode"], 0o440)
         self.assertIn({"key": "service-key", "path": "service-key"}, storage["items"])
         job_volumes = resources["Job", "nango-migrate"]["spec"]["template"]["spec"]["volumes"]
         job_secrets = next(v["secret"] for v in job_volumes if v["name"] == "storage")
-        self.assertNotIn("service-key", [item["key"] for item in job_secrets["items"]])
+        self.assertEqual({item["key"] for item in job_secrets["items"]}, {"database-url", "encryption-key"})
+        self.assertIn({"key": "admin-key", "path": "admin-key"}, storage["items"])
         self.assertFalse(deploy["automountServiceAccountToken"])
         private = resources["NetworkPolicy", "nango"]["spec"]
         self.assertEqual(private["ingress"][0]["ports"], [{"protocol": "TCP", "port": 8443}])
@@ -81,10 +110,34 @@ class NangoRender(unittest.TestCase):
         self.assertNotIn({"protocol": "TCP", "port": 443}, [port for rule in migrate["egress"] for port in rule["ports"]])
         self.assertEqual(resources["Job", "nango-migrate"]["metadata"]["annotations"]["helm.sh/hook"], "pre-install,pre-upgrade")
 
+    def test_private_gateway_is_opt_in_and_restricted_to_its_workload(self):
+        config = {"hostname": "admin.private.example", "allowSignup": True,
+                  "emailSecret": "nango-mail", "smtpEgressCIDRs": ["192.0.2.50/32"],
+                  "clients": [{"namespace": "network", "workloads": ["private-admin-gateway"]}]}
+        result = self.render(CHART, SETTINGS | {"dashboard": config}, "connectors")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        resources = {o["kind"]: o for o in yaml.safe_load_all(result.stdout) if o["metadata"]["name"] in ("nango", "nango-tls-proxy")}
+        self.assertEqual(resources["Service"]["spec"]["type"], "ClusterIP")
+        self.assertEqual(resources["Service"]["spec"]["ports"][-1], {"name": "dashboard", "port": 18443, "targetPort": "dashboard"})
+        policy = resources["NetworkPolicy"]["spec"]["ingress"][1]
+        self.assertEqual(policy["from"][0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"], "network")
+        self.assertEqual(policy["from"][0]["podSelector"]["matchExpressions"][0]["values"], ["private-admin-gateway"])
+        self.assertEqual(policy["ports"], [{"protocol": "TCP", "port": 9443}])
+        self.assertIn("listen 9443 ssl", resources["ConfigMap"]["data"]["nginx.conf"])
+        server = resources["Deployment"]["spec"]["template"]["spec"]["containers"][0]
+        env = {x["name"]: x.get("value") for x in server["env"]}
+        self.assertEqual(env["NANGO_PUBLIC_SERVER_URL"], "https://admin.private.example:18443")
+        self.assertEqual(env["AUTH_ALLOW_SIGNUP"], "true")
+        smtp = next(item for item in server["env"] if item["name"] == "SMTP_URL")
+        self.assertEqual(smtp["valueFrom"]["secretKeyRef"], {"name": "nango-mail", "key": "smtp-url"})
+        mail_policy = resources["NetworkPolicy"]["spec"]["egress"][-1]
+        self.assertEqual(mail_policy, {"to": [{"ipBlock": {"cidr": "192.0.2.50/32"}}],
+                                       "ports": [{"protocol": "TCP", "port": 465}]})
+
     def test_rejects_broad_egress_or_insecure_origin(self):
         for changes in [{"databaseEgressCIDRs": ["0.0.0.0/0"]}, {"providerEgressCIDRs": []},
                         {"publicOrigin": "http://zasp.example.test"}, {"tlsProxyImage": "nginx:latest"},
-                        {"clients": []}]:
+                        {"clients": []}, {"dashboard": {"emailSecret": "mail"}}]:
             self.assertNotEqual(self.render(CHART, SETTINGS | changes, "connectors").returncode, 0)
 
     def test_external_product_profile_renders_only_scoped_egress(self):

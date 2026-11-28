@@ -125,6 +125,29 @@ if [[ -z "$v3_catalog" || "$fresh_catalog" != "$v3_catalog" ]]; then
   exit 1
 fi
 
+# Exercise the installed V4 release against a populated member directory.
+v4_release=a647c7a25fc48b9a0c78167db2782ac8a6a4d6c3
+mkdir "$fixture_dir/v4-release"
+git -C "$repo_dir" archive "$v4_release" services/platform services/health | tar -x -C "$fixture_dir/v4-release"
+go build -C "$fixture_dir/v4-release/services/platform" -o "$fixture_dir/v4-release-migrate" ./agentsec-migrate
+"$pg_bin/createdb" -O zasp_operator -T template0 v5_upgrade
+v5_dsn="postgres://zasp_operator@/v5_upgrade?host=$socket_dir&sslmode=disable"
+ZASP_POSTGRES_DSN="$v5_dsn" "$fixture_dir/v4-release-migrate" install-baseline
+snapshots="$repo_dir/services/platform/migrations/baseline/testdata"
+"$pg_bin/psql" -Xq -v ON_ERROR_STOP=1 --single-transaction -d v5_upgrade -f "$snapshots/v2_predecessor_seed.sql"
+"$pg_bin/psql" -XqAt -v ON_ERROR_STOP=1 -d v5_upgrade -f "$snapshots/v2_predecessor_snapshot.sql" > "$fixture_dir/v4-members.before"
+for pass in 1 2; do
+  if [[ "$pass" == 1 ]]; then
+    ZASP_POSTGRES_DSN="$v5_dsn" "$fixture_dir/current-migrate" ensure-baseline
+  else
+    ZASP_POSTGRES_DSN="$v5_dsn" "$fixture_dir/current-migrate" upgrade-feature-v5
+  fi
+  ZASP_POSTGRES_DSN="$v5_dsn" "$fixture_dir/current-migrate" verify-baseline
+  [[ "$("$pg_bin/psql" -XAt "$v5_dsn" -c 'SELECT zasp_baseline.content()')" == "$fresh_catalog" ]]
+  "$pg_bin/psql" -XqAt -v ON_ERROR_STOP=1 -d v5_upgrade -f "$snapshots/v2_predecessor_snapshot.sql" > "$fixture_dir/v5-members.after"
+  cmp "$fixture_dir/v4-members.before" "$fixture_dir/v5-members.after"
+done
+
 if [[ "$upgrade_only" == true ]]; then exit 0; fi
 
 # Exercise the installed public authorization and data paths, including compiled
@@ -138,3 +161,7 @@ go test -C "$repo_dir/services/platform" -count=1 -timeout=10m -v \
 # Exercise V3 routes against the installed database and its real role grants.
 go test -C "$repo_dir/services/platform" -count=1 -timeout=15m -v -run \
   '^Test(V3|AIControlsInstalled|PrivatePlannerPricingInstalled|Calibration.*OnInstalledPostgres|QualificationRequestOnInstalledPostgres|CustomStudioRevisionProofOnInstalledDatabase|DeploymentReviewReopens|AgentPostureSeparates|RuntimeDelegationOnInstalledPostgres|ProductMCPTenantIsolated|InventoryReviewQualifiedDispatch|SyncDiscoveryReviewQualifies|OfflineAddonObservationBinds|WorkforceInventoryRegisters)' ./apiserver
+
+# Customer administration uses the installed, sealed artifact and the API login.
+go test -C "$repo_dir/services/platform" -count=1 -timeout=10m -v \
+  -run '^Test(OrganizationRenameInstalled|MemberLifecycleInstalled)$' ./apiserver

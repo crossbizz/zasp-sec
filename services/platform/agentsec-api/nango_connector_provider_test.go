@@ -153,6 +153,7 @@ func TestProductionNangoRegistrationIsOptionalAndAddsOnlySlackLongTailAuthority(
 	}
 	checks := map[string]apiserver.ConnectorCapabilityCheck{"github": func(context.Context) error { return nil }}
 	config := fixtureRuntimeConfig()
+	config.PublicOrigin = "https://zasp.example.test:8443"
 	config.NangoBaseURL = "http://nango.connector.svc.cluster.local:3003"
 	config.NangoServiceSecretReference = "ref:nango/service-key-0001"
 	config.NangoEnvironment = "production"

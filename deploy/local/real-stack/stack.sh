@@ -608,11 +608,7 @@ cmd_up() {
   provision_local_cloud
   native || init_graph
   STYTCH_PROJECT_ID="${STYTCH_PROJECT_ID:-project-unset}" STYTCH_SECRET="${STYTCH_SECRET:-secret-unset}" STYTCH_PUBLIC_TOKEN="${STYTCH_PUBLIC_TOKEN:-public-token-unset}" load_environment
-  # verify-baseline succeeds only on an installed, intact baseline.
-  if ! ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline >/dev/null 2>&1; then
-    migrate install-baseline
-    migrate verify-baseline >/dev/null
-  fi
+  migrate ensure-baseline
   export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
   for command in register-authorization-verifier register-worker-authorization-verifier register-compensation-authorization-verifier register-approval-maintenance-verifier; do
     migrate "$command"
@@ -1536,6 +1532,7 @@ case "${1:-}" in
   keys) shift; cmd_keys "$@" ;;
   build) shift; build_binaries ;;
   verify) shift; cmd_verify "$@" ;;
+  upgrade-schema) shift; migrate upgrade-feature-v5 ;;
   dump) shift; cmd_dump "$@" ;;
   load) shift; cmd_load "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;

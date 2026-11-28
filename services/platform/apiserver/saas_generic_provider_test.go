@@ -128,6 +128,22 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 		t.Fatal(err)
 	}
 	capabilities.Reference = registry
+	platforms, err := saasplatforms.Registry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilities.SaaSSignInEnabled = true
+	capabilities.ListNangoIntegrations = func(context.Context) (map[string]string, error) {
+		configured := make(map[string]string)
+		for _, platform := range platforms.Platforms() {
+			provider := platform.NangoProvider
+			if provider == "" {
+				provider = platform.Nango.Key
+			}
+			configured[platform.Nango.Key] = provider
+		}
+		return configured, nil
+	}
 	manifests := locallyCompleteWorkflowManifests(context.Background(), capabilities, false)
 	catalog, err := platformintegration.NewCatalog(manifests)
 	if err != nil {
@@ -139,10 +155,6 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 	}
 	// One entry per registered platform, read from the platform registry:
 	// this test names no platform.
-	platforms, err := saasplatforms.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
 	if len(entries) != len(platforms.Platforms()) || len(entries) < 2 {
 		t.Fatalf("saas catalog entries = %d, registered platforms = %d", len(entries), len(platforms.Platforms()))
 	}

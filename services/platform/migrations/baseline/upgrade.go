@@ -15,6 +15,14 @@ const precedingV3Artifact = "93f816f311bae3bf0105c45979125d2c4d6ea93290e3ed54c37
 
 const precedingFrameworkArtifact = "44af7b31b098ad0a87dce6db8c3ab09e9204c321f1419140014575a0111e4b8d"
 
+const precedingV5Artifact = "2d7533115019c98e7f36940d7154ab6f0aca970ff9b88067f9a7de43e8734254"
+
+//go:embed member_lifecycle.sql
+var memberLifecycleDDL string
+
+//go:embed organization_rename.sql
+var organizationRenameDDL string
+
 //go:embed feature_v2.sql
 var featureV2DDL string
 
@@ -50,24 +58,45 @@ var v3Order string
 //go:embed feature_v3_*.sql
 var v3Sources embed.FS
 
+// Ensure installs an empty database or upgrades an existing sealed baseline.
+// Both paths check the operator, catalog and readiness before committing.
+func Ensure(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+	if ctx == nil || conn == nil {
+		return refuse(StagePreconditions, "no connection", nil)
+	}
+	installed, err := queryBool(ctx, conn, `SELECT pg_catalog.to_regprocedure('zasp_baseline.state()') IS NOT NULL`)
+	if err != nil {
+		return refuse(StagePreconditions, "inspect schema", err)
+	}
+	if installed {
+		return UpgradeToV5(ctx, conn, checks...)
+	}
+	return Install(ctx, conn, checks...)
+}
+
 // UpgradeToV2 preserves the original operator API for deployments that
 // update their binary before they update their release command.
 func UpgradeToV2(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
-	return UpgradeToV3(ctx, conn, checks...)
+	return UpgradeToV5(ctx, conn, checks...)
 }
 
-// UpgradeToV3 applies the same DDL used by the fresh-install generator. The
+// UpgradeToV3 preserves the preceding release's operator entry point.
+func UpgradeToV3(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+	return UpgradeToV5(ctx, conn, checks...)
+}
+
+// UpgradeToV5 applies the same DDL used by the fresh-install generator. The
 // transaction includes temporary privileges, all new objects, the new catalog
 // seal and caller-supplied readiness checks. Preserve preexisting privileges.
-func UpgradeToV3(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
+func UpgradeToV5(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	if ctx == nil || conn == nil {
 		return refuse(StagePreconditions, "no connection", nil)
 	}
 	if _, err := loadArtifact(); err != nil {
 		return refuse(StageArtifact, "invalid release artifact", err)
 	}
-	if Checksum() == precedingV2Artifact || Checksum() == precedingFrameworkArtifact || Checksum() == precedingV3Artifact {
-		return refuse(StageArtifact, "V3 artifact required", nil)
+	if Checksum() == precedingV2Artifact || Checksum() == precedingFrameworkArtifact || Checksum() == precedingV3Artifact || Checksum() == precedingV5Artifact {
+		return refuse(StageArtifact, "V5 artifact required", nil)
 	}
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -85,7 +114,7 @@ func UpgradeToV3(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 	var artifact string
 	var intact bool
 	err = tx.QueryRow(ctx, `SELECT coalesce(state->>'artifact',''), coalesce((state->>'intact')::boolean AND (state->>'sealed')::boolean,false) FROM zasp_baseline.state() AS state`).Scan(&artifact, &intact)
-	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != precedingV3Artifact && artifact != Checksum()) {
+	if err != nil || !intact || (artifact != precedingV2Artifact && artifact != precedingFrameworkArtifact && artifact != precedingV3Artifact && artifact != precedingV5Artifact && artifact != Checksum()) {
 		return refuse(StagePreconditions, "an intact supported baseline is required", err)
 	}
 	if artifact != Checksum() {
@@ -108,16 +137,19 @@ func UpgradeToV3(ctx context.Context, conn *pgx.Conn, checks ...Check) error {
 			}
 		}
 		var updates []string
-		if artifact != precedingV3Artifact {
+		if artifact == precedingV2Artifact || artifact == precedingFrameworkArtifact {
 			updates = []string{frameworkContextDDL, frameworkAddonDDL, frameworkReportingDDL, frameworkProviderHooksDDL, frameworkEndpointDDL, intentClassifierDDL, policyReplayDDL, providerReadinessDDL}
 		}
-		for _, name := range strings.Fields(v3Order) {
-			ddl, err := v3Sources.ReadFile(name)
-			if err != nil {
-				return refuse(StageArtifact, "missing schema source", err)
+		if artifact != precedingV5Artifact {
+			for _, name := range strings.Fields(v3Order) {
+				ddl, err := v3Sources.ReadFile(name)
+				if err != nil {
+					return refuse(StageArtifact, "missing schema source", err)
+				}
+				updates = append(updates, string(ddl))
 			}
-			updates = append(updates, string(ddl))
 		}
+		updates = append(updates, memberLifecycleDDL, organizationRenameDDL)
 		for _, ddl := range updates {
 			if err = execScript(ctx, conn, ddl); err != nil {
 				return refuse(StageObjects, "feature schema upgrade", err)

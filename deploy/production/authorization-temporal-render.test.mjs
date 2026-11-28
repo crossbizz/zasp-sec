@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderRelease, validateRenderedRelease } from './release-contract.mjs';
-import { productionReleaseFixture as release } from './release-fixture.mjs';
+import { productionReleaseFixture as release, canonicalRuntimeFixture as config } from './release-fixture.mjs';
 import { load } from 'js-yaml';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -9,27 +9,7 @@ import { mkdtemp, mkdir, writeFile, symlink, lstat, readFile, rm } from 'node:fs
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const config = () => ({
-  schemaVersion: 61,
-  authorizationTemporal: {
-    profile: 'canonical61-temporal78-authorization79-80-worker-v1',
-    executorPrincipal: 'zasp_svc_temporal_executor', compensationPrincipal: 'zasp_svc_temporal_compensation',
-    projectorPrincipal: 'zasp_svc_outbox', adapterPrincipal: 'zasp_svc_red_team_adapter',
-    executorDSNSecret: 'zasp-temporal-executor', compensationDSNSecret: 'zasp-temporal-compensation',
-    projectorDSNSecret: 'zasp-authorization-projector', adapterDSNSecret: 'zasp-authorization-adapter',
-    forwardKey: { purpose: 'worker-forward', secretName: 'zasp-worker-forward-key', key: 'seed' },
-    compensationKey: { purpose: 'captured-compensation', secretName: 'zasp-worker-compensation-key', key: 'seed' },
-    pricingBindingsConfigMap: 'zasp-temporal-pricing',
-    gatewayPolicyKeysConfigMap: 'zasp-gateway-policy-verifiers',
-    workerRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-temporal-worker',
-    projectorRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-authorization-projector',
-    adapterRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-red-team-adapter',
-    approvalMaintenanceChecksum: 'a'.repeat(64), approvalMaintenanceDSNSecret: 'zasp-approval-maintenance-dsn',
-    approvalMaintenanceKey: { purpose: 'approval-forward', secretName: 'zasp-approval-maintenance-key', key: 'seed' },
-    registerIdentityVerifiers: false,
-  },
-  runtimeServices: { enabled: true, timeout: '5s', temporalAddress: 'temporal-frontend.zasp-runtime.svc.cluster.local:7233', namespace: 'zasp-staging', taskQueue: 'zasp-security-agent', discoveryTaskQueue: 'zasp-discovery', openfgaURL: 'https://openfga.zasp-runtime.svc.cluster.local:8080', storeID: '01ARZ3NDEKTSV4RRFFQ69G5FAV', modelID: '01ARZ3NDEKTSV4RRFFQ69G5FAW', clientSecret: 'zasp-runtime-services-client' },
-});
+
 const one = (rows, kind, name) => { const found = rows.filter(r => r.kind === kind && r.metadata.name === name); assert.equal(found.length, 1, `${kind}/${name}`); return found[0]; };
 const pod = r => r.kind === 'CronJob' ? r.spec.jobTemplate.spec.template.spec : r.spec.template.spec;
 const env = r => Object.fromEntries(pod(r).containers[0].env.map(e => [e.name, e.value ?? e.valueFrom]));
@@ -87,7 +67,7 @@ test('current profile renders the real pollers, registered authorities and bound
   const migration = one(rows, 'Job', 'agentsec-schema-v61');
   assert.equal(env(migration).ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, 'zasp_svc_red_team_adapter');
   assert.equal(env(migration).ZASP_OUTBOX_WORKER_DB_PRINCIPAL, 'zasp_svc_outbox');
-  assert.match(pod(migration).containers[0].args[0], /if ! \/app\/agentsec-migrate verify-baseline; then \/app\/agentsec-migrate install-baseline; \/app\/agentsec-migrate verify-baseline; fi; .*register-authorization-verifier.*register-worker-authorization-verifier.*register-compensation-authorization-verifier.*register-approval-maintenance-verifier$/);
+  assert.match(pod(migration).containers[0].args[0], /\/app\/agentsec-migrate ensure-baseline; .*register-authorization-verifier.*register-worker-authorization-verifier.*register-compensation-authorization-verifier.*register-approval-maintenance-verifier$/);
   assert.doesNotMatch(pod(migration).containers[0].args[0], /up-authorization-runtime-profile|register-temporal-executor-principals|register-identity/);
   assert.equal(env(migration).ZASP_MIGRATION_DB_PRINCIPAL, 'zasp_operator');
   assert.equal(env(migration).ZASP_APPROVAL_MAINTENANCE_KEY_FILE, '/var/run/zasp-approval-maintenance/delivery.key');

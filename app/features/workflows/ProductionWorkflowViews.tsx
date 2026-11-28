@@ -14,7 +14,7 @@ import "../policies/policy-forms.css";
 import { PolicyDefinitionFields, defaultPolicyDefinition, validDefinition, type PolicyDefinition } from "../policies/PolicyDefinitionFields";
 import { PolicyExampleSessions, ScopedReplay } from "../policies/ScopedReplay";
 import { IntegrationRemediationRole } from "./IntegrationRemediationRole";
-import { createIntegrationsAPI, createPoliciesAPI, IntegrationDiscoveryConflict, IntegrationRevocationPending, ReferenceAuthorizationConflict, type Versioned, type WorkflowReceipt } from "./api";
+import { createNangoIntegrationsAPI, createPoliciesAPI, type IntegrationsAPI, IntegrationDiscoveryConflict, IntegrationRevocationPending, ReferenceAuthorizationConflict, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 import { Time } from "../../components/time";
 import { isSaaSCallback } from "./saasSignIn";
@@ -172,17 +172,18 @@ export function ProductionPoliciesView({ canWrite, initialAgent, initialPolicy }
 type IntegrationsProps = { canWrite: boolean; navigateAuthorization?: (target: string) => void; navigate?: (target: string) => void; location?: string };
 export function ProductionIntegrationsView(props: IntegrationsProps) {
   const session = useOptionalSession();
-  const {queryScopeKey, queryGeneration} = useAPI();
+  const {client, queryScopeKey, queryGeneration} = useAPI();
+  const api = useMemo(() => createNangoIntegrationsAPI(client), [client]);
   const principal = session?.status === "authenticated" ? session.principal.id : null;
   const location = props.location ?? (typeof window === "undefined" ? "" : window.location.pathname + window.location.search + window.location.hash);
   if (isSaaSCallback(location)) return <div className="page"><PageHeader title="Provider sign-in" /><Card><p>Return to the Zasp tab where you started sign-in and select <strong>Finish sign-in</strong>. You can close this tab.</p></Card></div>;
-  return <IntegrationsWorkspace key={JSON.stringify([principal,queryScopeKey,queryGeneration,props.canWrite])} {...props} />;
+  return <IntegrationsWorkspace key={JSON.stringify([principal,queryScopeKey,queryGeneration,props.canWrite])} api={api} {...props} location={location} />;
 }
 
 type InPageSignIn = { authorization: IntegrationAuthorization; integrationID: string; version: string; owner: string; epoch: number; sessionGeneration: number; scopeGeneration: number };
 
-function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNavigateAuthorization, navigate = defaultNavigateProduct }: IntegrationsProps) {
-  const { client, invalidate, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
+export function IntegrationsWorkspace({ api, canWrite, location, navigateAuthorization = defaultNavigateAuthorization, navigate = defaultNavigateProduct }: IntegrationsProps & { api: IntegrationsAPI }) {
+  const { invalidate, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
   const session = useOptionalSession();
   const fresh = session !== null && session.status === "authenticated" && session.isFreshAuthenticated;
   const scope = session?.status === "authenticated" ? `${session.organizationID}/${session.workspaceID}/${session.environmentID}` : null;
@@ -198,7 +199,6 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
   }, [owner]);
   const ownsSignIn = (key: string, sequence: number, expiry: number, stale: number) =>
     activeOwner.current === key && epoch.current === sequence && expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration();
-  const api = useMemo(() => createIntegrationsAPI(client), [client]);
   const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>("integrations", canWrite);
   const catalog = useAPIQuery("workflow:integration-catalog", api.listCatalog);
   const integrations = useAPIQuery("workflow:integrations", api.listIntegrations);
@@ -580,7 +580,7 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
         ) : integrations.status === "empty" ? (
           <EmptyState
             title="No integrations"
-            description="Choose a supported connector catalog entry to save its scoped configuration."
+            description={canWrite ? "Choose a provider under Add a source to connect this environment." : "Ask an environment administrator to connect a Nango source for this environment."}
           />
         ) : null}
       </Card>
@@ -590,9 +590,9 @@ function IntegrationsWorkspace({ canWrite, navigateAuthorization = defaultNaviga
         onRetry={catalog.retry}
         disabled={mutation.isUnresolved}
       />
-      {canWrite && (
+      {canWrite && (catalog.status === "success" || catalog.status === "empty") && (
         <Card title="Add a source">
-          <ConnectorCatalog manifests={catalog.data ?? []} disabled={busy || mutation.isUnresolved} onChoose={choose} />
+          <ConnectorCatalog focusSearch={location === "/connectors#add-source"} manifests={catalog.data ?? []} disabled={busy || mutation.isUnresolved} onChoose={choose} onRefresh={catalog.retry} />
         </Card>
       )}
       <Modal

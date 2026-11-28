@@ -8,7 +8,8 @@ import { checkCompiledBuild, checkSourceGraph } from "./check-production-imports
 
 async function fixture(files) {
   const root = await mkdtemp(join(tmpdir(), "zasp-production-imports-"));
-  await Promise.all(Object.entries(files).map(async ([name, value]) => {
+  const entries = { "app/deployment-admin/page.tsx": "export {};", ...files };
+  await Promise.all(Object.entries(entries).map(async ([name, value]) => {
     const path = join(root, name);
     await mkdir(join(path, ".."), { recursive: true });
     await writeFile(path, value);
@@ -58,7 +59,7 @@ test("source graph accepts an API-only production entry", async () => {
     "apps/web/api/client.ts": "export const get = 1;",
   });
   const result = await checkSourceGraph({ root });
-  assert.equal(result.files.length, 4);
+  assert.equal(result.files.length, 5);
 });
 
 test("source graph rejects transitive demo, fixture, and browser storage imports", async () => {
@@ -199,14 +200,16 @@ test("compiled closure accepts clean client and server chunks", async () => {
     "dist/server/.vite/manifest.json": JSON.stringify({
       "app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true, imports: ["_production.js"] },
       "app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true, imports: ["_production.js"] },
+      "app/deployment-admin/page.tsx": { file: "operator.js", src: "app/deployment-admin/page.tsx", isDynamicEntry: true },
       "_production.js": { file: "production.js", imports: [] },
     }),
     "dist/server/page.js": "export const page = true;",
     "dist/server/catch.js": "export const page = true;",
+    "dist/server/operator.js": "operator",
     "dist/server/production.js": "const title = 'Attack Paths';",
   });
   const result = await checkCompiledBuild({ root });
-  assert.deepEqual(result, { clientChunks: 5, serverChunks: 3 });
+  assert.deepEqual(result, { clientChunks: 5, serverChunks: 4 });
 });
 
 test("compiled closure rejects forbidden sources and bundled demo sentinels", async () => {
@@ -220,9 +223,11 @@ test("compiled closure rejects forbidden sources and bundled demo sentinels", as
     "dist/server/.vite/manifest.json": JSON.stringify({
       "app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true },
       "app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true },
+      "app/deployment-admin/page.tsx": { file: "operator.js", src: "app/deployment-admin/page.tsx", isDynamicEntry: true },
     }),
     "dist/server/page.js": "page",
     "dist/server/catch.js": "page",
+    "dist/server/operator.js": "operator",
   });
   await assert.rejects(() => checkCompiledBuild({ root: forbiddenSource }), /forbidden source/);
 
@@ -234,9 +239,11 @@ test("compiled closure rejects forbidden sources and bundled demo sentinels", as
     "dist/server/.vite/manifest.json": JSON.stringify({
       "app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true },
       "app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true },
+      "app/deployment-admin/page.tsx": { file: "operator.js", src: "app/deployment-admin/page.tsx", isDynamicEntry: true },
     }),
     "dist/server/page.js": "page",
     "dist/server/catch.js": "page",
+    "dist/server/operator.js": "operator",
   });
   await assert.rejects(() => checkCompiledBuild({ root: forbiddenSentinel }), /forbidden sentinel/);
 
@@ -251,9 +258,11 @@ test("compiled closure rejects forbidden sources and bundled demo sentinels", as
       "dist/server/.vite/manifest.json": JSON.stringify({
         "app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true },
         "app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true },
+        "app/deployment-admin/page.tsx": { file: "operator.js", src: "app/deployment-admin/page.tsx", isDynamicEntry: true },
       }),
       "dist/server/page.js": "page",
       "dist/server/catch.js": "page",
+      "dist/server/operator.js": "operator",
     });
     await assert.rejects(() => checkCompiledBuild({ root: forbiddenSensor }), /forbidden source/);
   }
@@ -269,9 +278,11 @@ test("compiled closure rejects forbidden sources and bundled demo sentinels", as
 			"dist/server/.vite/manifest.json": JSON.stringify({
 				"app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true },
 				"app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true },
+				"app/deployment-admin/page.tsx": { file: "operator.js", src: "app/deployment-admin/page.tsx", isDynamicEntry: true },
 			}),
 			"dist/server/page.js": "page",
 			"dist/server/catch.js": "page",
+			"dist/server/operator.js": "operator",
 		});
 		await assert.rejects(() => checkCompiledBuild({ root: forbiddenRedTeam }), /forbidden source/);
 	}

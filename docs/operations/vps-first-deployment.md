@@ -1,6 +1,24 @@
 # First deployment on a single-node VPS
 
-A fresh `./zasp config init` selects `vps`. This profile can bring up independent OpenBao and Nango services, install persistent Temporal and OpenFGA prerequisites, and rehearse encrypted backup and restore. The complete Zasp control plane remains gated. For a product demonstration today, initialize `local` or `kubernetes` explicitly. For a complete production topology use the AWS/EKS runbook. [Profile matrix](infrastructure-providers.md) · [AWS deployment](production-aws-runbook.md)
+A fresh `./zasp config init` selects the VPS profile. Install the stateful services once, then deploy signed Zasp application releases to the Production namespace. Each application rollout leaves the independent Nango and OpenSearch releases running. [Release controls](release-advisories.md) · [Provider matrix](infrastructure-providers.md)
+
+## Add Nango and OpenSearch to an existing k3s deployment
+
+From the VPS, inspect the current releases and services before choosing an endpoint. Use the local context you verified for the installation.
+
+```sh
+sudo k3s kubectl --context default get services -A
+sudo helm --kubeconfig /etc/rancher/k3s/k3s.yaml --kube-context default list -A
+```
+
+If the inventory shows only the evaluation Service `zasp` in namespace `zasp`, the URLs below become available after installing their independent releases. Start with `./zasp --profile vps install namespaces` using the reviewed operator configuration. Then follow each service's setup guide. These releases can run alongside the existing evaluation pod. Switching the application or transferring existing data is a separate operation. [Evaluation cutover](vps-evaluation-cutover.md)
+
+| Service | Install and reach it from your workstation | How you authenticate |
+| --- | --- | --- |
+| Nango in `connectors` | Provision its PostgreSQL database, TLS and keys, then install the chart and tunnel to `https://nango.connectors.svc.cluster.local:18443/`. | Create and verify the first operator account, then sign in with its email and password. Configure provider credentials in Nango’s **prod** environment. [Nango setup and login](independent-nango.md#access-nango-and-configure-a-provider) |
+| OpenSearch in `opensearch` | Provision its storage and TLS identities, then install the chart and tunnel to `https://opensearch.opensearch.svc.cluster.local:19200/`. | Use the issuing CA and an authorized client certificate and key with the REST API. [OpenSearch setup and access](../../deploy/vps/opensearch/README.md) |
+
+Inside the cluster, Zasp uses port `8443` for Nango and `9200` for OpenSearch. The forwarded ports in the table serve the operator workstation. Nango’s OAuth callback uses the public HTTPS origin of the Zasp web application.
 
 ## 1. Prepare and identify the host
 
@@ -39,11 +57,41 @@ Copy the context and UID into `ZASP_VPS_KUBE_CONTEXT` and `ZASP_VPS_CLUSTER_UID`
 | Job queues | `sqs`, audit encryption `provider-managed` | Pre-provision the actual discovery queue and, where selected, audit work queue and DLQ. Select SSE-SQS on the audit pair. Retain required encryption on every other queue. Discovery and recovery continue to require their KMS-backed queues. |
 | Archives | `ZASP_BACKUP_PROVIDER=r2` | Private bucket, account ID, restricted writer credentials, public encryption recipient, and independently retrievable read/decryption credentials. |
 
-Enter the real account, region, S3 bucket and SQS URLs in the generated config. The AWS preflight uses the dedicated `ZASP_VPS_AWS_DOCTOR_ROLE_ARN` and protected `ZASP_VPS_AWS_DOCTOR_TOKEN_FILE`. Bind the doctor role’s trust policy to the installation issuer, audience `sts.amazonaws.com` and subject `system:serviceaccount:agentsec:zasp-vps-doctor`. Deliver its rotating token as an owner-only file. The doctor session reads S3 bucket and SQS queue metadata. Qualify runtime writes, KMS grants and redelivery separately. Provision short-lived workload credentials separately for each data-plane role. Keep the customer’s discovery roles and external IDs separate from this infrastructure identity. The VPS installer does not run EKS Terraform. [k3s to AWS identity](k3s-aws-identity.md) · [Evidence encryption](evidence-encryption.md) · [Queue encryption](audit-export-queue-encryption.md)
+Enter the real account, region, S3 bucket and SQS URLs in the generated config. The AWS preflight uses the dedicated `ZASP_VPS_AWS_DOCTOR_ROLE_ARN` and protected `ZASP_VPS_AWS_DOCTOR_TOKEN_FILE`. Bind the doctor role’s trust policy to the installation issuer, audience `sts.amazonaws.com` and subject `system:serviceaccount:zasp:zasp-vps-doctor`. Deliver its rotating token as an owner-only file. The doctor session reads S3 bucket and SQS queue metadata. Qualify runtime writes, KMS grants and redelivery separately. Provision short-lived workload credentials separately for each data-plane role. Keep the customer’s discovery roles and external IDs separate from this infrastructure identity. The VPS installer does not run EKS Terraform. [k3s to AWS identity](k3s-aws-identity.md) · [Evidence encryption](evidence-encryption.md) · [Queue encryption](audit-export-queue-encryption.md)
 
 Record the intended public HTTPS origin and digest references for the three Zasp images. Operator-side manifest inspection may use `ZASP_VPS_REGISTRY_AUTH_FILE`; provision registry access for the cluster separately. Supply a digest-pinned CNPG-compatible PostgreSQL image and set the actual storage and sizing values in each release. Keep credentials out of Helm values and out of shell arguments. Record the live Stytch B2B project ID and public token for `ZASP_STYTCH_PROJECT_ID` and `ZASP_STYTCH_PUBLIC_TOKEN`. Project `ZASP_STYTCH_SECRET_FILE` and `ZASP_STYTCH_WEBHOOK_SECRET_FILE` from protected files. The optional planner receives its own OpenRouter token file. These application settings take effect only in a supported application release. [Workload secret projection](openbao-connector-secrets.md) · [Stytch settings](../getting-started/administrator.md#stytch-settings)
 
 ## 3. Install the independent stateful components
+
+Run `./zasp --profile vps install namespaces` with the reviewed installation configuration. It checks the cluster UID and ownership before creating missing namespaces. It leaves unrelated namespaces alone. For an existing evaluation namespace, setup verifies the Helm-owned `zasp` StatefulSet and applies only the installation label. Other existing namespaces must already belong to the installation.
+
+| Namespace | Release and lifecycle |
+| --- | --- |
+| `zasp` | Production application, Helm release `agentsec`. Existing evaluation release `zasp` has separate ownership. The deployment workflow updates this release after the main commit passes verification. |
+| `connectors` | Independent Nango release with its own persistent database, private dashboard and environment credentials. |
+| `opensearch` | Independent search service, PVC, certificate identities and index permissions. |
+| `staging` | Reserved for future use. The installer creates the namespace only. |
+
+```mermaid
+flowchart LR
+    CD[GitHub CD] -->|Helm release agentsec| App
+    subgraph App["zasp namespace"]
+        Web[Zasp web and deployment console] --> API[API]
+        Workers[Schedulers, discovery and projectors]
+    end
+    API --> Nango["connectors · Nango"]
+    Workers --> Nango
+    Nango --> Providers[SaaS providers]
+    API --> Search["opensearch · OpenSearch"]
+    Workers --> Search
+    App --> ProductDB[(Product PostgreSQL)]
+    API --> FGA["zasp-runtime · OpenFGA"]
+    Workers --> Temporal["zasp-runtime · Temporal"]
+    FGA --> FgaDB[("zasp-data · OpenFGA database")]
+    Temporal --> TemporalDB[("zasp-data · Temporal databases")]
+```
+
+The boxes for OpenFGA and Temporal represent separate Helm releases and pods. Nango uses its own PostgreSQL database. The site supplies the product database, graph, object store and queues through its private release values. The existing evaluation pod belongs to the separate release `zasp`.
 
 1. Create the required namespaces, TLS certificates, protected Secret objects and database identities using the linked component procedures. Label the dedicated managed namespaces `zasp.io/installation=<your-installation-id>`; verify ownership before operating on existing resources. The runtime dependency unit installs separate PostgreSQL clusters for OpenFGA, Temporal persistence and Temporal visibility. Provision a separate persistent Nango database and role. Keep its encryption key and an independently recoverable copy of that key. [Dependency setup and certificates](../../deploy/vps/dependencies/README.md) · [Independent service setup](vps-independent-services.md) · [Nango database and TLS](independent-nango.md)
 2. Set `ZASP_VPS_OPENBAO_VALUES_FILE` and `ZASP_VPS_NANGO_VALUES_FILE` to reviewed absolute paths. Prepare the trusted CAs and scoped operator credentials in the file locations named by the config. Preview each install with `--dry-run`, then run the selected steps:
@@ -91,7 +139,18 @@ curl --cacert /secure/openbao-ca.pem --resolve openbao.openbao-system.svc:18200:
 
 Register Stytch Login/Signup at `<origin>/auth/callback?state={}` and Invite at `<origin>/auth/callback`. SaaS integrations use `<origin>/api/v1/integrations/oauth/callback`. Only the public product endpoints should receive those callbacks. [Provider callbacks](saas-connectors.md) · [Stytch configuration](../getting-started/administrator.md#stytch-settings)
 
-`./zasp up`, `./zasp start`, and `./zasp bootstrap-admin` on VPS stop at the application gate. There is no supported step to invite the first VPS administrator yet. Outstanding work includes a complete product database/schema and per-role deployment, qualified production search across readers and writers, TLS-authenticated graph projection, and a complete product/worker rollout with an ingress and readiness checks. The existing production search requires Amazon OpenSearch endpoints and signed requests. Using evaluation settings would violate the production contracts. For the complete AWS topology, use a separate `aws` configuration. Publish the authorization model, set `ZASP_ORGANIZATION_NAME`, `ZASP_ORGANIZATION_DOMAIN` and `ZASP_ADMIN_EMAIL`, then run `./zasp --config /secure/eks.env bootstrap-admin` per its runbook. [Search dependencies](search-provider-compatibility.md) · [Production rollout and first administrator](production-aws-runbook.md)
+Install the independent OpenSearch chart with the per-service certificates and security settings. Give each consuming Zasp workload its own client Secret. For a cutover, verify or rebuild the inventory and session indexes from the source system before admitting traffic. [Search installation and certificate assignments](../../deploy/vps/opensearch/README.md) · [Client behavior](search-provider-compatibility.md)
+
+If the live UI runs on the evaluation pod, keep its service and volume while transferring the data directly. Move traffic after verifying the new application can read the same inventory and members. [Direct evaluation cutover](vps-evaluation-cutover.md)
+
+Prepare the site’s product database, identity provider, graph, object storage, queues and workload identities in the private hosted-chart values. Set the deployment identifier and provision the operator console password and database credential. Bind the approved application images and the rendered Production overlay to the release evidence. Then install from the selected VPS context.
+
+```sh
+./zasp --profile vps install application
+./zasp --profile vps status application
+```
+
+The first install verifies the cluster UID and namespace owner and refuses to replace an existing release. Routine deployments use the same signed release checks in GitHub Actions. The production workflow enables CD for upstream main. Configure the runner, protected environment and evidence producers for signed upgrades. The independent services retain their own upgrade and backup schedules. [Production CD enrollment](release-advisories.md) · [Deployment Administrator console](deployment-admin.md)
 
 ## 5. Verify offsite recovery before relying on these services
 
@@ -125,6 +184,6 @@ Record the installed Helm revisions, image digests, values, provider configurati
 | Database recovery | Hosted CI dumped a populated PostgreSQL 16 database over verified TLS, restored it into a fresh database, and checked the recovered row. The VPS dependency installer targets PostgreSQL 18. |
 | OpenBao | Hosted CI initialized a real TLS-protected server with PGP recipients, unsealed it with three custodians, and checked scoped authentication. A separate two-server drill restored a Raft snapshot and verified retained KV data and Transit signatures. |
 | AWS and R2 | Tests exercised provider selection, identity isolation, encryption, receipts and integrity through controlled fixtures. Live bucket tests require operator-provided accounts and credentials. |
-| Customer pilot | Full application startup remains gated. A customer VPS deployment, host reboot, live Nango OAuth flow, and capacity at the proposed host size remain unverified. |
+| Target VPS | Verify cluster identity, application readiness, Nango login, a provider sync, search access, backup and host reboot on the installation. The automation tests run against isolated infrastructure. |
 
 The CI run records which checks executed for these deployment scripts. Repeat the cluster, bucket and recovery checks for the installation you intend to use. [Hosted infrastructure results](https://github.com/crossbizz/zasp-sec/actions/runs/45741762439)

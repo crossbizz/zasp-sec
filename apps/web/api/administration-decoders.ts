@@ -1,7 +1,7 @@
 import type { ApiToken, ApiTokenPage, ApiTokenPolicy, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage, AuditEventPage, BuiltInRolePage, ComplianceControlPage, ComplianceEvidencePage, ConnectionDeletion, ConnectionTest, DataControls, EnvironmentMutation, EnvironmentPage, ExternalFlowPage, GroupMapping, GroupMappingPage, Organization, Principal, PrincipalPage, ScimConnection, ScimConnectionCredential, ScimConnectionPage, Session, ConsoleSessionEventPage as SessionEventPage, ConsoleSessionPage as SessionPage, SsoConnection, SsoConnectionMutation, SsoConnectionPage, SystemComponentPage, SystemStatus, SystemVersion, WorkspaceMutation, WorkspacePage } from "./generated";
 
 import { decodeComplianceRecord } from "./compliance-decoders";
-import type { BuiltInRoleName } from "./generated";
+import type { BuiltInRoleName, MemberAccess, MemberInvitation, MemberInvitationPage } from "./generated";
 
 // Public role names are input metadata, never current permission authority.
 export const BUILT_IN_ROLE_NAMES: BuiltInRoleName[] = ["organization_admin", "security_admin", "security_engineer", "developer_owner", "compliance_viewer", "read_only_viewer"];
@@ -16,7 +16,36 @@ export const decodeWorkspace = (value: unknown) => decoded<WorkspaceMutation>(va
 export const decodeWorkspacePage = (value: unknown) => page<WorkspacePage>(value, decodeWorkspace);
 export const decodeEnvironment = (value: unknown) => decoded<EnvironmentMutation>(value, ["id", "organization_id", "workspace_id", "name", "environment_class", "version"], (record) => { id(record.id); id(record.organization_id); id(record.workspace_id); text(record.name, 128); one(record.environment_class, ["development", "test", "staging", "production"]); version(record.version); }, ["audit_correlation_id"]);
 export const decodeEnvironmentPage = (value: unknown) => page<EnvironmentPage>(value, decodeEnvironment);
-export const decodePrincipal = (value: unknown) => decoded<Principal>(value, ["id", "organization_id", "organization_reference", "member_reference", "role", "active"], (record) => { id(record.id); id(record.organization_id); text(record.organization_reference, 128); text(record.member_reference, 128); role(record.role); if (typeof record.active !== "boolean") bad(); if (record.version !== undefined) version(record.version); }, ["version", "audit_correlation_id"]);
+function emailAddress(value: unknown) {
+  text(value, 254);
+  if (typeof value !== "string" || !/^[^\s@]+@[^\s@]+$/u.test(value)) bad();
+}
+function displayName(value: unknown) {
+  if (typeof value !== "string" || !value.length || [...value].length > 128 || value.trim() !== value || /\p{Cc}/u.test(value)) bad();
+}
+export const decodePrincipal = (value: unknown) => decoded<Principal>(value, ["id", "organization_id", "organization_reference", "member_reference", "role", "active"], record => {
+  id(record.id); id(record.organization_id); text(record.organization_reference, 128); text(record.member_reference, 128);
+  role(record.role);
+  if (typeof record.active !== "boolean") bad();
+  if (record.version !== undefined) version(record.version);
+  if (record.email !== undefined) emailAddress(record.email);
+  if (record.display_name !== undefined) displayName(record.display_name);
+}, ["email", "display_name", "version", "audit_correlation_id"]);
+export const decodeMemberInvitation = (value: unknown) => decoded<MemberInvitation>(value, ["id", "workspace_id", "environment_id", "display_name", "email", "role", "status"], record => {
+  id(record.id); id(record.workspace_id); id(record.environment_id);
+  emailAddress(record.email); displayName(record.display_name); role(record.role);
+  one(record.status, ["pending", "accepted"]);
+});
+export const decodeMemberInvitationPage = (value: unknown) => page<MemberInvitationPage>(value, decodeMemberInvitation);
+export const decodeMemberAccess = (value: unknown) => decoded<MemberAccess>(value, ["member_id", "items"], record => {
+  id(record.member_id);
+  if (!Array.isArray(record.items)) bad();
+  for (const item of record.items) {
+    const scope = exact(item, ["workspace_id", "environment_id", "workspace_name", "environment_name", "role", "permissions"]);
+    id(scope.workspace_id); id(scope.environment_id); text(scope.workspace_name, 128); text(scope.environment_name, 128);
+    role(scope.role); strings(scope.permissions, 32);
+  }
+});
 export const decodePrincipalPage = (value: unknown) => page<PrincipalPage>(value, decodePrincipal);
 export const decodeBuiltInRolePage = (value: unknown) => page<BuiltInRolePage>(value, (entry) => decoded(entry, ["role", "permissions"], (record) => { role(record.role); strings(record.permissions, 32); }));
 export const decodeGroupMapping = (value: unknown) => decoded<GroupMapping>(value, ["group_reference", "role", "workspace_id", "environment_id", "version"], (record) => { if (typeof record.group_reference !== "string" || !/^scim-group-(?:test|live)-[A-Za-z0-9_-]+$/.test(record.group_reference)) bad(); role(record.role); id(record.workspace_id); id(record.environment_id); version(record.version); }, ["audit_correlation_id"]);

@@ -124,12 +124,21 @@ test("unsupported providers fail closed before dispatching component operations"
   f.noExternalCalls();
 });
 
-test("whole-application operations refuse the unavailable pilot and preserve shared components", t => {
+test("untargeted VPS operations require an explicit component", t => {
   const f = fixture(t);
   f.writeConfig("ZASP_PROFILE=vps\n");
   for (const args of [["install"], ["up"], ["start"], ["stop"], ["upgrade"], ["bootstrap-admin"], ["uninstall", "--yes"]]) {
-    expect(f.run(args), 1, /VPS application deployment is unavailable/i);
+    expect(f.run(args), 1, /Select a VPS operation/i);
   }
+  f.noExternalCalls();
+});
+
+test("explicit production setup uses the namespace initializer and signed first-install path", t => {
+  const f = fixture(t);
+  f.writeConfig("ZASP_PROFILE=vps\n");
+  expect(f.run(["--dry-run", "install", "namespaces"]), 0, /vps_production.py namespaces/);
+  expect(f.run(["--dry-run", "install", "application"]), 0, /release-security\/deploy.mjs install-vps-production/);
+  expect(f.run(["--dry-run", "status", "application"]), 0, /vps_production.py status/);
   f.noExternalCalls();
 });
 
@@ -156,8 +165,8 @@ test("VPS dry runs dispatch the selected component and leave local and external 
     [["upgrade", "openbao"], /openbao: dry run; upgrade/],
     [["stop", "nango"], /nango: dry run; stop/],
   ]) expect(f.run(["--dry-run", ...args]), 0, pattern);
-  expect(f.run(["--dry-run", "doctor"]), 1, /BLOCKED full customer-pilot startup/i);
-  expect(f.run(["--dry-run", "status"]), 1, /application: unavailable/i);
+  expect(f.run(["--dry-run", "doctor"]), 1, /signed application install/i);
+  expect(f.run(["--dry-run", "status"]), 0, /vps_production.py status/i);
   assert.deepEqual(readdirSync(f.root).sort(), before);
   assert.deepEqual(readdirSync(f.state), ["status.token"]);
   assert.equal(readFileSync(f.config, "utf8"), original);

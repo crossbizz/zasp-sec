@@ -1,0 +1,33 @@
+{{- if or (ne .Release.Name "opensearch") (ne .Release.Namespace "opensearch") }}
+{{- fail "Install the opensearch release in its peer opensearch namespace" }}
+{{- end }}
+{{- if not (regexMatch "@sha256:[0-9a-f]{64}$" .Values.image) }}
+{{- fail "An immutable OpenSearch image digest is required" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: opensearch-node}
+data:
+  opensearch.yml: |
+    cluster.name: zasp-production-search
+    node.name: opensearch-0
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    node.store.allow_mmap: false
+    plugins.security.ssl.transport.pemcert_filepath: tls/tls.crt
+    plugins.security.ssl.transport.pemkey_filepath: tls/tls.key
+    plugins.security.ssl.transport.pemtrustedcas_filepath: tls/ca.crt
+    plugins.security.nodes_dn: ["CN=opensearch-node"]
+    plugins.security.authcz.admin_dn: ["CN=opensearch-security-admin"]
+    plugins.security.ssl.http.enabled: true
+    plugins.security.ssl.http.clientauth_mode: REQUIRE
+    plugins.security.ssl.http.pemcert_filepath: tls/tls.crt
+    plugins.security.ssl.http.pemkey_filepath: tls/tls.key
+    plugins.security.ssl.http.pemtrustedcas_filepath: tls/ca.crt
+    plugins.security.allow_default_init_securityindex: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: opensearch-security-configuration}
+data:
+  {{- (.Files.Glob "files/security/*.yml").AsConfig | nindent 2 }}

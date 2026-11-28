@@ -20,6 +20,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/delegation/issuer"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway"
+	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 )
 
@@ -82,6 +83,7 @@ type CookiePolicy struct {
 	FindingTickets          FindingTicketCreator
 	IntegrationWebhookTests IntegrationWebhookTester
 	AuditPublicPages        *AuditPublicPageRepository
+	WorkflowTelemetry       WorkflowTelemetry
 }
 
 type sessionRepository interface {
@@ -111,6 +113,10 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	}
 	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || nilInterface(connector) || len(cookie.TokenRevealKey) != 32 {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
+	}
+	administration := *repository
+	if directory, ok := provider.(MemberDirectory); ok {
+		administration.memberDirectory = directory
 	}
 	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion || isIdentityAdministrationSchema(repository.schema)
 	if cookie.SecurityAgentOrderedHTTPEnabled && !securityAgentSchema {
@@ -294,12 +300,13 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		}
 	}
 	return Dependencies{
-		Session:   session,
-		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, identityAdministration: identityAdministration, tokenPolicy: &apiTokenPolicyHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}, auditPublicPages: cookie.AuditPublicPages, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
-		Inventory: inventorySurface,
-		Risk:      risk,
-		Workflow:  workflowSurface,
-		Connector: connector,
+		WorkflowTelemetry: cookie.WorkflowTelemetry,
+		Session:           session,
+		Identity:          &identityHTTPHandler{repository: repository, administration: &administration, provider: provider, identityAdministration: identityAdministration, tokenPolicy: &apiTokenPolicyHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}, auditPublicPages: cookie.AuditPublicPages, postHogEnabled: !nilInterface(cookie.WorkflowTelemetry), signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
+		Inventory:         inventorySurface,
+		Risk:              risk,
+		Workflow:          workflowSurface,
+		Connector:         connector,
 	}, mustDeploymentAuthenticator(repository.Authenticate, cookie.DeploymentMode, pinnedOrganization), nil
 }
 
@@ -546,6 +553,7 @@ type identityHTTPHandler struct {
 	// tokenPolicy serves the API token lifetime setting of an Environment.
 	tokenPolicy      *apiTokenPolicyHTTPHandler
 	auditPublicPages *AuditPublicPageRepository
+	postHogEnabled   bool
 	signingKey       []byte
 	tokenRevealKey   []byte
 	now              func() time.Time
@@ -794,7 +802,10 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			mutation.InitialEnvironmentID, err = newWorkflowProductID()
 		}
 		mutation.Name, status = input.Name, http.StatusCreated
-	case "updateWorkspace", "updateEnvironment":
+	case "updateOrganization", "updateWorkspace", "updateEnvironment":
+		if routed.OperationID == "updateOrganization" {
+			mutation.ID = identity.Scope.OrganizationID().String()
+		}
 		var input struct {
 			Name string `json:"name"`
 		}
@@ -826,6 +837,38 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		}
 		mutation.ID, err = newWorkflowProductID()
 		mutation.WorkspaceID, mutation.Name, status = input.WorkspaceID, input.Name, http.StatusCreated
+	case "inviteMember":
+		var input struct {
+			Email       string `json:"email"`
+			DisplayName string `json:"display_name"`
+			Role        string `json:"role"`
+		}
+		mutation.IdempotencyKey = request.Header.Get("Idempotency-Key")
+		if decodeProductionJSON(request, &input) != nil || !validAdministrationName(input.DisplayName) || !validAdministrationRole(input.Role) || !validAdministrationIdempotencyKey(mutation.IdempotencyKey) {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		email, valid := platformidentity.CanonicalMemberEmail(input.Email)
+		if !valid {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		mutation.Name, mutation.Email, mutation.Role = input.DisplayName, email, input.Role
+		mutation.ID, err = newWorkflowProductID()
+		status = http.StatusCreated
+	case "updateMemberProfile":
+		var input struct {
+			DisplayName string `json:"display_name"`
+		}
+		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
+		if err == nil {
+			err = decodeProductionJSON(request, &input)
+		}
+		if err != nil || !validAdministrationProductID(mutation.ID) || !validAdministrationName(input.DisplayName) {
+			writeWorkflowMutationError(writer, request, errOrOperation(err))
+			return
+		}
+		mutation.Name = input.DisplayName
 	case "updateMemberRole":
 		var input struct {
 			Role string `json:"role"`
@@ -911,12 +954,12 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			return
 		}
 		status = http.StatusNoContent
-	case "revokeAPIToken", "revokeSession":
+	case "removeMember", "revokeAPIToken", "revokeSession":
 		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
 		if err == nil {
 			err = requireZeroByteInput(request)
 		}
-		if err != nil || mutation.ID == "" || routed.OperationID == "revokeAPIToken" && !validAdministrationProductID(mutation.ID) {
+		if err != nil || mutation.ID == "" || routed.OperationID != "revokeSession" && !validAdministrationProductID(mutation.ID) {
 			writeWorkflowMutationError(writer, request, errOrOperation(err))
 			return
 		}
@@ -1076,7 +1119,7 @@ func newAdministrationToken(previous error) (string, error) {
 
 func administrationPagedOperation(operation string) bool {
 	switch operation {
-	case "listWorkspaces", "listEnvironments", "listMembers", "listGroupMappings", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence", "listSSOConnections", "listSCIMConnections":
+	case "listWorkspaces", "listEnvironments", "listMembers", "listMemberInvitations", "listGroupMappings", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence", "listSSOConnections", "listSCIMConnections":
 		return true
 	default:
 		return false
@@ -1317,6 +1360,9 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			state = "healthy"
 		}
 		items := []any{map[string]any{"id": "identity-provider", "required": true, "categories": []string{"identity_metadata"}, "enabled": true, "health": state}}
+		if handler.postHogEnabled {
+			items = append(items, map[string]any{"id": "posthog", "required": false, "categories": []string{"product_usage"}, "enabled": true, "health": "unknown"})
+		}
 		intent, err := handler.modelFlow(request, routed.OperationID)
 		if err != nil {
 			writeProductionError(writer, request, err)
@@ -1462,8 +1508,11 @@ func writeProductionResponse(writer http.ResponseWriter, request *http.Request, 
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
-	_, _ = writer.Write(payload)
-	_, _ = writer.Write([]byte("\n"))
+	_, bodyErr := writer.Write(payload)
+	_, newlineErr := writer.Write([]byte("\n"))
+	if bodyErr == nil && newlineErr == nil {
+		recordWorkflowResponse(request, status)
+	}
 }
 
 func writeProductionError(writer http.ResponseWriter, request *http.Request, err error) {

@@ -1,0 +1,21 @@
+_meta: {type: roles, config_version: 2}
+zasp_api:
+  index_permissions:
+    - index_patterns: [zasp-runtime-events-v1, zasp-runtime-sessions-v1, zasp-runtime-sessions-v2]
+      allowed_actions: ["indices:data/read/search*", "indices:data/read/get*", "indices:admin/mappings/get*"]
+zasp_inventory:
+  cluster_permissions: ["indices:data/write/bulk", "indices:data/read/mget"]
+  index_permissions:
+    - index_patterns: [zasp-inventory-v1]
+      allowed_actions: ["indices:data/read/get*", "indices:data/read/mget*", "indices:data/read/search*", "indices:data/write/bulk*", "indices:data/write/index*", "indices:data/write/update*", "indices:data/write/delete*", "indices:admin/mappings/get*"]
+zasp_runtime:
+  cluster_permissions: ["indices:data/write/bulk", "indices:data/read/mget"]
+  index_permissions:
+    - index_patterns: [zasp-runtime-events-v1, zasp-runtime-sessions-v1, zasp-runtime-sessions-v2]
+      allowed_actions: ["indices:data/read/get*", "indices:data/read/mget*", "indices:data/read/search*", "indices:data/write/bulk*", "indices:data/write/index*", "indices:data/write/update*", "indices:admin/refresh*", "indices:admin/mappings/get*"]
+zasp_schema:
+  # OpenSearch routes single-document schema marker creation through its bulk coordinator.
+  cluster_permissions: ["indices:data/write/bulk"]
+  index_permissions:
+    - index_patterns: [zasp-inventory-v1, zasp-runtime-events-v1, zasp-runtime-sessions-v1, zasp-runtime-sessions-v2]
+      allowed_actions: ["indices:admin/create", "indices:admin/mapping/put", "indices:admin/mappings/get*", "indices:data/read/get*", "indices:data/write/bulk*", "indices:data/write/index*"]

@@ -26,15 +26,13 @@ See docs/operations/baseline-schema-install.md.
 {{- end -}}
 
 {{- /*
-verify-baseline succeeds only on an installed, intact baseline from this
-release's artifact. On an empty database it fails, install-baseline runs in one
-transaction, and the result is verified. On a database that holds anything
-else install-baseline refuses, so the job fails without changing it. The four
+ensure-baseline installs an empty database or upgrades a supported sealed catalog
+in one transaction, including the authorization readiness check. The four
 registrations are repeated on every run. The identity verifiers need the first
 Organization, so they are registered only when asked.
 */ -}}
 {{- define "zasp.baseline.schemaCommand" -}}
-export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; export ZASP_WORKFLOW_SIGNING_KEY="$(cat /var/run/secrets/zasp-migration/workflow-signing-key)"; if ! /app/agentsec-migrate verify-baseline; then /app/agentsec-migrate install-baseline; /app/agentsec-migrate verify-baseline; fi; /app/agentsec-migrate register-authorization-verifier; /app/agentsec-migrate register-worker-authorization-verifier; /app/agentsec-migrate register-compensation-authorization-verifier; /app/agentsec-migrate register-approval-maintenance-verifier{{ if .Values.schema.registerIdentityVerifiers }}; export ZASP_STYTCH_PROJECT_ID="$(cat /var/run/secrets/zasp-migration/stytch-project-id)"; export ZASP_STYTCH_ORGANIZATION_ID="$(cat /var/run/secrets/zasp-migration/stytch-organization-id)"; /app/agentsec-migrate register-identity-session-verifier; /app/agentsec-migrate register-identity-webhook-verifier{{ end }}
+export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; export ZASP_WORKFLOW_SIGNING_KEY="$(cat /var/run/secrets/zasp-migration/workflow-signing-key)"; /app/agentsec-migrate ensure-baseline; /app/agentsec-migrate register-authorization-verifier; /app/agentsec-migrate register-worker-authorization-verifier; /app/agentsec-migrate register-compensation-authorization-verifier; /app/agentsec-migrate register-approval-maintenance-verifier{{ if .Values.schema.registerIdentityVerifiers }}; export ZASP_STYTCH_PROJECT_ID="$(cat /var/run/secrets/zasp-migration/stytch-project-id)"; export ZASP_STYTCH_ORGANIZATION_ID="$(cat /var/run/secrets/zasp-migration/stytch-organization-id)"; /app/agentsec-migrate register-identity-session-verifier; /app/agentsec-migrate register-identity-webhook-verifier{{ end }}
 {{- end -}}
 
 {{- /*

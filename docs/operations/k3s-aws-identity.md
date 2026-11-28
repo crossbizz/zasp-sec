@@ -2,11 +2,13 @@
 
 The existing discovery and recovery binaries call regional STS with a rotating Kubernetes service-account token. The k3s preflight tests the same role, session name, audience and token path before an operator starts a worker. It can check each identity separately. It does not start jobs or access customer accounts.
 
-| Worker | Kubernetes service account in `agentsec` | AWS role | Application inputs |
+| Worker | Production Kubernetes service account | AWS role | Application inputs |
 | --- | --- | --- | --- |
 | Discovery | `zasp-discovery-worker` | `<cluster>-discovery-worker` | `ZASP_DISCOVERY_ROLE_ARN`, `ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE` |
 | Recovery backup | `zasp-recovery-backup` | `<cluster>-recovery-backup` | `ZASP_RECOVERY_ROLE_ARN`, `ZASP_RECOVERY_WEB_IDENTITY_TOKEN_FILE` |
 | Recovery restore | `zasp-recovery-restore` | `<cluster>-recovery-restore` | `ZASP_RECOVERY_ROLE_ARN`, `ZASP_RECOVERY_WEB_IDENTITY_TOKEN_FILE` |
+
+The production product release uses the `zasp` namespace. Use its exact namespace in the IAM subject, Job and VPS doctor configuration. A legacy installation with a different namespace can set `ZASP_VPS_APP_NAMESPACE` explicitly for its preflights. Identically named service accounts in different namespaces have distinct identities.
 
 ## Establish the issuer
 
@@ -25,25 +27,26 @@ account=123456789012
 cluster=zasp-pilot
 workload=discovery-worker
 region=us-east-1
+namespace=zasp
 # Set AWS_CLI_IMAGE to the verified public.ecr.aws/aws-cli/aws-cli@sha256:... reference.
 
-python3 "$identity" trust --workload "$workload" --cluster "$cluster" \
+python3 "$identity" trust --namespace "$namespace" --workload "$workload" --cluster "$cluster" \
   --account "$account" --issuer "$issuer" > "$workload.trust-statement.json"
 
-python3 "$identity" preflight --workload "$workload" --cluster "$cluster" \
+python3 "$identity" preflight --namespace "$namespace" --workload "$workload" --cluster "$cluster" \
   --account "$account" --issuer "$issuer" --region "$region" \
   --image "$AWS_CLI_IMAGE" > "$workload.preflight.json"
 ```
 
 Review the trust statement and add it only to the associated infrastructure role. It binds the exact IAM issuer, audience and service-account subject. Keep any EKS trust still in use. The trust statement grants no data-plane permissions. Keep separate resource policies for discovery, backup and restore. In the cluster, restrict who can deploy Pods or request tokens for these privileged service accounts. A principal who can run arbitrary Pods as one of these service accounts can use its workload role. [AWS STS web identity](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html)
 
-The manifest contains a service account and a short-lived Job in the existing `agentsec` namespace. Inspect an existing account of the same name before applying the manifest. The Job disables the default Kubernetes API token, requests one STS-only token and mounts it read-only. It exchanges that file for a 15-minute session with a deny-all session policy and checks the returned identity fields. It uses a verified regional STS HTTPS endpoint and filters credentials out of stdout. For an authorized cluster check:
+The manifest contains a service account and a short-lived Job in the selected application namespace. Inspect an existing account of the same name before applying the manifest. The Job disables the default Kubernetes API token, requests one STS-only token and mounts it read-only. It exchanges that file for a 15-minute session with a deny-all session policy and checks the returned identity fields. It uses a verified regional STS HTTPS endpoint and filters credentials out of stdout. For an authorized cluster check:
 
 ```bash
 kubectl apply --dry-run=server -f "$workload.preflight.json"
 kubectl apply -f "$workload.preflight.json"
-kubectl -n agentsec wait --for=condition=complete --timeout=150s "job/zasp-$workload-identity-check"
-kubectl -n agentsec logs "job/zasp-$workload-identity-check"
+kubectl -n "$namespace" wait --for=condition=complete --timeout=150s "job/zasp-$workload-identity-check"
+kubectl -n "$namespace" logs "job/zasp-$workload-identity-check"
 ```
 
 Success prints `AWS verified the workload identity.` Check the Job status and logs for a failed probe. Check public discovery/JWKS reachability, role trust, token audience, and regional STS egress. For another attempt, rerun after the finished Job is removed. Repeat separately with `workload=recovery-backup` and `workload=recovery-restore`.

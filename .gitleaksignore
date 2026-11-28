@@ -1931,3 +1931,6 @@ f398bb67d51db34a57ab82829ccee2d4419bdbaa:workers/security-python/tests/test_prow
 fd54a5738723b3eb35bc3dfda86c286d672c62b3:services/platform/agentsec-worker/recovery_provider_roundtrip_test.go:generic-api-key:53
 fd54a5738723b3eb35bc3dfda86c286d672c62b3:services/platform/agentsec-worker/recovery_signing_provider_test.go:generic-api-key:43
 fd54a5738723b3eb35bc3dfda86c286d672c62b3:services/platform/recovery/transit/signing_test.go:generic-api-key:18
+
+# Synthetic UUID used only for the temporary Nango startup-validation test.
+b6616aa3dbd4125cbb9ce368e29a93bf918af769:deploy/vps/nango/tests/test_nango.py:generic-api-key:32
