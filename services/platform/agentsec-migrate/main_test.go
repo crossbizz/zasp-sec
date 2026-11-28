@@ -699,7 +699,7 @@ func TestPrecisionExplicitReleaseCommand(t *testing.T) {
 			t.Errorf("historical command %s changed precision: version=%d events=%v err=%v", command, runner.version, runner.events, err)
 		}
 	}
-	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-56"}, {"down-to-50"}} {
+	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-51x"}, {"down-to-50"}} {
 		if isForwardMigration(args) {
 			t.Error("unexpected forward command", args)
 		}
